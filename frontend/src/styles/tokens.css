@@ -1,0 +1,119 @@
+/* DESIGN.md §17 Design Tokens — 그대로 옮긴 것. 값을 바꾸려면 DESIGN.md를 먼저 갱신한다. */
+
+:root {
+  /* color — neutral & surface */
+  --color-bg: #F5F7FA;
+  --color-surface: #FFFFFF;
+  --color-surface-muted: #EEF1F5;
+  --color-surface-sunken: #E4E8EE;
+  --color-border: #DDE2E9;
+  --color-border-strong: #B9C1CC;
+  --color-text-primary: #17202B;
+  --color-text-secondary: #444E5B;
+  --color-text-muted: #656F7C;
+  --color-text-disabled: #9AA3AE;
+  --color-text-inverse: #FFFFFF;
+
+  /* color — accent (Harbor Blue, 행동·선택 전용) */
+  --color-accent: #1D5BBF;
+  --color-accent-hover: #174CA0;
+  --color-accent-active: #123E84;
+  --color-accent-subtle: #EAF1FC;
+  --color-accent-border: #A8C3EC;
+  --color-focus-ring: #1D5BBF;
+
+  /* color — data (점수·차트 전용) */
+  --color-data-bar: #4A6B94;
+  --color-data-bar-muted: #9DB0C8;
+  --color-data-track: #E4E8EE;
+  --color-data-reference: #17202B;
+  --color-data-missing: #C5CCD6;
+
+  /* color — 5대 관점 식별 (라벨 마커·범례·세부 띠 전용, 막대 채움 금지) */
+  --color-persp-market: #3F6FB0;
+  --color-persp-customer: #2F8584;
+  --color-persp-competition: #6D5BA8;
+  --color-persp-location: #5A7F3F;
+  --color-persp-stability: #9A6B1F;
+
+  /* color — status (항상 텍스트·아이콘과 함께) */
+  --color-success: #1E7A4C;
+  --color-success-subtle: #E8F5EE;
+  --color-success-border: #9FD1B6;
+  --color-warning: #9A5A00;
+  --color-warning-subtle: #FFF4E2;
+  --color-warning-border: #F0C98A;
+  --color-danger: #B42318;
+  --color-danger-subtle: #FDECEB;
+  --color-danger-border: #F2B8B3;
+  --color-info: #2B5F9E;
+  --color-info-subtle: #EDF3FA;
+  --color-info-border: #B7CCE6;
+
+  /* color — map (4-4) */
+  --color-map-marker: #1D5BBF;
+  --color-map-radius-fill: rgba(29, 91, 191, 0.08);
+  --color-map-radius-stroke: #1D5BBF;
+  --color-map-dong-fill: rgba(29, 91, 191, 0.06);
+  --color-map-dong-stroke: #4A6B94;
+  --color-map-boundary: #656F7C;
+  --color-map-outside-dim: rgba(23, 32, 43, 0.06);
+  --color-map-invalid-marker: #656F7C;
+
+  /* typography */
+  --font-sans: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo",
+               "Noto Sans KR", "Malgun Gothic", "Segoe UI", Roboto, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  --text-display: 700 28px/36px var(--font-sans);        /* letter-spacing -0.02em */
+  --text-page-title: 700 22px/30px var(--font-sans);     /* -0.015em */
+  --text-section: 600 17px/26px var(--font-sans);        /* -0.01em */
+  --text-card-title: 600 15px/22px var(--font-sans);
+  --text-body: 400 15px/24px var(--font-sans);
+  --text-small: 400 13px/20px var(--font-sans);
+  --text-caption: 500 12px/16px var(--font-sans);        /* 0.01em */
+  --text-label: 600 13px/18px var(--font-sans);
+  --text-table: 400 13px/20px var(--font-sans);          /* tabular-nums */
+  --text-score-xl: 700 44px/48px var(--font-sans);       /* -0.02em, tabular-nums */
+  --text-score-m: 600 18px/24px var(--font-sans);        /* tabular-nums */
+  --text-score-s: 600 14px/20px var(--font-sans);        /* tabular-nums */
+
+  /* spacing (4px scale) */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+
+  /* radius */
+  --radius-sm: 4px;      /* 막대·skeleton·작은 요소 */
+  --radius-md: 6px;      /* 버튼·입력·경고 블록 */
+  --radius-lg: 8px;      /* 카드·목록·sheet 상단 */
+  --radius-pill: 999px;  /* chip 전용 */
+
+  /* elevation */
+  --shadow-none: none;
+  --shadow-sm: 0 1px 2px rgba(23, 32, 43, 0.08);                                   /* 지도 위 컨트롤 */
+  --shadow-overlay: 0 4px 16px rgba(23, 32, 43, 0.12), 0 1px 3px rgba(23, 32, 43, 0.08); /* 목록·sheet·tooltip */
+
+  /* layout */
+  --header-height: 56px;
+  --panel-width: 480px;
+  --panel-width-wide: 560px;
+  --content-max: 1440px;
+  --doc-max: 960px;
+  --prose-max: 680px;
+  --chart-row-max: 560px;
+  --control-height: 40px;
+  --control-height-touch: 44px;
+
+  /* motion */
+  --duration-fast: 120ms;
+  --duration-base: 180ms;
+  --duration-panel: 200ms;
+  --ease-out: cubic-bezier(0.2, 0, 0, 1);
+}
