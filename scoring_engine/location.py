@@ -13,8 +13,16 @@ Location Resolver — 좌표(WGS84 lat/lng) → 2026-07 기준 인천 행정동.
   - 어느 polygon 에도 속하지 않는 점(인천 밖, 바다)은 LocationOutside. 성공 결과를 만들지 않는다.
   - GeoJSON·panel 은 LocationResolver 생성 시 1회만 읽는다. 프로세스 공용 인스턴스는 default_resolver().
 
+ContextBuilder — 좌표 → SiteContext (TASKS 1-7). service.AnalysisService.analyze 가 쓰는 필드를 아래처럼 채운다.
+  lat, lng    입력 좌표 (검증된 float). 반경 프로파일·입지 프로파일의 분석 지점
+  gu_code     resolve 된 행정동코드[:5] — 시장성 패널(패널_시장성_*.csv)의 시군구코드
+  gu_name     runtime panel 시군구명 — 고객성 행 조회와 안정성 패널(패널_안정성*.csv)의 시군구
+  dong_name   runtime panel 행정동명 — 고객성(패널_통합) 행 조회
+  rent_area   None — 임대료 상권 연결 규칙(TASKS 1-6) 미결정. 부평역 등 특정 좌표도 특별 처리하지 않는다
+  label       f"{시군구명} {행정동명}" — meta.query 문구("{label} 근처 {업종}")용 지점 이름
+  반경 500m(config.RADIUS_M, 엔진의 haversine_m 과 같은 거리) 안에 점포가 하나도 없으면 NoDataNearby (eng review D8).
+
 이 모듈은 HTTP 를 모른다. 오류 → 응답 코드 변환은 backend 가 한다.
-주변 상가 유무(no_data_nearby) 같은 분석 가능 여부 판정은 여기서 하지 않는다 (context 단계).
 """
 from __future__ import annotations
 
@@ -30,7 +38,9 @@ import pandas as pd
 from shapely import STRtree
 from shapely.geometry import Point, shape
 
-from .runtime import DEFAULT_DATA_DIR, ROOT
+from . import config as C, radius_demand
+from .context import SiteContext
+from .runtime import DEFAULT_DATA_DIR, ROOT, RuntimeData
 
 DEFAULT_BOUNDARY_PATH = os.path.join(ROOT, "data", "geo", "인천_행정동경계_2026.geojson")
 DEFAULT_PANEL_PATH = os.path.join(DEFAULT_DATA_DIR, "패널_통합.csv")
@@ -46,6 +56,14 @@ class InvalidCoordinate(LocationError):
 
 class LocationOutside(LocationError):
     """인천 행정동 경계 어디에도 속하지 않는 좌표 (인천 밖, 바다)."""
+
+
+class NoDataNearby(LocationError):
+    """행정동은 정해졌지만 반경(config.RADIUS_M) 안에 상가 점포가 하나도 없어 분석하지 않는 좌표."""
+
+
+class ContextDataError(RuntimeError):
+    """resolver 결과를 runtime 데이터(panel·시장성 패널)에 연결하지 못함. 입력 문제가 아니라 데이터 불일치."""
 
 
 @dataclass(frozen=True)
@@ -115,6 +133,38 @@ class LocationResolver:
         gu_name, dong_name = self._names[code]
         return ResolvedLocation(lat=lat, lng=lng, dong_code=code, gu_code=code[:5], gu_name=gu_name,
                                 dong_name=dong_name, boundary_dong_name=self._boundary_names[i])
+
+
+class ContextBuilder:
+    def __init__(self, rt: RuntimeData, resolver: Optional[LocationResolver] = None):
+        self.rt = rt
+        self.resolver = resolver or LocationResolver(panel=rt.panel)
+        self._dongs = {str(code): (gu, dong) for code, gu, dong in
+                       zip(rt.panel["행정동코드"], rt.panel["시군구명"], rt.panel["행정동명"])}
+        self._market_codes = set(rt.market["시군구코드"].astype(str))
+        self._shop_lat = rt.shops["위도"].to_numpy(dtype=float)
+        self._shop_lng = rt.shops["경도"].to_numpy(dtype=float)
+
+    def shops_within_radius(self, lat: float, lng: float) -> int:
+        """반경 config.RADIUS_M 안의 점포 수 — radius_demand.radius_profile 의 n_all 과 같은 정의."""
+        d = radius_demand.haversine_m(lat, lng, self._shop_lat, self._shop_lng)
+        return int((d <= C.RADIUS_M).sum())
+
+    def build(self, lat, lng) -> SiteContext:
+        loc = self.resolver.resolve(lat, lng)          # InvalidCoordinate / LocationOutside
+        names = self._dongs.get(loc.dong_code)
+        if names is None:
+            raise ContextDataError(f"runtime panel 에 행정동코드 없음: {loc.dong_code}")
+        if names != (loc.gu_name, loc.dong_name):
+            raise ContextDataError(f"resolver 와 runtime panel 이름 불일치 {loc.dong_code}: "
+                                   f"{loc.gu_name} {loc.dong_name} / {names[0]} {names[1]}")
+        if loc.gu_code not in self._market_codes:
+            raise ContextDataError(f"시장성 패널에 시군구코드 없음: {loc.gu_code}")
+        if self.shops_within_radius(loc.lat, loc.lng) == 0:
+            raise NoDataNearby(f"반경 {C.RADIUS_M}m 안에 상가 점포 없음: lat={loc.lat}, lng={loc.lng}")
+        gu_name, dong_name = names
+        return SiteContext(label=f"{gu_name} {dong_name}", lat=loc.lat, lng=loc.lng, gu_code=loc.gu_code,
+                           gu_name=gu_name, dong_name=dong_name, rent_area=None)
 
 
 @functools.lru_cache(maxsize=1)

@@ -48,3 +48,18 @@ eng review D4(2024 경계 + crosswalk)를 데이터 비교 결과에 따라 변�
 - 동 단위 안전망 (D11에 추가): 구 floor로는 점포가 적은 동 18개가 통째로 틀려도 잡히지 않는다. 각 동 라벨 점포의 과반(≥ 0.5)이 자기 동으로 판정돼야 한다. 측정 최저 0.754 (제물포구 송림1동, n=61).
 - 결정성: seed 20261005, 구별 200개(총 2,200개)를 고정 추출해 새 resolver로 다시 판정 → 전수 판정과 동일해야 한다.
 - 테스트: `tests/test_location_agreement.py`. floor를 낮추려면 새 측정과 이 항목 갱신이 필요하다.
+
+## D-011 ContextBuilder: 좌표 → SiteContext 필드 규칙 (2026-10-05, TASKS 1-7)
+`scoring_engine/location.py`의 `ContextBuilder.build(lat, lng)`. 필드별 엔진 쪽 의미(service.py)와 채우는 값:
+| SiteContext | service.py 에서 쓰는 곳 | 값 |
+|---|---|---|
+| `lat`, `lng` | `radius_profile`, `site_profile`, `Site` 좌표 | 검증된 입력 좌표 (float) |
+| `gu_code` | 시장성 패널 `시군구코드` 행 (시장성) | resolve 된 `행정동코드[:5]` (시장성 패널 11개 코드와 일치 확인) |
+| `gu_name` | 패널_통합 `시군구명` (고객성), 안정성 패널 `시군구` | runtime panel 시군구명 (안정성 패널 2종의 시군구명과 일치 확인) |
+| `dong_name` | 패널_통합 `행정동명` (고객성 행) | runtime panel 행정동명 (코드로 연결, 이름 조인 안 함) |
+| `rent_area` | `gugu_rent_per_sqm`, `rent_area` (안정성 S4) | 항상 `None` — 1-6 미결정. 좌표로 특별 처리하지 않는다 |
+| `label` | `meta.query` = `"{label} 근처 {업종}"` | `"{시군구명} {행정동명}"`. 158개 동 × 29업종에서 업종 재해석 오류 0건 (eng review probe) |
+- `NoDataNearby(LocationError)`: 반경 `config.RADIUS_M`(500m) 안 점포 0개 (eng review D8). 거리·반경·포함 조건(`<=`)은 엔진 `radius_demand.radius_profile`의 `n_all`과 같다 (테스트로 고정). 13.5만 점포 전체 haversine 1회 약 6ms → 추가 인덱스·캐시 없음.
+- `ContextDataError(RuntimeError)`: resolver 코드가 runtime panel·시장성 패널에 연결되지 않는 내부 불일치. 입력 오류(`LocationError`, ValueError 계열)와 구분해 backend가 다르게 다룰 수 있게 한다.
+- 부평역 좌표 → `부평구 부평1동` (golden과 같은 행정동). `rent_area=None`이라 안정성(S4)·종합은 golden과 다를 수 있고, 나머지 4개 관점은 같다 (테스트).
+- 구월1동/3동 알려진 충돌(D-010)은 보정하지 않는다 — polygon 결과 그대로.

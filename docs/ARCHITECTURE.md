@@ -43,7 +43,7 @@
 ```
 sources/team_v0.3/      원본 (읽기 전용, 해시 검증)
 scoring_engine/
-  location.py           LocationResolver — 좌표 → 2026 인천 행정동 (point-in-polygon, 코드로 panel 연결). Resolver·Context Builder는 이 한 모듈에 둔다 (eng review D3)
+  location.py           LocationResolver(좌표 → 2026 인천 행정동, point-in-polygon, 코드로 panel 연결) + ContextBuilder(좌표 → SiteContext, 반경 500m 점포 0개 거부). 한 모듈 (eng review D3, D-011)
   v0_3/                 canonical 엔진 사본 (원본과 바이트 동일)
   runtime.py            RuntimeData — 런타임 데이터 1회 로드
   reference.py          ReferenceCache — 비교 모집단 캐시 (프로세스 메모리)
@@ -67,12 +67,12 @@ Backend API (FastAPI)            입력 검증, 오류 응답, 응답 스키마.
   ▼
 Location Resolver                lat/lng → 인천 내부 여부, 행정동(코드·이름), 시군구(코드·이름), 임대료 상권(있을 때만)
   ▼
-Analysis Context Builder         Resolver 결과 → SiteContext → analyze() 입력 dict (= 현재 service.py)
+Analysis Context Builder         좌표 → SiteContext (location.ContextBuilder) → analyze() 입력 dict (service.py)
   ▼
 Scoring Engine (v0_3, 불변)
 ```
 
-### Location Resolver / Context Builder에 필요한 것 (아직 없음)
+### Location Resolver / Context Builder (구현됨: `scoring_engine/location.py`, 아래는 설계 당시 요구사항과 현재 상태)
 1. **행정동 경계 데이터.** → `data/geo/인천_행정동경계_2026.geojson` (158개, panel 코드와 일치, 1-1·1-2 완료, D-009). 아래는 확보 전 기록.
    런타임 데이터에는 경계 폴리곤이 없다. 점포 좌표에 붙은 행정동 라벨만 있다.
    - 데이터의 시군구는 **개편 후 체계**다: 제물포구·영종구·서해구·검단구 (구 중구·동구·서구 아님), 시군구코드 28125/28155/28275/28290.
@@ -81,7 +81,7 @@ Scoring Engine (v0_3, 불변)
 2. **키 규칙** (테스트로 고정됨): `시군구코드 == 행정동코드[:5]`, 패널 158개 행정동 = 상가 데이터 158개 행정동.
 3. **임대료 상권 연결 규칙.** R-ONE은 인천 9개 상권만 있고 경계가 이미지뿐. 설계서 11-x의 "상권명 역 중심 500m" 근사를 쓸지 팀 결정 필요. 연결 안 되면 `rent_area=None` → S4 제외(엔진이 가중치 재분배).
 4. **인천 밖 / 바다 / 데이터 공백 좌표 거부** 규칙. Resolver는 어느 행정동 polygon에도 속하지 않는 점을 `LocationOutside`로 거부한다.
-   주의: 연안 행정동 polygon은 바다를 일부 포함한다 (예: 37.45, 126.40 → 영종구 용유동). 이런 점은 Resolver를 통과하므로 데이터 공백(반경 내 상가 0개) 검사가 따로 필요하다 (1-7 context 단계).
+   주의: 연안 행정동 polygon은 바다를 일부 포함한다. 이런 점은 Resolver를 통과하고, ContextBuilder가 반경 500m 안 점포 0개면 `NoDataNearby`로 거부한다. 해안에서 500m 안에 점포가 있으면 바다 위 점도 분석된다 (예: 37.45, 126.40 → 영종구 용유동, 반경 내 점포 있음).
 5. 부평역 좌표가 Resolver를 통과해 `BUPYEONG_STATION`과 같은 컨텍스트가 나오는지 = 첫 회귀 테스트.
 
 > ⚠ **알려진 불일치.** 하드코딩 좌표(37.4894, 126.7246)에서 가장 가까운 점포 50개는 전부 `부평6동` 라벨이다
