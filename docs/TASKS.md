@@ -34,6 +34,12 @@
 - [x] 4-3 결과 화면 (원본 `06_MVP화면` 시안 기준) — 지도 없이 부평역 고정 응답으로
 - [x] 4-4 지도 + 위치 선택 (API 키는 `.env`, commit 금지) — NAVER Maps v3(Client ID만, singleton loader) + GET /businesses·POST /analyze(vite dev proxy, 응답 Zod 검증, error.code 분기) + 분석 후 backend context 행정동 경계 강조(data/geo 원본 재사용)
 
+## 5. MVP Closeout
+- [x] 5-1 문서 정합성 정리: README·ARCHITECTURE·CLAUDE.md·frontend README의 현재 단계·구조·실행 방법·환경변수 구분을 MVP 완료 상태에 맞춘다 (코드 변경 없음)
+- [ ] 5-2 실제 브라우저 수동 QA 및 버그 목록 작성: backend + frontend dev 실행 상태에서 대표 시나리오(부평역, 구월 교정 구역, 아라2동, 인천 밖·바다, 주변 점포 없음, 업종·중요도 변경, 모바일 폭, error.code별 화면)를 확인하고 재현 절차가 있는 버그 목록을 남긴다. 수정은 별도 작업
+- [ ] 5-3 자동 E2E smoke 테스트 도입 여부 결정: 도구·NAVER 지도 대체 방식·check 포함 여부와 추가 시간을 비교해 DECISIONS에 기록한다 (결정만, dependency 추가는 결정 후)
+- [ ] 5-4 production 배포 구조 결정: 서빙 방식(같은 origin reverse proxy 등)·워커 수·환경변수 관리·build asset(행정동 경계) 포함을 DECISIONS에 기록하고, 워커 수에 따라 디스크 캐시 재검토 조건(D-016)을 판단한다 (구현은 결정 후)
+
 ## 보류 (이번 범위 아님)
 로그인, DB, AI 설명, 지원사업 추천, 점수 공식 개선, 업종 추가.
 - 통계청 SGIS(공식 배포)에서 2026-07 이후 기준 행정동 경계를 받을 수 있게 되면 `data/geo/`의 2차 가공본(vuski/admdongkor ver20260701)을 공식 파일로 교체하고 `scripts/build_geo.py`로 재검증한다 (eng review D4·D14, D-009). 2026-10-06 현재 SGIS OpenAPI 경계 최신 연도는 2025(2026-07 개편 미반영)라 구월1/3동만 교정했다 (D-017).

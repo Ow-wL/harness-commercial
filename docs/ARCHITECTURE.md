@@ -38,7 +38,7 @@
 엔진 내부 상수 (변경 금지, 참고): `scoring.C_BASELINE_SURVIVAL_3Y=0.552`, `meta.엔진버전="mvp-0.3"`,
 `etl_location.BBOX`(인천+인접 생활권), `load_schools`의 주소 '인천' 필터, `etl_rent.QUARTERS`(2024Q3~2026Q2 고정, 최신 분기 사용).
 
-## 3. 하네스 구조 (현재)
+## 3. 저장소 구조 (MVP 완료 시점)
 
 ```
 sources/team_v0.3/      원본 (읽기 전용, 해시 검증)
@@ -47,21 +47,34 @@ scoring_engine/
   v0_3/                 canonical 엔진 사본 (원본과 바이트 동일)
   runtime.py            RuntimeData — 런타임 데이터 1회 로드
   reference.py          ReferenceCache — 비교 모집단 캐시 (프로세스 메모리)
-  context.py            SiteContext — run_all 하드코딩을 명시적 파라미터로. BUPYEONG_STATION만 검증됨
+  context.py            SiteContext — run_all 하드코딩을 명시적 파라미터로. golden fixture BUPYEONG_STATION, 웹 요청은 ContextBuilder가 좌표로 만든다
   service.py            AnalysisService.analyze(ctx, biz) — run_all 업종 루프와 같은 입력 조립 + 후처리
 data/runtime/           엔진 입력 데이터 (원본 07_가공데이터 사본)
-data/geo/               행정동 경계(2026-07 기준 158개, 구월1·3동은 SGIS 공식 경계로 교정) + SGIS 입력 + 2024→2026 crosswalk. 별도 매니페스트, raw/는 git 제외 (D-009, D-017)
+data/geo/               행정동 경계(2026-07 기준 158개, 구월1·3동은 SGIS 공식 경계로 교정) + SGIS 입력 + 2024→2026 crosswalk. 별도 매니페스트, raw/는 git 제외 (D-009, D-017).
+                        backend resolver와 frontend 경계 강조가 같은 파일을 쓴다
 data/cache/             (비어 있음) 향후 reference 디스크 캐시
-tests/                  무결성, canonical 엔진, 데이터 스키마, golden regression, adapter 계약
-scripts/check.*         전체 검증
-backend/                FastAPI: app factory + lifespan(RuntimeData 1회 로드) + background warm + /health (TASKS 3-1)
-frontend/               Vite + React + TS 기반 (TASKS 4-1). `npm run check`를 scripts/check가 자동 실행
+tests/                  무결성, canonical 엔진, 데이터 스키마, golden regression, adapter 계약, location·agreement
+scripts/check.*         전체 검증 (python 단계 + `pytest backend` + `npm run check`)
+scripts/build_geo.py    data/geo 가공 (재현성 검사). fetch_sgis_boundary.py·verify_guwol_admin_dong.py는 SGIS 유지보수용(루트 .env)
+backend/app/
+  main.py               create_app(service, warm_biz): lifespan에서 AnalysisService 1회 생성(RuntimeData 로드),
+                        29개 업종 warm은 background thread. GET /health · GET /businesses · POST /analyze (TASKS 3-1~3-3)
+  errors.py             오류 계약: 422 + error.code / 500 + request_id (D-014)
+frontend/src/
+  api/schemas.ts        API 응답 Zod schema (source of truth, 타입은 z.infer). client.ts가 모든 응답을 검증 (D-012)
+  map/naverMaps.ts      NAVER Maps v3 SDK singleton loader (frontend/.env의 Client ID)
+  map/dongBoundary.ts   data/geo/인천_행정동경계_2026.geojson을 ?url asset으로 참조, context의 (gu_code, dong_name)으로 찾아 강조
+  components/           MapView(지도·마커·500m 원·경계) · ConditionPanel(위치·업종) · AnalysisResult(결과) · ErrorBlock 등 (DESIGN.md)
+  `npm run check` = tsc + ESLint + Vitest (29개 golden JSON schema 검증 포함), scripts/check가 자동 실행
 ```
 
-## 4. 목표 구조
+## 4. MVP 요청 흐름 (구현됨)
+
+설계 당시 "목표 구조"였던 아래 흐름이 그대로 구현됐다. 각 계층은 아래 계층만 호출한다 — frontend는 엔진을 직접 호출하지 않는다.
 
 ```
-Frontend (React+TS, 지도)
+Frontend (React+TS, NAVER Maps)  지도 클릭/좌표 입력 → lat,lng. 업종 select. 응답은 Zod 검증, 오류는 error.code로 분기
+  │                              dev: vite proxy가 /businesses·/analyze를 backend로 (backend에 CORS 없음)
   │  GET /businesses (업종 29개·그룹 4개, 엔진 config 그대로)
   │  POST /analyze {lat, lng, biz_code, importance?, user_weights?, user_licenses?}
   ▼
@@ -75,6 +88,10 @@ Analysis Context Builder         좌표 → SiteContext (location.ContextBuilder
 Scoring Engine (v0_3, 불변)
 ```
 
+응답 `{context:{lat,lng,gu_code,gu_name,dong_name,label,rent_area}, result:<엔진 dict 그대로>}`. frontend는 `context`의 `(gu_code, dong_name)`으로
+`data/geo` 경계 asset에서 같은 행정동 polygon을 찾아 강조만 한다 — 행정동 판정(point-in-polygon)은 backend만 한다.
+production 서빙 구조(같은 origin reverse proxy 등)는 아직 정하지 않았다 (TASKS 5-4).
+
 ### Location Resolver / Context Builder (구현됨: `scoring_engine/location.py`, 아래는 설계 당시 요구사항과 현재 상태)
 1. **행정동 경계 데이터.** → `data/geo/인천_행정동경계_2026.geojson` (158개, panel 코드와 일치, 1-1·1-2 완료, D-009). 생성: `scripts/build_geo.py` = vuski 2026 원본 156개 + 구월1동·구월3동은 commit된 SGIS 2025 공식 경계로 교정 (D-017). runtime은 이 파일만 읽고 SGIS API를 호출하지 않는다. 아래는 확보 전 기록.
    런타임 데이터에는 경계 폴리곤이 없다. 점포 좌표에 붙은 행정동 라벨만 있다.
@@ -82,7 +99,7 @@ Scoring Engine (v0_3, 불변)
      경계 데이터도 같은 체계·같은 코드여야 한다. 코드 체계 불일치가 가장 큰 위험.
    - 대안(근사): 상가 점포 최근접 이웃 다수결. 경계 데이터 검증용으로도 쓸 수 있다.
 2. **키 규칙** (테스트로 고정됨): `시군구코드 == 행정동코드[:5]`, 패널 158개 행정동 = 상가 데이터 158개 행정동.
-3. **임대료 상권 연결 규칙.** R-ONE은 인천 9개 상권만 있고 경계가 이미지뿐. 설계서 11-x의 "상권명 역 중심 500m" 근사를 쓸지 팀 결정 필요. 연결 안 되면 `rent_area=None` → S4 제외(엔진이 가중치 재분배).
+3. **임대료 상권 연결 규칙.** R-ONE은 인천 9개 상권만 있고 경계가 이미지뿐. 설계서 11-x의 "상권명 역 중심 500m" 근사는 쓰지 않기로 결정 — MVP는 모든 좌표 `rent_area=None` → S4 제외(엔진이 가중치 재분배) (D-015, TASKS 1-6).
 4. **인천 밖 / 바다 / 데이터 공백 좌표 거부** 규칙. Resolver는 어느 행정동 polygon에도 속하지 않는 점을 `LocationOutside`로 거부한다.
    주의: 연안 행정동 polygon은 바다를 일부 포함한다. 이런 점은 Resolver를 통과하고, ContextBuilder가 반경 500m 안 점포 0개면 `NoDataNearby`로 거부한다. 해안에서 500m 안에 점포가 있으면 바다 위 점도 분석된다 (예: 37.45, 126.40 → 영종구 용유동, 반경 내 점포 있음).
 5. 부평역 좌표 → Resolver 결과 `부평구 부평1동` = `BUPYEONG_STATION`과 같은 행정동 (TASKS 1-4 완료, 엔진 버전 변경 불필요). 일반 경로의 `rent_area`는 `None`이라 안정성(S4)·종합은 golden과 다를 수 있다 (D-011).

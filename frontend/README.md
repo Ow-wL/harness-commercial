@@ -1,6 +1,6 @@
 # frontend (React + TypeScript + Vite)
 
-현재 단계: 4-4 NAVER 지도 + 위치·업종 선택 + 실제 backend 분석 흐름. 순서와 범위는 `docs/TASKS.md` 4장.
+현재 단계: MVP 완료 (`docs/TASKS.md` 4장 4-0~4-4: NAVER 지도 + 위치·업종 선택 + 실제 backend 분석 흐름). 남은 closeout 작업은 5장.
 
 ## 실행
 

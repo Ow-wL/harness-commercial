@@ -2,8 +2,8 @@
 
 ## Project Goal
 인천 지역에서 사용자가 지도상의 위치와 업종을 선택하면 기존 v0.3 scoring engine을 사용하여 상권을 분석하는 웹 애플리케이션이다.
-현재 단계: Backend 및 Frontend MVP 구현 완료. 지도 기반 위치·업종 선택 → 실제 상권분석 흐름까지 연결됨.
-다음 작업은 `docs/TASKS.md` 참고.
+현재 단계: MVP 구현 완료 (지도 기반 위치·업종 선택 → 실제 상권분석 흐름). 지금은 closeout 단계 — 문서 정리, 브라우저 QA, E2E 도입 판단, 배포 구조 결정.
+다음 작업은 `docs/TASKS.md` 5장 참고.
 
 ## Source of Truth
 - `sources/team_v0.3/`는 팀원이 전달한 원본이며 **절대 수정하지 않는다** (수정·삭제·파일 추가·`__pycache__` 생성 포함).
