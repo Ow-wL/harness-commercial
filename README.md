@@ -24,6 +24,12 @@ bash: `scripts/setup.sh`, `scripts/check.sh`. frontend 의존성은 `frontend/`�
 ```powershell
 # 1) backend (저장소 루트, .venv 활성화 상태) — 데이터 로드 약 4s 뒤 요청 수신, 업종 warm은 background
 python -m uvicorn backend.app.main:app --port 8000
+
+# 1-1) venv 활성화 
+.\.venv\Scripts\Activate.ps1
+
+# 1-2) venv 비활성화 
+deactivate
 ```
 ```powershell
 # 2) frontend (frontend/) — http://localhost:5173, /businesses·/analyze 는 vite dev proxy가 backend로 넘긴다
