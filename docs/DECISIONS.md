@@ -71,3 +71,10 @@ eng review에서 승인됐지만 이 기록에 없던 결정. 구현 단계에�
 - Frontend 타입 (D10): Zod schema가 source of truth, TS 타입은 추론. 29개 golden JSON을 schema 테스트 fixture로 쓴다.
 - Backend 테스트 (D12): `create_app(service, warm_biz)` factory로 공유 서비스 주입 + 쓰는 업종만 warm. 디스크 캐시(TASKS 2-2)는 조건부 유지.
 - 시작 방식 (D13): `RuntimeData` 로드 후 서비스 시작, 29개 warm은 background, `/health`에 진행도, 미warm 업종은 on-demand.
+
+## D-013 ReferenceCache warm-up 성능 기준 (2026-10-05, TASKS 2-1)
+측정: `time.perf_counter()`, 같은 `RuntimeData`를 재사용해 I/O를 분리, 측정마다 새 `ReferenceCache(rt)`. Windows 11, Python 3.10.11, 이 저장소 `.venv`.
+- `load_runtime` 3.81~3.95s. 업종 1개 cold warm 2.36~2.69s (R10406·I21201·G20405). 29개 전체 cold warm 65.08 / 59.12 / 58.05s (평균 60.75s, 표준편차 3.79s), 추가 1회 59.78s. 구성: competition 55.7s + location 4.7s. 같은 캐시 두 번째 `warm()` 0.0000s. entry: competition 29, location 14 = 업종의 unique anchor key 14.
+- check 안 (`tests/test_reference_cache.py`, 약 2.5s 추가): 업종 1개 cold warm ≤ **15s** (측정의 약 6배 — 느린 PC·CI에서 정상 구현이 실패하지 않고, 업종당 비용이 몇 배로 늘어나는 퇴행은 잡는다). 두 번째 warm은 `build_reference`를 다시 부르지 않고 ≤ 0.5s. entry 수·anchor 공유 규칙은 계산 함수를 가짜로 바꿔 ms 단위로 검사 (29개 → `build_reference` 29회, `site_profile` 14 × 158회).
+- check 밖 (`scripts/bench_reference.py`): 전체 29개 cold warm ≤ **180s** (평균의 약 3배), `load_runtime` ≤ 15s. 전체 warm을 check에 넣으면 매번 약 60s가 늘어 check(약 80s)가 거의 두 배가 된다. 전체 시간은 업종당 비용 × 29가 지배하므로 check는 업종당 비용을 직접 감시하고, 전체 실측은 엔진 계산·캐시 구현을 바꿀 때(2-2 판단 포함) 이 스크립트로 한다.
+- 2-2 디스크 캐시: 현재 불필요. background warm(D-012) 기준 서버는 약 4s 뒤 응답하고, 미warm 업종 첫 요청은 약 2.5s. 다중 worker 운영이나 재시작이 잦아 콜드 비용이 문제될 때 다시 판단한다.

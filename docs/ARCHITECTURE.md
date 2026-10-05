@@ -94,13 +94,16 @@ Scoring Engine (v0_3, 불변)
 
 ## 5. 성능과 캐시 경계
 
-측정 (2026-10-05, Windows 11, Python 3.10, 이 저장소의 adapter 기준):
+측정 (2026-10-05, Windows 11, Python 3.10, 이 저장소의 adapter 기준). warm 수치는 TASKS 2-1 재측정 (`scripts/bench_reference.py`, D-013):
 
 | 작업 | 시간 | 지점 의존 | 처리 |
 |---|---|---|---|
-| 런타임 데이터 로드 (`load_runtime`) | 3.6s (상가 CSV 0.55s, 역 병합 루프·xlsx 포함) | 아니오 | 앱 시작 시 1회 |
-| `build_reference` (업종 1개) | ~2.0s | 아니오 | **업종별 캐시** (29개, 콜드 합계 ~60s) |
-| 입지 reference (유인시설 집합 1개) | ~0.4s | 아니오 | **유인시설 집합별 캐시** (14개) |
+| 런타임 데이터 로드 (`load_runtime`) | 3.8~4.0s (상가 CSV 0.55s, 역 병합 루프·xlsx 포함) | 아니오 | 앱 시작 시 1회 |
+| `build_reference` (업종 1개) | ~1.9s | 아니오 | **업종별 캐시** (29개, 합계 55.7s) |
+| 업종 1개 cold warm (competition + location) | 2.4~2.7s | 아니오 | |
+| 29개 전체 cold warm | 평균 60.8s (58.1~65.1s, 3회, 표준편차 3.8s) | 아니오 | background warm (TASKS 3-1) |
+| 같은 캐시 두 번째 `warm()` | ~0s (재계산 없음, 테스트로 고정) | 아니오 | |
+| 입지 reference (유인시설 집합 1개) | ~0.34s | 아니오 | **유인시설 집합별 캐시** (14개, 합계 4.7s) |
 | 안정성 기준 분포 | ms | 아니오 | 그때그때 (가벼움) |
 | `radius_profile` (지점 1개) | ~14ms | 예 | 요청마다 |
 | `analyze` 1건 (캐시 warm) | ~20ms | 예 | 요청마다 |

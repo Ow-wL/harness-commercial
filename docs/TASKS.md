@@ -16,8 +16,8 @@
 - [x] 1-7 `ContextBuilder.build(lat, lng) -> SiteContext` (`scoring_engine/location.py`) + 테스트 (`tests/test_context_builder.py`). 반경 500m 점포 0개 → `NoDataNearby`, runtime 연결 실패 → `ContextDataError`. golden 테스트는 계속 `BUPYEONG_STATION`으로 통과 (D-011)
 
 ## 2. 성능 준비
-- [ ] 2-1 `ReferenceCache.warm()` 시작 시간 측정 테스트(상한 기록)
-- [ ] 2-2 (필요 시) reference 디스크 캐시 `data/cache/` — 키에 엔진 버전·데이터 해시 포함, 캐시 경로 결과 == 비캐시 결과 테스트
+- [x] 2-1 `ReferenceCache.warm()` 시작 시간 측정·상한 (D-013). check: `tests/test_reference_cache.py` (업종 1개 cold warm ≤ 15s, 두 번째 warm 재계산 없음, entry 29/14). 전체 29개 cold warm(약 60s)은 `python scripts/bench_reference.py` (≤ 180s)
+- [ ] 2-2 (필요 시 — 현재 불필요, D-013) reference 디스크 캐시 `data/cache/` — 키에 엔진 버전·데이터 해시 포함, 캐시 경로 결과 == 비캐시 결과 테스트
 
 ## 3. Backend (FastAPI)
 - [ ] 3-1 `backend/app` skeleton. app factory `create_app(service=None, warm_biz=None)`. production: 시작 시 `RuntimeData` 로드(약 3.6s) 후 바로 서비스를 시작하고, `ReferenceCache` 29개 업종 warm은 background에서 진행. `/health`가 warm 진행도(n/29)를 보여 준다. 아직 warm되지 않은 업종 요청은 on-demand 계산(캐시 lock 대기 ≤ 약 2s) 허용. 테스트: 세션 공유 `AnalysisService`를 주입하고 테스트가 쓰는 업종만 warm(scoped warm) — 테스트마다 29개 전체 warm을 반복하지 않는다 (D-012)
