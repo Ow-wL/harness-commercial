@@ -276,7 +276,7 @@ export const AnalyzeContextSchema = z.strictObject({
   gu_name: z.string(),
   dong_name: z.string(),
   label: z.string(),
-  rent_area: z.string().nullable(),              // 일반 좌표는 항상 null (TASKS 1-6 미결정)
+  rent_area: z.string().nullable(),              // MVP 일반 좌표는 R-ONE 임대료 상권을 연결하지 않아 항상 null (D-015)
 })
 
 export const AnalyzeResponseSchema = z.strictObject({

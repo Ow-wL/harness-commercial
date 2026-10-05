@@ -39,7 +39,7 @@ python -m uvicorn backend.app.main:app --reload
        "result": { …AnalysisService.analyze 반환 dict 그대로 (meta·종합·지표·초보자_접근성·경고·면책)… }}
 ```
 - `result`는 `AnalysisService.analyze` 결과를 변형하지 않는 pass-through다(키 번역·반올림·삭제·추가 없음). `tests/test_pass_through.py`가 여러 좌표에서 전체 equality로 고정한다(3-4). 엔진 JSON 계약은 `docs/ENGINE.md`.
-- 일반 좌표의 `rent_area`는 항상 `null`(TASKS 1-6 미결정). 부평역 좌표도 `BUPYEONG_STATION`을 쓰지 않으므로 안정성·종합 점수가 legacy golden과 다를 수 있다(의도된 동작).
+- 일반 좌표의 `rent_area`는 항상 `null`(MVP 정책, D-015: 임대료 상권을 일반 좌표에 연결하지 않음). 부평역 좌표도 `BUPYEONG_STATION`을 쓰지 않으므로 안정성·종합 점수가 legacy golden과 다를 수 있다(의도된 동작).
 - `importance`·`user_weights`·`user_licenses`는 요청 검증을 통과한 값 그대로 엔진에 넘긴다.
 - warm되지 않은 업종도 바로 계산한다(업종당 약 2.5s, `ReferenceCache` on-demand).
 

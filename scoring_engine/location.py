@@ -18,7 +18,7 @@ ContextBuilder — 좌표 → SiteContext (TASKS 1-7). service.AnalysisService.a
   gu_code     resolve 된 행정동코드[:5] — 시장성 패널(패널_시장성_*.csv)의 시군구코드
   gu_name     runtime panel 시군구명 — 고객성 행 조회와 안정성 패널(패널_안정성*.csv)의 시군구
   dong_name   runtime panel 행정동명 — 고객성(패널_통합) 행 조회
-  rent_area   None — 임대료 상권 연결 규칙(TASKS 1-6) 미결정. 부평역 등 특정 좌표도 특별 처리하지 않는다
+  rent_area   None — MVP 일반 좌표는 R-ONE 임대료 상권을 연결하지 않는다 (D-015). 부평역 등 특정 좌표도 특별 처리하지 않는다
   label       f"{시군구명} {행정동명}" — meta.query 문구("{label} 근처 {업종}")용 지점 이름
   반경 500m(config.RADIUS_M, 엔진의 haversine_m 과 같은 거리) 안에 점포가 하나도 없으면 NoDataNearby (eng review D8).
 

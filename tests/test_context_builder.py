@@ -1,7 +1,7 @@
 """
 ContextBuilder (scoring_engine/location.py) — 좌표 → SiteContext → AnalysisService (TASKS 1-7).
 
-정책: rent_area 는 항상 None (1-6 미결정), 부평역 등 특정 좌표 특별 처리 없음, 반경 500m 안 점포 0개 → NoDataNearby,
+정책: rent_area 는 항상 None (MVP 일반 좌표는 R-ONE 임대료 상권을 연결하지 않음, D-015), 부평역 등 특정 좌표 특별 처리 없음, 반경 500m 안 점포 0개 → NoDataNearby,
       구월1동/3동 알려진 충돌(D-010)은 보정하지 않는다 (polygon 결과 그대로).
 테스트 좌표는 데이터에서 만들거나, 고정 좌표면 전제를 데이터로 먼저 확인한다.
 """

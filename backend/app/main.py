@@ -79,7 +79,7 @@ class AnalyzeContext(BaseModel):
     gu_name: str
     dong_name: str
     label: str
-    rent_area: Optional[str]     # 일반 좌표는 항상 null (TASKS 1-6 미결정)
+    rent_area: Optional[str]     # MVP 일반 좌표는 R-ONE 임대료 상권을 연결하지 않아 항상 null (D-015)
 
 
 class AnalyzeResponse(BaseModel):

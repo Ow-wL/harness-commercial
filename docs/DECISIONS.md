@@ -49,6 +49,20 @@ eng review D4(2024 경계 + crosswalk)를 데이터 비교 결과에 따라 변�
 - 결정성: seed 20261005, 구별 200개(총 2,200개)를 고정 추출해 새 resolver로 다시 판정 → 전수 판정과 동일해야 한다.
 - 테스트: `tests/test_location_agreement.py`. floor를 낮추려면 새 측정과 이 항목 갱신이 필요하다.
 
+### 1-5a 공식 확인 계획 (2026-10-06, 사용자 결정)
+위 구월1동/구월3동 알려진 충돌을 **공식 현재 행정동** 기준으로 확인한다. 확인 전까지 production 보정은 하지 않는다.
+- 확인 근거 (사용자 제공): ① 남동구 공식 연혁상 2015-07-31 구월1동 일부 구역이 구월3동으로 편입됐다. ② 문제 구간 인근 현재 주소 데이터에서도 구월3동 표기가 확인된다. 점포 라벨(구월3동) 쪽이 현재 행정동과 맞을 가능성을 시사하지만, 이것만으로 2차 가공 경계(vuski/admdongkor, D-009)가 틀렸다고 확정하지 않는다.
+- 보류: 2차 가공 경계와 점포 라벨 중 어느 쪽을 고칠지는 공식 현재 행정동 확인 전까지 결정하지 않는다. 그동안 `ContextBuilder`는 polygon 결과(구월1동)를 그대로 쓰고, `tests/test_location_agreement.py`의 known conflict 등록과 건수 상한(2,486)을 유지한다.
+- 절차:
+  1. 대상: 충돌 점포 2,486개(서로 다른 좌표 439개)의 소재지 주소·좌표. `data/runtime/인천_상가_정제.csv`에서 읽기만 한다.
+  2. 공식 기준: 2차 가공 경계·점포 라벨과 독립된 공식 자료로 현재 행정동을 판정한다 — 예: 행정안전부 도로명주소 건물 DB의 건물별 행정동코드, 또는 SGIS 공식 행정구역 경계(2026 기준, 자료신청).
+  3. 기록: 사용한 자료명·기준일, 판정 분포(구월1동/구월3동/기타)와 건수를 이 항목에 남긴다.
+  4. 결과별 후속 (각각 별도 결정·사용자 승인 후 진행):
+     - 공식 = 구월3동 → 경계 쪽 문제. 공식 경계 확보 후 `data/geo` 교체(`scripts/build_geo.py` 재검증) 또는 보정 방식을 결정하고, D-010 floor·`ContextBuilder` 결과·구월 구역 관련 테스트 기대값을 다시 측정한다.
+     - 공식 = 구월1동 → 라벨 쪽 문제. `data/runtime`은 원본 사본이라 수정하지 않으므로 known conflict를 유지하고 사유를 기록한다.
+     - 혼재 → 구역을 나눠 다시 판단한다.
+- 영향 범위: golden(`BUPYEONG_STATION`, 부평1동)과 엔진 v0.3은 이 확인과 무관하다.
+
 ## D-011 ContextBuilder: 좌표 → SiteContext 필드 규칙 (2026-10-05, TASKS 1-7)
 `scoring_engine/location.py`의 `ContextBuilder.build(lat, lng)`. 필드별 엔진 쪽 의미(service.py)와 채우는 값:
 | SiteContext | service.py 에서 쓰는 곳 | 값 |
@@ -57,7 +71,7 @@ eng review D4(2024 경계 + crosswalk)를 데이터 비교 결과에 따라 변�
 | `gu_code` | 시장성 패널 `시군구코드` 행 (시장성) | resolve 된 `행정동코드[:5]` (시장성 패널 11개 코드와 일치 확인) |
 | `gu_name` | 패널_통합 `시군구명` (고객성), 안정성 패널 `시군구` | runtime panel 시군구명 (안정성 패널 2종의 시군구명과 일치 확인) |
 | `dong_name` | 패널_통합 `행정동명` (고객성 행) | runtime panel 행정동명 (코드로 연결, 이름 조인 안 함) |
-| `rent_area` | `gugu_rent_per_sqm`, `rent_area` (안정성 S4) | 항상 `None` — 1-6 미결정. 좌표로 특별 처리하지 않는다 |
+| `rent_area` | `gugu_rent_per_sqm`, `rent_area` (안정성 S4) | 항상 `None` — MVP 정책으로 확정(D-015). 좌표로 특별 처리하지 않는다 |
 | `label` | `meta.query` = `"{label} 근처 {업종}"` | `"{시군구명} {행정동명}"`. 158개 동 × 29업종에서 업종 재해석 오류 0건 (eng review probe) |
 - `NoDataNearby(LocationError)`: 반경 `config.RADIUS_M`(500m) 안 점포 0개 (eng review D8). 거리·반경·포함 조건(`<=`)은 엔진 `radius_demand.radius_profile`의 `n_all`과 같다 (테스트로 고정). 13.5만 점포 전체 haversine 1회 약 6ms → 추가 인덱스·캐시 없음.
 - `ContextDataError(RuntimeError)`: resolver 코드가 runtime panel·시장성 패널에 연결되지 않는 내부 불일치. 입력 오류(`LocationError`, ValueError 계열)와 구분해 backend가 다르게 다룰 수 있게 한다.
@@ -77,7 +91,7 @@ eng review에서 승인됐지만 이 기록에 없던 결정. 구현 단계에�
 - `load_runtime` 3.81~3.95s. 업종 1개 cold warm 2.36~2.69s (R10406·I21201·G20405). 29개 전체 cold warm 65.08 / 59.12 / 58.05s (평균 60.75s, 표준편차 3.79s), 추가 1회 59.78s. 구성: competition 55.7s + location 4.7s. 같은 캐시 두 번째 `warm()` 0.0000s. entry: competition 29, location 14 = 업종의 unique anchor key 14.
 - check 안 (`tests/test_reference_cache.py`, 약 2.5s 추가): 업종 1개 cold warm ≤ **15s** (측정의 약 6배 — 느린 PC·CI에서 정상 구현이 실패하지 않고, 업종당 비용이 몇 배로 늘어나는 퇴행은 잡는다). 두 번째 warm은 `build_reference`를 다시 부르지 않고 ≤ 0.5s. entry 수·anchor 공유 규칙은 계산 함수를 가짜로 바꿔 ms 단위로 검사 (29개 → `build_reference` 29회, `site_profile` 14 × 158회).
 - check 밖 (`scripts/bench_reference.py`): 전체 29개 cold warm ≤ **180s** (평균의 약 3배), `load_runtime` ≤ 15s. 전체 warm을 check에 넣으면 매번 약 60s가 늘어 check(약 80s)가 거의 두 배가 된다. 전체 시간은 업종당 비용 × 29가 지배하므로 check는 업종당 비용을 직접 감시하고, 전체 실측은 엔진 계산·캐시 구현을 바꿀 때(2-2 판단 포함) 이 스크립트로 한다.
-- 2-2 디스크 캐시: 현재 불필요. background warm(D-012) 기준 서버는 약 4s 뒤 응답하고, 미warm 업종 첫 요청은 약 2.5s. 다중 worker 운영이나 재시작이 잦아 콜드 비용이 문제될 때 다시 판단한다.
+- 2-2 디스크 캐시: 현재 불필요. background warm(D-012) 기준 서버는 약 4s 뒤 응답하고, 미warm 업종 첫 요청은 약 2.5s. 다중 worker 운영이나 재시작이 잦아 콜드 비용이 문제될 때 다시 판단한다. → 현재 미도입으로 판단 완료 (D-016).
 
 ## D-014 API 오류 계약 확정 (2026-10-06, TASKS 3-5, D-012 후속)
 - 형태: `{"error": {"code", "message"}}`, 500만 `request_id` 추가. frontend는 status로 사용자/서버 오류를, `error.code`로 원인을 나눈다. `message`는 표시용이며 분기 기준이 아니다.
@@ -86,3 +100,14 @@ eng review에서 승인됐지만 이 기록에 없던 결정. 구현 단계에�
 - 요청 검증: Pydantic strict 타입이라 coercion이 없다. lat/lng는 JSON 숫자·유한·범위, importance 값은 정수 1..5(1.0·"4"·bool 거부), user_weights 값은 유한 ≥ 0, 관점 키는 `config.PERSPECTIVES`. 모두 엔진 `resolve_weights` 규칙과 같은 의미다.
 - ValueError 경계: API가 analyze 전에 엔진 `scoring.resolve_weights(C.group_of(biz), user_weights, importance)`(엔진 analyze가 처음 하는 순수 호출)를 먼저 불러, 거기서 난 `ValueError`만 `invalid_analysis_options`로 본다. location 오류는 `InvalidCoordinate`/`LocationOutside`/`NoDataNearby` 타입으로 잡는다. `service.analyze` 안의 예외는 `ValueError`를 포함해 모두 500 — 내부 버그를 사용자 오류로 숨기지 않는다.
 - 500: `uuid4().hex` request_id를 응답과 server log(`backend.errors`, traceback 포함)에 함께 남긴다. 응답에는 예외 메시지·클래스명·경로를 넣지 않는다. Starlette는 500 handler 뒤 예외를 다시 raise하므로 uvicorn 로그에도 traceback이 한 번 더 남는다(응답은 위 계약 그대로).
+
+## D-015 임대료 상권: MVP에서 일반 좌표에 연결하지 않음 (2026-10-06, TASKS 1-6, 사용자 결정)
+- 결정: R-ONE 소규모상가 임대료 상권(인천 9개)을 일반 좌표에 연결하지 않는다. `ContextBuilder`의 `rent_area=None` 정책(D-011)을 공식 정책으로 확정한다. 설계서 11-x의 역 중심 500m 근사는 MVP에서 쓰지 않는다.
+- 결과: 모든 좌표에서 안정성 S4(상권 임대료)는 `제외(데이터 없음)`이고, 엔진 규칙대로 나머지 세부지표로 재정규화된다. 기존 동작 그대로라 코드·데이터·golden 변경은 없다.
+- `"부평"` rent_area는 golden fixture `BUPYEONG_STATION`에만 남는다. 좌표 API의 부평역 결과는 golden과 안정성·종합 점수가 다를 수 있다(의도된 동작, D-012). frontend는 `rent_area=null`일 때 S4 제외를 안내한다(TASKS 4-3).
+- 다시 열 때: 연결 규칙을 도입하면 `ContextBuilder` 정책 변경 + `tests/test_context_builder.py`·pass-through 테스트 갱신, 바뀌는 결과를 기록한다.
+
+## D-016 reference 디스크 캐시: 현재 미도입 (2026-10-06, TASKS 2-2, 사용자 결정)
+- 판단: 도입하지 않는다. 현재 성능으로 충분하다 — 서버는 `RuntimeData` 로드 약 4s 뒤 응답하고, 29개 warm은 background(약 60s), 미warm 업종 첫 요청은 약 2.5s (D-013).
+- 다시 여는 조건: 멀티 워커 운영(워커마다 데이터·캐시를 따로 가져 메모리 N배·콜드 N번) 또는 잦은 재시작으로 cold start가 문제될 때.
+- 그때 요구사항: `data/cache/`, 캐시 키에 엔진 버전·데이터 해시·반경·업종/유인시설 집합(D-007), 캐시 경로 결과 == 비캐시 결과 테스트, `scripts/bench_reference.py` 재측정.

@@ -92,7 +92,7 @@ Scoring Engine (v0_3, 불변)
 > 그 점포들은 경계 건너편에 있고 라벨과 polygon 모두 부평6동이다. golden 컨텍스트와 같으므로 엔진·golden 변경 없음 (D-010).
 >
 > ⚠ **남은 데이터 이슈 (TASKS 1-5a).** 남동구 구월1동 서쪽 띠는 경계상 구월1동이지만 점포 라벨 2,486개는 구월3동이다.
-> 보정하지 않고 polygon 결과를 쓴다 (D-010 known conflict).
+> 보정하지 않고 polygon 결과를 쓴다 (D-010 known conflict). 공식 현재 행정동 기준 확인 계획은 D-010 "1-5a 공식 확인 계획".
 
 ## 5. 성능과 캐시 경계
 
@@ -112,7 +112,7 @@ Scoring Engine (v0_3, 불변)
 | 29개 업종 전체 (캐시 warm) | ~0.5s | 예 | 요청마다 |
 
 위험 요소:
-- **콜드 스타트 60초+.** `build_reference`를 요청 경로에서 처음 계산하면 첫 요청이 최대 1분 걸린다. → backend는 `RuntimeData` 로드 후 바로 서비스하고 29개 warm은 background에서 진행, 아직 warm되지 않은 업종은 on-demand 계산 (TASKS 3-1, D-012). 디스크 캐시(2-2)는 필요해질 때.
+- **콜드 스타트 60초+.** `build_reference`를 요청 경로에서 처음 계산하면 첫 요청이 최대 1분 걸린다. → backend는 `RuntimeData` 로드 후 바로 서비스하고 29개 warm은 background에서 진행, 아직 warm되지 않은 업종은 on-demand 계산 (TASKS 3-1, D-012). 디스크 캐시는 현재 미도입(D-016) — 멀티 워커·잦은 재시작으로 콜드가 문제될 때 다시 연다.
 - `build_reference`는 호출마다 `dong_total`·중심점을 다시 groupby하고, 158개 중심점마다 13.5만 점포 전체에 haversine을 돈다. 수요(분모) 부분은 업종과 무관한데 업종마다 반복된다. (최적화는 golden으로 동일성 검증한 뒤에만)
 - `ReferenceCache`는 계산 중 전역 lock을 잡는다 → 콜드 상태 동시 요청과 background warm은 직렬화된다 (요청당 대기 ≤ 업종 1개 계산, 약 2s).
 - 멀티 워커(uvicorn workers N)면 워커마다 데이터·캐시를 따로 가진다 → 메모리 N배, 콜드 N번. 디스크 캐시가 필요해지는 지점.
