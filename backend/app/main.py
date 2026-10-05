@@ -12,19 +12,22 @@ FastAPI backend (TASKS 3-1, docs/DECISIONS.md D-012).
 
 테스트: create_app(service=공유 서비스, warm_biz=[...]) — RuntimeData 를 다시 읽지 않고 지정 업종만 warm.
 
-엔드포인트: GET /health (3-1), GET /businesses (3-2, 엔진 config.BIZ_GROUP 그대로)
+엔드포인트: GET /health (3-1), GET /businesses (3-2, 엔진 config.BIZ_GROUP 그대로),
+            POST /analyze (3-3, ContextBuilder → AnalysisService, 엔진 결과는 변형 없이 result 에)
+ContextBuilder 는 첫 /analyze 때 1회 만들어 app.state 에 둔다 (lazy — /health·/businesses 만 쓰는 앱은 만들지 않는다).
 """
 from __future__ import annotations
 
 import logging
 import threading
 from contextlib import asynccontextmanager
-from typing import Iterable, Optional
+from typing import Any, Iterable, Optional
 
 from fastapi import FastAPI
 from pydantic import BaseModel
 
 from scoring_engine import config as C
+from scoring_engine.location import ContextBuilder
 from scoring_engine.service import AnalysisService
 
 logger = logging.getLogger("backend.warm")
@@ -45,6 +48,32 @@ class BusinessGroup(BaseModel):
 class BusinessCatalog(BaseModel):
     groups: list[BusinessGroup]
     total: int
+
+
+class AnalyzeRequest(BaseModel):
+    lat: float
+    lng: float
+    biz_code: str
+    # 아래 값은 AnalysisService.analyze 에 그대로 넘긴다. 범위·형식 검증은 엔진(resolve_weights)이 한다 (오류 계약은 3-5)
+    importance: Optional[dict[str, Any]] = None       # {관점: 1~5}
+    user_weights: Optional[dict[str, Any]] = None     # {관점: 0 이상}
+    user_licenses: Optional[list[str]] = None
+
+
+class AnalyzeContext(BaseModel):
+    """ContextBuilder 가 만든 SiteContext 중 응답에 내보내는 필드."""
+    lat: float
+    lng: float
+    gu_code: str
+    gu_name: str
+    dong_name: str
+    label: str
+    rent_area: Optional[str]     # 일반 좌표는 항상 null (TASKS 1-6 미결정)
+
+
+class AnalyzeResponse(BaseModel):
+    context: AnalyzeContext
+    result: dict[str, Any]       # AnalysisService.analyze 반환 dict 그대로 (엔진 JSON 계약: docs/ENGINE.md)
 
 
 def business_catalog() -> BusinessCatalog:
@@ -116,6 +145,7 @@ def create_app(service: Optional[AnalysisService] = None, warm_biz: Optional[Ite
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         app.state.service = service if service is not None else AnalysisService()
+        app.state.context_builder = None
         app.state.warm = WarmProgress(biz_codes)
         app.state.warm.start(app.state.service.cache)
         try:
@@ -126,6 +156,16 @@ def create_app(service: Optional[AnalysisService] = None, warm_biz: Optional[Ite
     app = FastAPI(title="인천 상권분석 API", lifespan=lifespan)
     app.state.service = None
     app.state.warm = None
+    app.state.context_builder = None
+    builder_lock = threading.Lock()
+
+    def context_builder() -> ContextBuilder:
+        """앱 수명 동안 1개. 동시 첫 요청이 여러 개 만들지 않도록 lock 으로 한 번만 생성한다."""
+        if app.state.context_builder is None:
+            with builder_lock:
+                if app.state.context_builder is None:
+                    app.state.context_builder = ContextBuilder(app.state.service.rt)
+        return app.state.context_builder
 
     @app.get("/health")
     def health() -> dict:
@@ -139,6 +179,17 @@ def create_app(service: Optional[AnalysisService] = None, warm_biz: Optional[Ite
     def businesses() -> BusinessCatalog:
         """분석 가능한 업종 (엔진 config). service·warm 상태와 무관하게 즉시 응답한다."""
         return business_catalog()
+
+    @app.post("/analyze", response_model=AnalyzeResponse)
+    def analyze(req: AnalyzeRequest) -> AnalyzeResponse:
+        """좌표·업종 분석. warm 되지 않은 업종은 ReferenceCache 가 요청 시 계산한다 (warm 완료를 기다리지 않음)."""
+        ctx = context_builder().build(req.lat, req.lng)
+        result = app.state.service.analyze(ctx, req.biz_code, user_weights=req.user_weights,
+                                           importance=req.importance, user_licenses=req.user_licenses)
+        return AnalyzeResponse(
+            context=AnalyzeContext(lat=ctx.lat, lng=ctx.lng, gu_code=ctx.gu_code, gu_name=ctx.gu_name,
+                                   dong_name=ctx.dong_name, label=ctx.label, rent_area=ctx.rent_area),
+            result=result)
 
     return app
 
