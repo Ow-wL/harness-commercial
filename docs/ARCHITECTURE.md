@@ -54,7 +54,8 @@ data/geo/               행정동 경계(2026-07 기준 158개) + 2024→2026 cr
 data/cache/             (비어 있음) 향후 reference 디스크 캐시
 tests/                  무결성, canonical 엔진, 데이터 스키마, golden regression, adapter 계약
 scripts/check.*         전체 검증
-backend/, frontend/     (비어 있음) 향후 FastAPI, React + TypeScript
+backend/                FastAPI: app factory + lifespan(RuntimeData 1회 로드) + background warm + /health (TASKS 3-1)
+frontend/               (비어 있음) 향후 React + TypeScript
 ```
 
 ## 4. 목표 구조

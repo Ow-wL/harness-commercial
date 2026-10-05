@@ -20,7 +20,7 @@
 - [ ] 2-2 (필요 시 — 현재 불필요, D-013) reference 디스크 캐시 `data/cache/` — 키에 엔진 버전·데이터 해시 포함, 캐시 경로 결과 == 비캐시 결과 테스트
 
 ## 3. Backend (FastAPI)
-- [ ] 3-1 `backend/app` skeleton. app factory `create_app(service=None, warm_biz=None)`. production: 시작 시 `RuntimeData` 로드(약 3.6s) 후 바로 서비스를 시작하고, `ReferenceCache` 29개 업종 warm은 background에서 진행. `/health`가 warm 진행도(n/29)를 보여 준다. 아직 warm되지 않은 업종 요청은 on-demand 계산(캐시 lock 대기 ≤ 약 2s) 허용. 테스트: 세션 공유 `AnalysisService`를 주입하고 테스트가 쓰는 업종만 warm(scoped warm) — 테스트마다 29개 전체 warm을 반복하지 않는다 (D-012)
+- [x] 3-1 `backend/app` skeleton (`backend/app/main.py`, `backend/tests/test_app.py`). app factory `create_app(service=None, warm_biz=None)`. production: lifespan 에서 `AnalysisService` 1회 생성(RuntimeData 로드) 후 바로 요청 수신, `ReferenceCache` 29개 업종 warm은 background thread에서 진행. `/health`가 warm 진행도(`warm.completed`/`warm.total`/`done`/`failed`/`error`)를 보여 준다. 아직 warm되지 않은 업종 요청은 on-demand 계산(캐시 lock 대기 ≤ 약 2s) 허용. 테스트: 세션 공유 `AnalysisService`(`real_service`)를 주입하고 테스트가 쓰는 업종만 warm(scoped warm) — 테스트마다 29개 전체 warm을 반복하지 않는다 (D-012)
 - [ ] 3-2 `GET /businesses` (29개 업종·그룹)
 - [ ] 3-3 `POST /analyze {lat,lng,biz_code,...}` → `location.ContextBuilder` → `AnalysisService`. 응답은 엔진 JSON 그대로 + 컨텍스트 메타. 일반 좌표의 `rent_area`는 `None` (1-6 결정 전, 부평역 근접 특별 처리 없음)
 - [ ] 3-4 API 테스트 = pass-through equality: 같은 좌표·업종에 대해 API 응답의 엔진 부분 == `AnalysisService.analyze(ContextBuilder.build(lat, lng), biz)` (부평역 좌표 + 다른 2~3곳). API가 엔진 결과를 바꾸지 않는지만 본다. golden 29/29는 `BUPYEONG_STATION`을 쓰는 service/engine regression에 그대로 둔다. public API에 golden 재현용 preset·테스트 전용 필드를 추가하지 않는다 (D-012)
