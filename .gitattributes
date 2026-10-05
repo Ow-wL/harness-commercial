@@ -1,3 +1,15 @@
 # data/geo 가공 파일은 sha256 매니페스트로 보호된다 — 줄바꿈 변환 금지
 data/geo/*.geojson -text
 data/geo/*.csv -text
+
+# 해시 보호 파일 (tests/manifests/source_team_v0.3.sha256.json, tests/test_integrity.py, scripts/manifest.py verify)
+# 체크아웃 결과가 core.autocrlf 와 무관하게 매니페스트 바이트와 같아야 한다 — 줄바꿈 변환 금지
+sources/** -text
+scoring_engine/v0_3/** -text
+data/runtime/** -text
+tests/golden/** -text
+
+# 원본이 CRLF 인데 최초 add 때 index 에 LF 로 정규화된 파일. 매니페스트 해시는 CRLF 바이트 기준이므로
+# 모든 환경에서 CRLF 로 체크아웃한다 (blob 을 다시 쓰지 않고 원본 바이트를 재현)
+sources/team_v0.3/05_분석결과/부평역_업종별_적합도.csv text eol=crlf
+tests/golden/v0.3/부평역_업종별_적합도.csv text eol=crlf
