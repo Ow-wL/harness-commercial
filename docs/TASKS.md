@@ -27,12 +27,12 @@
 - [x] 3-5 오류 계약 (D-014, `backend/app/errors.py`, `backend/tests/test_errors.py`). 사용자 입력·분석 불가 → 422 `{error:{code,message}}`: `invalid_request`(요청 검증: JSON 숫자·유한한 lat/lng·범위, importance 정수 1..5, user_weights 유한 ≥ 0, 알 수 없는 관점, 깨진 JSON) · `invalid_coordinate` · `location_outside` · `no_data_nearby` · `invalid_business` · `invalid_analysis_options`(엔진 `resolve_weights` 규칙). 내부 오류(`ContextDataError`, `KeyError`, analyze 안의 예외) → 500 `{error:{code:internal_error,message,request_id}}`, traceback은 request_id와 함께 server log에만
 - [x] 3-6 check에 backend 단계 연결: `scripts/check.py`가 `backend/app`이 있으면 `python -m pytest -q backend`를 실행하고, 실패하면 CHECK FAILED (코드 변경 없이 기존 단계로 확인, backend 81개 PASS 약 15s). backend 테스트는 3-1의 scoped warm으로 check 시간 증가를 최소화
 
-## 4. Frontend (React + TypeScript)
+## 4. Frontend (React + TypeScript) — 4-0 ~ 4-4 완료
 - [x] 4-0 프로젝트 `DESIGN.md` 확정 — frontend 구현 전 디자인 시스템(원칙·색·타이포·레이아웃·결과 위계·컴포넌트·오류 상태·반응형·접근성·토큰·agent 규칙). 이후 4-x UI는 이 문서를 따른다
 - [x] 4-1 Vite + TS skeleton, `npm run check`(tsc + lint + test) → check에 자동 연결
 - [x] 4-2 API 응답 Zod schema를 source of truth로 두고 TypeScript 타입은 schema에서 추론 (손으로 쓴 interface 대신). `npm run check`에서 29개 golden JSON(`tests/golden/v0.3/json`)이 모두 schema를 통과하는 테스트. 개발 환경에서 live API 응답도 같은 schema로 검증할 수 있게 설계 (D-012)
 - [x] 4-3 결과 화면 (원본 `06_MVP화면` 시안 기준) — 지도 없이 부평역 고정 응답으로
-- [ ] 4-4 지도 + 위치 선택 (API 키는 `.env`, commit 금지)
+- [x] 4-4 지도 + 위치 선택 (API 키는 `.env`, commit 금지) — NAVER Maps v3(Client ID만, singleton loader) + GET /businesses·POST /analyze(vite dev proxy, 응답 Zod 검증, error.code 분기) + 분석 후 backend context 행정동 경계 강조(data/geo 원본 재사용)
 
 ## 보류 (이번 범위 아님)
 로그인, DB, AI 설명, 지원사업 추천, 점수 공식 개선, 업종 추가.

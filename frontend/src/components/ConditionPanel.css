@@ -1,0 +1,128 @@
+.conditions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+/* Step Indicator (§8.13): 가로 3개, --text-small, 단계 사이 16px 가는 선 */
+.steps {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font: var(--text-small);
+  color: var(--color-text-muted);
+}
+
+.steps__item {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.steps__item + .steps__item::before {
+  content: "";
+  width: 16px;
+  height: 1px;
+  margin-right: var(--space-1);
+  background: var(--color-border-strong);
+}
+
+.steps__item--done {
+  color: var(--color-text-primary);
+}
+
+.steps__item--current {
+  font-weight: 600;
+  color: var(--color-accent);
+}
+
+.location__selected,
+.location__empty {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.location__value {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font: var(--text-body);
+  color: var(--color-text-primary);
+}
+
+.location__value .mono {
+  font-variant-numeric: tabular-nums;
+}
+
+.coords {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  align-items: start;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-muted);
+}
+
+.coords .button {
+  grid-column: 1 / -1;
+  justify-self: start;
+}
+
+/* 업종 select: 닫힌 상태 오른쪽에 그룹명 --text-caption muted (§7.3) */
+.select-wrap {
+  position: relative;
+}
+
+.select-wrap .select {
+  padding-right: calc(var(--space-12) + var(--space-16));
+}
+
+.select-wrap__group {
+  position: absolute;
+  top: 50%;
+  right: var(--space-8);
+  transform: translateY(-50%);
+  font: var(--text-caption);
+  letter-spacing: 0.01em;
+  color: var(--color-text-muted);
+  pointer-events: none;
+}
+
+.field__error-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+}
+
+.conditions__submit {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+/* 결과가 있을 때 조건 한 줄 요약 + 조건 변경 (§4.3) */
+.conditions-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin-bottom: var(--space-5);
+  padding-bottom: var(--space-3);
+  border-bottom: 1px solid var(--color-border);
+  font: var(--text-small);
+  color: var(--color-text-muted);
+}
+
+.conditions-summary__actions {
+  display: flex;
+  gap: var(--space-1);
+}

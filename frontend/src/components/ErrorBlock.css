@@ -1,0 +1,55 @@
+/* 오류 블록 (DESIGN.md §10.3): 카드, 배경은 surface — 상태색은 아이콘에만 (과한 경보 느낌 방지) */
+.error-block {
+  display: flex;
+  gap: var(--space-3);
+  padding: var(--space-5);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+}
+
+.error-block--info { --tone: var(--color-info); }
+.error-block--warning { --tone: var(--color-warning); }
+.error-block--danger { --tone: var(--color-danger); }
+
+.error-block__icon {
+  display: inline-flex;
+  color: var(--tone);
+}
+
+.error-block__content {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.error-block__title {
+  margin: 0;
+  font: var(--text-card-title);
+  color: var(--color-text-primary);
+}
+
+.error-block__body {
+  margin: 0 0 var(--space-2);
+  font: var(--text-body);
+  color: var(--color-text-secondary);
+}
+
+.error-block__request-id {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-2);
+  margin: var(--space-2) 0 0;
+  font: var(--text-caption);
+  letter-spacing: 0.01em;
+  color: var(--color-text-muted);
+}
+
+@media (max-width: 639px) {
+  .error-block {
+    padding: var(--space-4);
+  }
+}

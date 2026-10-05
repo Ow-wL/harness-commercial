@@ -1,15 +1,16 @@
 /*
  * App shell (DESIGN.md §4.3, §14).
- * desktop ≥1024: 헤더 56px + [패널 480px(≥1440: 560px, 자체 스크롤) │ 지도 자리(남은 폭)]
- * tablet 640–1023: 헤더 + 작은 지도 자리(200px) 위 + 패널 아래(최대 720px 가운데)
- * mobile <640: 헤더(Context Bar 포함, sticky) + 결과 전체 화면. 지도 자리는 지도 연결(4-4) 때 "지도 보기"로 전환
+ * desktop ≥1024: 헤더 56px + [패널 480px(≥1440: 560px, 자체 스크롤) │ NAVER 지도(남은 폭)]
+ * tablet 640–1023: 헤더 + 지도 위(40vh, 최소 280px; 결과가 있으면 200px) + 패널 아래(최대 720px 가운데)
+ * mobile <640: 지도와 결과를 한 화면에 넣지 않는다. data-screen="map" = 지도 전체 + 하단 sheet,
+ *              data-screen="panel" = 조건·결과 전체 화면. "지도 보기"·"이 위치로 계속"으로 전환한다.
  */
 .app {
   min-height: 100vh;
   background: var(--color-bg);
 }
 
-/* Header: 서비스명 · Context Bar(위치·업종 칩) · "데이터 출처" 링크 1개. 항상 보인다 (P1) */
+/* Header: 서비스명 · (결과) Context Bar · "데이터 출처" 링크 1개. 항상 보인다 (P1) */
 .app-header {
   position: sticky;
   top: 0;
@@ -38,6 +39,7 @@
   display: inline-flex;
   align-items: center;
   min-height: var(--control-height);
+  margin-left: auto;
   padding: 0 var(--space-2);
   border-radius: var(--radius-md);
   font: var(--text-small);
@@ -54,6 +56,43 @@
   position: relative; /* visually-hidden(absolute)이 스크롤 패널 밖 문서 높이를 늘리지 않게 */
   padding: var(--space-6);
   background: var(--color-surface);
+}
+
+.workspace__map {
+  position: relative;
+}
+
+/* 초기 화면 (§5.A): Display 제목 + 한 줄 설명 + 조건 + 결과 자리 */
+.intro {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.intro__title {
+  margin: 0;
+  font: var(--text-display);
+  letter-spacing: -0.02em;
+  color: var(--color-text-primary);
+}
+
+.intro__lead {
+  margin: calc(-1 * var(--space-3)) 0 0;
+  font: var(--text-body);
+  color: var(--color-text-secondary);
+}
+
+.intro__result {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+/* mobile 전용 요소 (지도 보기·하단 sheet) */
+@media (min-width: 640px) {
+  .mobile-only {
+    display: none !important;
+  }
 }
 
 /* desktop */
@@ -74,9 +113,6 @@
     flex: 1;
     grid-template-columns: var(--panel-width) minmax(0, 1fr);
     min-height: 0;
-    max-width: var(--content-max);
-    width: 100%;
-    margin: 0 auto;
   }
 
   .workspace__panel {
@@ -84,12 +120,15 @@
     overflow-y: auto;
     border-right: 1px solid var(--color-border);
   }
+
+  .workspace__map {
+    min-height: 0;
+  }
 }
 
 @media (min-width: 1440px) {
   .workspace {
     grid-template-columns: var(--panel-width-wide) minmax(0, 1fr);
-    border-inline: 1px solid var(--color-border);
   }
 
   .workspace__panel {
@@ -97,7 +136,7 @@
   }
 }
 
-/* tablet: 지도 자리 위(200px), 패널 아래 최대 720px 가운데 */
+/* tablet: 지도 위, 패널 아래 */
 @media (min-width: 640px) and (max-width: 1023px) {
   .workspace {
     display: flex;
@@ -106,8 +145,12 @@
 
   .workspace__map {
     order: -1;
-    height: 200px;
+    height: max(40vh, 280px);
     border-bottom: 1px solid var(--color-border);
+  }
+
+  .app[data-phase="result"] .workspace__map {
+    height: 200px;
   }
 
   .workspace__panel {
@@ -118,7 +161,7 @@
   }
 }
 
-/* mobile: 결과 전체 화면, 지도와 결과를 한 화면에 좁게 넣지 않는다 */
+/* mobile: 단계별 전체 화면 */
 @media (max-width: 639px) {
   .app-header {
     flex-wrap: wrap;
@@ -135,11 +178,77 @@
     min-height: var(--control-height-touch);
   }
 
+  .intro__title {
+    font-size: 24px; /* DESIGN.md §14: Display만 mobile에서 24px */
+  }
+
   .workspace__panel {
     padding: var(--space-5) var(--space-4);
   }
 
-  .workspace__map {
+  .app[data-screen="map"] .workspace__panel,
+  .app[data-screen="panel"] .workspace__map {
     display: none;
+  }
+
+  /* 지도 화면: 헤더 아래 남은 높이 전체 + 하단 sheet */
+  .app[data-screen="map"] {
+    display: flex;
+    flex-direction: column;
+    height: 100dvh;
+    min-height: 0;
+  }
+
+  .app[data-screen="map"] .workspace {
+    display: flex;
+    flex: 1;
+    min-height: 0;
+  }
+
+  .app[data-screen="map"] .workspace__map {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+  }
+
+  .workspace__map .map {
+    flex: 1;
+  }
+
+  /* 하단 sheet (peek): 상단 radius-lg, 손잡이 32×4px, --shadow-overlay (§14) */
+  .map-sheet {
+    position: relative;
+    z-index: 2;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    padding: var(--space-5) var(--space-4) var(--space-4);
+    border-top: 1px solid var(--color-border);
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    margin-top: calc(-1 * var(--radius-lg));
+    background: var(--color-surface);
+    box-shadow: var(--shadow-overlay);
+  }
+
+  .map-sheet::before {
+    content: "";
+    position: absolute;
+    top: var(--space-2);
+    left: 50%;
+    width: 32px;
+    height: 4px;
+    margin-left: -16px;
+    border-radius: var(--radius-pill);
+    background: var(--color-border-strong);
+  }
+
+  .map-sheet__text {
+    margin: 0;
+    font: var(--text-body);
+    color: var(--color-text-primary);
+  }
+
+  .map-sheet .button {
+    width: 100%;
   }
 }

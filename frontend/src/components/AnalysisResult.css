@@ -54,46 +54,6 @@
   color: var(--color-text-muted);
 }
 
-/* ghost button (§7.1): 배경·테두리 없음, 글자 accent, 높이 40px / touch 44px */
-.button-ghost {
-  display: inline-flex;
-  align-items: center;
-  align-self: flex-start;
-  gap: var(--space-2);
-  height: var(--control-height);
-  padding: 0 var(--space-4);
-  border: 0;
-  border-radius: var(--radius-md);
-  background: none;
-  font: var(--text-small);
-  font-weight: 600;
-  color: var(--color-accent);
-  cursor: pointer;
-  transition: background-color var(--duration-fast) ease-out;
-}
-
-.button-ghost:hover {
-  background: var(--color-accent-subtle);
-}
-
-.button-ghost:active {
-  background: var(--color-surface-sunken);
-}
-
-.button-ghost--small {
-  padding: 0 var(--space-2);
-}
-
-/* chevron: 접힘 → 펼침 90° 회전 (§7.8, §12) */
-.chevron {
-  display: inline-flex;
-  transition: transform var(--duration-base) var(--ease-out);
-}
-
-.chevron[data-open="true"] {
-  transform: rotate(90deg);
-}
-
 /* 정의 목록 (§8.8) */
 .definition-list {
   display: grid;
@@ -178,10 +138,6 @@
     margin-bottom: var(--space-5);
   }
 
-  .button-ghost {
-    height: var(--control-height-touch);
-  }
-
   .data-table tr > :first-child {
     position: sticky;
     left: 0;
@@ -190,8 +146,3 @@
   }
 }
 
-@media (pointer: coarse) {
-  .button-ghost {
-    height: var(--control-height-touch);
-  }
-}

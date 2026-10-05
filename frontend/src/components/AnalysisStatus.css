@@ -1,0 +1,98 @@
+.loading {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.loading__status {
+  min-height: 20px;
+}
+
+.loading__line {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  font: var(--text-small);
+  color: var(--color-text-secondary);
+}
+
+.loading__line .spinner {
+  color: var(--color-accent);
+}
+
+.loading__sub {
+  margin: var(--space-1) 0 0;
+  font: var(--text-small);
+  color: var(--color-text-muted);
+}
+
+/* skeleton: 결과 레이아웃과 같은 위치·크기 (Overall 1, 막대 행 5, 메타 1), --color-surface-sunken (§10.1) */
+.loading__skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.skeleton {
+  display: block;
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-sunken);
+  animation: shimmer 1.2s linear 1 alternate;
+}
+
+.skeleton--overall {
+  width: 40%;
+  height: 72px;
+  margin-bottom: var(--space-4);
+}
+
+.skeleton--row {
+  max-width: var(--chart-row-max);
+  height: 28px;
+}
+
+.skeleton--meta {
+  height: 44px;
+  margin-top: var(--space-4);
+}
+
+@keyframes shimmer {
+  50% {
+    opacity: 0.55;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton {
+    animation: none;
+  }
+}
+
+/* 빈 상태 (§10.2) */
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-6) 0;
+  border-top: 1px solid var(--color-border);
+}
+
+.empty__icon {
+  display: inline-flex;
+  color: var(--color-text-muted);
+}
+
+.empty__text {
+  margin: 0;
+  font: var(--text-body);
+  color: var(--color-text-secondary);
+}
+
+.empty__steps {
+  margin: 0;
+  padding-left: var(--space-5);
+  font: var(--text-small);
+  color: var(--color-text-muted);
+}

@@ -18,7 +18,7 @@ export function AnalysisResult({ analysis }: { analysis: AnalyzeResponse }) {
 
   return (
     <article className="result">
-      <h1 className="result__title">
+      <h1 id="result-title" className="result__title" tabIndex={-1}>
         {context.label} · {result.meta.업종} 분석
       </h1>
       <div className="result__summary">
