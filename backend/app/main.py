@@ -14,6 +14,7 @@ FastAPI backend (TASKS 3-1, docs/DECISIONS.md D-012).
 
 엔드포인트: GET /health (3-1), GET /businesses (3-2, 엔진 config.BIZ_GROUP 그대로),
             POST /analyze (3-3, ContextBuilder → AnalysisService, 엔진 결과는 변형 없이 result 에)
+오류 계약: backend/app/errors.py (3-5) — 사용자 입력·분석 불가 422, 내부 오류 500 + request_id
 ContextBuilder 는 첫 /analyze 때 1회 만들어 app.state 에 둔다 (lazy — /health·/businesses 만 쓰는 앱은 만들지 않는다).
 """
 from __future__ import annotations
@@ -21,13 +22,16 @@ from __future__ import annotations
 import logging
 import threading
 from contextlib import asynccontextmanager
-from typing import Any, Iterable, Optional
+from typing import Annotated, Any, Iterable, Literal, Optional
 
 from fastapi import FastAPI
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, StrictFloat, StrictInt, StrictStr
 
-from scoring_engine import config as C
-from scoring_engine.location import ContextBuilder
+from scoring_engine import config as C, scoring
+from scoring_engine.location import ContextBuilder, InvalidCoordinate, LocationOutside, NoDataNearby
+
+from .errors import (ERROR_RESPONSES, INVALID_ANALYSIS_OPTIONS, INVALID_BUSINESS, INVALID_COORDINATE,
+                     LOCATION_OUTSIDE, NO_DATA_NEARBY, ApiError, install_error_handlers)
 from scoring_engine.service import AnalysisService
 
 logger = logging.getLogger("backend.warm")
@@ -50,14 +54,21 @@ class BusinessCatalog(BaseModel):
     total: int
 
 
+# 요청 경계 검증 (3-5): JSON 숫자만(문자열·bool 거부, coercion 없음), 유한값, 범위. 엔진 규칙과 같은 의미만 쓴다.
+Perspective = Literal[tuple(C.PERSPECTIVES)]                                  # 엔진 config.PERSPECTIVES
+Latitude = Annotated[StrictFloat, Field(ge=-90, le=90, allow_inf_nan=False)]
+Longitude = Annotated[StrictFloat, Field(ge=-180, le=180, allow_inf_nan=False)]
+ImportanceLevel = Annotated[StrictInt, Field(ge=1, le=5)]                       # 엔진: "1~5 정수"
+Weight = Annotated[StrictFloat, Field(ge=0, allow_inf_nan=False)]               # 엔진: "0 이상의 숫자"
+
+
 class AnalyzeRequest(BaseModel):
-    lat: float
-    lng: float
-    biz_code: str
-    # 아래 값은 AnalysisService.analyze 에 그대로 넘긴다. 범위·형식 검증은 엔진(resolve_weights)이 한다 (오류 계약은 3-5)
-    importance: Optional[dict[str, Any]] = None       # {관점: 1~5}
-    user_weights: Optional[dict[str, Any]] = None     # {관점: 0 이상}
-    user_licenses: Optional[list[str]] = None
+    lat: Latitude
+    lng: Longitude
+    biz_code: StrictStr                                   # config.CODE_NAME 여부는 엔드포인트에서 (invalid_business)
+    importance: Optional[dict[Perspective, ImportanceLevel]] = None
+    user_weights: Optional[dict[Perspective, Weight]] = None
+    user_licenses: Optional[list[StrictStr]] = None
 
 
 class AnalyzeContext(BaseModel):
@@ -154,6 +165,7 @@ def create_app(service: Optional[AnalysisService] = None, warm_biz: Optional[Ite
             app.state.warm.shutdown()
 
     app = FastAPI(title="인천 상권분석 API", lifespan=lifespan)
+    install_error_handlers(app)
     app.state.service = None
     app.state.warm = None
     app.state.context_builder = None
@@ -180,10 +192,24 @@ def create_app(service: Optional[AnalysisService] = None, warm_biz: Optional[Ite
         """분석 가능한 업종 (엔진 config). service·warm 상태와 무관하게 즉시 응답한다."""
         return business_catalog()
 
-    @app.post("/analyze", response_model=AnalyzeResponse)
+    @app.post("/analyze", response_model=AnalyzeResponse, responses=ERROR_RESPONSES)
     def analyze(req: AnalyzeRequest) -> AnalyzeResponse:
         """좌표·업종 분석. warm 되지 않은 업종은 ReferenceCache 가 요청 시 계산한다 (warm 완료를 기다리지 않음)."""
-        ctx = context_builder().build(req.lat, req.lng)
+        if req.biz_code not in C.CODE_NAME:
+            raise ApiError(INVALID_BUSINESS)
+        try:   # 엔진 analyze() 가 처음 하는 일과 같은 호출 (순수 함수). 여기 ValueError 만 사용자 옵션 오류로 본다
+            scoring.resolve_weights(C.group_of(req.biz_code), req.user_weights, req.importance)
+        except ValueError as e:
+            raise ApiError(INVALID_ANALYSIS_OPTIONS, str(e)) from e
+        try:
+            ctx = context_builder().build(req.lat, req.lng)
+        except InvalidCoordinate as e:
+            raise ApiError(INVALID_COORDINATE) from e
+        except LocationOutside as e:
+            raise ApiError(LOCATION_OUTSIDE) from e
+        except NoDataNearby as e:
+            raise ApiError(NO_DATA_NEARBY) from e
+        # 이후 예외(ContextDataError 포함, analyze 안의 ValueError 도)는 내부 오류 → 500 (errors.install_error_handlers)
         result = app.state.service.analyze(ctx, req.biz_code, user_weights=req.user_weights,
                                            importance=req.importance, user_licenses=req.user_licenses)
         return AnalyzeResponse(

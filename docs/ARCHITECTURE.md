@@ -66,7 +66,7 @@ Frontend (React+TS, 지도)
   │  POST /analyze {lat, lng, biz_code, importance?, user_weights?, user_licenses?}
   ▼
 Backend API (FastAPI)            입력 검증, 오류 응답, 응답 스키마. 엔진 결과를 바꾸지 않는다 (pass-through)
-                                 입력·도메인 오류 → 4xx + error code, 내부 오류 → 500 + request_id (D-012)
+                                 입력·분석 불가 → 422 + error.code, 내부 오류 → 500 + request_id (D-014)
   ▼
 Location Resolver                lat/lng → 인천 내부 여부, 행정동(코드·이름), 시군구(코드·이름). 2026-07 polygon 직접 사용 (2024 crosswalk는 검증용, D-009)
   ▼

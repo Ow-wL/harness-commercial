@@ -78,3 +78,11 @@ eng review에서 승인됐지만 이 기록에 없던 결정. 구현 단계에�
 - check 안 (`tests/test_reference_cache.py`, 약 2.5s 추가): 업종 1개 cold warm ≤ **15s** (측정의 약 6배 — 느린 PC·CI에서 정상 구현이 실패하지 않고, 업종당 비용이 몇 배로 늘어나는 퇴행은 잡는다). 두 번째 warm은 `build_reference`를 다시 부르지 않고 ≤ 0.5s. entry 수·anchor 공유 규칙은 계산 함수를 가짜로 바꿔 ms 단위로 검사 (29개 → `build_reference` 29회, `site_profile` 14 × 158회).
 - check 밖 (`scripts/bench_reference.py`): 전체 29개 cold warm ≤ **180s** (평균의 약 3배), `load_runtime` ≤ 15s. 전체 warm을 check에 넣으면 매번 약 60s가 늘어 check(약 80s)가 거의 두 배가 된다. 전체 시간은 업종당 비용 × 29가 지배하므로 check는 업종당 비용을 직접 감시하고, 전체 실측은 엔진 계산·캐시 구현을 바꿀 때(2-2 판단 포함) 이 스크립트로 한다.
 - 2-2 디스크 캐시: 현재 불필요. background warm(D-012) 기준 서버는 약 4s 뒤 응답하고, 미warm 업종 첫 요청은 약 2.5s. 다중 worker 운영이나 재시작이 잦아 콜드 비용이 문제될 때 다시 판단한다.
+
+## D-014 API 오류 계약 확정 (2026-10-06, TASKS 3-5, D-012 후속)
+- 형태: `{"error": {"code", "message"}}`, 500만 `request_id` 추가. frontend는 status로 사용자/서버 오류를, `error.code`로 원인을 나눈다. `message`는 표시용이며 분기 기준이 아니다.
+- status: 사용자 입력과 분석 불가는 모두 **422**, 내부 오류는 **500**. 404는 없는 route에만 쓴다(FastAPI 기본).
+- code: `invalid_request`(요청 검증, 깨진 JSON — FastAPI 기본 `{"detail": [...]}` 대신) · `invalid_business` · `invalid_analysis_options` · `invalid_coordinate` · `location_outside` · `no_data_nearby` · `internal_error`.
+- 요청 검증: Pydantic strict 타입이라 coercion이 없다. lat/lng는 JSON 숫자·유한·범위, importance 값은 정수 1..5(1.0·"4"·bool 거부), user_weights 값은 유한 ≥ 0, 관점 키는 `config.PERSPECTIVES`. 모두 엔진 `resolve_weights` 규칙과 같은 의미다.
+- ValueError 경계: API가 analyze 전에 엔진 `scoring.resolve_weights(C.group_of(biz), user_weights, importance)`(엔진 analyze가 처음 하는 순수 호출)를 먼저 불러, 거기서 난 `ValueError`만 `invalid_analysis_options`로 본다. location 오류는 `InvalidCoordinate`/`LocationOutside`/`NoDataNearby` 타입으로 잡는다. `service.analyze` 안의 예외는 `ValueError`를 포함해 모두 500 — 내부 버그를 사용자 오류로 숨기지 않는다.
+- 500: `uuid4().hex` request_id를 응답과 server log(`backend.errors`, traceback 포함)에 함께 남긴다. 응답에는 예외 메시지·클래스명·경로를 넣지 않는다. Starlette는 500 handler 뒤 예외를 다시 raise하므로 uvicorn 로그에도 traceback이 한 번 더 남는다(응답은 위 계약 그대로).
