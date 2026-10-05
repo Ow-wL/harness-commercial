@@ -22,3 +22,6 @@ frontend/dist/
 Thumbs.db
 .vscode/
 .idea/
+
+# geo raw downloads (url + sha256 in tests/manifests/geo.sha256.json; rebuild: scripts/build_geo.py)
+data/geo/raw/

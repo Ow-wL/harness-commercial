@@ -6,8 +6,8 @@
 - [x] H-0 하네스: 원본 보호(해시), canonical 엔진, 런타임 데이터 분리, adapter, golden regression(29/29), check 스크립트, 문서
 
 ## 1. Analysis Context Builder (다음)
-- [ ] 1-1 행정동 경계 데이터 확보: 개편 후 인천 시군구 체계(제물포·영종·서해·검단)와 **같은 행정동코드**를 쓰는 경계 파일 선정, 출처·기준일 기록, `data/runtime/`에 추가 (원본 사본 아님 → 별도 매니페스트)
-- [ ] 1-2 경계 ↔ 패널 키 검증 테스트: 경계의 행정동코드 집합 == 패널 158개
+- [x] 1-1 행정동 경계 데이터 확보: `data/geo/` (runtime 아님). 2026-07-01 경계 158개 + 2024→2026 crosswalk(검증용), 별도 매니페스트 `tests/manifests/geo.sha256.json`. 출처·한계는 `docs/DATA.md`, 결정은 `docs/DECISIONS.md` D-009
+- [x] 1-2 경계 ↔ 패널 키 검증 테스트: 경계·crosswalk의 행정동코드 집합 == 패널 158개 (`tests/test_geo_data.py`)
 - [ ] 1-3 `LocationResolver.resolve(lat, lng)` → 행정동코드·행정동명·시군구코드·시군구명, 인천 밖이면 오류
 - [ ] 1-4 부평역 좌표의 실제 행정동 확인. 근접 점포 라벨로는 `부평6동`이 유력 (ARCHITECTURE 4장 경고). golden(부평1동 컨텍스트)은 그대로 두고, "좌표 → Resolver" 결과가 다르면 팀 결정: (a) golden 테스트는 명시 컨텍스트 `BUPYEONG_STATION`으로 유지 + Resolver 테스트는 별도, 또는 (b) 엔진 버전 올려 새 golden
 - [ ] 1-5 검증 테스트: 상가 점포 표본 N개의 좌표 → 점포에 붙은 행정동 라벨과 일치율 측정 (경계 품질 확인)
@@ -34,4 +34,4 @@
 
 ## 보류 (이번 범위 아님)
 로그인, DB, AI 설명, 지원사업 추천, 점수 공식 개선, 업종 추가.
-- 개편 후 행정동코드(2026-07 이후)로 된 공식 경계가 공개되면 `data/geo/`의 2024 경계 + 구→신 코드 crosswalk를 교체한다 (eng review 2026-10-05 D4·D14).
+- 통계청 SGIS(공식 배포)에서 2026-07 이후 기준 행정동 경계를 받을 수 있게 되면 `data/geo/`의 2차 가공본(vuski/admdongkor ver20260701)을 공식 파일로 교체하고 `scripts/build_geo.py`로 재검증한다 (eng review D4·D14, D-009).

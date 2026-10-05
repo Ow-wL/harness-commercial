@@ -1,0 +1,24 @@
+{
+  "description": "data/geo 원본(raw, git 제외)과 가공 파일 해시. scripts/build_geo.py 로 재생성",
+  "source": "github.com/vuski/admdongkor (원천 통계청 SGIS, 공공누리 1유형 / 가공 CC BY 4.0)",
+  "files": {
+    "raw/HangJeongDong_ver20241231.geojson": {
+      "sha256": "16bae5a1dc3a5c888d20a5d4d823b691b015ef53dfdf24e53fe69014e5032510",
+      "url": "https://raw.githubusercontent.com/vuski/admdongkor/master/ver20241231/HangJeongDong_ver20241231.geojson",
+      "git": false
+    },
+    "raw/HangJeongDong_ver20260701.geojson": {
+      "sha256": "c01ef44a0eb00978662ba7a6240ccb1da287fb52abd85104a1758969d391132f",
+      "url": "https://raw.githubusercontent.com/vuski/admdongkor/master/ver20260701/HangJeongDong_ver20260701.geojson",
+      "git": false
+    },
+    "인천_행정동경계_2026.geojson": {
+      "sha256": "ede39b3f8a5d90956708560f7f5e9c14adbb0bd3421d92715ebde063e1abf569",
+      "git": true
+    },
+    "행정동_crosswalk_2024_2026.csv": {
+      "sha256": "2383716eb4d4dbd699c323e62ba6934cf0e6dd1aec7676d5430b58baaa1d6dca",
+      "git": true
+    }
+  }
+}

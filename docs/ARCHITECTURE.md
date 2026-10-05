@@ -49,6 +49,7 @@ scoring_engine/
   context.py            SiteContext — run_all 하드코딩을 명시적 파라미터로. BUPYEONG_STATION만 검증됨
   service.py            AnalysisService.analyze(ctx, biz) — run_all 업종 루프와 같은 입력 조립 + 후처리
 data/runtime/           엔진 입력 데이터 (원본 07_가공데이터 사본)
+data/geo/               행정동 경계(2026-07 기준 158개) + 2024→2026 crosswalk. 별도 매니페스트, raw/는 git 제외 (D-009)
 data/cache/             (비어 있음) 향후 reference 디스크 캐시
 tests/                  무결성, canonical 엔진, 데이터 스키마, golden regression, adapter 계약
 scripts/check.*         전체 검증
@@ -71,7 +72,8 @@ Scoring Engine (v0_3, 불변)
 ```
 
 ### Location Resolver / Context Builder에 필요한 것 (아직 없음)
-1. **행정동 경계 데이터.** 런타임 데이터에는 경계 폴리곤이 없다. 점포 좌표에 붙은 행정동 라벨만 있다.
+1. **행정동 경계 데이터.** → `data/geo/인천_행정동경계_2026.geojson` (158개, panel 코드와 일치, 1-1·1-2 완료, D-009). 아래는 확보 전 기록.
+   런타임 데이터에는 경계 폴리곤이 없다. 점포 좌표에 붙은 행정동 라벨만 있다.
    - 데이터의 시군구는 **개편 후 체계**다: 제물포구·영종구·서해구·검단구 (구 중구·동구·서구 아님), 시군구코드 28125/28155/28275/28290.
      경계 데이터도 같은 체계·같은 코드여야 한다. 코드 체계 불일치가 가장 큰 위험.
    - 대안(근사): 상가 점포 최근접 이웃 다수결. 경계 데이터 검증용으로도 쓸 수 있다.

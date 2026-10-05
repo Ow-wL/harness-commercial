@@ -1,0 +1,3 @@
+# data/geo 가공 파일은 sha256 매니페스트로 보호된다 — 줄바꿈 변환 금지
+data/geo/*.geojson -text
+data/geo/*.csv -text
