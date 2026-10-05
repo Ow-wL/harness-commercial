@@ -1,0 +1,26 @@
+/* DESIGN.md §7.6 — 높이 28px, 좌우 12px, pill, --text-small, 1px border */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  height: 28px;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface);
+  font: var(--text-small);
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}
+
+.chip--warning {
+  border-color: var(--color-warning-border);
+  background: var(--color-warning-subtle);
+  color: var(--color-warning);
+}
+
+.chip--info {
+  border-color: var(--color-info-border);
+  background: var(--color-info-subtle);
+  color: var(--color-info);
+}

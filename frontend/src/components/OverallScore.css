@@ -1,0 +1,100 @@
+.overall {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-4) var(--space-6);
+}
+
+.overall__score {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  max-width: 40%; /* DESIGN.md §6: 종합 숫자 블록은 패널 폭의 40% 이하 */
+}
+
+.overall__caption {
+  margin: 0;
+  font: var(--text-caption);
+  letter-spacing: 0.01em;
+  color: var(--color-text-muted);
+}
+
+.overall__number {
+  margin: 0;
+  font: var(--text-score-xl);
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  color: var(--color-text-primary);
+}
+
+.overall__unit {
+  margin-left: var(--space-1);
+  font: var(--text-small);
+  letter-spacing: 0;
+  color: var(--color-text-muted);
+}
+
+.overall__unavailable {
+  margin: 0;
+  font: var(--text-section);
+  color: var(--color-text-muted);
+}
+
+.overall__note {
+  margin: 0;
+  font: var(--text-caption);
+  letter-spacing: 0.01em;
+  color: var(--color-text-muted);
+}
+
+.overall__summary {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: 0 0 var(--space-5);
+}
+
+.overall__summary div {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.overall__summary dt {
+  font: var(--text-small);
+  color: var(--color-text-muted);
+}
+
+.overall__summary dd {
+  margin: 0;
+  font: var(--text-small);
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.overall__value {
+  font-variant-numeric: tabular-nums;
+}
+
+.overall__weights {
+  flex-basis: 100%;
+  margin: 0;
+  font: var(--text-small);
+  color: var(--color-text-secondary);
+}
+
+/* mobile: 숫자 위, 요약 2줄 아래 (DESIGN.md §14) */
+@media (max-width: 639px) {
+  .overall {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .overall__score {
+    max-width: none;
+  }
+
+  .overall__summary {
+    margin: 0;
+  }
+}

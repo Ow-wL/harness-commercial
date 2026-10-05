@@ -18,3 +18,36 @@ body {
   outline: 2px solid var(--color-focus-ring);
   outline-offset: 2px;
 }
+
+/* 화면에는 숨기고 스크린리더에는 읽히는 텍스트 */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* 5대 관점 식별색 (DESIGN.md §2.4) — 라벨 마커·세부 띠에만 쓴다 */
+.persp-market { --persp-color: var(--color-persp-market); }
+.persp-customer { --persp-color: var(--color-persp-customer); }
+.persp-competition { --persp-color: var(--color-persp-competition); }
+.persp-location { --persp-color: var(--color-persp-location); }
+.persp-stability { --persp-color: var(--color-persp-stability); }
+
+.icon {
+  flex: none;
+}
+
+/* DESIGN.md §12: reduced-motion이면 transition 0ms */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0ms !important;
+  }
+}

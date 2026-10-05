@@ -1,6 +1,6 @@
 # frontend (React + TypeScript + Vite)
 
-현재 단계: 4-1 기반 + 4-2 API 응답 schema. 화면은 서비스명·안내 문구만 있다. 다음 순서와 범위는 `docs/TASKS.md` 4장.
+현재 단계: 4-3 분석 결과 화면(지도 없이 부평역 · PC방 고정 응답). live API·지도는 4-4. 다음 순서와 범위는 `docs/TASKS.md` 4장.
 
 ## 실행
 
@@ -22,8 +22,12 @@ src/
   main.tsx            진입점
   api/schemas.ts      API 응답 Zod schema (source of truth) + z.infer 타입
   api/schemas.test.ts 루트 golden 29개 전체 + 계약 파손 변형 + context·오류·업종 목록
-  App.tsx / App.css   초기 화면 (DESIGN.md §5-A 최소판)
-  App.test.tsx        smoke test: App 렌더링 → 서비스명 제목 확인
+  App.tsx / App.css   App shell: Header(Context Bar) + 결과 패널 + 지도 자리 (DESIGN.md §4.3·§14)
+  App.test.tsx        결과 화면 UI 테스트 (고정 응답 + golden 네일숍으로 score=null 표시)
+  fixtures/           bupyeong-pcbang.json = 실제 POST /analyze 응답 캡처, fixedAnalysis.ts에서 schema 검증
+  components/         AnalysisResult · ContextBar · OverallScore · PerspectiveScores · CoverageMeta ·
+                      WarningPanel · BeginnerAccess · IndicatorDetails · DataSources · MapPlaceholder · Chip · Icon
+  lib/format.ts       표시 형식(점수 소수 1자리, %, 신뢰도·해상도 표기) — 값을 재계산하지 않는다
   styles/tokens.css   DESIGN.md §17 디자인 토큰 그대로 (값 변경은 DESIGN.md 먼저)
   styles/global.css   전역 기본 스타일
   test/setup.ts       jest-dom matcher, 테스트 후 cleanup
@@ -31,6 +35,7 @@ src/
 
 ## 원칙
 
+- 고정 응답 갱신: backend에서 `POST /analyze {"lat": 37.4894, "lng": 126.7246, "biz_code": "R10406"}` 응답을 그대로 저장한다(손으로 고치지 않는다). legacy golden(`BUPYEONG_STATION`)을 화면 데이터로 쓰지 않는다.
 - API 데이터는 Zod로 runtime validation하고 타입은 schema에서 추론한다(`z.infer`). 같은 내용의 interface를 손으로 쓰지 않는다. 응답은 `AnalyzeResponseSchema.safeParse(data)`처럼 같은 schema로 검증한다.
 - UI는 `DESIGN.md`를 따른다. 컴포넌트는 토큰만 참조한다(hex·px 직접 사용 금지).
 - scoring engine을 직접 호출하지 않는다. Backend API만 호출한다.

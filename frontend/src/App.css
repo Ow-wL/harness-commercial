@@ -1,55 +1,145 @@
+/*
+ * App shell (DESIGN.md §4.3, §14).
+ * desktop ≥1024: 헤더 56px + [패널 480px(≥1440: 560px, 자체 스크롤) │ 지도 자리(남은 폭)]
+ * tablet 640–1023: 헤더 + 작은 지도 자리(200px) 위 + 패널 아래(최대 720px 가운데)
+ * mobile <640: 헤더(Context Bar 포함, sticky) + 결과 전체 화면. 지도 자리는 지도 연결(4-4) 때 "지도 보기"로 전환
+ */
 .app {
   min-height: 100vh;
   background: var(--color-bg);
 }
 
+/* Header: 서비스명 · Context Bar(위치·업종 칩) · "데이터 출처" 링크 1개. 항상 보인다 (P1) */
 .app-header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
   display: flex;
   align-items: center;
-  height: var(--header-height);
-  padding: 0 var(--space-6);
-  background: var(--color-surface);
+  gap: var(--space-2) var(--space-6);
+  min-height: var(--header-height);
+  padding: var(--space-2) var(--space-6);
   border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface);
 }
 
 .app-header__title {
+  flex: none;
   font: var(--text-card-title);
   color: var(--color-text-primary);
 }
 
-.app-main {
-  max-width: var(--doc-max);
-  margin: 0 auto;
-  padding: var(--space-12) var(--space-6);
+.app-header .context-bar {
+  flex: 1;
 }
 
-.app-main__title {
-  margin: 0 0 var(--space-2);
-  font: var(--text-display);
-  letter-spacing: -0.02em;
-  color: var(--color-text-primary);
-}
-
-.app-main__lead {
-  max-width: var(--prose-max);
-  margin: 0 0 var(--space-6);
-  font: var(--text-body);
-  color: var(--color-text-secondary);
-}
-
-.app-main__note {
-  max-width: var(--prose-max);
-  margin: 0;
+.app-header__link {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--control-height);
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-md);
   font: var(--text-small);
-  color: var(--color-text-muted);
+  font-weight: 600;
+  color: var(--color-accent);
+  text-decoration: none;
 }
 
-@media (max-width: 639px) {
-  .app-header {
-    padding: 0 var(--space-4);
+.app-header__link:hover {
+  background: var(--color-accent-subtle);
+}
+
+.workspace__panel {
+  position: relative; /* visually-hidden(absolute)이 스크롤 패널 밖 문서 높이를 늘리지 않게 */
+  padding: var(--space-6);
+  background: var(--color-surface);
+}
+
+/* desktop */
+@media (min-width: 1024px) {
+  .app {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    min-height: 0;
   }
 
-  .app-main {
-    padding: var(--space-8) var(--space-4);
+  .app-header {
+    flex: none;
+  }
+
+  .workspace {
+    display: grid;
+    flex: 1;
+    grid-template-columns: var(--panel-width) minmax(0, 1fr);
+    min-height: 0;
+    max-width: var(--content-max);
+    width: 100%;
+    margin: 0 auto;
+  }
+
+  .workspace__panel {
+    min-height: 0;
+    overflow-y: auto;
+    border-right: 1px solid var(--color-border);
+  }
+}
+
+@media (min-width: 1440px) {
+  .workspace {
+    grid-template-columns: var(--panel-width-wide) minmax(0, 1fr);
+    border-inline: 1px solid var(--color-border);
+  }
+
+  .workspace__panel {
+    padding-inline: var(--space-8);
+  }
+}
+
+/* tablet: 지도 자리 위(200px), 패널 아래 최대 720px 가운데 */
+@media (min-width: 640px) and (max-width: 1023px) {
+  .workspace {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .workspace__map {
+    order: -1;
+    height: 200px;
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .workspace__panel {
+    width: 100%;
+    max-width: 720px;
+    margin: 0 auto;
+    border-inline: 1px solid var(--color-border);
+  }
+}
+
+/* mobile: 결과 전체 화면, 지도와 결과를 한 화면에 좁게 넣지 않는다 */
+@media (max-width: 639px) {
+  .app-header {
+    flex-wrap: wrap;
+    justify-content: space-between;
+    padding: var(--space-2) var(--space-4);
+  }
+
+  .app-header .context-bar {
+    order: 3;
+    flex-basis: 100%;
+  }
+
+  .app-header__link {
+    min-height: var(--control-height-touch);
+  }
+
+  .workspace__panel {
+    padding: var(--space-5) var(--space-4);
+  }
+
+  .workspace__map {
+    display: none;
   }
 }

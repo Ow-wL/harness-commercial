@@ -1,16 +1,29 @@
+import { AnalysisResult } from './components/AnalysisResult.tsx'
+import { ContextBar } from './components/ContextBar.tsx'
+import { MapPlaceholder } from './components/MapPlaceholder.tsx'
+import { FIXED_ANALYSIS } from './fixtures/fixedAnalysis.ts'
 import './App.css'
 
 function App() {
+  const analysis = FIXED_ANALYSIS
+
   return (
     <div className="app">
       <header className="app-header">
         <span className="app-header__title">우리동네 상권분석 매니저</span>
+        <ContextBar context={analysis.context} meta={analysis.result.meta} />
+        <a className="app-header__link" href="#data-sources">
+          데이터 출처
+        </a>
       </header>
-      <main className="app-main">
-        <h1 className="app-main__title">우리동네 상권분석 매니저</h1>
-        <p className="app-main__lead">인천 158개 행정동 공공데이터로 위치·업종을 비교합니다</p>
-        <p className="app-main__note">프론트엔드 기반이 준비되었습니다. 분석 화면은 다음 단계에서 연결합니다.</p>
-      </main>
+      <div className="workspace">
+        <main className="workspace__panel">
+          <AnalysisResult analysis={analysis} />
+        </main>
+        <div className="workspace__map">
+          <MapPlaceholder context={analysis.context} />
+        </div>
+      </div>
     </div>
   )
 }

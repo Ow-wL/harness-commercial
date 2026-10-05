@@ -1,0 +1,49 @@
+.warnings__empty {
+  margin: 0;
+  font: var(--text-body);
+  color: var(--color-text-muted);
+}
+
+.warnings__subtitle {
+  margin: var(--space-2) 0 0;
+  font: var(--text-label);
+  color: var(--color-text-secondary);
+}
+
+.warnings__list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* 항목: 아이콘 16px + --text-body, subtle 배경 + 왼쪽 3px 띠, radius-md, 패딩 --space-4 (DESIGN.md §8.7) */
+.warnings__item {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding: var(--space-4);
+  border-left: 3px solid var(--tone);
+  border-radius: var(--radius-md);
+  background: var(--tone-subtle);
+  font: var(--text-body);
+  color: var(--color-text-primary);
+}
+
+.warnings__item .icon {
+  flex: none;
+  margin-top: var(--space-1);
+  color: var(--tone);
+}
+
+.warnings__item--warning {
+  --tone: var(--color-warning);
+  --tone-subtle: var(--color-warning-subtle);
+}
+
+.warnings__item--info {
+  --tone: var(--color-info);
+  --tone-subtle: var(--color-info-subtle);
+}
