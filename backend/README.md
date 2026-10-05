@@ -7,7 +7,7 @@ python -m uvicorn backend.app.main:app --reload
 ```
 
 구조
-- `app/main.py` — `create_app(service=None, warm_biz=None)` + module-level `app`. `GET /health`.
+- `app/main.py` — `create_app(service=None, warm_biz=None)` + module-level `app`. `GET /health`, `GET /businesses`.
 - `tests/` — `python -m pytest -q backend` (`scripts/check.py`가 `backend/app`이 있으면 자동 실행).
 
 수명 주기 (3-1)
@@ -20,6 +20,13 @@ python -m uvicorn backend.app.main:app --reload
 ```json
 {"status": "ok", "service_ready": true,
  "warm": {"completed": 7, "total": 29, "done": false, "failed": false, "error": null}}
+```
+
+`GET /businesses` (3-2) — 엔진 `config.BIZ_GROUP` 그대로 (그룹·업종 순서 = 정의 순서, 업종 목록을 backend에 따로 두지 않는다). service·warm과 무관하게 즉시 응답.
+```json
+{"groups": [{"code": "A_고객밀착형", "name": "고객밀착형",
+             "businesses": [{"code": "G20405", "name": "편의점", "group": "A_고객밀착형"}, ...]}, ...],
+ "total": 29}
 ```
 
 원칙

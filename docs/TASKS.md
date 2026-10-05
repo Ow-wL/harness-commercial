@@ -21,7 +21,7 @@
 
 ## 3. Backend (FastAPI)
 - [x] 3-1 `backend/app` skeleton (`backend/app/main.py`, `backend/tests/test_app.py`). app factory `create_app(service=None, warm_biz=None)`. production: lifespan 에서 `AnalysisService` 1회 생성(RuntimeData 로드) 후 바로 요청 수신, `ReferenceCache` 29개 업종 warm은 background thread에서 진행. `/health`가 warm 진행도(`warm.completed`/`warm.total`/`done`/`failed`/`error`)를 보여 준다. 아직 warm되지 않은 업종 요청은 on-demand 계산(캐시 lock 대기 ≤ 약 2s) 허용. 테스트: 세션 공유 `AnalysisService`(`real_service`)를 주입하고 테스트가 쓰는 업종만 warm(scoped warm) — 테스트마다 29개 전체 warm을 반복하지 않는다 (D-012)
-- [ ] 3-2 `GET /businesses` (29개 업종·그룹)
+- [x] 3-2 `GET /businesses` (29개 업종·4개 그룹). 엔진 `config.BIZ_GROUP`을 정의 순서 그대로 반환, 별도 목록 없음. 응답 `{groups:[{code,name,businesses:[{code,name,group}]}], total}` (`backend/tests/test_businesses.py`)
 - [ ] 3-3 `POST /analyze {lat,lng,biz_code,...}` → `location.ContextBuilder` → `AnalysisService`. 응답은 엔진 JSON 그대로 + 컨텍스트 메타. 일반 좌표의 `rent_area`는 `None` (1-6 결정 전, 부평역 근접 특별 처리 없음)
 - [ ] 3-4 API 테스트 = pass-through equality: 같은 좌표·업종에 대해 API 응답의 엔진 부분 == `AnalysisService.analyze(ContextBuilder.build(lat, lng), biz)` (부평역 좌표 + 다른 2~3곳). API가 엔진 결과를 바꾸지 않는지만 본다. golden 29/29는 `BUPYEONG_STATION`을 쓰는 service/engine regression에 그대로 둔다. public API에 golden 재현용 preset·테스트 전용 필드를 추가하지 않는다 (D-012)
 - [ ] 3-5 오류 계약 (full mapping, D-012). 입력·도메인 오류 → 안정적인 4xx + frontend가 구분할 error code: 요청 검증(유한한 lat/lng, `importance` 1..5, `user_weights` ≥ 0) · `InvalidCoordinate` · `LocationOutside`(location_outside) · `NoDataNearby`(no_data_nearby) · 잘못된 업종 · 엔진 가중치 `ValueError`. 내부 오류(`ContextDataError`, `KeyError`, 예상하지 못한 예외) → 500 + `request_id`, traceback은 응답에 넣지 않고 server log에만. 구체적 status 값은 구현 시 예외 구조를 보고 확정. 오류 경로마다 테스트

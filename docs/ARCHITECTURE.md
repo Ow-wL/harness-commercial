@@ -62,6 +62,7 @@ frontend/               (비어 있음) 향후 React + TypeScript
 
 ```
 Frontend (React+TS, 지도)
+  │  GET /businesses (업종 29개·그룹 4개, 엔진 config 그대로)
   │  POST /analyze {lat, lng, biz_code, importance?, user_weights?, user_licenses?}
   ▼
 Backend API (FastAPI)            입력 검증, 오류 응답, 응답 스키마. 엔진 결과를 바꾸지 않는다 (pass-through)

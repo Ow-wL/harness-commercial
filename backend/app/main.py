@@ -11,6 +11,8 @@ FastAPI backend (TASKS 3-1, docs/DECISIONS.md D-012).
   warm 되지 않은 업종은 ReferenceCache 가 요청 시 계산한다 (기존 lock·caching 그대로).
 
 테스트: create_app(service=공유 서비스, warm_biz=[...]) — RuntimeData 를 다시 읽지 않고 지정 업종만 warm.
+
+엔드포인트: GET /health (3-1), GET /businesses (3-2, 엔진 config.BIZ_GROUP 그대로)
 """
 from __future__ import annotations
 
@@ -20,11 +22,37 @@ from contextlib import asynccontextmanager
 from typing import Iterable, Optional
 
 from fastapi import FastAPI
+from pydantic import BaseModel
 
 from scoring_engine import config as C
 from scoring_engine.service import AnalysisService
 
 logger = logging.getLogger("backend.warm")
+
+
+class Business(BaseModel):
+    code: str           # 상권업종 소분류 코드 (config.CODE_NAME 키)
+    name: str           # 업종명 (config.CODE_NAME 값)
+    group: str          # 업종그룹 키 (config.CODE_GROUP 값, 예: "A_고객밀착형")
+
+
+class BusinessGroup(BaseModel):
+    code: str           # config.BIZ_GROUP 키
+    name: str           # 표시명 = 키에서 "A_" 같은 접두어를 뗀 것
+    businesses: list[Business]
+
+
+class BusinessCatalog(BaseModel):
+    groups: list[BusinessGroup]
+    total: int
+
+
+def business_catalog() -> BusinessCatalog:
+    """엔진 config.BIZ_GROUP 을 그대로 옮긴다 (그룹·업종 순서 = 정의 순서). 업종 목록을 따로 두지 않는다."""
+    groups = [BusinessGroup(code=g, name=g.split("_", 1)[1],
+                            businesses=[Business(code=c, name=n, group=g) for c, n in members.items()])
+              for g, members in C.BIZ_GROUP.items()]
+    return BusinessCatalog(groups=groups, total=sum(len(g.businesses) for g in groups))
 
 WARM_JOIN_TIMEOUT_S = 5.0     # 종료 시 대기 상한. 업종 1개 warm 은 약 2.5s (D-013), thread 는 daemon
 
@@ -106,6 +134,11 @@ def create_app(service: Optional[AnalysisService] = None, warm_biz: Optional[Ite
                 "service_ready": app.state.service is not None,
                 "warm": warm.snapshot() if warm is not None else
                 {"completed": 0, "total": len(biz_codes), "done": False, "failed": False, "error": None}}
+
+    @app.get("/businesses", response_model=BusinessCatalog)
+    def businesses() -> BusinessCatalog:
+        """분석 가능한 업종 (엔진 config). service·warm 상태와 무관하게 즉시 응답한다."""
+        return business_catalog()
 
     return app
 
