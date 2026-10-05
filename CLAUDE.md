@@ -2,7 +2,8 @@
 
 ## Project Goal
 인천 지역에서 사용자가 지도상의 위치와 업종을 선택하면 기존 v0.3 scoring engine을 사용하여 상권을 분석하는 웹 애플리케이션이다.
-현재 단계: Harness 구축 완료, 웹 기능 없음. 다음 작업은 `docs/TASKS.md` 참고.
+현재 단계: Backend 및 Frontend MVP 구현 완료. 지도 기반 위치·업종 선택 → 실제 상권분석 흐름까지 연결됨.
+다음 작업은 `docs/TASKS.md` 참고.
 
 ## Source of Truth
 - `sources/team_v0.3/`는 팀원이 전달한 원본이며 **절대 수정하지 않는다** (수정·삭제·파일 추가·`__pycache__` 생성 포함).
@@ -59,3 +60,10 @@ gstack(v1.91.25.0)이 전역 설치되어 있다: `~/.claude/skills/gstack` (Win
 - **이 프로젝트의 규칙이 gstack skill보다 우선한다.** gstack skill을 쓰더라도 위 Source of Truth / Critical Rules / Definition of Done을 따른다.
   `sources/`, `scoring_engine/v0_3/`, `data/runtime/`, `tests/golden/`은 어떤 skill로도 수정하지 않으며, 완료 판정은 `scripts/check` 통과다.
 - Windows 설치는 파일 복사 방식이다. gstack을 `git pull`한 뒤에는 `cd ~/.claude/skills/gstack && ./setup`을 다시 실행한다 (또는 `/gstack-upgrade`).
+
+## Communication
+
+- 사용자에게 보내는 설명, 질문, 진행상황, 최종 보고는 기본적으로 한국어로 작성한다.
+- 코드, 명령어, 파일명, API 필드명, 라이브러리/제품명, 원문 오류 메시지는 필요하면 원문을 유지한다.
+- 영어 문서나 도구 출력을 참고했더라도 사용자용 요약과 최종 보고는 한국어로 작성한다.
+- 사용자가 명시적으로 다른 언어를 요청한 경우에만 그 언어를 사용한다.
