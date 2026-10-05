@@ -1,0 +1,307 @@
+{
+ "source": "sources/team_v0.3",
+ "engine_version": "mvp-0.3",
+ "created": "2026-10-05",
+ "files": {
+  "00_README.md": {
+   "sha256": "355d6e53b0f2bc0981afa28c8fdc2fc8467693b53f1c584e5e2f63f9ee7361c2",
+   "bytes": 6084
+  },
+  "01_보고서/그림설명_보고서보완.docx": {
+   "sha256": "d94c8ade2cd9bd4182dd3c987c8839d99d4a4a7add642856a16b440687ded50e",
+   "bytes": 9960
+  },
+  "01_보고서/상권분석_매니저_중간보고.pdf": {
+   "sha256": "4b9a93183fb336dfcc1a32d6bce2314099cd5631e783624479b09205c47022c0",
+   "bytes": 986554
+  },
+  "02_점수기준_근거조사/임대료_공정성_9개상권.csv": {
+   "sha256": "dde19a6fbcbd300cdc758afb7a07db507dca1d7f54b52888add16eb81b8d4343",
+   "bytes": 1704
+  },
+  "02_점수기준_근거조사/점수기준_근거조사_v2.md": {
+   "sha256": "bfc24f5a9bf425dbfd39b5a0cbfaa33490284d2978f1e5b97e7fa34b30112d1f",
+   "bytes": 11917
+  },
+  "02_점수기준_근거조사/점수산출_상세설명.md": {
+   "sha256": "3b72cda637c4b6678d0eb0f8ec3a61d3a6b1c46c9d6a816bce00c7942200b4c4",
+   "bytes": 13495
+  },
+  "02_점수기준_근거조사/초보자_접근성_29업종.csv": {
+   "sha256": "91aaf3c528da0d6fbf861bff984b8d60094ee7f4891d7434c0044753c3eb39b0",
+   "bytes": 4858
+  },
+  "02_점수기준_근거조사/초보자_접근성_태그.md": {
+   "sha256": "79e530441e115140bf0e2836e77ae8be3296d3cba8c0bbae4413c8fe23b8e7d8",
+   "bytes": 13656
+  },
+  "03_설계서_기획/5대관점_스코어링_설계서.md": {
+   "sha256": "4f91f2b0f6d5fe5a09bb0863729b95911c8f2696b0b23372c74a1e4125b3250f",
+   "bytes": 31521
+  },
+  "03_설계서_기획/기획보고서_정정본_v2.md": {
+   "sha256": "21e845a0ab781304280cfe147caa80b6473b1e047169a13e519a568de1cf14d7",
+   "bytes": 27452
+  },
+  "03_설계서_기획/인천_공공데이터_API_조사결과.md": {
+   "sha256": "f9ad9f939002ac72929b1e098000fbd96bbca79544bac2761360c906de046dde",
+   "bytes": 26993
+  },
+  "04_엔진코드/run_all.py": {
+   "sha256": "e4dce2e4d1246e5039b1f7c2900267347908765241857ad27e6e092f4023a9b4",
+   "bytes": 8475
+  },
+  "04_엔진코드/sensitivity.py": {
+   "sha256": "5a6a7220cc145aa76bf8ca445e3dacfba7f420747aa850b6a2c6eb6dc4588dfc",
+   "bytes": 3604
+  },
+  "04_엔진코드/engine/access.py": {
+   "sha256": "698c6ff1d5b5d43101badc61d72d4808f9aba2b860ea7d4f09a5ba734d38a455",
+   "bytes": 14606
+  },
+  "04_엔진코드/engine/config.py": {
+   "sha256": "753551063bcacb6f01113d0f2f4a71ea53cd3d0e496bb1af572c0391cb42f592",
+   "bytes": 26364
+  },
+  "04_엔진코드/engine/demo.py": {
+   "sha256": "38ed0d85c6c0eed7d91d0d94ffc7a145d8c7c03114137592163d782accc15be7",
+   "bytes": 5033
+  },
+  "04_엔진코드/engine/etl_location.py": {
+   "sha256": "7ec4f6d63aaa55c931d2155d79655328cdb0335a51513bd6a6242932dcf83e7f",
+   "bytes": 8667
+  },
+  "04_엔진코드/engine/etl_move.py": {
+   "sha256": "3d841e021094eb469f293ea9bdcd51ec95dc8e84c7a98779d738e5431940b8fe",
+   "bytes": 5152
+  },
+  "04_엔진코드/engine/etl_pop.py": {
+   "sha256": "9182ea4715dc9e001b94a3bf7ebf5387ba2e932dfca42329aa6507f7b6396533",
+   "bytes": 4921
+  },
+  "04_엔진코드/engine/etl_rent.py": {
+   "sha256": "f0f25bfb3bfb413b72d2d423cc93aeebbe82e5f4d460ddbbd43e8331adb0eeaa",
+   "bytes": 2421
+  },
+  "04_엔진코드/engine/etl_sgis.py": {
+   "sha256": "ad5bc70d2c8d41d7f01069e7f08a7bb8f1036a2f520c51743837f6fc15ce3f51",
+   "bytes": 5673
+  },
+  "04_엔진코드/engine/etl_shops.py": {
+   "sha256": "361e60bd30fb1bad377ccdeb9e4b91da316849e325caadc33fa5249c4d3de40c",
+   "bytes": 6816
+  },
+  "04_엔진코드/engine/etl_stability.py": {
+   "sha256": "745141500efefd2ccece8a84b9be7eaf478ced276b6d64df88cf6b1d0f5e3acd",
+   "bytes": 6358
+  },
+  "04_엔진코드/engine/etl_stability_food.py": {
+   "sha256": "32578a92dd8d0fd2f9d6f1982efa5a63e22bbcb6d4877834de1013888db93c19",
+   "bytes": 4905
+  },
+  "04_엔진코드/engine/prep.py": {
+   "sha256": "24a558963f76c4ded2d00b8a9fb7426029e0badbf64f113a7787a798e4ef20eb",
+   "bytes": 9169
+  },
+  "04_엔진코드/engine/radius_demand.py": {
+   "sha256": "0c1d2b79442c1cdd8b0c2ae2ded6ef21ee5822bfbd35013b8dba3f73579ec076",
+   "bytes": 3777
+  },
+  "04_엔진코드/engine/scoring.py": {
+   "sha256": "0643545fb816393baed70a2367e80440215a746952c46bc6fa69c25400493667",
+   "bytes": 37564
+  },
+  "04_엔진코드/engine/test_access.py": {
+   "sha256": "b49bd4937dd43c066a61b1519631c146eb9e0a4447a69f99534e125dc768e762",
+   "bytes": 3051
+  },
+  "04_엔진코드/engine/test_weights.py": {
+   "sha256": "aaeaa62c19e637223c119acc51ac6b758fd53b83c47d7cbafa1c0249a0e974d4",
+   "bytes": 4377
+  },
+  "05_분석결과/sensitivity_result.json": {
+   "sha256": "4495e387ee6af3ffbefb18075edb293f90afe812c768d29a8bc988eb37795dbd",
+   "bytes": 4150
+  },
+  "05_분석결과/부평역_업종별_적합도.csv": {
+   "sha256": "12c52ae7ead61913ccda7a9574428fd86b253a91b3324cdaa7fa6ea746188452",
+   "bytes": 3918
+  },
+  "05_분석결과/업종별_상세JSON/full_PC방.json": {
+   "sha256": "069a180db02fa70dfc607f520f7df69b097f222b82ad83f1288795a8f1db7081",
+   "bytes": 10288
+  },
+  "05_분석결과/업종별_상세JSON/full_김밥_만두_분식.json": {
+   "sha256": "9e297612f759df0f471d68163f932c4a60015ea5d75b9bedbca7d30bef721ca2",
+   "bytes": 9949
+  },
+  "05_분석결과/업종별_상세JSON/full_네일숍.json": {
+   "sha256": "5d430672f0824ef15f1854d110f329e44d7d99763fde5dd9982a8c83c5f6c9a0",
+   "bytes": 10174
+  },
+  "05_분석결과/업종별_상세JSON/full_노래방.json": {
+   "sha256": "7321b320971d909f5bc85b23796be67c60792b7d04b17d1cf3c1d7a8b1aabeaf",
+   "bytes": 10496
+  },
+  "05_분석결과/업종별_상세JSON/full_당구장.json": {
+   "sha256": "3904d544b9bc41106ec0332c5f2f986b6166d6457ddac7c70bcf20ad85a81456",
+   "bytes": 10014
+  },
+  "05_분석결과/업종별_상세JSON/full_독서실_스터디카페.json": {
+   "sha256": "39582e72b0c8b0ea7a9e0ff13697d66c8232e94c3b64e550bbcebffc96b90dd5",
+   "bytes": 10175
+  },
+  "05_분석결과/업종별_상세JSON/full_미용실.json": {
+   "sha256": "fce927f1726ab74cd1b11e8ad57567e95c8e8b08f52f45644090eeea7ddcc152",
+   "bytes": 10181
+  },
+  "05_분석결과/업종별_상세JSON/full_백반_한정식.json": {
+   "sha256": "0b4fe5f08a438b2512b26f6b9d3c53bb70008a6def1151645a17af3fcd269ef9",
+   "bytes": 9844
+  },
+  "05_분석결과/업종별_상세JSON/full_버거.json": {
+   "sha256": "fa595002cc1150dc262fe1884468af3c251d804e3b351301d7c76602ae52e2b9",
+   "bytes": 9911
+  },
+  "05_분석결과/업종별_상세JSON/full_빵_도넛.json": {
+   "sha256": "865003b16d1e4ece3f3ab47d5841347d9876617dc9e583029f44dd295c74ac7e",
+   "bytes": 9876
+  },
+  "05_분석결과/업종별_상세JSON/full_생맥주전문.json": {
+   "sha256": "fef568a60291f7e2c2f9549c120a528aef7055d4b88819f1353eaf93629a0918",
+   "bytes": 9795
+  },
+  "05_분석결과/업종별_상세JSON/full_세탁소.json": {
+   "sha256": "a61b6f96cd91d7ef9eaf164fb9ca38527b00b10c5d89948107a4407f0177d175",
+   "bytes": 10035
+  },
+  "05_분석결과/업종별_상세JSON/full_슈퍼마켓.json": {
+   "sha256": "f3cb2fb8750c975066cf288f42af715de77a3a8863b06e7e6adc7b50358d6a5f",
+   "bytes": 10067
+  },
+  "05_분석결과/업종별_상세JSON/full_아이스크림_빙수.json": {
+   "sha256": "1197537974c9841b4be0c53699e9a76a63960cddc53bce2640b442adff4b3750",
+   "bytes": 10112
+  },
+  "05_분석결과/업종별_상세JSON/full_약국.json": {
+   "sha256": "1e5227b3dfe29d67d53913f89ceaad7b484d97c6523685d57e857433c1543032",
+   "bytes": 10146
+  },
+  "05_분석결과/업종별_상세JSON/full_양식.json": {
+   "sha256": "dd4799867b189a8a0ea8660e49b163273c584440d675b0141c0eee2fa33bf485",
+   "bytes": 9785
+  },
+  "05_분석결과/업종별_상세JSON/full_요가_필라테스학원.json": {
+   "sha256": "8f3d6f31f967111b93ec23ce38c46e5d9095126433f60af8ce2cd0c6e69f9541",
+   "bytes": 10133
+  },
+  "05_분석결과/업종별_상세JSON/full_요리주점.json": {
+   "sha256": "d6cebd65accd16d3839c30ab62e5ee25843ca94e87ab97698a29aa2a51443998",
+   "bytes": 9884
+  },
+  "05_분석결과/업종별_상세JSON/full_일반유흥주점.json": {
+   "sha256": "95e605a7164afd86400ef08f7f393b5f641d4909011e1d60c2fb273b22a89976",
+   "bytes": 10531
+  },
+  "05_분석결과/업종별_상세JSON/full_일식회_초밥.json": {
+   "sha256": "f0a986558c1d74016349bdfe42a39ae74a8c25c20e1e6881a3376d650aed06c7",
+   "bytes": 9854
+  },
+  "05_분석결과/업종별_상세JSON/full_입시·교과학원.json": {
+   "sha256": "5f1e5fea1360410726f60126a084d5bf991e43e45713850606be300214b89b7c",
+   "bytes": 10221
+  },
+  "05_분석결과/업종별_상세JSON/full_전자게임장.json": {
+   "sha256": "af609c6d18c03dca68133d7a5605fd25fb71fb79f2e54e60a8db621ac4f78004",
+   "bytes": 10689
+  },
+  "05_분석결과/업종별_상세JSON/full_중국집.json": {
+   "sha256": "987a85d0b8bcc4b9e3389eb7dffff8006276c91ee6f446b7a860cc77db8eb67c",
+   "bytes": 9804
+  },
+  "05_분석결과/업종별_상세JSON/full_치킨.json": {
+   "sha256": "77a3fc7ebf0445f2c01a51be37aa7d2969eeb10003253b9ed9c93b8b8820e306",
+   "bytes": 9874
+  },
+  "05_분석결과/업종별_상세JSON/full_카페.json": {
+   "sha256": "194b21c3390e0ea9c3c96f22e194fbb7cc71fe55ebaa2e311dfc390f54df4cf6",
+   "bytes": 9862
+  },
+  "05_분석결과/업종별_상세JSON/full_토스트_샌드위치_샐러드.json": {
+   "sha256": "da9af4a830f0614b97442cc807c138bf34ed8972d729031d7a04f0310235bc72",
+   "bytes": 10122
+  },
+  "05_분석결과/업종별_상세JSON/full_편의점.json": {
+   "sha256": "5dd67fca8e2aec925b4e0748d19ca0a4870c050e195dbad6ec38799ada56176b",
+   "bytes": 10207
+  },
+  "05_분석결과/업종별_상세JSON/full_피부관리실.json": {
+   "sha256": "4c179970c5dcced7e04d0e94283757c6cfc893668c7f7f3490ad58a6a6e6bf8d",
+   "bytes": 10193
+  },
+  "05_분석결과/업종별_상세JSON/full_피자.json": {
+   "sha256": "938a2bd1437ed36d57b28230f48cf9dadcd112b25930fde884672af5b195d93a",
+   "bytes": 9883
+  },
+  "06_MVP화면/data.js": {
+   "sha256": "7967aa26ec68c24a1bb8b96c68b58c7d9a393eec0a3219c8a959f632465bcdc3",
+   "bytes": 6165
+  },
+  "06_MVP화면/page.html": {
+   "sha256": "1dff0c66ec1a48845a0cfcbf05883e39c88db1fc8aa023d71939b1172092516f",
+   "bytes": 28589
+  },
+  "06_MVP화면/shot_desktop.png": {
+   "sha256": "559abb97ca73145bdffbb3e57d51ef44488c5bdd25c6010ea8c2f6e722e281e9",
+   "bytes": 541769
+  },
+  "06_MVP화면/shot_phone.png": {
+   "sha256": "55a6dfaacd3f9673cb67328c9522b48df062a3a1b70a7e69a52d61fff646f860",
+   "bytes": 526549
+  },
+  "07_가공데이터/역사_전국도시철도.xlsx": {
+   "sha256": "cdf1d84a7e5c898b2aacd622783ba8ba9af35c40bee0561dc97d55ce8e063f94",
+   "bytes": 313132
+  },
+  "07_가공데이터/인천_상가_정제.csv": {
+   "sha256": "2c508dc8b034a5a5086098dca775c75726873d4b665673a30eae9269fd1105ee",
+   "bytes": 35456902
+  },
+  "07_가공데이터/임대료_소규모상가_R-ONE.csv": {
+   "sha256": "2e28748fa2c4f64b56ea5e18b7c20d5a5d0cf6ffe9ea8a7fa2efb2955edade2d",
+   "bytes": 18474
+  },
+  "07_가공데이터/패널_시장성_202608.csv": {
+   "sha256": "c9ab55edf0c180d2748b6ef4b2a23c318376bdbd7f9909d7ae9a6ccebef01b3f",
+   "bytes": 11145
+  },
+  "07_가공데이터/패널_안정성.csv": {
+   "sha256": "1c427f70056ccad9035ce75ba2ee4a4c2dc5744d8318bf2297fb09a8d5a550ed",
+   "bytes": 946
+  },
+  "07_가공데이터/패널_안정성_음식.csv": {
+   "sha256": "ca6b63ed8d1a7b2fcd6ea6bdac0e522052da0d0f21f68f071917d5604bb0ce90",
+   "bytes": 12160
+  },
+  "07_가공데이터/패널_통합.csv": {
+   "sha256": "008036f7c0c5334c1c4ec26d10624070444466d6c55ea0456030ca21003a6915",
+   "bytes": 86410
+  },
+  "07_가공데이터/학교_전국.csv": {
+   "sha256": "6cb618c1bac0b5dbe4912369227cfc983a62e0e00eee2b5cd1c802c593fa5bf9",
+   "bytes": 3204000
+  },
+  "08_원본_인허가/문화_인터넷컴퓨터게임시설제공업_전국.csv": {
+   "sha256": "98ecfe9250650232fefdd9be7c02fb25af54a2d6f2723b1fa4e18f9199e8bd15",
+   "bytes": 29036793
+  },
+  "08_원본_인허가/식품_일반음식점_인천.csv": {
+   "sha256": "121f5f9be5fb66eb79a5de72e69d789bd27748e7b396934c7a5ba7aa953aec75",
+   "bytes": 32239795
+  },
+  "08_원본_인허가/식품_휴게음식점_인천.csv": {
+   "sha256": "64a0258a879f0f17521dbc8991ae5448ae4779be0db4a5e7856f8d7139eff494",
+   "bytes": 9345894
+  }
+ }
+}

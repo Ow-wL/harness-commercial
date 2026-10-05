@@ -1,0 +1,514 @@
+<title>부평역 상권 진단</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+:root{
+  --ground:#F5F7FA; --panel:#FFFFFF; --panel-2:#EDF1F6;
+  --ink:#13202F; --ink-2:#3D5169; --ink-3:#6E819A;
+  --line:#DCE3EC; --line-2:#C6D1DE;
+  --kyeongin:#0052A4; --incheon1:#7CA8D5;
+  --good:#1F6F4A; --good-bg:#E4F0EA;
+  --warn:#B23A10; --warn-bg:#FBEAE2;
+  --mid:#9A7B12; --mid-bg:#FAF2DC;
+  --shadow:0 1px 2px rgba(19,32,47,.06),0 8px 24px -12px rgba(19,32,47,.18);
+  --gut:clamp(16px,4vw,40px);
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --ground:#0C1219; --panel:#141D28; --panel-2:#1B2734;
+  --ink:#E7EEF7; --ink-2:#AFC0D4; --ink-3:#7F92AA;
+  --line:#243141; --line-2:#33455A;
+  --kyeongin:#5AA0E8; --incheon1:#8FBCE4;
+  --good:#5FC493; --good-bg:#12291F;
+  --warn:#FF8A5B; --warn-bg:#2C1710;
+  --mid:#E0BC4A; --mid-bg:#2A2312;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 8px 24px -12px rgba(0,0,0,.6);
+}}
+:root[data-theme="dark"]{
+  --ground:#0C1219; --panel:#141D28; --panel-2:#1B2734;
+  --ink:#E7EEF7; --ink-2:#AFC0D4; --ink-3:#7F92AA;
+  --line:#243141; --line-2:#33455A;
+  --kyeongin:#5AA0E8; --incheon1:#8FBCE4;
+  --good:#5FC493; --good-bg:#12291F;
+  --warn:#FF8A5B; --warn-bg:#2C1710;
+  --mid:#E0BC4A; --mid-bg:#2A2312;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 8px 24px -12px rgba(0,0,0,.6);
+}
+*{box-sizing:border-box}
+body{
+  background:var(--ground); color:var(--ink); margin:0;
+  font-family:"IBM Plex Sans KR",system-ui,-apple-system,"Malgun Gothic",sans-serif;
+  font-size:15px; line-height:1.65; -webkit-font-smoothing:antialiased;
+}
+.mono{font-family:"IBM Plex Mono","SFMono-Regular",Menlo,monospace;font-variant-numeric:tabular-nums}
+.wrap{max-width:1040px;margin:0 auto;padding-inline:var(--gut);padding-block:0 72px}
+h1,h2,h3{margin:0;text-wrap:balance;font-weight:600;letter-spacing:-.01em}
+p{margin:0}
+.eyebrow{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-3);
+  font-weight:600;font-family:"IBM Plex Mono",monospace}
+
+/* ── header ── */
+.hdr{border-bottom:1px solid var(--line);background:var(--panel);margin-bottom:34px}
+.hdr-in{max-width:1040px;margin:0 auto;padding-inline:var(--gut);padding-block:22px 20px}
+.brand{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:16px}
+.brand b{font-size:15px;font-weight:600}
+.brand span{font-size:12px;color:var(--ink-3)}
+.rail{height:3px;border-radius:2px;background:linear-gradient(90deg,var(--kyeongin) 0 52%,var(--incheon1) 52% 100%);margin-bottom:18px}
+.query{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.chip{display:inline-flex;align-items:center;gap:6px;background:var(--panel-2);border:1px solid var(--line);
+  border-radius:999px;padding:5px 12px;font-size:13px;color:var(--ink-2)}
+.chip b{color:var(--ink);font-weight:600}
+.qlabel{font-size:13px;color:var(--ink-3)}
+
+/* ── verdict ── */
+.verdict{background:var(--panel);border:1px solid var(--line);border-radius:14px;
+  box-shadow:var(--shadow);overflow:hidden;margin-bottom:14px}
+.verdict-top{display:grid;grid-template-columns:auto 1fr;gap:clamp(20px,4vw,44px);
+  padding:clamp(20px,3.5vw,32px);align-items:center}
+@media(max-width:620px){.verdict-top{grid-template-columns:1fr;gap:22px}}
+.big{display:flex;align-items:baseline;gap:4px}
+.big .n{font-size:clamp(56px,13vw,76px);font-weight:600;line-height:.92;letter-spacing:-.04em}
+.big .u{font-size:17px;color:var(--ink-3);font-weight:500}
+.big-cap{font-size:12px;color:var(--ink-3);margin-top:8px}
+
+.bars{display:flex;flex-direction:column;gap:9px}
+.bar{display:grid;grid-template-columns:62px 1fr 46px;gap:11px;align-items:center}
+.bar .nm{font-size:13px;color:var(--ink-2)}
+.bar .track{height:22px;background:var(--panel-2);border-radius:4px;position:relative;overflow:hidden}
+.bar .fill{position:absolute;inset:0 auto 0 0;border-radius:4px;background:var(--incheon1)}
+.bar.top .fill{background:var(--kyeongin)}
+.bar.bot .fill{background:var(--warn)}
+.bar .val{font-size:14px;font-weight:600;text-align:right}
+.bar.bot .val{color:var(--warn)}
+.bar.top .val{color:var(--kyeongin)}
+.bar .track::after{content:"";position:absolute;left:50%;top:0;bottom:0;width:1px;background:var(--line-2)}
+.tagrow{display:flex;gap:6px;margin-top:12px;flex-wrap:wrap}
+.tag{font-size:11px;padding:3px 8px;border-radius:5px;background:var(--panel-2);color:var(--ink-3);
+  font-family:"IBM Plex Mono",monospace}
+
+.alert{display:flex;gap:12px;padding:15px 18px;background:var(--warn-bg);
+  border-top:1px solid var(--line);align-items:flex-start}
+.alert .mk{width:3px;align-self:stretch;background:var(--warn);border-radius:2px;flex:none}
+.alert p{font-size:13.5px;color:var(--ink-2)}
+.alert b{color:var(--warn)}
+
+.meta{display:flex;gap:18px;flex-wrap:wrap;font-size:11.5px;color:var(--ink-3);
+  padding:11px 18px;border-top:1px solid var(--line);background:var(--panel-2)}
+
+/* ── sections ── */
+section{margin-top:40px}
+.shead{display:flex;align-items:baseline;gap:12px;margin-bottom:14px;flex-wrap:wrap}
+.shead h2{font-size:19px}
+.shead .sub{font-size:12.5px;color:var(--ink-3)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media(max-width:780px){.grid2{grid-template-columns:1fr}}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:20px}
+.card h3{font-size:14px;margin-bottom:3px}
+.card .cap{font-size:12px;color:var(--ink-3);margin-bottom:16px}
+
+.kv{display:flex;justify-content:space-between;gap:12px;padding:7px 0;border-bottom:1px solid var(--line);font-size:13px}
+.kv:last-child{border-bottom:0}
+.kv dt{color:var(--ink-3)}
+.kv dd{margin:0;font-weight:500;text-align:right}
+
+/* competitor strip */
+.strip{position:relative;height:66px;margin:6px 0 4px}
+.strip .axis{position:absolute;left:0;right:0;top:30px;height:1px;background:var(--line-2)}
+.strip .site{position:absolute;left:0;top:18px;width:2px;height:25px;background:var(--kyeongin)}
+.dot{position:absolute;top:24px;width:9px;height:9px;border-radius:50%;background:var(--warn);
+  transform:translateX(-50%);border:1.5px solid var(--panel)}
+.strip .tk{position:absolute;top:44px;font-size:10.5px;color:var(--ink-3);transform:translateX(-50%);white-space:nowrap}
+.strip .tk:first-of-type{transform:none}
+.clist{max-height:166px;overflow-y:auto;margin-top:12px;border-top:1px solid var(--line)}
+.crow{display:grid;grid-template-columns:52px 1fr auto;gap:10px;padding:6px 0;
+  border-bottom:1px solid var(--line);font-size:12.5px;align-items:baseline}
+.crow .d{color:var(--warn);font-weight:500}
+.crow .g{color:var(--ink-3);font-size:11.5px}
+
+figure{margin:0}
+figcaption{font-size:11.5px;color:var(--ink-3);margin-top:9px;line-height:1.5}
+svg{display:block;max-width:100%;height:auto}
+
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:11.5px;color:var(--ink-3);margin-bottom:10px}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:-1px}
+
+/* manager */
+.mgr{background:var(--panel);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.mgr-hd{padding:16px 20px 14px;border-bottom:1px solid var(--line);
+  display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.mgr-hd h2{font-size:16px}
+.mgr-hd span{font-size:11.5px;color:var(--ink-3)}
+.finding{display:grid;grid-template-columns:3px 1fr;gap:14px;padding:17px 20px;border-bottom:1px solid var(--line)}
+.finding .mk{border-radius:2px}
+.finding.o .mk{background:var(--good)} .finding.r .mk{background:var(--warn)}
+.finding .lb{font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;
+  font-family:"IBM Plex Mono",monospace;margin-bottom:5px}
+.finding.o .lb{color:var(--good)} .finding.r .lb{color:var(--warn)}
+.finding p{font-size:14px;color:var(--ink-2)}
+.finding p b{color:var(--ink);font-weight:600}
+.acts{padding:17px 20px 20px}
+.acts .lb{font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;
+  font-family:"IBM Plex Mono",monospace;color:var(--ink-3);margin-bottom:12px}
+.act{display:grid;grid-template-columns:auto 1fr;gap:12px;padding:10px 0;border-top:1px solid var(--line)}
+.act .n{font-family:"IBM Plex Mono",monospace;font-size:12px;color:var(--ink-3);padding-top:2px}
+.act p{font-size:13.5px;color:var(--ink-2)}
+.act p b{color:var(--ink);font-weight:600}
+.lv{margin-top:14px;padding:11px 13px;background:var(--panel-2);border-radius:8px;
+  font-size:12px;color:var(--ink-3);line-height:1.6}
+
+/* alt */
+.alt{width:100%;border-collapse:collapse;font-size:13px}
+.alt th{text-align:left;font-size:11px;letter-spacing:.08em;text-transform:uppercase;
+  color:var(--ink-3);font-weight:600;padding:0 10px 9px 0;font-family:"IBM Plex Mono",monospace}
+.alt th:not(:first-child),.alt td:not(:first-child){text-align:right}
+.alt td{padding:9px 10px 9px 0;border-top:1px solid var(--line)}
+.alt tr.me td{background:var(--panel-2);font-weight:600}
+.alt tr.me td:first-child{border-left:3px solid var(--kyeongin);padding-left:9px}
+.alt td:nth-child(2),.alt th:nth-child(2){color:var(--ink-3)}
+.alt .sc{font-weight:600}
+
+/* funding */
+.fund{display:flex;flex-direction:column;gap:10px}
+.fcard{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px 18px;
+  display:grid;grid-template-columns:1fr auto;gap:14px;align-items:start}
+@media(max-width:560px){.fcard{grid-template-columns:1fr}}
+.fcard h3{font-size:14px;margin-bottom:4px}
+.fcard .cond{font-size:12.5px;color:var(--ink-3);line-height:1.6}
+.pill{font-size:11px;font-weight:600;padding:4px 10px;border-radius:999px;white-space:nowrap;
+  font-family:"IBM Plex Mono",monospace}
+.pill.y{background:var(--good-bg);color:var(--good)}
+.pill.m{background:var(--mid-bg);color:var(--mid)}
+
+/* sources */
+.src{width:100%;border-collapse:collapse;font-size:12.5px}
+.src th{text-align:left;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3);
+  font-weight:600;padding:0 12px 8px 0;font-family:"IBM Plex Mono",monospace}
+.src td{padding:8px 12px 8px 0;border-top:1px solid var(--line);color:var(--ink-2);vertical-align:top}
+.src td:first-child{color:var(--ink)}
+.foot{margin-top:26px;padding-top:18px;border-top:1px solid var(--line);font-size:12px;
+  color:var(--ink-3);line-height:1.7}
+.scroll{overflow-x:auto}
+@media(prefers-reduced-motion:no-preference){
+  .fill{transition:width .5s cubic-bezier(.22,1,.36,1)}
+}
+</style>
+
+<header class="hdr">
+  <div class="hdr-in">
+    <div class="brand">
+      <b>우리동네 상권분석 매니저</b>
+      <span>공공데이터 6종 · 인천 158개 행정동 기준</span>
+    </div>
+    <div class="rail"></div>
+    <div class="query">
+      <span class="qlabel">입력한 조건</span>
+      <span class="chip">지역 <b>부평역 반경 500m</b></span>
+      <span class="chip">업종 <b>PC방</b> <span class="mono" style="font-size:11px;color:var(--ink-3)">R10406</span></span>
+      <span class="chip">상태 <b>예비창업</b></span>
+      <span class="chip">나이 <b>만 29세</b></span>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="verdict">
+    <div class="verdict-top">
+      <div>
+        <p class="eyebrow">종합 적합도</p>
+        <div class="big mono"><span class="n" id="tot">—</span><span class="u">/100</span></div>
+        <p class="big-cap">인천 158개 행정동 대비 백분위</p>
+      </div>
+      <div>
+        <div class="bars" id="bars"></div>
+        <div class="tagrow" id="tags"></div>
+      </div>
+    </div>
+    <div class="alert"><div class="mk"></div><p id="alertTxt"></p></div>
+    <div class="meta" id="meta"></div>
+  </div>
+
+  <section>
+    <div class="shead">
+      <h2>왜 이런 점수가 나왔나</h2>
+      <span class="sub">각 지표의 원시값 — 점수는 순위, 격차는 이 숫자가 말한다</span>
+    </div>
+    <div class="grid2">
+      <div class="card">
+        <h3>경쟁 — 반경 500m 안의 PC방</h3>
+        <p class="cap">점포당 잠재수요 <span class="mono" id="dm"></span>명 · 인천 중앙값 6,955명</p>
+        <div class="strip" id="strip"></div>
+        <div class="clist" id="clist"></div>
+      </div>
+
+      <div class="card">
+        <h3>시장 — 시간대가 맞물리는가</h3>
+        <p class="cap">부평구 시간대별 유입과 PC방 영업시간의 겹침</p>
+        <div class="legend">
+          <span><i style="background:var(--incheon1)"></i>시간대별 유입</span>
+          <span><i style="background:var(--kyeongin)"></i>PC방 영업 가중</span>
+        </div>
+        <figure>
+          <div id="hourChart"></div>
+          <figcaption>겹치는 면적이 <b class="mono">시간대 적합도 1.32</b>다. 1.00이 인천 평균이므로, 영업시간대에 사람이 평균보다 32% 더 몰린다. 유입 총량이 같아도 업종마다 값이 달라지는 지표다.</figcaption>
+        </figure>
+      </div>
+
+      <div class="card">
+        <h3>안정 — 실제로 버티는가</h3>
+        <p class="cap">인천 PC방 인허가 4,701건 · 2013년 이후 인허가 코호트 생존율</p>
+        <div class="legend">
+          <span><i style="background:var(--kyeongin)"></i>부평구 PC방</span>
+          <span><i style="background:var(--warn)"></i>인천 PC방 전체</span>
+          <span><i style="background:transparent;border-top:2px dashed var(--ink-3);height:0;border-radius:0;width:12px"></i>인천 전 업종(시 공식통계)</span>
+        </div>
+        <figure>
+          <div id="survChart"></div>
+          <figcaption>부평구 PC방은 3년 생존율 <b class="mono">52.3%</b>로 인천 PC방 평균(51.2%)보다 조금 높고, 전 업종 평균(55.2%)보다는 낮다(2013년 이후 인허가 기준). 최근 3년 폐업률 <b class="mono">5.0%</b>는 인천 11개 구 중 두 번째로 낮다. 한편 소규모상가 임대료는 부평 상권 <b class="mono">35.4천원/㎡</b>로 인천 9개 상권 중 가장 높고(인천 전체 21.4), 안정성 점수에서 이 항목은 하위 11%다.</figcaption>
+        </figure>
+      </div>
+
+      <div class="card">
+        <h3>고객 · 입지</h3>
+        <p class="cap">행정동 단위 실측</p>
+        <dl style="margin:0" id="kv"></dl>
+        <p class="cap" style="margin:14px 0 6px">부평구 유입 목적 구성</p>
+        <div id="purpChart"></div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="mgr">
+      <div class="mgr-hd">
+        <h2>AI 매니저 해석</h2>
+        <span>엔진이 만든 수치를 읽고 쓴 문장 — 수치를 새로 만들지 않는다</span>
+      </div>
+      <div class="finding o">
+        <div class="mk"></div>
+        <div>
+          <p class="lb">기회 요인</p>
+          <p><b>입지가 인천 최상위권이고, 그게 생존으로 이어지고 있습니다.</b> 부평역까지 85m이고 경인선·인천1호선 환승역이라 역세권 강도가 인천 백분위 상위권입니다. 반경 500m 안에 학원·학교 등 PC방 고객을 끌어오는 시설이 14곳 있습니다. 실제로 부평구 PC방의 최근 3년 폐업률은 5.0%로 인천 11개 구 중 가장 낮습니다.</p>
+        </div>
+      </div>
+      <div class="finding r">
+        <div class="mk"></div>
+        <div>
+          <p class="lb">위험 요인</p>
+          <p><b>경쟁 밀도가 인천 하위 30%입니다.</b> 반경 500m 안에 PC방이 12곳이고, 가장 가까운 곳은 115m 거리입니다. 점포당 잠재수요가 4,433명으로 인천 중앙값 6,955명의 64% 수준입니다. 인천 158개 행정동 중 PC방이 0곳인 곳이 49곳인데, 이 자리는 반대편 끝에 있습니다.</p>
+        </div>
+      </div>
+      <div class="acts">
+        <p class="lb">행동 제안</p>
+        <div class="act"><span class="n">01</span><p>가장 가까운 PC방이 <b>115m</b>입니다. 도보 2분 거리라 사실상 같은 상권입니다. 계약 전에 이 점포의 좌석 수·요금·운영시간을 확인하면 차별화 지점이 보입니다.</p></div>
+        <div class="act"><span class="n">02</span><p>부평구 유입의 <b>43.1%가 귀가 목적</b>이고 출근은 11.2%입니다. 직장인 상권보다 주거 상권 성격이 강하므로, 심야·주말 운영이 평일 낮보다 매출 비중이 클 가능성이 있습니다.</p></div>
+        <div class="act"><span class="n">03</span><p>같은 목적방문형 업종인 <b>독서실·스터디카페는 반경 안에 2곳</b>뿐이고 점포당 잠재수요가 26,599명입니다. PC방은 12곳, 4,433명입니다. 업종 후보를 넓힐 여지가 있는지 아래 표에서 비교해보세요.</p></div>
+        <div class="lv">이 서비스는 <b>확정적 판단을 내리지 않습니다.</b> 위 문장은 모두 공공데이터에서 계산된 수치와 그 비교값이며, "하세요/하지 마세요" 대신 비교 가능한 숫자를 나란히 놓습니다. 결정은 사용자가 합니다.</div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="shead">
+      <h2>같은 자리, 업종만 바꾸면</h2>
+      <span class="sub">동일한 좌표·동일한 5대 관점으로 재계산</span>
+    </div>
+    <div class="card scroll">
+      <table class="alt" id="altTable"></table>
+      <p class="cap" style="margin-top:14px;margin-bottom:0">업종별 타겟연령·영업시간대·유인시설 프로파일을 29개 업종 전부 정의했습니다. 29개 업종의 점수 고유값이 <b class="mono" id="sp-c"></b>(고객성), <b class="mono" id="sp-m"></b>(시장성), <b class="mono" id="sp-l"></b>(입지성)로 늘어 업종 간 변별이 가능해졌습니다. 안정성은 인허가 데이터가 있는 13개 업종(PC방, 음식 12개)만 산출됩니다.</p>
+    </div>
+  </section>
+
+  <section>
+    <div class="shead">
+      <h2>연결되는 지원사업</h2>
+      <span class="sub">입력한 프로필(만 29세 · 인천 · 예비창업 · PC방)로 필터링</span>
+    </div>
+    <div class="fund">
+      <div class="fcard">
+        <div>
+          <h3>예비창업패키지 (2026)</h3>
+          <p class="cond">연령 제한 없음 · 신청자 명의 사업자등록증 미보유(기준일 2026.1.22.) · 사업화 자금 평균 0.4억원 · 접수 2026.03.06~03.24<br><span style="color:var(--ink-2)">중소벤처기업부 공고 제2026-207호</span></p>
+        </div>
+        <span class="pill y">조건 충족</span>
+      </div>
+      <div class="fcard">
+        <div>
+          <h3>청년전용창업자금 (중소벤처기업진흥공단)</h3>
+          <p class="cond">만 39세 이하 · 사업 개시 3년 미만(<b style="color:var(--ink-2)">예비창업자 포함</b>) · 최대 1억원 · 연 2.5% 고정</p>
+        </div>
+        <span class="pill y">조건 충족</span>
+      </div>
+      <div class="fcard">
+        <div>
+          <h3>청년창업사관학교 (창업성공패키지)</h3>
+          <p class="cond">만 39세 이하 · <b style="color:var(--ink-2)">창업 후 3년 이내</b> 대표자 — 예비창업 상태로는 원칙적으로 대상이 아닙니다. 사업자등록 후 재확인이 필요합니다.</p>
+        </div>
+        <span class="pill m">확인 필요</span>
+      </div>
+    </div>
+    <div class="lv" style="margin-top:12px">AI는 <b>지원 가능 여부를 확정하지 않습니다.</b> 위 조건은 공고 원문에서 추출한 것이며, 세부 자격·제외 요건은 반드시 원문 공고로 최종 확인하세요.</div>
+  </section>
+
+  <section>
+    <div class="shead">
+      <h2>사용한 데이터</h2>
+      <span class="sub">모든 수치의 출처와 기준시점</span>
+    </div>
+    <div class="card scroll">
+      <table class="src" id="srcTable"></table>
+    </div>
+    <p class="foot" id="foot"></p>
+  </section>
+</div>
+
+<script src="data.js"></script>
+<script>
+const $ = s => document.querySelector(s);
+const cssv = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const ORDER = ["market","customer","competition","location","stability"];
+
+/* 종합 점수 */
+$("#tot").textContent = D.total.점수;
+
+/* 5대 지표 막대 */
+$("#bars").innerHTML = ORDER.map(k=>{
+  const s = D.scores[k], v = s.score ?? 0;
+  const cls = k===D.total.병목_지표 ? "bot" : (k===D.total.최고_지표 ? "top" : "");
+  return `<div class="bar ${cls}"><span class="nm">${s.label}</span>
+    <span class="track"><span class="fill" style="width:${v}%"></span></span>
+    <span class="val mono">${v.toFixed(1)}</span></div>`;
+}).join("");
+
+/* 신뢰도 태그 */
+const FB = {dong_sobun:"행정동", gugu:"시군구", gugu_sobun:"시군구", incheon_avg:"인천평균"};
+$("#tags").innerHTML = ORDER.map(k=>{
+  const s = D.scores[k];
+  return `<span class="tag">${s.label} · ${FB[s.fallback]||s.fallback} · 신뢰도 ${s.conf}</span>`;
+}).join("");
+
+/* 경고 */
+$("#alertTxt").innerHTML = `<b>병목: 경쟁성 ${D.scores.competition.score}</b> — 종합점수가 아니라 가장 낮은 지표가 실제 위험입니다. 네 지표가 평균 이상이어도 이 하나가 사업을 결정할 수 있습니다.`;
+
+/* 메타 */
+$("#meta").innerHTML = [
+  `데이터 충족률 <b class="mono">${(D.total.데이터_충족률*100).toFixed(0)}%</b>`,
+  `업종그룹 목적방문형`,
+  `가중치 시장 .15 / 고객 .27 / 경쟁 .22 / 입지 .18 / 안정 .18`,
+  `엔진 mvp-0.3`
+].map(t=>`<span>${t}</span>`).join("");
+
+/* 경쟁 스트립 */
+const R = D.site.반경;
+$("#strip").innerHTML = `<div class="axis"></div><div class="site"></div>` +
+  D.competitors.map(c=>`<span class="dot" style="left:${(c.d/R*100).toFixed(1)}%" title="${c.name} ${c.d}m"></span>`).join("") +
+  [0,250,500].map(m=>`<span class="tk" style="left:${m/R*100}%">${m===0?"분석지점":m+"m"}</span>`).join("");
+$("#dm").textContent = D.scores.competition.raw["점포당_잠재수요"].toLocaleString();
+$("#clist").innerHTML = D.competitors.map(c=>
+  `<div class="crow"><span class="d mono">${c.d}m</span><span>${c.name}</span><span class="g">${c.dong}</span></div>`).join("");
+
+/* 시간대 차트 */
+function hourChart(){
+  const W=470,H=170,PL=26,PR=6,PT=10,PB=26, iw=W-PL-PR, ih=H-PT-PB;
+  const inflow=D.hours, prof=D.hour_profile;
+  const mx=Math.max(...inflow), pmx=Math.max(...prof);
+  const bw=iw/24;
+  let bars="", line="", area="";
+  inflow.forEach((v,i)=>{
+    const h=v/mx*ih, x=PL+i*bw, y=PT+ih-h;
+    bars+=`<rect x="${x+bw*.14}" y="${y}" width="${bw*.72}" height="${h}" rx="1.5" fill="var(--incheon1)" opacity=".55"/>`;
+  });
+  prof.forEach((v,i)=>{
+    const x=PL+i*bw+bw/2, y=PT+ih-(v/pmx*ih*.92);
+    line+=`${i?"L":"M"}${x.toFixed(1)},${y.toFixed(1)}`;
+    area+=`${i?"L":"M"}${x.toFixed(1)},${y.toFixed(1)}`;
+  });
+  area+=`L${PL+iw-bw/2},${PT+ih}L${PL+bw/2},${PT+ih}Z`;
+  let ax="";
+  [0,6,12,18,23].forEach(h=>{ax+=`<text x="${PL+h*bw+bw/2}" y="${H-8}" font-size="10" fill="var(--ink-3)" text-anchor="middle" font-family="IBM Plex Mono,monospace">${h}</text>`});
+  ax+=`<text x="${PL-6}" y="${PT+6}" font-size="9.5" fill="var(--ink-3)" text-anchor="end" font-family="IBM Plex Mono,monospace">${(mx/1000).toFixed(0)}k</text>`;
+  ax+=`<text x="${PL-6}" y="${PT+ih}" font-size="9.5" fill="var(--ink-3)" text-anchor="end" font-family="IBM Plex Mono,monospace">0</text>`;
+  ax+=`<line x1="${PL}" y1="${PT+ih}" x2="${PL+iw}" y2="${PT+ih}" stroke="var(--line-2)" stroke-width="1"/>`;
+  return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="부평구 시간대별 유입과 PC방 영업시간 가중치">
+    ${bars}<path d="${area}" fill="var(--kyeongin)" opacity=".13"/>
+    <path d="${line}" fill="none" stroke="var(--kyeongin)" stroke-width="2" stroke-linejoin="round"/>${ax}</svg>`;
+}
+$("#hourChart").innerHTML = hourChart();
+
+/* 생존곡선 */
+function survChart(){
+  const W=470,H=170,PL=34,PR=14,PT=12,PB=28, iw=W-PL-PR, ih=H-PT-PB;
+  const xs=[1,3,5], x=y=>PL+((y-1)/4)*iw, yy=v=>PT+ih-(v-0.25)/(0.85-0.25)*ih;
+  const SER=[["부평구",D.survival.부평구,"var(--kyeongin)",2.4],
+             ["인천 PC방",D.survival.인천PC방,"var(--warn)",2],
+             ["인천 전업종",D.survival.인천전업종,"var(--ink-3)",1.4]];
+  let g="", s="";
+  [0.3,0.4,0.5,0.6,0.7,0.8].forEach(v=>{
+    g+=`<line x1="${PL}" y1="${yy(v)}" x2="${PL+iw}" y2="${yy(v)}" stroke="var(--line)" stroke-width="1"/>`;
+    g+=`<text x="${PL-7}" y="${yy(v)+3.5}" font-size="9.5" fill="var(--ink-3)" text-anchor="end" font-family="IBM Plex Mono,monospace">${(v*100).toFixed(0)}%</text>`;
+  });
+  xs.forEach(v=>{g+=`<text x="${x(v)}" y="${H-9}" font-size="10" fill="var(--ink-3)" text-anchor="middle" font-family="IBM Plex Mono,monospace">${v}년</text>`});
+  SER.forEach(([nm,vals,col,w],si)=>{
+    s+=`<path d="${vals.map((v,i)=>`${i?"L":"M"}${x(xs[i])},${yy(v)}`).join("")}" fill="none" stroke="${col}" stroke-width="${w}" stroke-linejoin="round"${si===2?' stroke-dasharray="4 3"':""}/>`;
+    vals.forEach((v,i)=>{s+=`<circle cx="${x(xs[i])}" cy="${yy(v)}" r="${si===0?3.6:2.6}" fill="${col}" stroke="var(--panel)" stroke-width="1.2"/>`});
+  });
+  const b=D.survival.부평구;
+  s+=`<text x="${x(5)-6}" y="${yy(b[2])-9}" font-size="11" font-weight="600" fill="var(--kyeongin)" text-anchor="end" font-family="IBM Plex Mono,monospace">${(b[2]*100).toFixed(1)}%</text>`;
+  return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="PC방 코호트 생존율 곡선">${g}${s}</svg>`;
+}
+$("#survChart").innerHTML = survChart();
+
+/* 고객·입지 표 */
+const c=D.scores.customer.raw, l=D.scores.location.raw;
+$("#kv").innerHTML = [
+  ["타겟 연령층 거주인구", c["타겟연령_거주인구"].toLocaleString()+"명"],
+  ["└ 전체 인구 대비", (c["타겟연령_비중"]*100).toFixed(1)+"%"],
+  ["종사자 수(직장인구)", Math.round(c["종사자수"]).toLocaleString()+"명"],
+  ["1인가구 비중", (c["1인세대_비중"]*100).toFixed(1)+"%"],
+  ["최근접역", l["최근접역"]+"역 "+Math.round(l["최근접역_거리m"])+"m"],
+  ["반경 500m 유인시설", D.site.anchors_500m+"곳 (학원·중고교)"],
+].map(([k,v])=>`<div class="kv"><dt>${k}</dt><dd class="mono">${v}</dd></div>`).join("");
+
+/* 목적 구성 */
+function purpChart(){
+  const P=D.purpose, keys=["귀가","기타","출근","등교","병원"];
+  const cols={귀가:"var(--kyeongin)",기타:"var(--incheon1)",출근:"var(--good)",등교:"var(--mid)",병원:"var(--ink-3)"};
+  let off=0, seg="", lg="";
+  keys.forEach(k=>{
+    const w=P[k]; if(!w) return;
+    seg+=`<rect x="${off}%" y="0" width="${w}%" height="20" fill="${cols[k]}"/>`;
+    off+=w;
+    lg+=`<span><i style="background:${cols[k]}"></i>${k} ${w}%</span>`;
+  });
+  return `<svg viewBox="0 0 100 20" preserveAspectRatio="none" style="height:20px;width:100%;border-radius:3px" role="img" aria-label="유입 목적 구성">${seg}</svg>
+    <div class="legend" style="margin:9px 0 0">${lg}</div>`;
+}
+$("#purpChart").innerHTML = purpChart();
+
+/* 대안 업종 */
+const me = {n:"PC방", t:D.total.점수, c:D.scores.competition.score,
+            st:D.scores.competition.raw["동종점포수"], dm:D.scores.competition.raw["점포당_잠재수요"],
+            mk:D.scores.market.score, cu:D.scores.customer.score, lo:D.scores.location.score};
+const rows = [...D.alt.filter(a=>a.n!=="PC방").slice(0,4), me]
+  .sort((a,b)=>b.t-a.t);
+$("#altTable").innerHTML =
+  `<thead><tr><th>업종</th><th>반경 내</th><th>시장</th><th>고객</th><th>경쟁</th><th>입지</th><th>종합</th></tr></thead><tbody>` +
+  rows.map(r=>`<tr class="${r.n==="PC방"?"me":""}"><td>${r.n}</td>
+    <td class="mono">${r.st}곳</td>
+    <td class="mono">${r.mk!=null?r.mk.toFixed(1):"—"}</td>
+    <td class="mono">${r.cu!=null?r.cu.toFixed(1):"—"}</td>
+    <td class="mono">${r.c.toFixed(1)}</td>
+    <td class="mono">${r.lo!=null?r.lo.toFixed(1):"—"}</td>
+    <td class="mono sc">${r.t.toFixed(1)}</td></tr>`).join("") +
+  `</tbody>`;
+
+/* 출처 */
+["c","m","l"].forEach((k,i)=>{
+  const key=["고객성","시장성","입지성"][i], v=D.spread[key];
+  const el=$("#sp-"+k); if(el) el.textContent = v[0]+"→"+v[1];
+});
+$("#srcTable").innerHTML =
+  `<thead><tr><th>데이터</th><th>기준시점</th><th>쓰인 곳</th><th>규모</th></tr></thead><tbody>` +
+  D.sources.map(s=>`<tr><td>${s.n}</td><td class="mono">${s.d}</td><td>${s.u}</td><td class="mono">${s.c}</td></tr>`).join("") +
+  `</tbody>`;
+$("#foot").textContent = D.disclaimer + " 시장성·안정성은 데이터 해상도 한계로 시군구 단위이며, 그 사실이 각 지표의 신뢰도 표시에 반영되어 있습니다.";
+</script>

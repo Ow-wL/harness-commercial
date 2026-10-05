@@ -1,0 +1,7 @@
+# v0.3 golden 결과를 재현한 버전 (2026-10-05, Python 3.10.11, Windows 11).
+# 버전을 올리면 scripts/check 의 golden regression 으로 결과가 같은지 확인한다.
+pandas==2.3.3
+numpy==2.2.6
+scipy==1.15.3
+openpyxl==3.1.5
+pytest==9.1.1
