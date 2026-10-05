@@ -28,6 +28,7 @@
 - [x] 3-6 check에 backend 단계 연결: `scripts/check.py`가 `backend/app`이 있으면 `python -m pytest -q backend`를 실행하고, 실패하면 CHECK FAILED (코드 변경 없이 기존 단계로 확인, backend 81개 PASS 약 15s). backend 테스트는 3-1의 scoped warm으로 check 시간 증가를 최소화
 
 ## 4. Frontend (React + TypeScript)
+- [x] 4-0 프로젝트 `DESIGN.md` 확정 — frontend 구현 전 디자인 시스템(원칙·색·타이포·레이아웃·결과 위계·컴포넌트·오류 상태·반응형·접근성·토큰·agent 규칙). 이후 4-x UI는 이 문서를 따른다
 - [ ] 4-1 Vite + TS skeleton, `npm run check`(tsc + lint + test) → check에 자동 연결
 - [ ] 4-2 API 응답 Zod schema를 source of truth로 두고 TypeScript 타입은 schema에서 추론 (손으로 쓴 interface 대신). `npm run check`에서 29개 golden JSON(`tests/golden/v0.3/json`)이 모두 schema를 통과하는 테스트. 개발 환경에서 live API 응답도 같은 schema로 검증할 수 있게 설계 (D-012)
 - [ ] 4-3 결과 화면 (원본 `06_MVP화면` 시안 기준) — 지도 없이 부평역 고정 응답으로
