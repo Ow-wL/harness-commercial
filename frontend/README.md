@@ -1,6 +1,6 @@
 # frontend (React + TypeScript + Vite)
 
-현재 단계: 4-1 기반만 구축했다(서비스명·안내 문구만 있는 App). 다음 순서와 범위는 `docs/TASKS.md` 4장.
+현재 단계: 4-1 기반 + 4-2 API 응답 schema. 화면은 서비스명·안내 문구만 있다. 다음 순서와 범위는 `docs/TASKS.md` 4장.
 
 ## 실행
 
@@ -20,6 +20,8 @@ npm run build      # tsc -b + vite build → dist/
 ```
 src/
   main.tsx            진입점
+  api/schemas.ts      API 응답 Zod schema (source of truth) + z.infer 타입
+  api/schemas.test.ts 루트 golden 29개 전체 + 계약 파손 변형 + context·오류·업종 목록
   App.tsx / App.css   초기 화면 (DESIGN.md §5-A 최소판)
   App.test.tsx        smoke test: App 렌더링 → 서비스명 제목 확인
   styles/tokens.css   DESIGN.md §17 디자인 토큰 그대로 (값 변경은 DESIGN.md 먼저)
@@ -29,6 +31,7 @@ src/
 
 ## 원칙
 
+- API 데이터는 Zod로 runtime validation하고 타입은 schema에서 추론한다(`z.infer`). 같은 내용의 interface를 손으로 쓰지 않는다. 응답은 `AnalyzeResponseSchema.safeParse(data)`처럼 같은 schema로 검증한다.
 - UI는 `DESIGN.md`를 따른다. 컴포넌트는 토큰만 참조한다(hex·px 직접 사용 금지).
 - scoring engine을 직접 호출하지 않는다. Backend API만 호출한다.
 - 화면 시안 참고: `sources/team_v0.3/06_MVP화면/` (읽기 전용).
