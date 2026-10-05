@@ -1,6 +1,6 @@
 {
-  "description": "data/geo 원본(raw, git 제외)과 가공 파일 해시. scripts/build_geo.py 로 재생성",
-  "source": "github.com/vuski/admdongkor (원천 통계청 SGIS, 공공누리 1유형 / 가공 CC BY 4.0)",
+  "description": "data/geo 원본(raw, git 제외)·SGIS 공식 경계 입력·가공 파일 해시. scripts/build_geo.py 로 재생성",
+  "source": "github.com/vuski/admdongkor (원천 통계청 SGIS, 공공누리 1유형 / 가공 CC BY 4.0) + 통계청 SGIS OpenAPI 행정경계 2025 (구월1동·구월3동 교정, D-017)",
   "files": {
     "raw/HangJeongDong_ver20241231.geojson": {
       "sha256": "16bae5a1dc3a5c888d20a5d4d823b691b015ef53dfdf24e53fe69014e5032510",
@@ -12,8 +12,13 @@
       "url": "https://raw.githubusercontent.com/vuski/admdongkor/master/ver20260701/HangJeongDong_ver20260701.geojson",
       "git": false
     },
+    "SGIS_행정동경계_2025_남동구_구월.geojson": {
+      "sha256": "2fc0f914b866088cce7874f53fe4bb305d6ccc74797423d70c2f3422482a0f34",
+      "source": "통계청 SGIS OpenAPI /OpenAPI3/boundary/hadmarea.geojson year=2025 adm_cd=23050 low_search=1 구월1동·구월3동, UTM-K(EPSG:5179) 응답 좌표 그대로",
+      "git": true
+    },
     "인천_행정동경계_2026.geojson": {
-      "sha256": "ede39b3f8a5d90956708560f7f5e9c14adbb0bd3421d92715ebde063e1abf569",
+      "sha256": "7c64c3764c094a3542b4e4c4ad85b0ea8763cfbe579adc35d28dfcdf82f502c3",
       "git": true
     },
     "행정동_crosswalk_2024_2026.csv": {

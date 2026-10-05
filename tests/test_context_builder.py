@@ -2,7 +2,7 @@
 ContextBuilder (scoring_engine/location.py) — 좌표 → SiteContext → AnalysisService (TASKS 1-7).
 
 정책: rent_area 는 항상 None (MVP 일반 좌표는 R-ONE 임대료 상권을 연결하지 않음, D-015), 부평역 등 특정 좌표 특별 처리 없음, 반경 500m 안 점포 0개 → NoDataNearby,
-      구월1동/3동 알려진 충돌(D-010)은 보정하지 않는다 (polygon 결과 그대로).
+      구월1동/3동 경계는 SGIS 공식 경계로 교정된 data/geo 를 그대로 쓴다 (D-017, 좌표별 예외 없음).
 테스트 좌표는 데이터에서 만들거나, 고정 좌표면 전제를 데이터로 먼저 확인한다.
 """
 import json
@@ -98,16 +98,12 @@ def test_split_dongs(builder, rt, code, gu, dong):
     pytest.fail(f"{dong}: 자기 polygon 안 점포를 찾지 못함")
 
 
-def test_known_conflict_is_not_corrected(builder, rt):
-    """구월3동 라벨인데 polygon 은 구월1동인 점포 (D-010) → 구월1동 그대로."""
-    shops = rt.shops[rt.shops["행정동코드"].astype(str) == "28200521"]
-    for _, s in shops.iterrows():
-        lat, lng = float(s["위도"]), float(s["경도"])
-        if default_resolver().resolve(lat, lng).dong_code == "28200510":
-            ctx = builder.build(lat, lng)
-            assert (ctx.gu_name, ctx.dong_name) == ("남동구", "구월1동")
-            return
-    pytest.fail("알려진 충돌 점포를 찾지 못함")
+def test_former_guwol_conflict_builds_guwol3(builder):
+    """교정으로 구월1동 → 구월3동이 된 구역 안의 좌표 (D-010 → D-017, backend pass-through 와 같은 좌표).
+    교정 전 결과는 구월1동이었다. 이 좌표가 SGIS 공식 구월3동 polygon 안이라는 것은 tests/test_geo_data.py 가 확인한다.
+    SGIS 공식 판정은 구월3동 → ContextBuilder 도 구월3동 (경계 데이터로, 좌표 예외 없이)."""
+    ctx = builder.build(37.4482, 126.7035)
+    assert (ctx.gu_code, ctx.gu_name, ctx.dong_name, ctx.label) == ("28200", "남동구", "구월3동", "남동구 구월3동")
 
 
 # ── 실패 ─────────────────────────────────────────────────
@@ -194,7 +190,7 @@ def test_bupyeong_rent_independent_perspectives_match_golden_context(service, bu
     assert not deep_diff(normalize(pick(got)), normalize(pick(want)))
 
 
-@pytest.mark.parametrize("lat,lng", [(37.4482, 126.7035), (37.5970, 126.7102)], ids=["구월충돌구역", "아라"])
+@pytest.mark.parametrize("lat,lng", [(37.4482, 126.7035), (37.5970, 126.7102)], ids=["구월교정구역", "아라"])
 def test_other_locations_run_engine(service, builder, lat, lng):
     res = service.analyze(builder.build(lat, lng), "I21201")
     assert len(res["지표"]) == 5 and res["meta"]["엔진버전"] == "mvp-0.3"
