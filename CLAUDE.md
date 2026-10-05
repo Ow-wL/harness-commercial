@@ -51,3 +51,11 @@ scripts/check.sh             # bash
 - `docs/DATA.md` 런타임 데이터 파일과 컬럼
 - `docs/TASKS.md` 다음 작업 (작은 단위)
 - `docs/DECISIONS.md` 기술 결정 기록
+
+## gstack
+gstack(v1.91.25.0)이 전역 설치되어 있다: `~/.claude/skills/gstack` (Windows: Git Bash + Bun + Node, 번들 브라우저 사용).
+- 웹 브라우징은 gstack의 `/browse` skill을 사용한다. `mcp__claude-in-chrome__*` 도구는 쓰지 않는다 (gstack 공식 설치 지침).
+- 사용 가능한 skill: /office-hours, /plan-ceo-review, /plan-eng-review, /plan-design-review, /design-consultation, /design-shotgun, /design-html, /review, /deslop-shared-libs, /test-audit, /ship, /land-and-deploy, /canary, /benchmark, /browse, /connect-chrome, /qa, /qa-only, /design-review, /scrape, /setup-browser-cookies, /setup-deploy, /setup-gbrain, /retro, /investigate, /document-release, /document-generate, /codex, /cso, /autoplan, /plan-devex-review, /devex-review, /careful, /freeze, /guard, /unfreeze, /gstack-upgrade, /learn
+- **이 프로젝트의 규칙이 gstack skill보다 우선한다.** gstack skill을 쓰더라도 위 Source of Truth / Critical Rules / Definition of Done을 따른다.
+  `sources/`, `scoring_engine/v0_3/`, `data/runtime/`, `tests/golden/`은 어떤 skill로도 수정하지 않으며, 완료 판정은 `scripts/check` 통과다.
+- Windows 설치는 파일 복사 방식이다. gstack을 `git pull`한 뒤에는 `cd ~/.claude/skills/gstack && ./setup`을 다시 실행한다 (또는 `/gstack-upgrade`).
