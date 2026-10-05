@@ -43,6 +43,7 @@
 ```
 sources/team_v0.3/      원본 (읽기 전용, 해시 검증)
 scoring_engine/
+  location.py           LocationResolver — 좌표 → 2026 인천 행정동 (point-in-polygon, 코드로 panel 연결). Resolver·Context Builder는 이 한 모듈에 둔다 (eng review D3)
   v0_3/                 canonical 엔진 사본 (원본과 바이트 동일)
   runtime.py            RuntimeData — 런타임 데이터 1회 로드
   reference.py          ReferenceCache — 비교 모집단 캐시 (프로세스 메모리)
@@ -79,7 +80,8 @@ Scoring Engine (v0_3, 불변)
    - 대안(근사): 상가 점포 최근접 이웃 다수결. 경계 데이터 검증용으로도 쓸 수 있다.
 2. **키 규칙** (테스트로 고정됨): `시군구코드 == 행정동코드[:5]`, 패널 158개 행정동 = 상가 데이터 158개 행정동.
 3. **임대료 상권 연결 규칙.** R-ONE은 인천 9개 상권만 있고 경계가 이미지뿐. 설계서 11-x의 "상권명 역 중심 500m" 근사를 쓸지 팀 결정 필요. 연결 안 되면 `rent_area=None` → S4 제외(엔진이 가중치 재분배).
-4. **인천 밖 / 바다 / 데이터 공백 좌표 거부** 규칙.
+4. **인천 밖 / 바다 / 데이터 공백 좌표 거부** 규칙. Resolver는 어느 행정동 polygon에도 속하지 않는 점을 `LocationOutside`로 거부한다.
+   주의: 연안 행정동 polygon은 바다를 일부 포함한다 (예: 37.45, 126.40 → 영종구 용유동). 이런 점은 Resolver를 통과하므로 데이터 공백(반경 내 상가 0개) 검사가 따로 필요하다 (1-7 context 단계).
 5. 부평역 좌표가 Resolver를 통과해 `BUPYEONG_STATION`과 같은 컨텍스트가 나오는지 = 첫 회귀 테스트.
 
 > ⚠ **알려진 불일치.** 하드코딩 좌표(37.4894, 126.7246)에서 가장 가까운 점포 50개는 전부 `부평6동` 라벨이다
