@@ -63,11 +63,12 @@ backend/, frontend/     (비어 있음) 향후 FastAPI, React + TypeScript
 Frontend (React+TS, 지도)
   │  POST /analyze {lat, lng, biz_code, importance?, user_weights?, user_licenses?}
   ▼
-Backend API (FastAPI)            입력 검증, 오류 응답, 응답 스키마. 엔진 결과를 바꾸지 않는다
+Backend API (FastAPI)            입력 검증, 오류 응답, 응답 스키마. 엔진 결과를 바꾸지 않는다 (pass-through)
+                                 입력·도메인 오류 → 4xx + error code, 내부 오류 → 500 + request_id (D-012)
   ▼
-Location Resolver                lat/lng → 인천 내부 여부, 행정동(코드·이름), 시군구(코드·이름), 임대료 상권(있을 때만)
+Location Resolver                lat/lng → 인천 내부 여부, 행정동(코드·이름), 시군구(코드·이름). 2026-07 polygon 직접 사용 (2024 crosswalk는 검증용, D-009)
   ▼
-Analysis Context Builder         좌표 → SiteContext (location.ContextBuilder) → analyze() 입력 dict (service.py)
+Analysis Context Builder         좌표 → SiteContext (location.ContextBuilder, rent_area=None, 500m 점포 0개 거부) → analyze() 입력 dict (service.py)
   ▼
 Scoring Engine (v0_3, 불변)
 ```
@@ -82,12 +83,14 @@ Scoring Engine (v0_3, 불변)
 3. **임대료 상권 연결 규칙.** R-ONE은 인천 9개 상권만 있고 경계가 이미지뿐. 설계서 11-x의 "상권명 역 중심 500m" 근사를 쓸지 팀 결정 필요. 연결 안 되면 `rent_area=None` → S4 제외(엔진이 가중치 재분배).
 4. **인천 밖 / 바다 / 데이터 공백 좌표 거부** 규칙. Resolver는 어느 행정동 polygon에도 속하지 않는 점을 `LocationOutside`로 거부한다.
    주의: 연안 행정동 polygon은 바다를 일부 포함한다. 이런 점은 Resolver를 통과하고, ContextBuilder가 반경 500m 안 점포 0개면 `NoDataNearby`로 거부한다. 해안에서 500m 안에 점포가 있으면 바다 위 점도 분석된다 (예: 37.45, 126.40 → 영종구 용유동, 반경 내 점포 있음).
-5. 부평역 좌표가 Resolver를 통과해 `BUPYEONG_STATION`과 같은 컨텍스트가 나오는지 = 첫 회귀 테스트.
+5. 부평역 좌표 → Resolver 결과 `부평구 부평1동` = `BUPYEONG_STATION`과 같은 행정동 (TASKS 1-4 완료, 엔진 버전 변경 불필요). 일반 경로의 `rent_area`는 `None`이라 안정성(S4)·종합은 golden과 다를 수 있다 (D-011).
 
-> ⚠ **알려진 불일치.** 하드코딩 좌표(37.4894, 126.7246)에서 가장 가까운 점포 50개는 전부 `부평6동` 라벨이다
-> (200개로 넓히면 부평1동 114 / 부평6동 86). v0.3은 행정동을 `부평1동`으로 고정했다.
-> 정확한 Resolver는 이 좌표를 부평6동으로 보낼 가능성이 높고, 그러면 고객성(행정동 단위)이 golden과 달라진다.
-> golden은 "v0.3이 부평1동 컨텍스트로 계산한 결과"로 유지하고, Resolver 결과와의 차이는 팀 결정으로 처리한다 (TASKS 1-4).
+> ✅ **해결된 우려 (TASKS 1-4).** 하드코딩 좌표(37.4894, 126.7246)에서 가장 가까운 점포 50개가 `부평6동` 라벨이라
+> Resolver가 부평6동을 낼 수 있다고 봤지만, polygon 기준 이 좌표는 `부평1동`이다 (부평6동 경계까지 17m).
+> 그 점포들은 경계 건너편에 있고 라벨과 polygon 모두 부평6동이다. golden 컨텍스트와 같으므로 엔진·golden 변경 없음 (D-010).
+>
+> ⚠ **남은 데이터 이슈 (TASKS 1-5a).** 남동구 구월1동 서쪽 띠는 경계상 구월1동이지만 점포 라벨 2,486개는 구월3동이다.
+> 보정하지 않고 polygon 결과를 쓴다 (D-010 known conflict).
 
 ## 5. 성능과 캐시 경계
 
@@ -104,9 +107,9 @@ Scoring Engine (v0_3, 불변)
 | 29개 업종 전체 (캐시 warm) | ~0.5s | 예 | 요청마다 |
 
 위험 요소:
-- **콜드 스타트 60초+.** `build_reference`를 요청 경로에서 처음 계산하면 첫 요청이 최대 1분 걸린다. → 앱 시작 시 `ReferenceCache.warm()` 또는 디스크 캐시.
+- **콜드 스타트 60초+.** `build_reference`를 요청 경로에서 처음 계산하면 첫 요청이 최대 1분 걸린다. → backend는 `RuntimeData` 로드 후 바로 서비스하고 29개 warm은 background에서 진행, 아직 warm되지 않은 업종은 on-demand 계산 (TASKS 3-1, D-012). 디스크 캐시(2-2)는 필요해질 때.
 - `build_reference`는 호출마다 `dong_total`·중심점을 다시 groupby하고, 158개 중심점마다 13.5만 점포 전체에 haversine을 돈다. 수요(분모) 부분은 업종과 무관한데 업종마다 반복된다. (최적화는 golden으로 동일성 검증한 뒤에만)
-- `ReferenceCache`는 계산 중 전역 lock을 잡는다 → 콜드 상태 동시 요청은 직렬화된다. warm-up 전제.
+- `ReferenceCache`는 계산 중 전역 lock을 잡는다 → 콜드 상태 동시 요청과 background warm은 직렬화된다 (요청당 대기 ≤ 업종 1개 계산, 약 2s).
 - 멀티 워커(uvicorn workers N)면 워커마다 데이터·캐시를 따로 가진다 → 메모리 N배, 콜드 N번. 디스크 캐시가 필요해지는 지점.
 
 캐시 경계 (무효화 키):

@@ -63,3 +63,11 @@ eng review D4(2024 경계 + crosswalk)를 데이터 비교 결과에 따라 변�
 - `ContextDataError(RuntimeError)`: resolver 코드가 runtime panel·시장성 패널에 연결되지 않는 내부 불일치. 입력 오류(`LocationError`, ValueError 계열)와 구분해 backend가 다르게 다룰 수 있게 한다.
 - 부평역 좌표 → `부평구 부평1동` (golden과 같은 행정동). `rent_area=None`이라 안정성(S4)·종합은 golden과 다를 수 있고, 나머지 4개 관점은 같다 (테스트).
 - 구월1동/3동 알려진 충돌(D-010)은 보정하지 않는다 — polygon 결과 그대로.
+
+## D-012 Backend·Frontend 계획 결정 (2026-10-05, eng review D6·D9·D10·D12·D13)
+eng review에서 승인됐지만 이 기록에 없던 결정. 구현 단계에서 세부를 확정하되 아래 경계는 바꾸지 않는다.
+- API 테스트 (D6): API 응답의 엔진 부분 == `AnalysisService.analyze(ContextBuilder.build(lat, lng), biz)` (pass-through equality). golden 29/29는 `BUPYEONG_STATION` service regression에 남긴다. 좌표 요청은 golden의 `meta.query`("부평역 근처 …")·`rent_area="부평"`을 재현할 수 없고, 재현용 preset/테스트 전용 필드는 public API에 두지 않는다.
+- 오류 계약 (D9): 입력·도메인 오류(요청 검증: 유한한 lat/lng, importance 1..5, weights ≥ 0 / `LocationError` 계열 / 잘못된 업종 / 엔진 가중치 `ValueError`)는 안정적인 4xx와 error code. 내부 오류(`ContextDataError`, `KeyError`, 그 밖의 예외)는 500 + `request_id`, traceback은 server log에만.
+- Frontend 타입 (D10): Zod schema가 source of truth, TS 타입은 추론. 29개 golden JSON을 schema 테스트 fixture로 쓴다.
+- Backend 테스트 (D12): `create_app(service, warm_biz)` factory로 공유 서비스 주입 + 쓰는 업종만 warm. 디스크 캐시(TASKS 2-2)는 조건부 유지.
+- 시작 방식 (D13): `RuntimeData` 로드 후 서비스 시작, 29개 warm은 background, `/health`에 진행도, 미warm 업종은 on-demand.
