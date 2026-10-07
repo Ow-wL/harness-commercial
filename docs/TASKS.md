@@ -36,7 +36,14 @@
 
 ## 5. MVP Closeout
 - [x] 5-1 문서 정합성 정리: README·ARCHITECTURE·CLAUDE.md·frontend README의 현재 단계·구조·실행 방법·환경변수 구분을 MVP 완료 상태에 맞춘다 (코드 변경 없음)
-- [ ] 5-2 실제 브라우저 수동 QA 및 버그 목록 작성: backend + frontend dev 실행 상태에서 대표 시나리오(부평역, 구월 교정 구역, 아라2동, 인천 밖·바다, 주변 점포 없음, 업종·중요도 변경, 모바일 폭, error.code별 화면)를 확인하고 재현 절차가 있는 버그 목록을 남긴다. 수정은 별도 작업
+- [x] 5-2 실제 브라우저 수동 QA 및 버그 목록 작성: backend + frontend dev 실행 상태에서 대표 시나리오(부평역, 구월 교정 구역, 아라2동, 인천 밖·바다, 주변 점포 없음, 업종·중요도 변경, 모바일 폭, error.code별 화면)를 확인하고 재현 절차가 있는 버그 목록을 남긴다. 수정은 별도 작업
+  - 결과 (2026-10-07): 실제 브라우저 QA 완료, 핵심 흐름(위치 선택 → 업종 → 분석 → 결과 → 행정동 경계 강조) 정상, 화면 값 = API 응답. 확인: 부평역·PC방, 구월 교정 구역(구월3동 context·경계), 인천 밖·바다(`location_outside`), 점포 없음(`no_data_nearby`), 좌표 범위 오류, 업종 변경 재분석, backend 중단 → 다시 시도, 새로고침 후 재분석, 1280·970·375px. 아라2동은 브라우저에서 따로 보지 않음(pass-through 테스트로 확인). 중요도 변경은 UI 없음(API만). 최종 판정: 시연 가능
+  - 수정한 major: B1 선택 위치로 지도 이동(`panTo`, zoom 유지), B2 반응형 지도 canvas 크기 동기화(바깥 `.map` 관찰 → `setSize`). `frontend/src/components/MapView.test.tsx` 계약 테스트 4개 추가
+  - 남은 known minor (blocker/major 아님, 수정하지 않음):
+    - B3 태블릿 결과 지도 접기(DESIGN §14) 없음. 970px 확대/축소 컨트롤 잘림은 B2 수정으로 해소
+    - B4 backend cold start 직후 background warm 중 미warm 업종 첫 분석 약 8s (warm 완료 후 약 0.3s). 시연은 `/health`의 `warm.done=true` 확인 후 시작
+    - B5 모바일 첫 화면 sheet의 "좌표 직접 입력"이 입력란을 바로 펼치지 않음 (조건 패널에서 한 번 더 눌러야 함)
+    - B6 인천 밖 dim overlay(DESIGN §5.D) 미구현, 모바일 초기 지도 안내 문구 중복, 모바일 업종 선택이 bottom sheet(§14) 대신 native select
 - [ ] 5-3 자동 E2E smoke 테스트 도입 여부 결정: 도구·NAVER 지도 대체 방식·check 포함 여부와 추가 시간을 비교해 DECISIONS에 기록한다 (결정만, dependency 추가는 결정 후)
 - [ ] 5-4 production 배포 구조 결정: 서빙 방식(같은 origin reverse proxy 등)·워커 수·환경변수 관리·build asset(행정동 경계) 포함을 DECISIONS에 기록하고, 워커 수에 따라 디스크 캐시 재검토 조건(D-016)을 판단한다 (구현은 결정 후)
 

@@ -63,6 +63,7 @@ const MESSAGES: Record<MapLoadErrorKind, { title: string; body: string }> = {
  * 클릭 → onSelect(좌표). 선택 지점에 마커 + 반경 500m 원, 분석 후 행정동 경계 강조.
  */
 export function MapView({ selected, markerTone, dong, interactive, onSelect }: MapViewProps) {
+  const sectionRef = useRef<HTMLElement>(null)
   const canvasRef = useRef<HTMLDivElement>(null)
   const [api, setApi] = useState<NaverMapsApi | null>(null)
   const [map, setMap] = useState<NaverMap | null>(null)
@@ -116,16 +117,27 @@ export function MapView({ selected, markerTone, dong, interactive, onSelect }: M
     }
   }, [])
 
-  // 컨테이너 크기가 바뀌면 지도 크기를 맞춘다 (mobile 화면 전환·tablet 높이 변경)
+  // 바깥 .map 크기가 바뀌면 지도 크기를 맞춘다 (mobile 화면 전환·tablet 높이 변경·창 크기 변경).
+  // canvas가 아니라 바깥 section을 본다 — SDK가 canvas에 inline px 크기를 넣어서 canvas는 레이아웃을 따라가지 않는다
   useEffect(() => {
-    const el = canvasRef.current
+    const el = sectionRef.current
     if (!api || !map || !el) return
-    const ro = new ResizeObserver(() => {
+    const fit = () => {
       if (el.clientWidth > 0 && el.clientHeight > 0) map.setSize(new api.Size(el.clientWidth, el.clientHeight))
-    })
+    }
+    fit()
+    const ro = new ResizeObserver(fit)
     ro.observe(el)
     return () => ro.disconnect()
   }, [api, map])
+
+  // 선택 지점이 바뀌면 그 위치로 지도를 옮긴다 (좌표 직접 입력·분석 불가 지점 포함). zoom은 사용자가 둔 그대로
+  const selectedLat = selected?.lat
+  const selectedLng = selected?.lng
+  useEffect(() => {
+    if (!api || !map || selectedLat === undefined || selectedLng === undefined) return
+    map.panTo(new api.LatLng(selectedLat, selectedLng))
+  }, [api, map, selectedLat, selectedLng])
 
   // 선택 지점 마커 + 반경 원. 다시 클릭하면 같은 오버레이를 옮긴다
   const markerRef = useRef<NaverMarker | null>(null)
@@ -212,7 +224,7 @@ export function MapView({ selected, markerTone, dong, interactive, onSelect }: M
   }, [api, map, guCode, dongName])
 
   return (
-    <section className="map" aria-label="위치 선택 지도">
+    <section ref={sectionRef} className="map" aria-label="위치 선택 지도">
       <div ref={canvasRef} className="map__canvas" />
       {error ? (
         <div className="map__state" role="alert">
