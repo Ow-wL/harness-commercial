@@ -171,4 +171,7 @@ eng review에서 승인됐지만 이 기록에 없던 결정. 구현 단계에�
   배포 명령 예 (이미지 push 후): `gcloud run deploy <서비스> --image <이미지> --region asia-northeast3 --cpu 1 --memory 1Gi --min-instances 1 --max-instances 1 --concurrency 4 --no-cpu-throttling --cpu-boost --allow-unauthenticated`
 - 시연 후 비용 절감 옵션: `min-instances=0` + request-based billing(CPU 요청 중에만 할당)으로 바꿀 수 있다. 그 경우 cold start(컨테이너 시작 → `/health` 약 6s)와 background warm 지연(요청이 없으면 warm이 멈춰, 미warm 업종 첫 분석 업종당 약 2.5s·warm 경합 시 최대 약 8s, TASKS 5-2 B4)을 감수한다. 바꿀 때 이 항목에 기록한다.
 - API 문서: `FRONTEND_DIST`가 설정된 production mode에서는 FastAPI 공식 설정 `FastAPI(docs_url=None, redoc_url=None, openapi_url=None)`으로 `/docs`·`/redoc`·`/openapi.json`을 끈다. 이 경로들은 SPA fallback으로도 index.html을 주지 않고 404 (`mount_frontend(hidden_paths=...)`). API-only 모드(개발·테스트)는 문서 유지. **인증이 아니다** — `/health`·`/businesses`·`/analyze`는 그대로 public. 테스트: `backend/tests/test_frontend.py`.
-- 아직 하지 않은 것: 실제 GCP 배포(프로젝트·Artifact Registry·서비스 계정), NAVER 콘솔에 Cloud Run URL 등록.
+- 배포·운영 점검 (2026-10-08): 사용자가 Docker 이미지를 Cloud Run(`asia-northeast3`)에 배포하고 NAVER 콘솔 Web 서비스 URL에 서비스 URL을 등록했다(서비스 URL·GCP 프로젝트 ID는 저장소에 기록하지 않는다). 운영 점검 결과:
+  - `/health` warm 29/29 완료, `/`·SPA 경로 200(`no-cache`), `/businesses` 200, `/docs`·`/redoc`·`/openapi.json` 404, `GET /analyze` 405, 없는 asset 404, JS·GeoJSON asset 200 + immutable 캐시, GeoJSON 610,826 bytes·sha256 = 매니페스트 값. 응답 약 0.07~0.17s.
+  - `/analyze` 8개 시나리오(부평역·구월 교정·아라2동·importance·인천 밖·점포 없음·잘못된 업종·위도 범위)를 같은 코드의 로컬 응답과 비교: 7개 JSON 완전 일치, 아라2동·미용실 1개는 `지표[입지성].raw.유인시설_종류별.초등학교`의 마지막 자리만 다름(0.8126628455769709 vs 0.812662845576971, Linux/Windows 부동소수 1ulp). 점수·화면 표시값은 같고 golden 허용오차(1e-9) 안이다.
+  - 브라우저: NAVER 지도 인증 정상, 1280px 좌표 입력 → 구월3동·카페 분석 → GeoJSON 경계 강조·마커 화면 안, 375px 지도 화면·가로 넘침 없음, 콘솔 오류 없음.
