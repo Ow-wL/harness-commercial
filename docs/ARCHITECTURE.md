@@ -90,7 +90,7 @@ Scoring Engine (v0_3, 불변)
 
 응답 `{context:{lat,lng,gu_code,gu_name,dong_name,label,rent_area}, result:<엔진 dict 그대로>}`. frontend는 `context`의 `(gu_code, dong_name)`으로
 `data/geo` 경계 asset에서 같은 행정동 polygon을 찾아 강조만 한다 — 행정동 판정(point-in-polygon)은 backend만 한다.
-production 서빙 구조(같은 origin reverse proxy 등)는 아직 정하지 않았다 (TASKS 5-4).
+production: Cloud Run 서비스 1개 — FastAPI(uvicorn 1 process)가 API와 Vite build(`/`, `/assets/*`, SPA fallback)를 같은 origin에서 서빙한다. API route가 먼저 매칭된다 (D-018, `backend/app/frontend.py`, `Dockerfile`).
 
 ### Location Resolver / Context Builder (구현됨: `scoring_engine/location.py`, 아래는 설계 당시 요구사항과 현재 상태)
 1. **행정동 경계 데이터.** → `data/geo/인천_행정동경계_2026.geojson` (158개, panel 코드와 일치, 1-1·1-2 완료, D-009). 생성: `scripts/build_geo.py` = vuski 2026 원본 156개 + 구월1동·구월3동은 commit된 SGIS 2025 공식 경계로 교정 (D-017). runtime은 이 파일만 읽고 SGIS API를 호출하지 않는다. 아래는 확보 전 기록.

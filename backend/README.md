@@ -7,8 +7,9 @@ python -m uvicorn backend.app.main:app --reload
 ```
 
 구조
-- `app/main.py` — `create_app(service=None, warm_biz=None)` + module-level `app`. `GET /health`, `GET /businesses`, `POST /analyze`.
+- `app/main.py` — `create_app(service=None, warm_biz=None, frontend_dist=None)` + module-level `app`. `GET /health`, `GET /businesses`, `POST /analyze`.
 - `app/errors.py` — 오류 응답 모델(`ErrorResponse`)·error code·exception handler.
+- `app/frontend.py` — production에서 Vite build(`FRONTEND_DIST`)를 같은 origin으로 서빙: `/assets/*`, SPA fallback. API route 뒤에 붙어 API가 우선 (D-018). 이 모드에서는 `/docs`·`/redoc`·`/openapi.json`을 끈다(404, 인증 아님). 환경변수가 없으면 API만(문서 유지).
 - `tests/` — `python -m pytest -q backend` (`scripts/check.py`가 `backend/app`이 있으면 자동 실행).
 
 수명 주기 (3-1)

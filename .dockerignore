@@ -1,0 +1,23 @@
+# Docker build context — 이미지에 필요한 것만 남긴다 (Dockerfile 이 파일 단위로 COPY 한다)
+# secret: .env 류는 절대 context 에 넣지 않는다 (NAVER Client ID 는 build arg 로만)
+.env
+.env.*
+**/.env
+**/.env.*
+
+.git
+.venv
+**/__pycache__
+**/*.pyc
+.pytest_cache
+
+# 원본·테스트·문서는 runtime 에 필요 없다 (원본 보호: sources 는 context 에도 넣지 않는다)
+sources
+tests
+docs
+scripts
+data/geo/raw
+data/cache
+
+frontend/node_modules
+frontend/dist

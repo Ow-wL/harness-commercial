@@ -14,12 +14,15 @@ FastAPI backend (TASKS 3-1, docs/DECISIONS.md D-012).
 
 엔드포인트: GET /health (3-1), GET /businesses (3-2, 엔진 config.BIZ_GROUP 그대로),
             POST /analyze (3-3, ContextBuilder → AnalysisService, 엔진 결과는 변형 없이 result 에)
+frontend: frontend_dist(또는 환경변수 FRONTEND_DIST)를 주면 Vite build 를 같은 origin 에서 서빙한다 — API route 다음에
+          붙어서 API 가 항상 우선, 나머지 GET 은 SPA fallback (backend/app/frontend.py, D-018). 주지 않으면 API 만.
 오류 계약: backend/app/errors.py (3-5) — 사용자 입력·분석 불가 422, 내부 오류 500 + request_id
 ContextBuilder 는 첫 /analyze 때 1회 만들어 app.state 에 둔다 (lazy — /health·/businesses 만 쓰는 앱은 만들지 않는다).
 """
 from __future__ import annotations
 
 import logging
+import os
 import threading
 from contextlib import asynccontextmanager
 from typing import Annotated, Any, Iterable, Literal, Optional
@@ -32,6 +35,7 @@ from scoring_engine.location import ContextBuilder, InvalidCoordinate, LocationO
 
 from .errors import (ERROR_RESPONSES, INVALID_ANALYSIS_OPTIONS, INVALID_BUSINESS, INVALID_COORDINATE,
                      LOCATION_OUTSIDE, NO_DATA_NEARBY, ApiError, install_error_handlers)
+from .frontend import mount_frontend
 from scoring_engine.service import AnalysisService
 
 logger = logging.getLogger("backend.warm")
@@ -148,9 +152,11 @@ class WarmProgress:
                                WARM_JOIN_TIMEOUT_S)
 
 
-def create_app(service: Optional[AnalysisService] = None, warm_biz: Optional[Iterable[str]] = None) -> FastAPI:
+def create_app(service: Optional[AnalysisService] = None, warm_biz: Optional[Iterable[str]] = None,
+               frontend_dist: Optional[str] = None) -> FastAPI:
     """service: 주입하면 그대로 쓴다 (RuntimeData 를 다시 읽지 않음). None 이면 lifespan 에서 1회 생성.
-    warm_biz: background warm 대상. None 이면 config.CODE_NAME 29개 전체."""
+    warm_biz: background warm 대상. None 이면 config.CODE_NAME 29개 전체.
+    frontend_dist: Vite build(dist/) 경로. 주면 API 뒤에 정적 파일·SPA fallback 을 붙인다 (D-018)."""
     biz_codes = list(C.CODE_NAME) if warm_biz is None else list(warm_biz)
 
     @asynccontextmanager
@@ -164,7 +170,9 @@ def create_app(service: Optional[AnalysisService] = None, warm_biz: Optional[Ite
         finally:
             app.state.warm.shutdown()
 
-    app = FastAPI(title="인천 상권분석 API", lifespan=lifespan)
+    # production(frontend 서빙)에서는 API 문서를 공개하지 않는다 (D-018). 인증이 아니다 — API 자체는 그대로 public
+    docs = {} if not frontend_dist else {"docs_url": None, "redoc_url": None, "openapi_url": None}
+    app = FastAPI(title="인천 상권분석 API", lifespan=lifespan, **docs)
     install_error_handlers(app)
     app.state.service = None
     app.state.warm = None
@@ -217,7 +225,10 @@ def create_app(service: Optional[AnalysisService] = None, warm_biz: Optional[Ite
                                    dong_name=ctx.dong_name, label=ctx.label, rent_area=ctx.rent_area),
             result=result)
 
+    if frontend_dist:   # API route 를 모두 등록한 뒤에 붙인다 — route 순서상 API 가 먼저 매칭된다
+        mount_frontend(app, frontend_dist, api_paths={"/health", "/businesses", "/analyze"},
+                       hidden_paths={"/docs", "/docs/oauth2-redirect", "/redoc", "/openapi.json"})
     return app
 
 
-app = create_app()
+app = create_app(frontend_dist=os.environ.get("FRONTEND_DIST") or None)

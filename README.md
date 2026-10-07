@@ -37,6 +37,19 @@ npm run dev
 ```
 자세한 내용: `backend/README.md`, `frontend/README.md`.
 
+## Production 실행 (Docker, Cloud Run 준비)
+
+FastAPI 하나가 API와 frontend build를 같은 origin에서 서빙한다 (`docs/DECISIONS.md` D-018). Node 서버 없음.
+
+```powershell
+docker build --build-arg VITE_NAVER_MAP_CLIENT_ID=<NAVER Maps Client ID> -t harness-commercial .
+```
+```powershell
+docker run --rm -p 8080:8080 harness-commercial   # http://localhost:8080 , /health 의 warm.done=true 후 시연
+```
+Docker 없이 같은 구성: `frontend/`에서 `npm run build` 후 루트에서 `FRONTEND_DIST=frontend/dist`로 uvicorn 실행.
+NAVER 콘솔 Web 서비스 URL에 접속 주소(로컬 `http://localhost:8080`, Cloud Run URL)를 등록해야 지도가 뜬다.
+
 ## 환경변수 (값은 commit하지 않는다)
 
 | 파일 | 용도 | 키 |

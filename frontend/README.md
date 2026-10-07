@@ -24,7 +24,7 @@ npm run build      # tsc -b + vite build → dist/
    backend 주소가 다르면 `frontend/.env`에 `BACKEND_URL=http://host:port` (VITE_ 접두어 없음 → 브라우저 번들에 들어가지 않음).
 3. 브라우저에서 `http://localhost:5173`.
 
-`npm run build` 결과(`dist/`)를 배포할 때는 같은 origin에서 `/businesses`·`/analyze`를 backend로 넘기는 reverse proxy가 필요하다(dev proxy는 개발 서버에서만 동작).
+production에서는 FastAPI가 `dist/`를 같은 origin에서 서빙한다(`FRONTEND_DIST`, D-018) — reverse proxy·Node 서버 없음. 이미지 build는 저장소 루트 `Dockerfile`(vite build만, NAVER Client ID는 build arg).
 
 ### NAVER Maps 설정
 

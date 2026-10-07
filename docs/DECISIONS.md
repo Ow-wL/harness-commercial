@@ -141,3 +141,34 @@ eng review에서 승인됐지만 이 기록에 없던 결정. 구현 단계에�
 - 판정 영향: 2,487개 점포 판정 변경(구월3동 라벨 2,486개 구월1동 → 구월3동, 구월2동 라벨 1개 구월1동 → 구월3동). 전수 일치율 96.625% → 98.456%, floor는 D-010 "교정 후 재측정". 부평역 → 부평1동, 운서·아라 분동 판정은 그대로. 엔진 v0.3·golden 29/29·`data/runtime` 변경 없음. 이 구역 좌표의 API context는 `구월1동` → `구월3동`(고객성 행이 구월3동 패널로 바뀜 — 의도된 변화, backend pass-through·ContextBuilder 테스트 기대값 갱신).
 - 매니페스트: `tests/manifests/geo.sha256.json`의 `인천_행정동경계_2026.geojson` 해시와 SGIS 입력 항목을 이 결정과 함께 갱신했다(`build_geo.manifest_entries()` 결과, raw 항목은 그대로). `python scripts/build_geo.py` → "매니페스트와 일치 (재현됨)".
 - 다시 열 때: SGIS가 2026 경계를 제공하면 연도를 올려 다시 받고, 인천 전체 교체(TASKS 보류 항목) 여부를 함께 판단한다.
+
+## D-018 배포 구조: Cloud Run 서비스 1개, FastAPI가 frontend build까지 같은 origin에서 서빙 (2026-10-08, TASKS 5-4, 사용자 결정)
+- 구조: Google Cloud Run 서비스 1개 = Docker 이미지 1개 = runtime process 1개(uvicorn, worker 1). Firebase Hosting은 쓰지 않는다. Node/Vite는 Docker build 단계에서만 쓰고 runtime에 Node 서버는 없다.
+  - `/health` `/businesses` `/analyze` → FastAPI (기존 그대로)
+  - `/assets/*` → Vite build의 해시된 파일 (`Cache-Control: public, max-age=31536000, immutable`)
+  - 그 밖의 확장자 없는 GET → `index.html` (SPA fallback, `no-cache`)
+- 같은 origin이라 frontend의 상대 API 경로(`/businesses`, `/analyze`)를 그대로 쓰고 CORS는 추가하지 않는다. dev는 지금처럼 vite dev proxy.
+- 구현: `backend/app/frontend.py` `mount_frontend`를 `create_app(frontend_dist=...)`가 **API route 등록 뒤에** 붙인다 → API가 항상 먼저 매칭된다. module-level `app`은 환경변수 `FRONTEND_DIST`가 있을 때만 켠다(없으면 API만 — dev·기존 테스트 동작 그대로, 없는 route 404 계약 유지).
+  - API 경로에 다른 method(`GET /analyze`)는 405 (index.html로 떨어지지 않음). `/assets/` 안의 없는 파일, 확장자 있는 없는 파일, GET/HEAD가 아닌 그 밖의 요청은 404. dist 밖 경로(`..`)는 서빙하지 않는다. build가 없으면 시작 시 RuntimeError.
+  - 테스트: `backend/tests/test_frontend.py` (임시 dist로 경로 우선순위·fallback·캐시 헤더·405/404 계약, 11개).
+- 이미지 (`Dockerfile`, `.dockerignore`): `node:22-slim`에서 `npm ci` + `vite build` → `python:3.10-slim`에 `requirements.txt`, `scoring_engine/`, `backend/app/`, `data/runtime/`, `data/geo/인천_행정동경계_2026.geojson`, `frontend/dist/`만 복사. `sources/`·`tests/`·`docs/`·`scripts/`·`data/geo/raw`·`.env` 류는 build context에서도 제외. 비root 사용자, `PORT`(Cloud Run 주입, 기본 8080).
+  - 타입 검사(`tsc -b`)는 테스트 파일과 `tests/golden`까지 보므로 이미지에서는 `vite build`만 하고, 타입 검사는 `scripts/check`(`npm run check`)가 맡는다.
+  - 행정동 GeoJSON: build 단계가 `dist/assets/*.geojson`이 정확히 1개이고 `data/geo` 원본과 sha256이 같은지 확인하고, 다르면 build 실패. 확인값: `인천_행정동경계_2026-<hash>.geojson` 610,826 bytes, sha256 = 매니페스트 값(`7c64c376…`).
+- NAVER Maps Client ID: build arg `VITE_NAVER_MAP_CLIENT_ID`로만 받아 번들에 넣는다(공개 값, Client Secret 아님). 없으면 build 실패. commit하지 않는다. 이미지 메타데이터(`docker history`)에도 build arg가 남으므로 공개 값만 넘긴다. Cloud Run 서비스 URL을 NAVER 콘솔 Web 서비스 URL에 등록해야 지도가 뜬다.
+- 로컬 검증 (2026-10-08, Docker 29.5.2): 이미지 663MB. 컨테이너 시작 → `/health` 응답 약 5.9s, 29개 warm 완료 후 메모리 197MiB(최대 220MiB), `/analyze` 약 0.03s. 같은 이미지에 `tests/`·`scripts/`·`sources/`를 읽기 전용으로 붙여 golden regression·location agreement·ContextBuilder·service 계약 122개 PASS (Linux, Python 3.10.22) → Windows 3.10.11 golden과 같다. 브라우저로 SPA 깊은 경로 진입 → 분석 → GeoJSON asset(200) → 경계 강조 확인.
+- **Cloud Run 운영 설정 (확정, 2026-10-08 사용자 결정 — 시연·초기 운영용)**:
+
+  | 항목 | 값 | 이유 |
+  |---|---|---|
+  | region | `asia-northeast3` (서울) | 사용자·데이터가 인천 |
+  | CPU / memory | 1 / `1Gi` | 측정 최대 220MiB의 여유. pandas 데이터 1벌 |
+  | min / max instances | 1 / 1 | cold start(약 6s)·warm 반복 없음. 인스턴스 1개 = RuntimeData·ReferenceCache 1벌 (D-016 디스크 캐시 계속 미도입) |
+  | concurrency | 4 | worker 1개의 thread pool에서 분석(약 0.03s)은 짧지만 콜드 업종은 `ReferenceCache` lock으로 직렬화된다 — 적은 동시 요청만 받아 대기 시간을 제한 |
+  | uvicorn worker | 1 | 워커마다 데이터·캐시를 따로 가지면 메모리·warm이 N배 |
+  | CPU 할당 | instance-based billing, `--no-cpu-throttling` | background warm thread가 요청 밖에서도 돌아야 한다 |
+  | startup CPU boost | 사용 (`--cpu-boost`) | RuntimeData 로드(약 4s)·초기 warm 단축 |
+
+  배포 명령 예 (이미지 push 후): `gcloud run deploy <서비스> --image <이미지> --region asia-northeast3 --cpu 1 --memory 1Gi --min-instances 1 --max-instances 1 --concurrency 4 --no-cpu-throttling --cpu-boost --allow-unauthenticated`
+- 시연 후 비용 절감 옵션: `min-instances=0` + request-based billing(CPU 요청 중에만 할당)으로 바꿀 수 있다. 그 경우 cold start(컨테이너 시작 → `/health` 약 6s)와 background warm 지연(요청이 없으면 warm이 멈춰, 미warm 업종 첫 분석 업종당 약 2.5s·warm 경합 시 최대 약 8s, TASKS 5-2 B4)을 감수한다. 바꿀 때 이 항목에 기록한다.
+- API 문서: `FRONTEND_DIST`가 설정된 production mode에서는 FastAPI 공식 설정 `FastAPI(docs_url=None, redoc_url=None, openapi_url=None)`으로 `/docs`·`/redoc`·`/openapi.json`을 끈다. 이 경로들은 SPA fallback으로도 index.html을 주지 않고 404 (`mount_frontend(hidden_paths=...)`). API-only 모드(개발·테스트)는 문서 유지. **인증이 아니다** — `/health`·`/businesses`·`/analyze`는 그대로 public. 테스트: `backend/tests/test_frontend.py`.
+- 아직 하지 않은 것: 실제 GCP 배포(프로젝트·Artifact Registry·서비스 계정), NAVER 콘솔에 Cloud Run URL 등록.
