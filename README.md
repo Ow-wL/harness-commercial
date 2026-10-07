@@ -70,6 +70,6 @@ NAVER 콘솔 Web 서비스 URL에 접속 주소(로컬 `http://localhost:8080`, 
 | `data/runtime/` | 엔진 입력 데이터 (원본 `07_가공데이터`와 바이트 동일) |
 | `data/geo/` | 인천 행정동 경계 158개 (2026-07 기준, 구월1·3동 SGIS 교정) |
 | `tests/` | 무결성, 엔진 단위, 데이터 스키마, golden regression, location |
-| `docs/` | 구조·엔진·데이터·작업·결정 (`ARCHITECTURE`, `ENGINE`, `DATA`, `TASKS`, `DECISIONS`) |
+| `docs/` | 구조·엔진·데이터·작업·결정 (`ARCHITECTURE`, `ENGINE`, `DATA`, `TASKS`, `DECISIONS`), 주간 보고 `reports/` |
 
 작업 규칙은 `CLAUDE.md`, UI 규칙은 `DESIGN.md`.

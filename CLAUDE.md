@@ -52,6 +52,7 @@ scripts/check.sh             # bash
 - `docs/DATA.md` 런타임 데이터 파일과 컬럼
 - `docs/TASKS.md` 다음 작업 (작은 단위)
 - `docs/DECISIONS.md` 기술 결정 기록
+- `docs/reports/` 주간 보고 (예: `2026-W41.md`)
 
 ## gstack
 gstack(v1.91.25.0)이 전역 설치되어 있다: `~/.claude/skills/gstack` (Windows: Git Bash + Bun + Node, 번들 브라우저 사용).

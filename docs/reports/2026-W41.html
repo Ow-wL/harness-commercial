@@ -1,0 +1,362 @@
+<title>상권분석 매니저 41주차 보고</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@500;600;700&family=Noto+Sans+KR:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: 한 칼럼 보고서. 상단 요약 수치 → 일자별 진행 → 영역별 결과 → 검증 → 다음 계획. 프로젝트 DESIGN.md 색 토큰을 따른다 */
+:root {
+  --bg: #F5F7FA;
+  --surface: #FFFFFF;
+  --surface-muted: #EEF1F5;
+  --border: #DDE2E9;
+  --fg: #17202B;
+  --fg-2: #444E5B;
+  --muted: #656F7C;
+  --accent: #1D5BBF;
+  --accent-subtle: #EAF1FC;
+  --success: #1E7A4C;
+  --success-subtle: #E8F5EE;
+  --warning: #9A5A00;
+  --warning-subtle: #FFF4E2;
+  --p-market: #3F6FB0;
+  --p-customer: #2F8584;
+  --p-competition: #6D5BA8;
+  --p-location: #5A7F3F;
+  --p-stability: #9A6B1F;
+  --font-display: "IBM Plex Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+  --font-body: "Noto Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #11161D; --surface: #18202A; --surface-muted: #202A36; --border: #2C3846;
+    --fg: #E7ECF2; --fg-2: #BCC5D0; --muted: #8E99A7;
+    --accent: #7EA9EC; --accent-subtle: #1B2B44;
+    --success: #6CC79A; --success-subtle: #15302A;
+    --warning: #E7B262; --warning-subtle: #33270F;
+    --p-market: #86A9DC; --p-customer: #6BC0BE; --p-competition: #AB9BE0; --p-location: #9CC27E; --p-stability: #D6A85C;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #11161D; --surface: #18202A; --surface-muted: #202A36; --border: #2C3846;
+  --fg: #E7ECF2; --fg-2: #BCC5D0; --muted: #8E99A7;
+  --accent: #7EA9EC; --accent-subtle: #1B2B44;
+  --success: #6CC79A; --success-subtle: #15302A;
+  --warning: #E7B262; --warning-subtle: #33270F;
+  --p-market: #86A9DC; --p-customer: #6BC0BE; --p-competition: #AB9BE0; --p-location: #9CC27E; --p-stability: #D6A85C;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--fg);
+  font-family: var(--font-body); font-size: 15px; line-height: 1.7;
+  padding-inline: 16px; padding-block: 40px 64px;
+}
+.wrap { max-width: 880px; margin: 0 auto; display: flex; flex-direction: column; gap: 48px; }
+h1, h2, h3 { font-family: var(--font-display); text-wrap: balance; margin: 0; line-height: 1.3; }
+h1 { font-size: clamp(26px, 4.4vw, 36px); font-weight: 700; }
+h2 { font-size: 21px; font-weight: 700; }
+h3 { font-size: 16px; font-weight: 600; }
+p, ul { margin: 0; }
+ul { padding-left: 20px; display: flex; flex-direction: column; gap: 6px; }
+code, .mono { font-family: var(--font-mono); font-size: 0.88em; }
+code { background: var(--surface-muted); padding: 1px 5px; border-radius: 4px; overflow-wrap: anywhere; }
+a { color: var(--accent); }
+.eyebrow { font-family: var(--font-mono); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.muted { color: var(--muted); }
+section { display: flex; flex-direction: column; gap: 18px; }
+.sec-head { display: flex; flex-direction: column; gap: 4px; border-bottom: 1px solid var(--border); padding-bottom: 10px; }
+
+/* header */
+header { display: flex; flex-direction: column; gap: 14px; }
+.lede { font-size: 17px; color: var(--fg-2); max-width: 64ch; }
+.meta { display: flex; flex-wrap: wrap; gap: 8px 18px; font-size: 13px; color: var(--muted); }
+
+/* pipeline */
+.flow { display: flex; flex-wrap: wrap; align-items: stretch; gap: 8px; }
+.flow .node { flex: 1 1 140px; min-width: 0; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; display: flex; flex-direction: column; gap: 2px; }
+.flow .node b { font-family: var(--font-display); font-weight: 600; font-size: 14px; }
+.flow .node span { font-size: 12.5px; color: var(--muted); }
+.flow .node.locked { border-color: var(--accent); background: var(--accent-subtle); }
+.flow .arrow { align-self: center; color: var(--muted); font-family: var(--font-mono); }
+
+/* stats */
+.stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.stat { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; display: flex; flex-direction: column; gap: 4px; }
+.stat .num { font-family: var(--font-display); font-size: 28px; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.15; }
+.stat .num small { font-size: 15px; font-weight: 500; color: var(--muted); }
+.stat .lbl { font-size: 13px; color: var(--fg-2); }
+@media (max-width: 720px) { .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+/* timeline */
+.days { display: flex; flex-direction: column; }
+.day { display: grid; grid-template-columns: 92px minmax(0, 1fr); gap: 16px; padding-block: 16px; border-top: 1px solid var(--border); }
+.day:first-child { border-top: 0; padding-top: 4px; }
+.day .date { font-family: var(--font-mono); font-size: 13px; color: var(--muted); line-height: 1.5; }
+.day .date b { display: block; font-family: var(--font-display); font-size: 18px; color: var(--fg); font-weight: 600; }
+.day .body { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.commits { display: flex; flex-wrap: wrap; gap: 6px; }
+.commits code { font-size: 12px; }
+@media (max-width: 480px) { .day { grid-template-columns: 1fr; gap: 6px; } }
+
+/* areas */
+.areas { display: flex; flex-direction: column; gap: 14px; }
+.area { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 18px 20px; display: flex; flex-direction: column; gap: 10px; }
+.area-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 4px 12px; }
+.refs { font-family: var(--font-mono); font-size: 12px; color: var(--muted); }
+.callout { background: var(--accent-subtle); border-radius: 6px; padding: 12px 14px; display: flex; flex-direction: column; gap: 6px; }
+.callout h4 { margin: 0; font-family: var(--font-display); font-size: 14px; font-weight: 600; color: var(--accent); }
+
+/* bar: agreement */
+.bar-row { display: grid; grid-template-columns: 72px minmax(0, 1fr) 64px; gap: 10px; align-items: center; font-size: 13px; }
+.bar { height: 10px; background: var(--surface-muted); border-radius: 5px; overflow: hidden; position: relative; }
+.bar i { position: absolute; inset: 0 auto 0 0; background: var(--muted); border-radius: 5px; }
+.bar.after i { background: var(--success); }
+.bar-row .v { font-family: var(--font-mono); font-variant-numeric: tabular-nums; text-align: right; }
+.scale { display: grid; grid-template-columns: 72px minmax(0, 1fr) 64px; gap: 10px; font-family: var(--font-mono); font-size: 11px; color: var(--muted); }
+.scale div { display: flex; justify-content: space-between; }
+
+/* tables */
+.table-wrap { overflow-x: auto; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; }
+table { width: 100%; border-collapse: collapse; font-size: 14px; }
+th, td { text-align: left; padding: 10px 14px; border-top: 1px solid var(--border); vertical-align: top; }
+thead th { border-top: 0; background: var(--surface-muted); font-size: 12.5px; color: var(--fg-2); font-weight: 500; }
+td.num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.pill { display: inline-block; font-family: var(--font-mono); font-size: 11.5px; font-weight: 500; padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
+.pill.pass { background: var(--success-subtle); color: var(--success); }
+.pill.minor { background: var(--warning-subtle); color: var(--warning); }
+.pill.fixed { background: var(--accent-subtle); color: var(--accent); }
+
+/* perspectives */
+.persp { display: flex; flex-wrap: wrap; gap: 6px; }
+.persp span { font-size: 12.5px; padding: 2px 10px; border-radius: 999px; border: 1px solid currentColor; }
+
+/* checklist */
+.checks { list-style: none; padding: 0; gap: 10px; }
+.checks li { display: grid; grid-template-columns: 20px minmax(0, 1fr); gap: 10px; }
+.checks li::before { content: "✓"; color: var(--success); font-weight: 700; }
+.todo li::before { content: "○"; color: var(--accent); }
+.hold li::before { content: "–"; color: var(--muted); }
+
+footer { font-size: 13px; color: var(--muted); border-top: 1px solid var(--border); padding-top: 16px; }
+</style>
+
+<div class="wrap">
+
+<header>
+  <div class="eyebrow">주간 보고 · 2026년 41주차 · 10월 5일 ~ 8일</div>
+  <h1>우리동네 상권분석 매니저 — 웹 MVP 완성과 배포</h1>
+  <p class="lede">팀이 만든 상권 점수 엔진 v0.3을 한 줄도 바꾸지 않은 채, 인천 지도에서 위치와 업종을 고르면 실제 분석 결과를 보여 주는 웹 서비스를 만들고 Cloud Run에 배포했다.</p>
+  <div class="meta">
+    <span>저장소 harness-commercial</span>
+    <span>커밋 29개 (<span class="mono">ffdebfe</span> → <span class="mono">8fe09ab</span>)</span>
+    <span>엔진 <span class="mono">mvp-0.3</span></span>
+  </div>
+</header>
+
+<section aria-label="요약 수치">
+  <div class="stats">
+    <div class="stat"><div class="num">29<small>/29</small></div><div class="lbl">원본 분석 결과와 일치한 업종</div></div>
+    <div class="stat"><div class="num">98.46<small>%</small></div><div class="lbl">점포 13.6만 개의 행정동 판정 일치율</div></div>
+    <div class="stat"><div class="num">489</div><div class="lbl">전체 검증에서 통과한 테스트</div></div>
+    <div class="stat"><div class="num">0.03<small>s</small></div><div class="lbl">준비 완료 후 분석 1건 응답</div></div>
+  </div>
+</section>
+
+<section>
+  <div class="sec-head">
+    <h2>구조</h2>
+    <p class="muted">화면은 엔진을 직접 부르지 않는다. 엔진이 필요로 하는 입력은 중간 계층이 좌표로부터 만든다.</p>
+  </div>
+  <div class="flow" role="list">
+    <div class="node" role="listitem"><b>Frontend</b><span>React · NAVER 지도</span></div>
+    <div class="arrow" aria-hidden="true">→</div>
+    <div class="node" role="listitem"><b>Backend</b><span>FastAPI · 오류 계약</span></div>
+    <div class="arrow" aria-hidden="true">→</div>
+    <div class="node" role="listitem"><b>Context Builder</b><span>좌표 → 행정동 → 입력</span></div>
+    <div class="arrow" aria-hidden="true">→</div>
+    <div class="node locked" role="listitem"><b>Scoring Engine v0.3</b><span>원본과 바이트 동일, 수정 금지</span></div>
+  </div>
+  <div class="persp" aria-label="엔진의 5대 관점">
+    <span style="color: var(--p-market)">시장성</span>
+    <span style="color: var(--p-customer)">고객성</span>
+    <span style="color: var(--p-competition)">경쟁성</span>
+    <span style="color: var(--p-location)">입지성</span>
+    <span style="color: var(--p-stability)">안정성</span>
+  </div>
+</section>
+
+<section>
+  <div class="sec-head">
+    <h2>일자별 진행</h2>
+  </div>
+  <div class="days">
+    <div class="day">
+      <div class="date"><b>10.05</b>월</div>
+      <div class="body">
+        <p>원본을 보호하는 하네스를 먼저 만들었다. 원본 75개 파일 해시 고정, 엔진 사본 분리, 부평역 하드코딩을 파라미터로 바꾼 adapter, 원본 결과 29개와 비교하는 golden 테스트. 이어서 행정동 경계 데이터, 좌표→행정동 판정, 점포 라벨 일치율 검증, Context Builder, 비교 모집단 계산 성능 기준을 세우고 FastAPI 기반과 업종 목록 API를 만들었다.</p>
+        <div class="commits"><code>ffdebfe</code><code>c709988</code><code>e145f02</code><code>bee6bf0</code><code>7f746d9</code><code>5c89cba</code><code>330a0db</code><code>46a65e3</code></div>
+      </div>
+    </div>
+    <div class="day">
+      <div class="date"><b>10.06</b>화</div>
+      <div class="body">
+        <p>분석 API, 엔진 결과를 그대로 전달하는지 확인하는 회귀 테스트, 오류 계약으로 backend를 마무리했다. 디자인 시스템 문서를 먼저 확정하고 React frontend → 응답 스키마 → 결과 화면 → 지도 기반 분석 흐름 순으로 쌓았다. 같은 날 구월동 경계 오류를 공식 자료로 확인해 교정했다.</p>
+        <div class="commits"><code>b1ba596</code><code>3fd64e4</code><code>9da2e34</code><code>9ce8a7e</code><code>55302ca</code><code>e506464</code><code>7da46d1</code><code>0536578</code></div>
+      </div>
+    </div>
+    <div class="day">
+      <div class="date"><b>10.07</b>수</div>
+      <div class="body">
+        <p>실제 브라우저로 대표 시나리오를 수동 QA했다. 지도가 선택 위치로 이동하지 않던 문제와 화면 크기 변경 시 지도 크기가 맞지 않던 문제를 고쳤다.</p>
+        <div class="commits"><code>e32a850</code></div>
+      </div>
+    </div>
+    <div class="day">
+      <div class="date"><b>10.08</b>목</div>
+      <div class="body">
+        <p>배포 구조를 결정하고 Docker 이미지를 구성해 Cloud Run 서울 리전에 배포했다. 운영 사이트에서 경로·API·지도를 점검하고 결과를 기록했다.</p>
+        <div class="commits"><code>b3b3897</code><code>8fe09ab</code></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="sec-head">
+    <h2>영역별 결과</h2>
+    <p class="muted">오른쪽 번호는 저장소 <code>docs/DECISIONS.md</code>(D-)와 <code>docs/TASKS.md</code>의 항목이다.</p>
+  </div>
+  <div class="areas">
+
+    <article class="area">
+      <div class="area-head"><h3>원본 보호와 재현성</h3><span class="refs">H-0 · D-001~D-008</span></div>
+      <ul>
+        <li>팀 원본 75개 파일을 해시로 고정하고 매 검증마다 확인한다. 원본 실행 스크립트는 golden을 덮어쓰므로 실행하지 않는다.</li>
+        <li>엔진은 원본과 바이트가 같은 사본으로 둔다. import 방식은 감싸는 패키지 쪽에서 처리해 "같은 엔진"임을 해시로 증명할 수 있다.</li>
+        <li>부평역 좌표·행정동·임대료 상권 같은 하드코딩은 입력 파라미터로 분리했다.</li>
+        <li>가중치를 0.01만 바꿔도 golden 테스트가 실패하는 것을 확인했다. golden은 엔진 버전을 올릴 때만 새로 만든다.</li>
+      </ul>
+    </article>
+
+    <article class="area">
+      <div class="area-head"><h3>좌표를 엔진 입력으로 바꾸는 계층</h3><span class="refs">TASKS 1 · D-009~D-011 · D-015 · D-017</span></div>
+      <ul>
+        <li>2026년 7월 개편 기준 인천 행정동 경계 158개를 사용한다. 경계의 행정동 코드 158개가 엔진 데이터 158개와 정확히 맞는다.</li>
+        <li>인천 밖·바다·잘못된 좌표는 각각 다른 오류로 구분하고, 반경 500m 안에 점포가 없으면 분석하지 않는다.</li>
+        <li>임대료 상권(R-ONE 9곳)은 MVP에서 일반 좌표에 연결하지 않기로 했다. 안정성의 임대료 지표는 "데이터 없음"으로 빠지고 엔진 규칙대로 나머지로 재계산된다.</li>
+      </ul>
+      <div class="callout">
+        <h4>구월1동·구월3동 경계 교정</h4>
+        <p>구월3동으로 등록된 점포 2,486개가 경계 데이터상 구월1동에 들어가 있었다. 통계청 SGIS 공식 역지오코딩으로 해당 좌표 439개를 조회하니 전부 구월3동이었다. 경계 데이터가 2015년 구역 편입을 반영하지 못한 것이어서, SGIS 공식 경계로 두 동만 교정했다. 엔진·점수 데이터·golden은 바뀌지 않았다.</p>
+        <div class="bar-row" style="margin-top:6px"><span>교정 전</span><div class="bar"><i style="width:96.625%"></i></div><span class="v">96.63%</span></div>
+        <div class="bar-row"><span>교정 후</span><div class="bar after"><i style="width:98.456%"></i></div><span class="v">98.46%</span></div>
+        <div class="scale"><span></span><div><span>0%</span><span>50%</span><span>100%</span></div><span></span></div>
+        <p class="muted" style="font-size:13px">점포 135,750개 전수의 행정동 판정 일치율. 남은 불일치는 대부분 경계선 100m 이내다.</p>
+      </div>
+    </article>
+
+    <article class="area">
+      <div class="area-head"><h3>성능</h3><span class="refs">TASKS 2 · D-013 · D-016</span></div>
+      <ul>
+        <li>데이터 로드 약 4초, 업종 하나의 비교 모집단 계산 약 2.5초, 29개 업종 전체 약 60초.</li>
+        <li>서버는 데이터만 읽으면 바로 요청을 받고, 29개 업종 준비는 뒤에서 진행한다. 진행 상황은 <code>/health</code>에서 볼 수 있다.</li>
+        <li>계산 결과를 디스크에 저장하는 캐시는 지금 성능으로 충분해 도입하지 않았다.</li>
+      </ul>
+    </article>
+
+    <article class="area">
+      <div class="area-head"><h3>Backend</h3><span class="refs">TASKS 3 · D-012 · D-014</span></div>
+      <ul>
+        <li><code>GET /health</code>, <code>GET /businesses</code>(29개 업종, 4개 그룹), <code>POST /analyze</code>.</li>
+        <li>엔진 결과는 가공하지 않고 그대로 전달한다. API 결과와 엔진 직접 호출 결과가 같은지 테스트로 고정했다.</li>
+        <li>사용자 입력 문제는 422와 원인 코드, 서버 내부 오류는 500과 추적용 <code>request_id</code>로 응답한다.</li>
+      </ul>
+    </article>
+
+    <article class="area">
+      <div class="area-head"><h3>Frontend</h3><span class="refs">TASKS 4</span></div>
+      <ul>
+        <li>구현 전에 색·글꼴·결과 화면 위계·오류 상태·반응형 규칙을 <code>DESIGN.md</code>로 확정했다.</li>
+        <li>API 응답 형태는 스키마로 정의하고, 원본 결과 29개가 모두 스키마를 통과하는지 테스트한다.</li>
+        <li>지도에서 위치 선택(클릭 또는 좌표 입력) → 업종 선택 → 종합 점수, 5대 관점, 주의할 점, 세부지표, 데이터 출처 → 분석된 행정동 경계 강조.</li>
+      </ul>
+    </article>
+
+    <article class="area">
+      <div class="area-head"><h3>브라우저 QA와 배포</h3><span class="refs">TASKS 5 · D-018</span></div>
+      <p>부평역, 구월 교정 구역, 인천 밖·바다, 점포 없는 곳, 좌표 오류, 업종 변경, 서버 중단 후 재시도를 1280·970·375px 폭에서 확인했다. 화면 값이 API 응답과 같았고 <b>시연 가능</b>으로 판정했다.</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>번호</th><th>내용</th><th>상태</th></tr></thead>
+          <tbody>
+            <tr><td class="num">B1</td><td>선택한 위치로 지도가 이동하지 않음</td><td><span class="pill fixed">수정</span></td></tr>
+            <tr><td class="num">B2</td><td>화면 크기가 바뀔 때 지도 크기가 맞지 않음</td><td><span class="pill fixed">수정</span></td></tr>
+            <tr><td class="num">B3</td><td>태블릿 결과 화면의 지도 접기 없음</td><td><span class="pill minor">남김</span></td></tr>
+            <tr><td class="num">B4</td><td>서버 시작 직후 준비 안 된 업종의 첫 분석 약 8초</td><td><span class="pill minor">남김</span></td></tr>
+            <tr><td class="num">B5</td><td>모바일 첫 화면에서 좌표 입력란이 바로 펼쳐지지 않음</td><td><span class="pill minor">남김</span></td></tr>
+            <tr><td class="num">B6</td><td>인천 밖 어둡게 처리 등 디자인 세부 미구현</td><td><span class="pill minor">남김</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>배포는 Cloud Run 서비스 하나에서 FastAPI가 API와 화면 파일을 같은 주소로 함께 내보내는 구조다. 별도 Node 서버와 CORS 설정이 필요 없다.</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>운영 설정</th><th>값</th><th>이유</th></tr></thead>
+          <tbody>
+            <tr><td>리전</td><td class="num">asia-northeast3</td><td>사용자와 데이터가 인천</td></tr>
+            <tr><td>CPU / 메모리</td><td class="num">1 / 1Gi</td><td>측정 최대 약 220MiB</td></tr>
+            <tr><td>인스턴스</td><td class="num">최소 1 / 최대 1</td><td>시작 지연과 재계산 없음, 데이터 1벌</td></tr>
+            <tr><td>동시 요청</td><td class="num">4</td><td>준비 안 된 업종 계산이 직렬화되므로 대기 시간 제한</td></tr>
+            <tr><td>CPU 할당</td><td class="num">상시</td><td>요청이 없어도 업종 준비가 계속 진행되도록</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>운영 사이트 점검에서 <code>/analyze</code> 8개 시나리오를 로컬 결과와 비교했다. 7개는 완전히 같았고, 1개는 소수점 열여섯째 자리만 달랐다(Linux와 Windows의 부동소수 차이, 허용오차 안). API 문서 경로는 운영에서 닫혀 있고, 지도 인증과 모바일 화면도 정상이었다.</p>
+    </article>
+
+  </div>
+</section>
+
+<section>
+  <div class="sec-head">
+    <h2>검증 현황</h2>
+    <p class="muted">2026-10-08 <code>scripts/check.ps1</code> 실행 결과. 건너뛴 단계 없음.</p>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>단계</th><th>통과</th><th>결과</th></tr></thead>
+      <tbody>
+        <tr><td>원본 무결성 · 원본 v0.3 테스트 2종 · import</td><td class="num">—</td><td><span class="pill pass">PASS</span></td></tr>
+        <tr><td>엔진 · 데이터 스키마 · golden regression · 위치 판정</td><td class="num">272</td><td><span class="pill pass">PASS</span></td></tr>
+        <tr><td>Backend</td><td class="num">98</td><td><span class="pill pass">PASS</span></td></tr>
+        <tr><td>Frontend (타입 검사 · lint · 테스트)</td><td class="num">119</td><td><span class="pill pass">PASS</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <ul class="checks">
+    <li>엔진 원본·사본, 점수 데이터, golden 결과는 이번 주 바뀌지 않았다 (해시 검증 통과).</li>
+    <li>점수 계산 로직은 바꾸지 않았다. 화면 요구사항은 모두 엔진 바깥에서 처리했다.</li>
+    <li>지도 API 키, SGIS 인증값, 서비스 주소, GCP 프로젝트 ID는 저장소에 남기지 않았다.</li>
+  </ul>
+</section>
+
+<section>
+  <div class="sec-head">
+    <h2>다음 주</h2>
+  </div>
+  <ul class="checks todo">
+    <li>자동 E2E 테스트 도입 여부 결정 (도구, 지도 대체 방식, 검증 시간 증가 비교)</li>
+    <li>시연 후 비용 절감 설정 검토: 최소 인스턴스 0으로 바꾸면 시작 약 6초 지연을 감수</li>
+    <li>남은 minor 버그 B3~B6 처리 여부 판단</li>
+  </ul>
+  <ul class="checks hold">
+    <li class="muted">이번 범위 밖: 로그인, DB, AI 설명, 지원사업 추천, 점수 공식 개선, 업종 추가. SGIS가 2026년 경계를 제공하면 인천 전체 경계 교체 검토.</li>
+  </ul>
+</section>
+
+<footer>원문은 저장소 <code>docs/reports/2026-W41.md</code>. 세부 수치와 결정 이유는 <code>docs/DECISIONS.md</code>, 작업 목록은 <code>docs/TASKS.md</code>.</footer>
+
+</div>
