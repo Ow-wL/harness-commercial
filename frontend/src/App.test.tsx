@@ -6,6 +6,7 @@ import fixture from './fixtures/bupyeong-pcbang.json'
 import nearbyFixture from './fixtures/bupyeong-pcbang-nearby.json'
 import guwolFixture from './fixtures/compare-guwol-pcbang.json'
 import songdoFixture from './fixtures/compare-songdo-pcbang.json'
+import { brokenControls, brokenReferences, duplicateIds, expandAll } from './test/a11yRefs.ts'
 
 // 지도는 SDK 경계(MapView) 통째로 mock한다 — 실제 NAVER SDK를 부르지 않는다.
 // mock은 실제 MapView와 같은 계약: interactive=false면 클릭을 무시하고, 클릭 좌표를 onSelect로 넘긴다.
@@ -464,6 +465,8 @@ describe('두 위치 비교 — B 분석 상태 (5차-B2, docs/COMPARE_DESIGN.md
   const sheet = () => document.querySelector<HTMLElement>('.map-sheet')!
   const bCard = () => within(panel()).getByRole('region', { name: 'B 비교 위치' })
   const aCard = () => within(panel()).getByRole('region', { name: 'A 기준 위치' })
+  /** 비교 요약의 점수 표 종합 행 (B 성공 뒤) */
+  const overallRow = () => within(within(panel()).getByRole('table', { name: /종합·5대 관점 점수 비교/ })).getAllByRole('row')[1]!
   const ok = (body: unknown) => ({ status: 200, body })
 
   /** A(부평역·PC방) 분석과 A 점포 목록까지 마친 상태. analyze 뒤쪽 replies는 B 요청에 쓰인다 */
@@ -511,9 +514,8 @@ describe('두 위치 비교 — B 분석 상태 (5차-B2, docs/COMPARE_DESIGN.md
     analyzeB()
 
     expect(bodyOf(analyzeCalls(fetchMock)[1]!)).toEqual({ lat: 37.4475, lng: 126.7015, biz_code: 'R10406' })
-    expect(await within(bCard()).findByText('남동구 구월3동')).toBeInTheDocument()
-    expect(bCard()).toHaveTextContent('남동구 구월3동 · 종합 59.1')
-    expect(bCard()).toHaveTextContent('B 위치 분석을 마쳤습니다: 남동구 구월3동')
+    await waitFor(() => expect(bCard()).toHaveTextContent('남동구 구월3동'))
+    expect(overallRow()).toHaveTextContent(/종합.*65\.8.*59\.1/)        // 비교 요약 표 (A 65.8, B 59.1)
     expect(document.activeElement).toBe(screen.getByRole('heading', { level: 1, name: PANEL }))
     // A는 그대로: 지도 선택 지점·행정동 경계는 A
     expect(screen.getByTestId('map')).toHaveAttribute('data-selected', '37.4894,126.7246')
@@ -550,7 +552,8 @@ describe('두 위치 비교 — B 분석 상태 (5차-B2, docs/COMPARE_DESIGN.md
     expect(analyzeCalls(fetchMock)).toHaveLength(2)
 
     await act(async () => b.respond(ok(songdoFixture)))
-    expect(bCard()).toHaveTextContent('연수구 송도2동 · 종합 64.9')
+    expect(bCard()).toHaveTextContent('연수구 송도2동')
+    expect(overallRow()).toHaveTextContent(/65\.8.*64\.9/)
   })
 
   it('B가 A와 정확히 같은 좌표면 요청하지 않고 안내한다', async () => {
@@ -581,7 +584,7 @@ describe('두 위치 비교 — B 분석 상태 (5차-B2, docs/COMPARE_DESIGN.md
     expect(within(bCard()).getByLabelText('B 위도')).toBeEnabled()
 
     fireEvent.click(retry)
-    expect(await within(bCard()).findByText('연수구 송도2동')).toBeInTheDocument()
+    await waitFor(() => expect(bCard()).toHaveTextContent('연수구 송도2동'))
     const [, first, second] = analyzeCalls(fetchMock)
     expect(bodyOf(first!)).toEqual({ lat: 37.392512, lng: 126.639034, biz_code: 'R10406' })
     expect(bodyOf(second!)).toEqual(bodyOf(first!))
@@ -610,7 +613,7 @@ describe('두 위치 비교 — B 분석 상태 (5차-B2, docs/COMPARE_DESIGN.md
     typeB(37.4475, 126.7015)
     expect(within(bCard()).queryByRole('alert')).not.toBeInTheDocument()
     analyzeB()
-    expect(await within(bCard()).findByText('남동구 구월3동')).toBeInTheDocument()
+    await waitFor(() => expect(bCard()).toHaveTextContent('남동구 구월3동'))
     expect(bodyOf(analyzeCalls(fetchMock)[2]!)).toEqual({ lat: 37.4475, lng: 126.7015, biz_code: 'R10406' })
   })
 
@@ -636,11 +639,11 @@ describe('두 위치 비교 — B 분석 상태 (5차-B2, docs/COMPARE_DESIGN.md
     startCompare()
     typeB(37.4475, 126.7015)
     analyzeB()                                                        // B2 (구월)
-    expect(await within(bCard()).findByText('남동구 구월3동')).toBeInTheDocument()
+    await waitFor(() => expect(bCard()).toHaveTextContent('남동구 구월3동'))
 
     await act(async () => b1.respond(ok(songdoFixture)))             // 늦게 온 B1
-    expect(bCard()).toHaveTextContent('남동구 구월3동 · 종합 59.1')
-    expect(bCard()).not.toHaveTextContent('송도')
+    expect(overallRow()).toHaveTextContent(/65\.8.*59\.1/)
+    expect(panel()).not.toHaveTextContent('송도')
   })
 
   it('B 분석 중 조건 변경: A·비교가 모두 정리되고, 늦은 B 응답은 버린다', async () => {
@@ -672,6 +675,110 @@ describe('두 위치 비교 — B 분석 상태 (5차-B2, docs/COMPARE_DESIGN.md
     fireEvent.click(within(panel()).getByRole('button', { name: '비교 취소' }))
     expect(screen.getByTestId('map')).toHaveAttribute('data-active-store', '')
     expect(screen.getByTestId('map')).toHaveAttribute('data-stores', '12')
+  })
+
+  describe('비교 요약 ↔ 위치별 전체 결과 (5차-B3, §3.3)', () => {
+    const NEARBY_REGION = '반경 500m 안 같은 업종 점포'
+    const header = () => screen.getByRole('group', { name: '분석 조건' })
+
+    async function compareWithGuwol() {
+      const fetchMock = await analyzeA([ok(guwolFixture)])
+      startCompare()
+      typeB(37.4475, 126.7015)
+      analyzeB()
+      await screen.findByRole('table', { name: /종합·5대 관점 점수 비교/ })
+      return fetchMock
+    }
+
+    it('전체 결과로 갔다 돌아와도 다시 요청하지 않고, 제목으로 포커스·복귀 시 누른 버튼으로 돌려준다', async () => {
+      const fetchMock = await compareWithGuwol()
+      // 비교 요약: 헤더는 A·B, 점포 목록·마커 없음, 데이터 출처는 한 번
+      expect(header()).toHaveTextContent('A 부평구 부평1동')
+      expect(header()).toHaveTextContent('B 남동구 구월3동')
+      expect(screen.queryByRole('region', { name: NEARBY_REGION })).not.toBeInTheDocument()
+      expect(screen.getByTestId('map')).toHaveAttribute('data-stores', '')
+      expect(document.querySelectorAll('#data-sources')).toHaveLength(1)
+      expect(screen.getByRole('link', { name: '데이터 출처' })).toHaveAttribute('href', '#data-sources')
+
+      // B 전체 결과
+      fireEvent.click(screen.getByRole('button', { name: 'B 전체 결과 보기' }))
+      const bTitle = screen.getByRole('heading', { level: 1, name: 'B · 남동구 구월3동 · PC방 분석' })
+      expect(document.activeElement).toBe(bTitle)
+      expect(screen.queryByRole('region', { name: PANEL })).not.toBeInTheDocument()
+      expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1)        // AnalysisResult 하나만
+      expect(within(screen.getByRole('region', { name: '종합 적합도' })).getByText('59.1')).toBeInTheDocument()
+      expect(header()).toHaveTextContent('남동구 구월3동')
+      expect(header()).not.toHaveTextContent('부평1동')
+      // B 화면에 A 점포를 보이지 않는다 (B 점포 조회는 B5)
+      expect(screen.queryByRole('region', { name: NEARBY_REGION })).not.toBeInTheDocument()
+      expect(screen.getByTestId('map')).toHaveAttribute('data-stores', '')
+      expect(document.querySelectorAll('#data-sources')).toHaveLength(1)
+
+      fireEvent.click(screen.getByRole('button', { name: '비교로 돌아가기' }))
+      expect(document.activeElement).toBe(screen.getByRole('button', { name: 'B 전체 결과 보기' }))
+
+      // A 전체 결과
+      fireEvent.click(screen.getByRole('button', { name: 'A 전체 결과 보기' }))
+      expect(document.activeElement).toBe(screen.getByRole('heading', { level: 1, name: 'A · 부평구 부평1동 · PC방 분석' }))
+      expect(within(screen.getByRole('region', { name: '종합 적합도' })).getByText('65.8')).toBeInTheDocument()
+      expect(screen.queryByRole('region', { name: NEARBY_REGION })).not.toBeInTheDocument()
+      fireEvent.click(screen.getByRole('button', { name: '비교로 돌아가기' }))
+      expect(document.activeElement).toBe(screen.getByRole('button', { name: 'A 전체 결과 보기' }))
+      expect(overallRow()).toHaveTextContent(/65\.8.*59\.1/)
+
+      expect(analyzeCalls(fetchMock)).toHaveLength(2)                             // A 1번 + B 1번
+      expect(nearbyCalls(fetchMock)).toHaveLength(1)
+
+      // 비교 종료 → A 단일 결과·A 점포 목록·마커 복원
+      fireEvent.click(within(panel()).getByRole('button', { name: '비교 종료' }))
+      expect(screen.getByRole('heading', { level: 1, name: '부평구 부평1동 · PC방 분석' })).toBeInTheDocument()
+      expect(screen.getByRole('list', { name: 'PC방 점포 목록' })).toBeInTheDocument()
+      expect(screen.getByTestId('map')).toHaveAttribute('data-stores', '12')
+      expect(nearbyCalls(fetchMock)).toHaveLength(1)
+    })
+
+    it('요약 / A 전체 / B 전체 각 화면에서 id가 유일하고 접근성 참조가 이어진다 (펼친 뒤 aria-controls)', async () => {
+      await compareWithGuwol()
+      const check = (where: string) => {
+        expect(duplicateIds(), where).toEqual([])
+        expect(brokenReferences(), where).toEqual([])
+        expandAll(document.querySelector('.workspace__panel')!)
+        expect(duplicateIds(), `${where} (펼친 뒤)`).toEqual([])
+        expect(brokenReferences(), `${where} (펼친 뒤)`).toEqual([])
+        expect(brokenControls(), `${where} (펼친 뒤)`).toEqual([])
+      }
+      check('비교 요약')
+      fireEvent.click(screen.getByRole('button', { name: 'A 전체 결과 보기' }))
+      check('A 전체 결과')
+      fireEvent.click(screen.getByRole('button', { name: '비교로 돌아가기' }))
+      fireEvent.click(screen.getByRole('button', { name: 'B 전체 결과 보기' }))
+      check('B 전체 결과')
+    })
+
+    it('전체 결과에서 비교를 끝내고 다시 비교하면 요약부터 보인다', async () => {
+      await analyzeA([ok(guwolFixture), ok(songdoFixture)])
+      startCompare()
+      typeB(37.4475, 126.7015)
+      analyzeB()
+      fireEvent.click(await screen.findByRole('button', { name: 'B 전체 결과 보기' }))
+      fireEvent.click(within(sheet()).getByRole('button', { name: '비교 종료' }))   // mobile sheet의 종료(같은 동작)
+      expect(screen.getByRole('heading', { level: 1, name: '부평구 부평1동 · PC방 분석' })).toBeInTheDocument()
+
+      startCompare()
+      fireEvent.click(screen.getByRole('button', { name: '지도 클릭: 송도' }))
+      analyzeB()
+      await screen.findByRole('table', { name: /종합·5대 관점 점수 비교/ })     // 전체 결과가 아니라 요약부터
+      expect(overallRow()).toHaveTextContent(/65\.8.*64\.9/)
+      expect(screen.queryByRole('button', { name: '비교로 돌아가기' })).not.toBeInTheDocument()
+    })
+
+    it('요약의 "B 위치 다시 고르기"는 B 고르기로 돌아가고 A는 그대로다', async () => {
+      await compareWithGuwol()
+      fireEvent.click(within(bCard()).getByRole('button', { name: 'B 위치 다시 고르기' }))
+      expect(within(bCard()).getByLabelText('B 위도')).toBeInTheDocument()
+      expect(aCard()).toHaveTextContent('부평구 부평1동 · 종합 65.8')
+      expect(document.activeElement).toBe(within(panel()).getByRole('heading', { name: 'B 비교 위치' }))
+    })
   })
 
   describe('B 좌표 직접 입력 뒤 포커스 (5차-B2 보완)', () => {
@@ -810,6 +917,21 @@ describe('두 위치 비교 — B 분석 상태 (5차-B2, docs/COMPARE_DESIGN.md
       expect(sheet()).toHaveTextContent('B 위치를 분석하지 못했습니다 · 37.392512, 126.639034')
       fireEvent.click(within(sheet()).getByRole('button', { name: '비교 화면 보기' }))
       expect(app()).toHaveAttribute('data-screen', 'panel')
+    })
+
+    it('B 전체 결과에서 지도 보기 → sheet "비교 화면 보기"는 보던 전체 결과 제목으로 돌아간다', async () => {
+      await analyzeA([ok(guwolFixture)])
+      startCompare()
+      fireEvent.click(within(sheet()).getByRole('button', { name: '좌표 직접 입력' }))
+      typeB(37.4475, 126.7015)
+      analyzeB()
+      fireEvent.click(await screen.findByRole('button', { name: 'B 전체 결과 보기' }))
+      fireEvent.click(screen.getByRole('button', { name: '지도 보기' }))
+      expect(app()).toHaveAttribute('data-screen', 'map')
+      expect(document.activeElement).toBe(within(sheet()).getByRole('button', { name: '비교 화면 보기' }))
+      fireEvent.click(within(sheet()).getByRole('button', { name: '비교 화면 보기' }))
+      expect(app()).toHaveAttribute('data-screen', 'panel')
+      expect(document.activeElement).toBe(screen.getByRole('heading', { level: 1, name: 'B · 남동구 구월3동 · PC방 분석' }))
     })
 
     it('sheet의 "좌표 직접 입력"은 패널의 B 카드로 보낸다 (키보드 대안)', async () => {

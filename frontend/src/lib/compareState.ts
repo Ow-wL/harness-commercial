@@ -23,6 +23,8 @@ export const COMPARE_IDS = {
   title: 'compare-title',
   bTitle: 'compare-b-title',
   bAnalyze: 'compare-b-analyze',
+  detailA: 'compare-detail-a',
+  detailB: 'compare-detail-b',
   bError: 'compare-b-error',
   sheetAction: 'compare-sheet-action',
 } as const
@@ -31,3 +33,9 @@ export const COMPARE_IDS = {
 export function sameCoordinates(a: Point, b: Point): boolean {
   return a.lat === b.lat && a.lng === b.lng
 }
+
+/**
+ * B 분석이 성공했을 때 패널이 보여 주는 화면 (§3.3). 비교 분석 상태(CompareState)와 따로 둔다 —
+ * 화면을 오가도 A·B 응답은 그대로이고 다시 요청하지 않는다.
+ */
+export type CompareView = 'summary' | 'detail-A' | 'detail-B'

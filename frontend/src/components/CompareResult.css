@@ -1,0 +1,137 @@
+/* 두 위치 비교 요약 (docs/COMPARE_DESIGN.md 5장). 카드 대신 구분선, 표는 DESIGN.md §7.7 data-table을 따른다 */
+.compare__card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.compare__section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-6) 0;
+  border-top: 1px solid var(--color-border);
+}
+
+.compare__section-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.compare__section-title {
+  margin: 0;
+  font: var(--text-section);
+  letter-spacing: -0.01em;
+  color: var(--color-text-primary);
+}
+
+.compare__side {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.compare__side + .compare__side {
+  margin-top: var(--space-3);
+}
+
+.compare__side-title {
+  margin: 0;
+  font: var(--text-card-title);
+  color: var(--color-text-primary);
+}
+
+.compare__footnote {
+  margin: 0;
+  font: var(--text-small);
+  color: var(--color-text-secondary);
+}
+
+/* 점수 비교 표: 항목(관점 + 단위) · A · B · 표시용 차이. 차이 셀은 중립색(큰 쪽을 강조하지 않는다) */
+.compare-table th[scope="row"] {
+  min-width: 88px;
+}
+
+/* .data-table th(text-align: left)보다 구체적으로 — 숫자 열 머리는 값과 같이 오른쪽 정렬 */
+.compare-table thead th.compare-table__col {
+  text-align: right;
+}
+
+.compare-table__sub {
+  display: block;
+  font: var(--text-caption);
+  letter-spacing: 0.01em;
+  color: var(--color-text-muted);
+}
+
+.compare-table thead .compare-table__sub {
+  font-weight: 400;
+}
+
+.compare-table__tag {
+  display: block;
+  font: var(--text-caption);
+  letter-spacing: 0.01em;
+  color: var(--color-text-muted);
+}
+
+.compare-table__tag--warn {
+  color: var(--color-warning);
+}
+
+.compare-table__missing {
+  color: var(--color-text-muted);
+}
+
+.compare-table__diff {
+  color: var(--color-text-primary);
+}
+
+.compare-table__mark {
+  margin-left: 2px;
+  color: var(--color-text-secondary);
+}
+
+/* 원시값 표: 관점 묶음 머리 행 */
+.compare-table--raw td {
+  overflow-wrap: anywhere;
+}
+
+.compare-table__group th {
+  background: var(--color-surface-muted);
+  font: var(--text-label);
+  color: var(--color-text-secondary);
+}
+
+/* 위치별 전체 결과 화면 위 막대 */
+.compare-detail__bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin-bottom: var(--space-5);
+  padding-bottom: var(--space-3);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.compare-detail__label {
+  margin: 0;
+  font: var(--text-label);
+  color: var(--color-text-secondary);
+}
+
+@media (max-width: 639px) {
+  .compare-table th,
+  .compare-table td {
+    padding: var(--space-2);
+  }
+
+  .compare-table th[scope="row"] {
+    min-width: 72px;
+  }
+}

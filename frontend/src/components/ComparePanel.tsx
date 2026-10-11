@@ -11,9 +11,12 @@ import './ComparePanel.css'
 
 const scoreText = (score: number | null) => (score === null ? '미산출' : formatScore(score))
 
+/** B를 고르는 동안의 상태 (성공하면 App이 비교 요약 CompareResult로 바꾼다) */
+type PickingCompare = Exclude<ActiveCompare, { status: 'success' }>
+
 /**
- * 두 위치 비교 — 최소 조작 화면 (5차-B2): A 요약 · B 위치 입력 · 진행 상태 · 오류 · 성공 확인 · 조작 버튼.
- * 비교 표·전체 결과 전환·지도 A/B 표시·B 동종 점포는 다음 단계(B3~B5)에서 붙인다.
+ * 두 위치 비교 — B 고르기 화면 (5차-B2): A 요약 · B 위치 입력 · 진행 상태 · 오류 · 조작 버튼.
+ * B 분석이 성공하면 App이 비교 요약(CompareResult, 5차-B3)으로 바꾼다. 지도 A/B 표시·B 동종 점포는 B4·B5.
  * B 업종은 A 업종으로 고정이라 업종 선택이 없다.
  */
 export function ComparePanel({
@@ -22,18 +25,16 @@ export function ComparePanel({
   onLocationSubmit,
   onAnalyze,
   onErrorAction,
-  onReselect,
   onEnd,
   onChangeConditions,
   onShowMap,
 }: {
   a: AnalyzeResponse
-  compare: ActiveCompare
+  compare: PickingCompare
   /** B 좌표 직접 입력 제출 (지도 클릭은 App이 따로 받는다) */
   onLocationSubmit: (point: LatLng) => void
   onAnalyze: () => void
   onErrorAction: (action: ErrorAction) => void
-  onReselect: () => void
   onEnd: () => void
   onChangeConditions: () => void
   onShowMap: () => void
@@ -42,16 +43,10 @@ export function ComparePanel({
   const formId = useId()
   const biz = a.result.meta.업종
   const loading = compare.status === 'loading'
-  const done = compare.status === 'success'
   const { location } = compare
 
   // 진행 알림은 항상 있는 live region에 넣는다 (내용이 바뀔 때 읽히게)
-  const live =
-    compare.status === 'loading'
-      ? 'B 위치 분석 중…'
-      : compare.status === 'success'
-        ? `B 위치 분석을 마쳤습니다: ${locationName(compare.response.context)}`
-        : ''
+  const live = loading ? 'B 위치 분석 중…' : ''
 
   return (
     <section className="compare" aria-labelledby={COMPARE_IDS.title}>
@@ -76,11 +71,7 @@ export function ComparePanel({
           B 비교 위치
         </h2>
 
-        {done ? (
-          <p className="compare__place">
-            <strong>{locationName(compare.response.context)}</strong> · 종합 {scoreText(compare.response.result.종합.점수)}
-          </p>
-        ) : location ? (
+        {location ? (
           <p className="compare__place">
             <Icon name="map-pin" size={14} />
             선택됨 · <span className="mono">{location.lat}, {location.lng}</span>
@@ -102,44 +93,34 @@ export function ComparePanel({
           </div>
         )}
 
-        {!done && (
-          <>
-            <CoordinateForm
-              // 지도에서 고른 좌표로 입력란을 새로 채운다(좌표가 바뀌면 새로 그린다 → 제출 뒤 포커스는 App이 "B 분석하기"로 옮긴다)
-              key={location ? `${location.lat},${location.lng}` : 'empty'}
-              id={formId}
-              initial={location}
-              disabled={loading}
-              onSubmit={onLocationSubmit}
-              labelPrefix="B "
-              submitLabel="B 위치로 선택"
-            />
-            {/* 오류 상태에서는 숨긴다: 다시 시도·다시 고르기는 오류 블록의 행동 버튼이 맡고, 새 좌표를 고르면 다시 나온다 */}
-            {compare.status !== 'error' && (
-              <button
-                id={COMPARE_IDS.bAnalyze}
-                type="button"
-                className="button button--primary button--block"
-                disabled={!location || loading}
-                aria-busy={loading || undefined}
-                onClick={onAnalyze}
-              >
-                {loading && <span className="spinner" aria-hidden="true" />}
-                {loading ? 'B 분석 중…' : 'B 분석하기'}
-              </button>
-            )}
-          </>
+        <CoordinateForm
+          // 지도에서 고른 좌표로 입력란을 새로 채운다(좌표가 바뀌면 새로 그린다 → 제출 뒤 포커스는 App이 "B 분석하기"로 옮긴다)
+          key={location ? `${location.lat},${location.lng}` : 'empty'}
+          id={formId}
+          initial={location}
+          disabled={loading}
+          onSubmit={onLocationSubmit}
+          labelPrefix="B "
+          submitLabel="B 위치로 선택"
+        />
+        {/* 오류 상태에서는 숨긴다: 다시 시도·다시 고르기는 오류 블록의 행동 버튼이 맡고, 새 좌표를 고르면 다시 나온다 */}
+        {compare.status !== 'error' && (
+          <button
+            id={COMPARE_IDS.bAnalyze}
+            type="button"
+            className="button button--primary button--block"
+            disabled={!location || loading}
+            aria-busy={loading || undefined}
+            onClick={onAnalyze}
+          >
+            {loading && <span className="spinner" aria-hidden="true" />}
+            {loading ? 'B 분석 중…' : 'B 분석하기'}
+          </button>
         )}
 
         <p className="compare__status" aria-live="polite">
           {live}
         </p>
-
-        {done && (
-          <button type="button" className="button button--secondary" onClick={onReselect}>
-            B 위치 다시 고르기
-          </button>
-        )}
       </section>
 
       <div className="compare__actions">
@@ -147,7 +128,7 @@ export function ComparePanel({
           지도 보기
         </button>
         <button type="button" className="button-ghost" onClick={onEnd}>
-          {done ? '비교 종료' : '비교 취소'}
+          비교 취소
         </button>
         <button type="button" className="button-ghost" onClick={onChangeConditions}>
           조건 변경

@@ -52,7 +52,8 @@ src/
   components/MapView    지도 클릭 → 좌표, 마커 + 반경 500m 원, 행정동 경계 강조. SDK는 여기서만 쓴다
   components/ConditionPanel  단계 표시 · 위치(좌표 직접 입력 포함) · 업종 select(그룹) · 분석하기
   components/CoordinateForm  위도·경도 입력(지도 클릭의 키보드 대안). 조건 패널과 두 위치 비교(B)가 같이 쓴다
-  components/ComparePanel    두 위치 비교: A 요약 · B 위치 입력·분석·오류·성공 확인(패널) + CompareSheet(mobile sheet)
+  components/ComparePanel    두 위치 비교 B 고르기: A 요약 · B 위치 입력·분석·오류(패널) + CompareSheet(mobile sheet)
+  components/CompareResult   두 위치 비교 요약(점수 표·표시용 차이·안내·위치별 경고·원시값·출처) + CompareDetail(위치별 전체 결과)
   components/ErrorBlock      error.code별 오류 블록, internal_error request_id 복사
   components/AnalysisStatus  분석 중 skeleton · 분석 전 빈 상태
   components/AnalysisResult  결과 (4-3) — OverallScore · PerspectiveScores · CoverageMeta · WarningPanel ·
@@ -71,6 +72,7 @@ src/
   styles/tokens.css     DESIGN.md §17 디자인 토큰 그대로 (값 변경은 DESIGN.md 먼저)
   styles/global.css · controls.css   전역 기본 · 버튼/입력 공통
   test/setup.ts         jest-dom matcher, 테스트 후 cleanup
+  test/a11yRefs.ts      테스트용 id 중복·접근성 참조 검사(펼친 뒤 aria-controls)
 ```
 
 ## 원칙

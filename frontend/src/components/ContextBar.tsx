@@ -1,4 +1,4 @@
-import type { AnalyzeContext, EngineResult } from '../api/schemas.ts'
+import type { AnalyzeContext, AnalyzeResponse, EngineResult } from '../api/schemas.ts'
 import { formatDistance, groupName, locationName, type NearestStation } from '../lib/format.ts'
 import { Chip } from './Chip.tsx'
 import './ContextBar.css'
@@ -26,6 +26,29 @@ export function ContextBar({
             {station.name} · 직선거리 {formatDistance(station.distanceM)}
           </span>
         )}
+      </span>
+      <span className="context-bar__item">
+        <Chip icon="store">
+          {meta.업종} · {groupName(meta.업종그룹)}
+        </Chip>
+        <span className="context-bar__mono">{meta.업종코드}</span>
+      </span>
+    </div>
+  )
+}
+
+/**
+ * 두 위치 비교 요약의 Context Bar (docs/COMPARE_DESIGN.md 5.1): A·B 위치 + 업종(같은 업종). 최근접역은 위치 카드가 맡는다.
+ */
+export function CompareContextBar({ a, b }: { a: AnalyzeResponse; b: AnalyzeResponse }) {
+  const { meta } = a.result
+  return (
+    <div className="context-bar" role="group" aria-label="분석 조건">
+      <span className="context-bar__item">
+        <Chip icon="map-pin">A {locationName(a.context)}</Chip>
+      </span>
+      <span className="context-bar__item">
+        <Chip icon="map-pin">B {locationName(b.context)}</Chip>
       </span>
       <span className="context-bar__item">
         <Chip icon="store">

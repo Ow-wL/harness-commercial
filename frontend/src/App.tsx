@@ -4,13 +4,15 @@ import type { AnalyzeResponse } from './api/schemas.ts'
 import { AnalysisResult } from './components/AnalysisResult.tsx'
 import { AnalysisEmpty, AnalysisLoading } from './components/AnalysisStatus.tsx'
 import { ComparePanel, CompareSheet } from './components/ComparePanel.tsx'
+import { CompareDetail, CompareResult } from './components/CompareResult.tsx'
 import { ConditionPanel, type BusinessesState } from './components/ConditionPanel.tsx'
-import { ContextBar } from './components/ContextBar.tsx'
+import { CompareContextBar, ContextBar } from './components/ContextBar.tsx'
 import { ErrorBlock } from './components/ErrorBlock.tsx'
 import { LocationSummary } from './components/LocationSummary.tsx'
 import { MapView, type LatLng, type MapStore } from './components/MapView.tsx'
 import { NearbyStores, type NearbyState } from './components/NearbyStores.tsx'
-import { COMPARE_IDS, sameCoordinates, type CompareState } from './lib/compareState.ts'
+import type { CompareSide } from './lib/compare.ts'
+import { COMPARE_IDS, sameCoordinates, type CompareState, type CompareView } from './lib/compareState.ts'
 import { errorView, type ErrorAction } from './lib/errorView.ts'
 import { formatDistance, locationName, nearestStation, storeAddress, storeName } from './lib/format.ts'
 import './App.css'
@@ -51,6 +53,8 @@ function App() {
   const [activeStoreId, setActiveStoreId] = useState<string | null>(null)
   // 두 위치 비교 (5차, docs/COMPARE_DESIGN.md 3장): A = 위 analysis 그대로, B만 따로 둔다
   const [compare, setCompare] = useState<CompareState>({ status: 'off' })
+  // B 성공 뒤 패널 화면: 비교 요약 / A 전체 결과 / B 전체 결과 (§3.3). 오가도 A·B 응답은 그대로다
+  const [compareView, setCompareView] = useState<CompareView>('summary')
   // 비교 화면 전환 뒤 포커스를 옮길 요소 id (렌더 뒤에 옮긴다)
   const [focusRequest, setFocusRequest] = useState<{ id: string; n: number } | null>(null)
   const focusLater = (id: string) => setFocusRequest((r) => ({ id, n: (r?.n ?? 0) + 1 }))
@@ -115,6 +119,7 @@ function App() {
     compareInflight.current?.controller.abort()
     compareInflight.current = null
     setCompare({ status: 'off' })
+    setCompareView('summary')
   }
 
   const cancelAnalysis = () => {
@@ -162,9 +167,22 @@ function App() {
     compareInflight.current?.controller.abort()
     compareInflight.current = null
     setCompare({ status: 'picking', location: null })
+    setCompareView('summary')
     setActiveStoreId(null)                                 // 비교 중에는 A 점포 선택·정보창을 닫는다(A 점포 데이터는 그대로)
     setMobileScreen('map')
     focusLater(isMobile() ? COMPARE_IDS.sheetAction : COMPARE_IDS.bTitle)
+  }
+
+  /** 비교 요약 → 위치별 전체 결과. 응답은 상태에 있는 것을 그대로 쓰고 다시 요청하지 않는다. 포커스는 그 결과 제목 */
+  const showCompareDetail = (side: CompareSide) => {
+    setCompareView(side === 'A' ? 'detail-A' : 'detail-B')
+    focusLater('result-title')
+  }
+
+  /** 전체 결과 → 비교 요약. 포커스는 눌렀던 "A/B 전체 결과 보기" 버튼으로 돌려준다 */
+  const backToCompareSummary = (side: CompareSide) => {
+    setCompareView('summary')
+    focusLater(side === 'A' ? COMPARE_IDS.detailA : COMPARE_IDS.detailB)
   }
 
   const startCompare = () => {
@@ -222,6 +240,7 @@ function App() {
           focusLater(COMPARE_IDS.bError)
         } else {
           setCompare({ status: 'success', location: point, response: r.data })
+          setCompareView('summary')
           focusLater(COMPARE_IDS.title)
         }
       })
@@ -340,12 +359,27 @@ function App() {
   const markerTone =
     failure?.kind === 'api' && INVALID_LOCATION_CODES.has(failure.error.code) ? 'invalid' : 'selected'
 
+  const compared = compare.status === 'success' ? compare.response : null
+  // 헤더 분석 조건: 비교 요약은 A·B를 함께, 전체 결과는 보고 있는 위치, 그 밖(단일 결과·B 고르기)은 A
+  const headerBar = !result ? null : compared && compareView === 'summary' ? (
+    <CompareContextBar a={result} b={compared} />
+  ) : compared && compareView === 'detail-B' ? (
+    <ContextBar context={compared.context} meta={compared.result.meta} station={nearestStation(compared.result.지표)} />
+  ) : (
+    <ContextBar context={result.context} meta={result.result.meta} station={station} />
+  )
+  const showMapFromCompare = () => {
+    setMobileScreen('map')
+    focusLater(COMPARE_IDS.sheetAction)
+  }
+
   return (
     <div className="app" data-phase={result ? 'result' : 'select'} data-screen={mobileScreen}>
       <header className="app-header">
         <span className="app-header__title">우리동네 상권분석 매니저</span>
-        {result && <ContextBar context={result.context} meta={result.result.meta} station={station} />}
-        {result && !comparing && (
+        {headerBar}
+        {/* 대상 #data-sources가 있는 화면에서만: 단일 결과·비교 요약·전체 결과 (B 고르기 화면에는 없다) */}
+        {result && (!comparing || compare.status === 'success') && (
           <a className="app-header__link" href="#data-sources">
             데이터 출처
           </a>
@@ -353,20 +387,37 @@ function App() {
       </header>
       <div className="workspace">
         <main className="workspace__panel">
-          {result && compare.status !== 'off' ? (
+          {result && compare.status === 'success' ? (
+            // AnalysisResult는 한 번에 하나만 마운트한다(고정 id, COMPARE_DESIGN.md 6장). 점포 목록은 B5 전까지 두지 않는다
+            compareView === 'summary' ? (
+              <CompareResult
+                a={result}
+                b={compare.response}
+                onShowDetail={showCompareDetail}
+                onReselect={pickB}
+                onEnd={endCompare}
+                onChangeConditions={cancelAnalysis}
+                onShowMap={showMapFromCompare}
+              />
+            ) : (
+              <CompareDetail
+                key={compareView}
+                side={compareView === 'detail-A' ? 'A' : 'B'}
+                analysis={compareView === 'detail-A' ? result : compare.response}
+                onBack={() => backToCompareSummary(compareView === 'detail-A' ? 'A' : 'B')}
+                onShowMap={showMapFromCompare}
+              />
+            )
+          ) : result && compare.status !== 'off' && compare.status !== 'success' ? (
             <ComparePanel
               a={result}
               compare={compare}
               onLocationSubmit={submitCompareLocation}
               onAnalyze={runCompare}
               onErrorAction={handleCompareErrorAction}
-              onReselect={pickB}
               onEnd={endCompare}
               onChangeConditions={cancelAnalysis}
-              onShowMap={() => {
-                setMobileScreen('map')
-                focusLater(COMPARE_IDS.sheetAction)
-              }}
+              onShowMap={showMapFromCompare}
             />
           ) : result ? (
             <>
@@ -451,7 +502,14 @@ function App() {
               onAnalyze={runCompare}
               onShowPanel={() => {
                 setMobileScreen('panel')
-                focusLater(COMPARE_IDS.bTitle)
+                // 지금 패널 화면의 제목으로: B 고르기 → B 카드 제목, 비교 요약 → 비교 제목, 전체 결과 → 결과 제목
+                focusLater(
+                  compare.status !== 'success'
+                    ? COMPARE_IDS.bTitle
+                    : compareView === 'summary'
+                      ? COMPARE_IDS.title
+                      : 'result-title',
+                )
               }}
               onEnd={endCompare}
             />

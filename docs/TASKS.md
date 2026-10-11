@@ -53,7 +53,7 @@
 - [x] 5-A 설계 문서 (현재 코드 확인, 상태 전이·늦은 응답·지도 A/B·점포 기준·비교 항목·DOM id·모바일·키보드·테스트)
 - [x] 5-B1 순수 함수(`lib/compare.ts`)·비교 fixture 4개·`displayWarnings`/`dataLimits`를 `lib/warnings.ts`로 export (동작 그대로)
 - [x] 5-B2 App 비교 상태 기계 (A 보존, B 로딩·실패·재시도·다시 고르기·종료, 늦은 응답 폐기) + 최소 조작 화면(`ComparePanel`·`CompareSheet`), 좌표 입력 재사용(`CoordinateForm`)
-- [ ] 5-B3 비교 화면 (점수 표·표시용 차이 A−B·같은 구·동 안내·미산출·경고·원시값, id 유일성)
+- [x] 5-B3 비교 화면 (점수 표·표시용 차이 A−B·같은 구·동 안내·미산출·경고·원시값, id 유일성) + 요약 / A·B 전체 결과 전환(`CompareResult`·`CompareDetail`). 비교 중 점포 목록·마커는 숨김(B5에서 기준 전환)
 - [ ] 5-B4 지도 A/B 마커·반경·경계 (zoom 불변)
 - [ ] 5-B5 동종 점포 기준 위치 전환
 - [ ] 5-B6 모바일·포커스 마무리, DESIGN·ARCHITECTURE·DECISIONS(D-020), 브라우저 검증
