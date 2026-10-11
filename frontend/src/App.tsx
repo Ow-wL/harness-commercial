@@ -469,7 +469,7 @@ function App() {
       <div className="workspace">
         <main className="workspace__panel">
           {result && compare.status === 'success' ? (
-            // AnalysisResult는 한 번에 하나만 마운트한다(고정 id, COMPARE_DESIGN.md 6장). 점포 목록은 B5 전까지 두지 않는다
+            // AnalysisResult는 한 번에 하나만 마운트한다(고정 id, COMPARE_DESIGN.md 6장). 점포 목록은 보이는 기준 위치의 것만(5차-B5)
             compareView === 'summary' ? (
               <CompareResult
                 a={result}

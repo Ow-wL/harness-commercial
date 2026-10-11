@@ -10,6 +10,13 @@
   cursor: pointer;
 }
 
+/* 터치 기기·mobile에서는 다른 조작처럼 44px (controls.css와 같은 조건, DESIGN.md §15 — 5차-B6) */
+@media (max-width: 639px), (pointer: coarse) {
+  .nearby__toggle {
+    min-height: var(--control-height-touch);
+  }
+}
+
 .nearby__toggle input {
   width: 16px;
   height: 16px;

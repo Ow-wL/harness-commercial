@@ -64,7 +64,9 @@ frontend/src/
   api/schemas.ts        API 응답 Zod schema (source of truth, 타입은 z.infer). client.ts가 모든 응답을 검증 (D-012)
   map/naverMaps.ts      NAVER Maps v3 SDK singleton loader (frontend/.env의 Client ID)
   map/dongBoundary.ts   data/geo/인천_행정동경계_2026.geojson을 ?url asset으로 참조, context의 (gu_code, dong_name)으로 찾아 강조
-  components/           MapView(지도·마커·500m 원·경계) · ConditionPanel(위치·업종) · AnalysisResult(결과) · ErrorBlock 등 (DESIGN.md)
+  components/           MapView(지도·마커·500m 원·경계, 비교 A/B 표시) · ConditionPanel(위치·업종) · AnalysisResult(결과) · ErrorBlock 등 (DESIGN.md)
+                        두 위치 비교(5차, D-020): ComparePanel(B 고르기)·CompareResult(비교 요약·위치별 전체 결과)·CoordinateForm
+  lib/                  format(표시 형식) · compare(비교 표시 규칙) · compareState(B 상태 타입) · warnings(주의할 점 문장) · useNearbyRequest(점포 조회 1벌)
   `npm run check` = tsc + ESLint + Vitest (29개 golden JSON schema 검증 포함), scripts/check가 자동 실행
 ```
 
@@ -140,3 +142,29 @@ production: Cloud Run 서비스 1개 — FastAPI(uvicorn 1 process)가 API와 Vi
 - 런타임 데이터 + reference: `(엔진 버전, data/runtime 해시, config.RADIUS_M, 업종코드 | 유인시설 집합)`. 데이터나 엔진이 바뀌지 않으면 영구 유효.
 - 지점 결과: `(위 키, lat, lng, biz, 사용자 가중치/중요도/면허)`. 필요해지면 그때 도입 (현재 불필요, 20ms).
 - `data/cache/`에 쓸 때는 위 키를 파일명/메타에 넣고, 키가 다르면 버린다. 캐시는 정답이 아니다 — golden이 정답이다.
+
+## 6. 두 위치 비교 (5차, 구현됨 — D-020, `docs/COMPARE_DESIGN.md`)
+
+같은 업종 두 위치를 비교한다. backend·엔진·API 계약은 그대로다. frontend가 기존 `POST /analyze`·`POST /nearby-stores`를 위치마다 한 번씩 더 부른다.
+
+```
+A 분석(기존)          POST /analyze {A}        → analysis(success)       ── App의 inflight·seq
+                      POST /nearby-stores {A}  → nearbyA                 ── useNearbyRequest #1
+"다른 위치와 비교"     compare = picking
+B 위치(지도 클릭·좌표) compare = picking(B)     (A는 바뀌지 않는다)
+"B 분석하기"          POST /analyze {B, A 업종} → compare = loading → success | error   ── compareInflight·compareSeq
+B 성공 뒤             POST /nearby-stores {B}  → nearbyB                 ── useNearbyRequest #2
+```
+
+- 요청 수: A 분석 1 + A 점포 1 + B 분석 1 + B 점포 1이 전부다. 비교 요약·A 전체·B 전체 화면 전환과 점포 기준 A/B 전환은 요청을 만들지 않는다(2026-10-12 브라우저 네트워크 기록으로 확인). 다시 시도·다시 고르기만 새 요청을 만든다.
+- 상태(App):
+  - `analysis`(A)
+  - `compare`(off · picking · loading · error · success)
+  - `compareView`(summary · detail-A · detail-B, 비교 분석 상태와 별도)
+  - `storeSide`(요약의 점포 기준, B 성공 시 B)
+  - `compareShowStores`(비교 중 "지도에 표시", A의 `showStores`와 별도)
+  - `nearbyA`·`nearbyB`
+  - `activeStoreId`
+- 보이는 점포 기준 `visibleSide`는 계산한다: 비교 아님 → A, B 고르기·분석 중·실패 → 없음, 요약 → `storeSide`, 전체 결과 → 그 위치. 지도 마커·목록·점포 막대 문구는 모두 이 값으로 만든다.
+- 늦은 응답 폐기: 요청 종류마다 AbortController와 요청 번호를 따로 둔다(A 분석·A 점포·B 분석·B 점포). 조건 변경·새 A 분석·비교 종료·B 다시 고르기·새 B 분석 때 해당 요청을 abort하고 상태를 비운다. 응답 처리 첫 줄에서 요청 번호가 다르면 버린다. 응답 조건(좌표·업종)이 요청과 다르면 계약 오류로 다룬다.
+- 화면: `AnalysisResult`는 한 번에 하나만 마운트한다(고정 id). 비교 요약은 `CompareResult`가 `lib/compare.ts`·`lib/warnings.ts`로 그린다. 지도는 `MapView`의 `compare` prop으로 A/B 마커·반경·B 행정동 경계를 그린다. 지도 인스턴스는 다시 만들지 않고, 이동은 `panTo`만 쓴다.

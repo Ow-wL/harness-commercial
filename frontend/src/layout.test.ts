@@ -70,3 +70,30 @@ describe('지도 안내 칩 위치 (5차-B4)', () => {
     expect(mapCss.slice(at, mapCss.indexOf('}', at))).toMatch(/width: max-content;/)
   })
 })
+
+describe('비교 마무리 겹침·터치 영역 (5차-B6)', () => {
+  it('mobile sheet는 지도에 4px만 겹친다 — 8px(radius-lg)면 지도 아래 7px의 NAVER 로고 끝을 덮는다', () => {
+    const rule = mobileRule('.map-sheet')
+    expect(rule).toMatch(/margin-top: calc\(-1 \* var\(--space-1\)\);/)
+    expect(rule).not.toMatch(/margin-top: calc\(-1 \* var\(--radius-lg\)\)/)
+  })
+
+  it('tablet 결과 지도(200px)에서 점포 막대는 왼쪽 아래, 점포를 고른 동안 범례·안내 칩을 숨긴다 (정보창을 덮지 않게)', () => {
+    const tablet = appCss.slice(appCss.indexOf('@media (min-width: 640px) and (max-width: 1023px)'))
+    const block = tablet.slice(0, tablet.indexOf('\n}\n'))
+    const bar = block.slice(block.indexOf('.app[data-phase="result"] .map__store-bar {'))
+    expect(bar).toMatch(/^[^}]*bottom: var\(--space-3\);/)
+    expect(bar).toMatch(/^[^}]*left: var\(--space-4\);/)
+    expect(bar).toMatch(/^[^}]*transform: none;/)
+    expect(block).toMatch(
+      /\.app\[data-phase="result"\] \.map--store-active \.map__legend,\s*\.app\[data-phase="result"\] \.map--store-active \.map__guide \{\s*display: none;/,
+    )
+  })
+
+  it('"지도에 표시" 토글은 터치 기기·mobile에서 44px', () => {
+    const nearbyCss = readFileSync(join(process.cwd(), 'src', 'components', 'NearbyStores.css'), 'utf-8')
+    expect(nearbyCss).toMatch(
+      /@media \(max-width: 639px\), \(pointer: coarse\) \{\s*\.nearby__toggle \{\s*min-height: var\(--control-height-touch\);/,
+    )
+  })
+})

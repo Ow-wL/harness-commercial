@@ -16,7 +16,7 @@ type PickingCompare = Exclude<ActiveCompare, { status: 'success' }>
 
 /**
  * 두 위치 비교 — B 고르기 화면 (5차-B2): A 요약 · B 위치 입력 · 진행 상태 · 오류 · 조작 버튼.
- * B 분석이 성공하면 App이 비교 요약(CompareResult, 5차-B3)으로 바꾼다. 지도 A/B 표시·B 동종 점포는 B4·B5.
+ * B 분석이 성공하면 App이 비교 요약(CompareResult, 5차-B3)으로 바꾼다. 이 화면에서는 점포 목록·마커를 두지 않는다(5차-B5).
  * B 업종은 A 업종으로 고정이라 업종 선택이 없다.
  */
 export function ComparePanel({

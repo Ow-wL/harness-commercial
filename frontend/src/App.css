@@ -153,6 +153,21 @@
     height: 200px;
   }
 
+  /* 200px 결과 지도에서 점포를 고르면: SDK 정보창은 마커 위로 열리는데 위쪽 가운데 점포 막대가 그 내용(주소·거리)을 덮는다.
+     막대를 왼쪽 아래로 옮기고, 그 자리의 범례·안내 칩은 점포를 고른 동안 숨긴다 (5차-B6, 막대·목록에 같은 정보가 있다) */
+  .app[data-phase="result"] .map__store-bar {
+    top: auto;
+    bottom: var(--space-3);
+    left: var(--space-4);
+    max-width: calc(100% - var(--space-4) - var(--space-16));
+    transform: none;
+  }
+
+  .app[data-phase="result"] .map--store-active .map__legend,
+  .app[data-phase="result"] .map--store-active .map__guide {
+    display: none;
+  }
+
   .workspace__panel {
     width: 100%;
     max-width: 720px;
@@ -228,7 +243,9 @@
     padding: var(--space-5) var(--space-4) var(--space-4);
     border-top: 1px solid var(--color-border);
     border-radius: var(--radius-lg) var(--radius-lg) 0 0;
-    margin-top: calc(-1 * var(--radius-lg));
+    /* 지도 아래쪽에 살짝 겹쳐 둥근 모서리 뒤로 지도가 보이게 한다. NAVER 로고가 지도 아래 7px에 있어
+       radius-lg(8px)만큼 겹치면 로고 끝 1px을 덮는다 → 4px만 겹친다(모서리 틈은 1px 남짓이라 보이지 않음, 5차-B6) */
+    margin-top: calc(-1 * var(--space-1));
     background: var(--color-surface);
     box-shadow: var(--shadow-overlay);
   }
