@@ -1,4 +1,4 @@
-import { useId, useState } from 'react'
+import { useId, useState, type ReactNode } from 'react'
 import type { AnalyzeContext } from '../api/schemas.ts'
 import { formatDistance, type NearestStation } from '../lib/format.ts'
 import { Icon } from './Icon.tsx'
@@ -8,7 +8,16 @@ import './LocationSummary.css'
  * 결과 패널 맨 위 위치 보조 정보 (DESIGN.md §8.5a). 위치 이름은 Context Bar·결과 제목이 맡고, 여기는
  * 최근접역(직선거리)과 접힌 "좌표 보기"만 둔다. 좌표는 분석에 쓴 값(context.lat/lng) 그대로다.
  */
-export function LocationSummary({ context, station }: { context: AnalyzeContext; station: NearestStation | null }) {
+export function LocationSummary({
+  context,
+  station,
+  address,
+}: {
+  context: AnalyzeContext
+  station: NearestStation | null
+  /** 최근접역 줄 아래 참고 주소 줄 (7-B2). 단일 결과에서만 App이 넘긴다 — 비교 A/B 카드는 7-B3 */
+  address?: ReactNode
+}) {
   const [open, setOpen] = useState(false)
   const coordId = useId()
 
@@ -24,6 +33,7 @@ export function LocationSummary({ context, station }: { context: AnalyzeContext;
           '가장 가까운 역 정보가 없습니다'
         )}
       </p>
+      {address}
       <button
         type="button"
         className="button-ghost button-ghost--small location-summary__toggle"

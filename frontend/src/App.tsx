@@ -11,6 +11,8 @@ import { ErrorBlock } from './components/ErrorBlock.tsx'
 import { LocationSummary } from './components/LocationSummary.tsx'
 import { MapView, type LatLng, type MapCompare, type MapStore } from './components/MapView.tsx'
 import { NearbyStores } from './components/NearbyStores.tsx'
+import { ReferenceAddress } from './components/ReferenceAddress.tsx'
+import type { SdkState } from './map/naverMaps.ts'
 import type { CompareSide } from './lib/compare.ts'
 import { COMPARE_IDS, sameCoordinates, type CompareState, type CompareView } from './lib/compareState.ts'
 import { errorView, type ErrorAction } from './lib/errorView.ts'
@@ -58,6 +60,9 @@ function App() {
   const [bizCode, setBizCode] = useState<string | null>(null)
   const [analysis, setAnalysis] = useState<Analysis>({ status: 'idle' })
   const [mobileScreen, setMobileScreen] = useState<MobileScreen>('map')
+  // NAVER SDK 상태 (7-B2, docs/ADDRESS_DESIGN.md §5.1): MapView가 onSdkState로 올린다. 참고 주소는 ready + geocoder ready일 때만 조회한다.
+  // 로더를 여기서 다시 부르거나 SDK를 다시 넣지 않는다
+  const [sdk, setSdk] = useState<SdkState>({ status: 'loading' })
   // 반경 안 동종 점포 (4차): 분석 성공 뒤 같은 좌표·업종으로 따로 조회한다. null = 분석 결과 없음
   // 조건이 바뀌면 취소·제거하고, 늦게 온 이전 요청 응답은 버린다 (useNearbyRequest)
   const nearbyA = useNearbyRequest()
@@ -532,7 +537,12 @@ function App() {
           ) : result ? (
             <>
               <div className="conditions-summary">
-                <LocationSummary context={result.context} station={station} />
+                {/* 참고 주소는 분석에 쓴 context 좌표(= 요청 좌표)로 — 분석 전 위치 필드와 같은 키라 다시 조회하지 않는다 */}
+                <LocationSummary
+                  context={result.context}
+                  station={station}
+                  address={<ReferenceAddress sdk={sdk} point={{ lat: result.context.lat, lng: result.context.lng }} />}
+                />
                 <span className="conditions-summary__actions">
                   <button type="button" className="button-ghost mobile-only" onClick={() => setMobileScreen('map')}>
                     지도 보기
@@ -583,6 +593,7 @@ function App() {
                 onBizChange={changeBusiness}
                 onRetryBusinesses={reloadBusinesses}
                 onAnalyze={runAnalysis}
+                address={<ReferenceAddress sdk={sdk} point={location} />}
               />
               <div className="intro__result">
                 {analysis.status === 'loading' && <AnalysisLoading />}
@@ -594,6 +605,7 @@ function App() {
         </main>
         <div className="workspace__map" ref={mapRef}>
           <MapView
+            onSdkState={setSdk}
             selected={location}
             markerTone={markerTone}
             dong={result ? { guCode: result.context.gu_code, dongName: result.context.dong_name } : null}
@@ -651,6 +663,8 @@ function App() {
                   '지도를 눌러 위치를 고르세요'
                 )}
               </p>
+              {/* 참고 주소 한 줄(말줄임, 작은 높이에서는 숨김 — ReferenceAddress.css). 좌표 키가 패널·결과와 같아 조회는 1회 */}
+              <ReferenceAddress sdk={sdk} point={location} />
               <button
                 type="button"
                 className={`button ${location ? 'button--primary' : 'button--secondary'}`}

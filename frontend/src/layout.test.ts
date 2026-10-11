@@ -132,3 +132,18 @@ describe('지도 안 요소가 sticky 헤더 위로 올라오지 않게 (6-3)', 
     expect(appCss.slice(header, appCss.indexOf('}', header))).toMatch(/z-index:\s*10;/)
   })
 })
+
+describe('참고 주소 줄 — mobile sheet 공간 (7-B2, ADDRESS_DESIGN §5.5)', () => {
+  const css = readFileSync(join(process.cwd(), 'src', 'components', 'ReferenceAddress.css'), 'utf-8')
+  it('sheet 안에서는 한 줄 말줄임이라 sheet는 주소 길이와 무관하게 한 줄(20px)만큼만 커진다', () => {
+    const at = css.indexOf('.map-sheet .reference-address {')
+    expect(at).toBeGreaterThan(-1)
+    const rule = css.slice(at, css.indexOf('}', at))
+    expect(rule).toMatch(/white-space:\s*nowrap;/)
+    expect(rule).toMatch(/overflow:\s*hidden;/)
+    expect(rule).toMatch(/text-overflow:\s*ellipsis;/)
+  })
+  it('세로 공간이 작은 폰(max-height 640px)에서는 sheet의 참고 주소 줄을 숨긴다 (패널 화면은 그대로)', () => {
+    expect(css).toMatch(/@media \(max-height: 640px\) \{\s*\.map-sheet \.reference-address \{\s*display: none;/)
+  })
+})

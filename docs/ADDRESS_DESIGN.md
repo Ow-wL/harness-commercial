@@ -197,12 +197,12 @@ src/components/AddressSearch.tsx     주소 검색 폼 + 결과 목록 → onSel
 | 스파이크 | `frontend/spike/geocoder-spike.html` | 7-B0 전용 dev 페이지(빌드·타입검사 밖, `.env`의 Client ID만 사용, 버튼당 1회 호출). 구현 뒤에도 콘솔 조건 재확인용으로 남긴다 |
 | 스파이크 ✅ 7-B1 | `frontend/spike/app-geocoder-blocked.html` | 앱 전체를 같은 origin에서 띄우되 SDK가 뒤에 붙이는 `maps-geocoder.js`의 src만 바꿔 "서브모듈 요청만 차단"을 흉내 내는 dev 페이지(§12 검증). 빌드 밖 |
 | 신규 ✅ 7-B1 | `frontend/src/map/geocoder.ts` | adapter(§5.1) + Zod `looseObject` schema(`v2` 중 쓰는 필드만), `normalizeAddress`·`parseCoordinate`, 8초 timeout·첫 콜백만·동기 예외도 결과 객체 |
-| 신규 | `frontend/src/lib/addressCache.ts`, `frontend/src/lib/useReferenceAddress.ts` | 캐시·hook(§5.3) |
-| 신규 | `frontend/src/components/ReferenceAddress.tsx`(+css), `AddressSearch.tsx`(+css) | 표시·검색 UI |
+| 신규 ✅ 7-B2 | `frontend/src/lib/addressCache.ts`, `frontend/src/lib/useReferenceAddress.ts` | 캐시·hook(§5.3): 좌표 키 그대로, LRU 100, in-flight 공유, ok·none 유지, error 60초 뒤 다음 조회 때만, 현재 키 캐시만 표시 |
+| 신규 ✅ 7-B2(표시) | `frontend/src/components/ReferenceAddress.tsx`(+css) — `AddressSearch.tsx`(+css)는 7-B4 | 표시 UI(검색 UI는 다음) |
 | 수정 ✅ 7-B1 | `frontend/src/components/MapView.tsx` | `onSdkState?(state)` prop 1개 — 로더 성공(`map-ready` + 현재 Geocoder 상태)·Geocoder 판정·로드 실패·**뒤늦은 인증 실패**를 `reduceSdkState`로 App에 올린다(로더 재호출 없음, 지도 생성 시점·방식 불변). App 연결은 7-B2 |
-| 수정 | `frontend/src/App.tsx` | `sdk` 상태(`loading/ready/failed`), 주소 컴포넌트에 전달, mobile sheet 참고 주소(+ `max-height` 숨김 규칙은 App.css) |
-| 수정 | `frontend/src/components/ConditionPanel.tsx`, `ComparePanel.tsx` | "주소로 찾기" disclosure + 참고 주소 줄 |
-| 수정 | `frontend/src/components/LocationSummary.tsx` | 최근접역 줄 아래 참고 주소 |
+| 수정 ✅ 7-B2 | `frontend/src/App.tsx` | `sdk` 상태(`loading/ready/failed`)를 `MapView.onSdkState`로 받아 단일 위치 자리 3곳에 `ReferenceAddress`를 넘긴다(위치 필드·mobile sheet·결과 패널). 말줄임·`max-height` 숨김 규칙은 `ReferenceAddress.css` |
+| 수정 ✅ 7-B2(슬롯) | `frontend/src/components/ConditionPanel.tsx` — `ComparePanel.tsx`는 7-B3·B5 | `address?: ReactNode` 슬롯(+ 7-B4 "주소로 찾기" disclosure 예정) |
+| 수정 ✅ 7-B2 | `frontend/src/components/LocationSummary.tsx` | `address?: ReactNode` 슬롯 — 단일 결과에서만 App이 넘긴다(비교 카드는 넘기지 않아 자동 연결 없음) |
 | 테스트 ✅ 7-B1(일부) | `naverMaps.test.ts`(+8 로더·+2 reducer), 신규 `geocoder.test.ts`(22), `MapView.test.tsx`(+6 onSdkState) — 7-B2 이후: `useReferenceAddress.test.ts`, `App.test.tsx`(MapView mock이 `onSdkState`로 상태를 올리고, `Service`는 vi.fn mock) | §8 |
 | 문서 | `DESIGN.md`(§5.D·§7.4·§8.5·§8.5b·§15), `frontend/README.md`(콘솔: Geocoding·Reverse Geocoding 선택, 한도), `docs/ARCHITECTURE.md`(외부 API 경계 1줄), `docs/DECISIONS.md` D-021, `docs/TASKS.md` 7장 | |
 | 변경 없음 | backend 전체, `scoring_engine/`, `data/`, `Dockerfile`, `vite.config.ts`, `.env` 키 종류 | Client ID만 그대로 |
@@ -374,3 +374,31 @@ SDK는 `maps.js` 뒤에 `https://oapi.map.naver.com/openapi/v3/maps-geocoder.js`
 2. **`callOnce`의 동기 예외 정리**: SDK `invoke`가 동기 예외를 던지면 그 자리에서 8초 타이머를 지우고 호출을 종료 상태(`threw`)로 둔다. 그 뒤 도착하는 콜백은 무시하고(이미 settled), timeout 경고도 나지 않는다. 바깥 결과는 기존대로 `unknown`. Promise는 어떤 경우에도 reject하지 않으며 정방향·역방향이 같은 `callOnce` 규칙을 쓴다(호출부의 try/catch 제거).
 - 테스트 +6(`geocoder.test.ts` 28개): 성공 응답 `addresses` 없음 → schema(+warn), 형식 오류 5종 → schema, `[]` → empty(warn 없음), 오류 응답 `addresses` 없음 → invalid/system(ERROR·OK 콜백 모두); fake timers로 정방향·역방향 각각 예외 직후 `vi.getTimerCount() === 0`, 결과 unknown, 잡아 둔 콜백을 늦게 불러도·8초가 지나도 결과·경고 수 불변·타이머 0.
 - adapter 내부 처리라 유료 API 재호출·브라우저 재검증은 하지 않았다. `scripts/check` 전체 통과.
+
+### 7-B2 — 단일 위치 참고 주소 표시·캐시·App 연결 (2026-10-12, 기준 `5f2a41b`)
+범위: 캐시·hook·`ReferenceAddress`·App `onSdkState` 연결·단일 위치 3자리. **비교 A/B 카드·주소 검색은 없다**(7-B3·B4). 엔진·backend·보호 영역 변경 없음.
+
+**SDK 상태 연결**: App이 `sdk: SdkState`를 `MapView.onSdkState`로만 받는다(로더 재호출·SDK 재삽입 없음). hook은 `status === 'ready' && geocoder === 'ready'`일 때만 조회한다 — 준비 전·`unavailable`·`failed`에서는 조회하지 않고 **캐시된 주소도 보이지 않는다**(`failed` 뒤 늦은 응답은 자기 키 캐시에만 들어가고 화면에는 오지 않는다, 재시도 없음).
+
+**캐시 `lib/addressCache.ts`**: 키 `${lat},${lng}`(숫자 그대로, 반올림 없음). 완료 결과 LRU 100(읽어도 최신으로). 같은 키 진행 중 조회는 Promise 공유. `ok`·`none` 세션 유지, `error`는 `expiresAt = 기록 + 60초`까지 재사용하고 만료 뒤 **다음 조회 때만** 1회 재호출(타이머·자동 재시도 없음). 늦은 응답은 자기 키에만 기록.
+
+**hook `lib/useReferenceAddress.ts`**: 화면 값은 항상 "현재 키"의 캐시에서 읽는다 → 좌표가 바뀐 첫 렌더부터 이전 주소가 없고, 다른 좌표의 늦은 응답은 보이지 않는다. 의존성은 좌표 객체가 아니라 키 문자열(같은 좌표의 새 객체 → 재조회 없음). 조회 완료 시 아직 같은 키·같은 SDK로 떠 있을 때만 다시 그린다. 타이머 없음.
+
+**표시 `components/ReferenceAddress.tsx`**: `참고 주소 · {도로명 ?? 지번} (NAVER 지도)`, 성공일 때만 그린다(로딩·오류·없음·SDK 미준비는 줄 자체 없음). 자리: 위치 필드(`ConditionPanel` `address` 슬롯, "선택됨 · 좌표" 아래), mobile sheet(좌표 줄 아래, `.map-sheet .reference-address` 한 줄 말줄임, `@media (max-height: 640px)` 숨김), 결과 패널(`LocationSummary` `address` 슬롯, 최근접역 아래) — 결과 패널은 **`context.lat/lng`(= 요청 좌표)**로 조회하므로 분석 전과 같은 키다. `ComparePanel`·`CompareResult`·`CompareDetail`에는 슬롯을 넘기지 않아 비교 화면에는 줄이 없다. Context Bar·제목·행정동·최근접역·"좌표 보기"·좌표 입력은 그대로.
+
+**테스트(+28, frontend 362개)**: `addressCache.test.ts` 7(키 그대로, 1회 호출·새 객체 재조회 없음, in-flight 공유, none 유지, error 60초 재사용·만료 뒤 다음 조회 때 1회·타이머 없음, 늦은 응답 자기 키만, LRU 100), `useReferenceAddress.test.ts` 13(ready+geocoder ready만 조회, loading/geocoder loading/unavailable/failed·좌표 없음 → 호출 0, 같은 좌표 새 객체 재조회 없음, 캐시 즉시(분석 전→후), 좌표 변경 첫 렌더부터 null·이전 키 늦은 응답 미표시·복귀 시 캐시, failed 뒤 캐시 숨김·새 조회 없음, 실패·없음 null, StrictMode·두 자리 1회, 언마운트 뒤 응답 캐시만), `App.test.tsx` 6(MapView mock이 `onSdkState` 제어: SDK 준비 전 조회 0 → 준비 후 1회 → 위치 필드+sheet 두 줄 → 분석 뒤 재조회 없이 결과 패널, Context Bar에 주소 없음; 지번 대체·주소 없음·ERROR·Geocoder 없음 → 줄 없음·분석 정상·캐시 복귀; 인증 실패 → 숨김·늦은 응답 무시·조회 없음; 지연 중 분석 정상; 비교 화면 줄 없음·B 조회 없음; mobile sheet 줄·결과 뒤 캐시), `layout.test.ts` 2(말줄임·max-height 숨김). `scripts/check` 전체 통과.
+
+**브라우저 검증 (내장 Chromium 152, 로컬 backend + vite dev, 실제 호출 2건)**
+| 조건 | 확인 |
+|---|---|
+| 1280×800 단일: 좌표 입력(37.4894,126.7246) | 위치 필드에 `참고 주소 · 인천광역시 부평구 광장로 16 부평민자역사 (NAVER 지도)` (이중 공백 정규화됨). `gc-js` 호출 **1건**(200) |
+| → 분석 → 비교 시작·B(37.4563,126.7052) 성공·종료 | 결과 패널 최근접역 아래 같은 줄, Context Bar `부평구 부평1동 · 부평역 · 직선거리 85m …`에 주소 없음, 제목 그대로. 비교 B 고르기·비교 요약: 줄 **0**, B 좌표 조회 **없음**. 종료 뒤 결과 패널 줄 복귀. 전 흐름 호출 합계 **1건**(같은 좌표 재조회 없음) |
+| 375×812 분석 전 지도 화면 | 헤더 56, 지도 611px, sheet 149px(좌표 줄 + 주소 줄 20px + 버튼), 주소 줄 한 줄 말줄임 |
+| 375×812 긴 주소(DOM에 70자 임시 주입) | sheet **149px 그대로**, 줄 20px — 한 줄 말줄임이 높이를 고정 |
+| 375×812 결과 지도 화면 + 점포 정보창 | 헤더 133(Context Bar 2줄), 지도 534px, sheet 149px, 점포 막대 y 565~619(sheet 663 위, 겹침 없음), NAVER 로고는 지도 아래 끝 7px 위(기존) |
+| 375×667 | 지도 389px(≥ 280), sheet 149px, 주소 줄 표시(575~595), 막대 420~474, 겹침 없음 |
+| 360×640 | 주소 줄 `display: none`(숨김 규칙), sheet 117px, 지도 394px, 막대 425~479 |
+| Geocoder 서브모듈 차단 페이지(새 코드, 375×812) | 로더 `unavailable`, 좌표 선택·분석 정상(부평1동), 줄 **0**, 호출 **0** |
+
+- **발견(기존, 7-B2와 무관)**: mobile 패널 화면(지도 `display: none`)에서 점포 목록을 눌러 정보창을 연 뒤 "지도 보기"로 넘어오면 SDK 정보창 폭이 24px로 접혀 글자가 세로로 흐른다. 7-B2 변경분을 stash한 옛 코드에서 같은 경로로 재현(폭 24px, 호출 0)했다 — 지도가 숨겨진 상태에서 정보창이 크기를 재는 SDK 동작이며 참고 주소 줄과 무관하다. 별도 항목으로 남긴다(지도에서 직접 마커를 누르거나 지도 화면에서 고르면 정상, 5차-B6 실측 그대로).
+- 잔여(사용자): 한도 및 알림 설정(§9-5), 운영 URL Geocoder 유효성(§9-4, 배포 전). 다음 7-B3(비교 A/B 참고 주소)은 별도 승인 뒤.

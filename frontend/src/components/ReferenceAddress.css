@@ -1,0 +1,31 @@
+/* 참고 주소 한 줄 (DESIGN.md §8.5b). 보조 정보라 --text-small secondary, 접두는 label 색, 출처는 muted */
+.reference-address {
+  margin: 0;
+  font: var(--text-small);
+  color: var(--color-text-secondary);
+  min-width: 0;
+}
+
+.reference-address__label {
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.reference-address__source {
+  color: var(--color-text-muted);
+}
+
+/* mobile 지도 화면 sheet 안: 한 줄 말줄임 — 길이와 무관하게 sheet는 이 한 줄(20px)만큼만 커진다 (ADDRESS_DESIGN §5.5) */
+.map-sheet .reference-address {
+  width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* 세로 공간이 작은 폰에서는 sheet의 참고 주소 줄을 숨겨 지도 높이를 지킨다(패널 화면의 참고 주소는 그대로) */
+@media (max-height: 640px) {
+  .map-sheet .reference-address {
+    display: none;
+  }
+}

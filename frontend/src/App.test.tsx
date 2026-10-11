@@ -12,6 +12,21 @@ import { brokenControls, brokenReferences, duplicateIds, expandAll } from './tes
 
 // 지도는 SDK 경계(MapView) 통째로 mock한다 — 실제 NAVER SDK를 부르지 않는다.
 // mock은 실제 MapView와 같은 계약: interactive=false면 클릭을 무시하고, 클릭 좌표를 onSelect로 넘긴다.
+// 7-B2: 참고 주소 — MapView mock이 SDK 상태를 App에 올리고(onSdkState), 역지오코딩 콜백은 테스트가 보낸다
+const sdkMock = vi.hoisted(() => {
+  const reverseCalls: { options: Record<string, unknown>; callback: (status: number, response?: unknown) => void }[] = []
+  const api = {
+    Service: {
+      Status: { OK: 200, ERROR: 500 },
+      geocode: () => {},
+      reverseGeocode: (options: Record<string, unknown>, callback: (status: number, response?: unknown) => void) => {
+        reverseCalls.push({ options, callback })
+      },
+    },
+  }
+  return { reverseCalls, api }
+})
+
 vi.mock('./components/MapView.tsx', () => ({
   MapView: (props: MapViewProps) => (
     <div
@@ -34,6 +49,15 @@ vi.mock('./components/MapView.tsx', () => ({
       </button>
       <button type="button" onClick={() => props.interactive && props.onSelect({ lat: 37.392512, lng: 126.639034 })}>
         지도 클릭: 송도
+      </button>
+      <button type="button" onClick={() => props.onSdkState?.({ status: 'ready', api: sdkMock.api as never, geocoder: 'ready' })}>
+        SDK 준비
+      </button>
+      <button type="button" onClick={() => props.onSdkState?.({ status: 'ready', api: sdkMock.api as never, geocoder: 'unavailable' })}>
+        SDK Geocoder 없음
+      </button>
+      <button type="button" onClick={() => props.onSdkState?.({ status: 'failed', kind: 'auth' })}>
+        SDK 인증 실패
       </button>
       {props.stores?.[1] && (
         <button type="button" onClick={() => props.onStoreSelect?.(props.stores![1]!.id)}>
@@ -1298,6 +1322,183 @@ describe('두 위치 비교 — B 분석 상태 (5차-B2, docs/COMPARE_DESIGN.md
       expect(within(sheet()).getByRole('alert')).toHaveTextContent('A와 같은 위치입니다')
       expect(app()).toHaveAttribute('data-screen', 'map')
       expect(analyzeCalls(fetchMock)).toHaveLength(1)
+    })
+  })
+})
+
+describe('단일 위치 참고 주소 (7-B2, docs/ADDRESS_DESIGN.md §5.2 B·§5.3)', () => {
+  function reverseFixtureFor(roadAddress: string, jibunAddress: string) {
+    return { v2: { status: { code: 0, name: 'ok', message: 'done' }, results: [], address: { roadAddress, jibunAddress } } }
+  }
+  const okResponse = reverseFixtureFor('인천광역시 부평구 광장로  16 부평민자역사', '인천광역시 부평구 부평동  738-21')
+  const ok = (body: unknown) => ({ status: 200, body })
+  const addressLines = () => screen.queryAllByTestId('reference-address')
+  const sdkReady = () => fireEvent.click(screen.getByRole('button', { name: 'SDK 준비' }))
+  const respond = async (i: number, status: number, response?: unknown) => {
+    await act(async () => {
+      sdkMock.reverseCalls[i]?.callback(status, response)
+      await Promise.resolve()
+    })
+  }
+
+  beforeEach(async () => {
+    sdkMock.reverseCalls.length = 0
+    const { resetAddressCacheForTest } = await import('./lib/addressCache.ts')
+    resetAddressCacheForTest()
+    vi.spyOn(console, 'warn').mockImplementation(() => {})
+  })
+
+  it('SDK 준비 전에는 조회하지 않고, 준비되면 선택 좌표를 1회 조회해 "참고 주소 · … (NAVER 지도)"를 보인다. 분석 뒤 같은 좌표는 재조회 없이 결과 패널에 보인다', async () => {
+    const fetchMock = mockApi({ analyze: [ok(fixture)], nearby: [ok(nearbyFixture)] })
+    render(<App />)
+    fireEvent.click(screen.getByRole('button', { name: '지도 클릭: 부평역' }))
+    expect(sdkMock.reverseCalls).toHaveLength(0)                 // SDK loading: 조회 없음
+    expect(addressLines()).toHaveLength(0)
+
+    sdkReady()
+    expect(sdkMock.reverseCalls).toHaveLength(1)                 // 위치 필드 + (숨겨진) mobile sheet 두 자리 → 조회 1회
+    expect(sdkMock.reverseCalls[0]!.options).toEqual({ coords: '126.7246,37.4894', orders: 'roadaddr,addr' })
+    expect(addressLines()).toHaveLength(0)                       // 로딩 중: 줄 없음
+    await respond(0, 200, okResponse)
+    const lines = addressLines()
+    expect(lines).toHaveLength(2)                                // 위치 필드 + mobile sheet(같은 좌표, 같은 캐시)
+    expect(lines[0]).toHaveTextContent('참고 주소 · 인천광역시 부평구 광장로 16 부평민자역사 (NAVER 지도)')
+    expect(screen.getByText('37.4894, 126.7246', { selector: '.location__value .mono' })).toBeInTheDocument()   // 좌표 표시는 그대로
+
+    const select = screen.getByRole('combobox', { name: '업종' })
+    await waitFor(() => expect(select).toBeEnabled())
+    fireEvent.change(select, { target: { value: 'R10406' } })
+    fireEvent.click(analyzeButton())
+    await screen.findByRole('list', { name: 'PC방 점포 목록' })
+    // 분석 뒤: context 좌표 = 요청 좌표 → 같은 키, 추가 조회 없음. 결과 패널(LocationSummary)에 같은 줄
+    expect(sdkMock.reverseCalls).toHaveLength(1)
+    const after = addressLines()
+    expect(after.length).toBeGreaterThanOrEqual(1)
+    expect(after[0]).toHaveTextContent('참고 주소 · 인천광역시 부평구 광장로 16 부평민자역사 (NAVER 지도)')
+    expect(screen.getByRole('heading', { level: 1, name: '부평구 부평1동 · PC방 분석' })).toBeInTheDocument()   // 제목·행정동 그대로
+    expect(screen.getByRole('group', { name: '분석 조건' })).toHaveTextContent('부평구 부평1동')
+    expect(screen.getByRole('group', { name: '분석 조건' })).not.toHaveTextContent('광장로')               // Context Bar에는 주소 없음
+    expect(analyzeCalls(fetchMock)).toHaveLength(1)
+  })
+
+  it('도로명이 없으면 지번을 쓰고, 주소 없음·오류·Geocoder 없음에서는 줄 자체가 없다 — 분석은 그대로 된다', async () => {
+    mockApi({ analyze: [ok(songdoFixture)], nearby: [ok(songdoNearbyFixture)] })
+    render(<App />)
+    sdkReady()
+    fireEvent.click(screen.getByRole('button', { name: '지도 클릭: 부평역' }))
+    await respond(0, 200, reverseFixtureFor('', '인천광역시 부평구 부평동 738-21'))
+    expect(addressLines()[0]).toHaveTextContent('참고 주소 · 인천광역시 부평구 부평동 738-21 (NAVER 지도)')
+
+    // 주소 없음(code 3): 줄 없음, 좌표 표시는 그대로
+    const conditions = screen.getByRole('region', { name: '분석 조건' })
+    fireEvent.click(within(conditions).getByRole('button', { name: '좌표 직접 입력' }))
+    fireEvent.change(screen.getByLabelText('위도'), { target: { value: '37.4891' } })
+    fireEvent.change(screen.getByLabelText('경도'), { target: { value: '126.7236' } })
+    fireEvent.click(screen.getByRole('button', { name: '이 좌표로 선택' }))
+    expect(addressLines()).toHaveLength(0)                       // 다른 좌표: 첫 렌더부터 이전 주소 없음
+    expect(sdkMock.reverseCalls).toHaveLength(2)
+    await respond(1, 200, { v2: { status: { code: 3, name: 'no results', message: '' }, results: [] } })
+    expect(addressLines()).toHaveLength(0)
+    expect(screen.getByText('37.4891, 126.7236', { selector: '.location__value .mono' })).toBeInTheDocument()
+
+    // 조회 실패(ERROR): 줄 없음, 분석은 정상
+    fireEvent.click(screen.getByRole('button', { name: '지도 클릭: 송도' }))
+    expect(sdkMock.reverseCalls).toHaveLength(3)
+    await respond(2, 500, undefined)
+    expect(addressLines()).toHaveLength(0)
+    const select = screen.getByRole('combobox', { name: '업종' })
+    await waitFor(() => expect(select).toBeEnabled())
+    fireEvent.change(select, { target: { value: 'R10406' } })
+    fireEvent.click(analyzeButton())
+    await screen.findByRole('heading', { level: 1, name: '연수구 송도2동 · PC방 분석' })
+    expect(addressLines()).toHaveLength(0)
+    expect(sdkMock.reverseCalls).toHaveLength(3)                 // error 캐시(60초) → 결과 패널도 재조회 없음
+
+    // 캐시된 좌표로 돌아가면 즉시, 조회 없음. Geocoder unavailable이면 캐시가 있어도 숨김
+    fireEvent.click(screen.getByRole('button', { name: '조건 변경' }))
+    fireEvent.click(screen.getByRole('button', { name: '지도 클릭: 부평역' }))
+    expect(addressLines()[0]).toHaveTextContent('부평동 738-21')
+    expect(sdkMock.reverseCalls).toHaveLength(3)
+    fireEvent.click(screen.getByRole('button', { name: 'SDK Geocoder 없음' }))
+    expect(addressLines()).toHaveLength(0)
+  })
+
+  it('인증 실패가 오면 보이던 주소를 숨기고, 진행 중이던 응답도 다시 보이지 않으며, 조회도 더 하지 않는다', async () => {
+    mockApi()
+    render(<App />)
+    sdkReady()
+    fireEvent.click(screen.getByRole('button', { name: '지도 클릭: 부평역' }))
+    await respond(0, 200, okResponse)
+    expect(addressLines()).toHaveLength(2)
+    fireEvent.click(screen.getByRole('button', { name: '지도 클릭: 송도' }))          // 진행 중 조회 1건
+    expect(sdkMock.reverseCalls).toHaveLength(2)
+    fireEvent.click(screen.getByRole('button', { name: 'SDK 인증 실패' }))
+    await respond(1, 200, okResponse)                           // 늦은 응답
+    expect(addressLines()).toHaveLength(0)
+    fireEvent.click(screen.getByRole('button', { name: '지도 클릭: 부평역' }))          // 캐시가 있어도 숨김, 조회 없음
+    expect(addressLines()).toHaveLength(0)
+    expect(sdkMock.reverseCalls).toHaveLength(2)
+  })
+
+  it('조회가 지연되는 동안에도 분석·결과는 정상이고, 응답이 오면 결과 패널에 줄이 생긴다', async () => {
+    mockApi({ analyze: [ok(fixture)], nearby: [ok(nearbyFixture)] })
+    render(<App />)
+    sdkReady()
+    await selectBupyeongPcBang()
+    fireEvent.click(analyzeButton())
+    await screen.findByRole('list', { name: 'PC방 점포 목록' })
+    expect(sdkMock.reverseCalls).toHaveLength(1)                 // 선택 때 1회, 분석 뒤 추가 없음
+    expect(addressLines()).toHaveLength(0)
+    await respond(0, 200, okResponse)
+    expect(addressLines()[0]).toHaveTextContent('참고 주소 · 인천광역시 부평구 광장로 16 부평민자역사 (NAVER 지도)')
+  })
+
+  it('비교 화면(B 카드·비교 요약)에는 참고 주소가 자동으로 붙지 않는다 (7-B3 범위)', async () => {
+    mockApi({ analyze: [ok(fixture), ok(guwolFixture)], nearby: [ok(nearbyFixture), ok(guwolNearbyFixture)] })
+    render(<App />)
+    sdkReady()
+    await selectBupyeongPcBang()
+    await respond(0, 200, okResponse)
+    fireEvent.click(analyzeButton())
+    await screen.findByRole('list', { name: 'PC방 점포 목록' })
+    expect(addressLines().length).toBeGreaterThanOrEqual(1)
+    fireEvent.click(screen.getByRole('button', { name: '다른 위치와 비교' }))
+    expect(addressLines()).toHaveLength(0)                       // B 고르기 화면: 줄 없음
+    const bCard = screen.getByRole('region', { name: 'B 비교 위치' })
+    fireEvent.change(within(bCard).getByLabelText('B 위도'), { target: { value: '37.4475' } })
+    fireEvent.change(within(bCard).getByLabelText('B 경도'), { target: { value: '126.7015' } })
+    fireEvent.click(within(bCard).getByRole('button', { name: 'B 위치로 선택' }))
+    expect(sdkMock.reverseCalls).toHaveLength(1)                 // B 좌표 조회 없음
+    fireEvent.click(within(bCard).getByRole('button', { name: 'B 분석하기' }))
+    await screen.findByRole('heading', { level: 1, name: '두 위치 비교 · PC방' })
+    expect(screen.getByRole('region', { name: 'B 비교 위치' })).toHaveTextContent('남동구 구월3동')
+    expect(addressLines()).toHaveLength(0)                       // 비교 요약 A/B 카드: 줄 없음
+    expect(sdkMock.reverseCalls).toHaveLength(1)
+  })
+
+  describe('mobile 지도 화면 sheet', () => {
+    beforeEach(() => {
+      vi.stubGlobal('matchMedia', (q: string) => ({ matches: q === '(max-width: 639px)', media: q }))
+    })
+    it('"선택됨 · 좌표" 아래 참고 주소 줄이 붙고, 결과 뒤에도 같은 캐시를 쓴다', async () => {
+      mockApi({ analyze: [ok(fixture)], nearby: [ok(nearbyFixture)] })
+      const { container } = render(<App />)
+      sdkReady()
+      fireEvent.click(screen.getByRole('button', { name: '지도 클릭: 부평역' }))
+      await respond(0, 200, okResponse)
+      const sheet = container.querySelector<HTMLElement>('.map-sheet')!
+      expect(sheet).toHaveTextContent('선택됨 · 37.4894, 126.7246')
+      expect(within(sheet).getByTestId('reference-address')).toHaveTextContent('참고 주소 · 인천광역시 부평구 광장로 16 부평민자역사 (NAVER 지도)')
+      fireEvent.click(within(sheet).getByRole('button', { name: '이 위치로 계속' }))
+      const select = screen.getByRole('combobox', { name: '업종' })
+      await waitFor(() => expect(select).toBeEnabled())
+      fireEvent.change(select, { target: { value: 'R10406' } })
+      fireEvent.click(analyzeButton())
+      await screen.findByRole('list', { name: 'PC방 점포 목록' })
+      fireEvent.click(screen.getByRole('button', { name: '지도 보기' }))
+      expect(sheet).toHaveTextContent('부평구 부평1동')
+      expect(within(sheet).getByTestId('reference-address')).toHaveTextContent('광장로 16')
+      expect(sdkMock.reverseCalls).toHaveLength(1)
     })
   })
 })

@@ -28,6 +28,7 @@ export function ConditionPanel({
   onBizChange,
   onRetryBusinesses,
   onAnalyze,
+  address,
 }: {
   location: LatLng | null
   bizCode: string | null
@@ -41,6 +42,8 @@ export function ConditionPanel({
   onBizChange: (code: string) => void
   onRetryBusinesses: () => void
   onAnalyze: () => void
+  /** 선택 좌표의 참고 주소 줄 (7-B2, App이 ReferenceAddress로 넘긴다. 없으면 아무것도 그리지 않는다) */
+  address?: ReactNode
 }) {
   const hintId = useId()
   const missing = !location ? '위치를 먼저 선택하세요' : !bizCode ? '업종을 선택하세요' : null
@@ -55,6 +58,7 @@ export function ConditionPanel({
         location={location}
         disabled={locked}
         error={locationError}
+        address={address}
         onPickOnMap={onPickOnMap}
         onLocationInput={onLocationInput}
       />
@@ -121,12 +125,15 @@ function LocationField({
   location,
   disabled,
   error,
+  address,
   onPickOnMap,
   onLocationInput,
 }: {
   location: LatLng | null
   disabled: boolean
   error?: ReactNode
+  /** "선택됨 · 좌표" 아래 참고 주소 줄 (7-B2). 좌표가 없으면 그리지 않는다 */
+  address?: ReactNode
   onPickOnMap: () => void
   onLocationInput: (point: LatLng) => void
 }) {
@@ -140,15 +147,18 @@ function LocationField({
         위치
       </span>
       {location ? (
-        <div className="location__selected">
-          <span className="location__value">
-            <Icon name="map-pin" size={14} />
-            선택됨 · <span className="mono">{location.lat}, {location.lng}</span>
-          </span>
-          <button type="button" className="button-ghost" disabled={disabled} onClick={onPickOnMap}>
-            다시 선택
-          </button>
-        </div>
+        <>
+          <div className="location__selected">
+            <span className="location__value">
+              <Icon name="map-pin" size={14} />
+              선택됨 · <span className="mono">{location.lat}, {location.lng}</span>
+            </span>
+            <button type="button" className="button-ghost" disabled={disabled} onClick={onPickOnMap}>
+              다시 선택
+            </button>
+          </div>
+          {address}
+        </>
       ) : (
         <div className="location__empty">
           <button type="button" className="button button--secondary" disabled={disabled} onClick={onPickOnMap}>
