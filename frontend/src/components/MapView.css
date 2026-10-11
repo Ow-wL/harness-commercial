@@ -1,5 +1,10 @@
 .map {
   position: relative;
+  /* 지도 안 쌓임을 여기서 닫는다. NAVER SDK가 만드는 로고·축척·컨트롤은 position: absolute; z-index: 100이라 그대로 두면 루트
+     컨텍스트에서 sticky 헤더(z-index 10)보다 위에 그려진다 — tablet·mobile에서 문서를 스크롤해 지도 아래 끝이 헤더 띠 안에 오면
+     "데이터 출처" 링크를 덮어 클릭이 막혔다. 독립 컨텍스트 안에서는 SDK 요소·안내·범례·점포 막대·포커스 링(z 1~3)의 서로 간 순서가
+     그대로이고, 바깥에서는 지도 전체가 z 0 한 층이라 헤더와 mobile sheet(z 2)가 위에 온다 (6-3) */
+  isolation: isolate;
   width: 100%;
   height: 100%;
   min-height: 0;

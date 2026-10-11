@@ -120,3 +120,15 @@ describe('포커스 대상이 sticky 헤더 아래 보이게 (6-2)', () => {
     expect(appCss.slice(header, appCss.indexOf('}', header))).toMatch(/position:\s*sticky;/)
   })
 })
+
+describe('지도 안 요소가 sticky 헤더 위로 올라오지 않게 (6-3)', () => {
+  it('.map은 독립 stacking context(isolation: isolate)다 — SDK 로고·축척(z-index 100)이 헤더(z-index 10) 위에 그려지지 않게', () => {
+    // 재현: 800×600 단일 결과에서 문서를 330~340px 스크롤 → "데이터 출처" 링크 중심의 elementFromPoint가 NAVER 로고 IMG·축척 SPAN, 클릭이 막힘
+    const at = mapCss.indexOf('.map {')
+    expect(at).toBeGreaterThan(-1)
+    expect(mapCss.slice(at, mapCss.indexOf('}', at))).toMatch(/isolation:\s*isolate;/)
+    // 헤더 z-index를 올려서 푼 것이 아니다 (SDK 값을 쫓아가는 방식은 쓰지 않는다)
+    const header = appCss.indexOf('.app-header {')
+    expect(appCss.slice(header, appCss.indexOf('}', header))).toMatch(/z-index:\s*10;/)
+  })
+})

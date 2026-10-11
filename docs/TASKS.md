@@ -59,7 +59,8 @@
 - [x] 5-B6 통합 검증·모바일·문서 마무리 — 실제 브라우저 통합 흐름·4개 사례·실패/재시도·요청 수, 375px 로고·sheet 접촉과 970px 점포 막대의 정보창 가림 수정, 터치 영역("지도에 표시" 44px), ARCHITECTURE 6장·DECISIONS D-020·DESIGN §8.15·§14
 
 - [x] 6-1 태블릿 정보창 잘림: tablet 결과 지도 200 → 320px(`App.css`). autoPan 방식은 막대 겹침·크기 변경 잘림으로 실패해 되돌림(COMPARE_DESIGN.md 13장 "B6 후속")
-- [x] 6-2 포커스 대상이 sticky 헤더에 가려짐(800×600 B 성공 비교 제목 등): 문서 `scroll-padding-top` = 헤더 실제 높이(`--header-offset`, App이 ResizeObserver + 포커스 직전 측정). 포커스 대상·지도 동작은 그대로(COMPARE_DESIGN.md 13장 "6-2"). 남은 문제: 지도 NAVER 로고·축척(z-index 100)이 헤더(10) 위에 그려져 "데이터 출처" 링크를 덮을 수 있음
+- [x] 6-2 포커스 대상이 sticky 헤더에 가려짐(800×600 B 성공 비교 제목 등): 문서 `scroll-padding-top` = 헤더 실제 높이(`--header-offset`, App이 ResizeObserver + 포커스 직전 측정). 포커스 대상·지도 동작은 그대로(COMPARE_DESIGN.md 13장 "6-2")
+- [x] 6-3 지도 안 SDK 요소(로고·축척, z-index 100)가 sticky 헤더(10) 위에 그려져 "데이터 출처" 링크를 덮던 문제: `.map { isolation: isolate }` 한 줄로 지도 안 쌓임을 닫음. 헤더 z-index·SDK DOM은 손대지 않음(COMPARE_DESIGN.md 13장 "6-3")
 
 ## 보류 (이번 범위 아님)
 로그인, DB, AI 설명, 지원사업 추천, 점수 공식 개선, 업종 추가.
