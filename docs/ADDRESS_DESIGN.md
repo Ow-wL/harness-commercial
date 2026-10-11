@@ -121,7 +121,7 @@ src/components/AddressSearch.tsx     주소 검색 폼 + 결과 목록 → onSel
   - **오류 분류는 SDK가 실제로 넘긴 정보 안에서만 한다.** SDK 콜백은 HTTP 상태를 주지 않으므로 adapter는 403·429·네트워크 단절을 구별할 수 없고, **추정하지 않는다**:
     | SDK가 준 것 | 분류 |
     |---|---|
-    | `status === OK`, `v2.status === 'OK'`, 결과 있음 / 없음 | `ok` / `empty`(정방향), reverse `status.code 0` / `3` → `ok` / `none` |
+    | `status === OK`, `v2.status === 'OK'`, 결과 있음 / 정상적인 빈 배열 `[]` | `ok` / `empty`(정방향 — 성공 응답에 `addresses`가 아예 없거나 배열이 아니면 `schema`), reverse `status.code 0` / `3` → `ok` / `none` |
     | `v2.status === 'INVALID_REQUEST'`, reverse `status.code 100` | `invalid` |
     | `v2.status === 'SYSTEM_ERROR'`, reverse `status.code 900` | `system` |
     | `status === ERROR`이고 `response`가 없거나 `v2`가 없음 (7-B0 실측 사례) | **`unknown`** — 원인 불명. 설정·권한·할당량·네트워크 중 무엇인지 앱은 모른다 |
@@ -368,3 +368,9 @@ SDK는 `maps.js` 뒤에 `https://oapi.map.naver.com/openapi/v3/maps-geocoder.js`
 | 서브모듈만 차단 (`spike/app-geocoder-blocked.html`, `maps-geocoder.js` → 없는 경로) | `maps.js`는 로드, `Service` undefined, 지도 생성(캔버스 자식 3, 마커 38)·지도 오류 안내 없음, 단일 분석 성공(부평6동, 점포 5), 지도 준비 10초 뒤 로더 상태 `unavailable`, ntruss 0건 |
 
 **잔여(사용자)**: 한도 및 알림 설정(§9-5), 운영 URL의 Geocoder 유효성(§9-4, 배포 전). 다음 단계 7-B2(참고 주소 표시·캐시·App `onSdkState` 연결)는 별도 승인 뒤.
+
+### 7-B1 보완 — adapter 2건 (2026-10-12, `938682c` 검수)
+1. **정방향 성공 응답의 `addresses` 누락**: 이전에는 `v2.addresses ?? []`라 성공 응답(콜백 OK + `v2.status 'OK'`)에 목록이 없으면 "결과 없음(empty)"으로 보였다. 이제 성공 경로에서는 `addresses` 배열을 **요구**한다 — 없으면 `schema`, 배열이 아니거나 항목 구조가 다르면(safeParse) `schema`, **정상적인 `[]`만 `empty`**. 오류 응답(`INVALID_REQUEST`·`SYSTEM_ERROR`, 콜백 ERROR·OK 모두)에 `addresses`가 없는 경우는 기존 분류(`invalid`·`system`)를 유지한다(schema에서 `addresses`는 optional 그대로, 성공 경로에서만 검사).
+2. **`callOnce`의 동기 예외 정리**: SDK `invoke`가 동기 예외를 던지면 그 자리에서 8초 타이머를 지우고 호출을 종료 상태(`threw`)로 둔다. 그 뒤 도착하는 콜백은 무시하고(이미 settled), timeout 경고도 나지 않는다. 바깥 결과는 기존대로 `unknown`. Promise는 어떤 경우에도 reject하지 않으며 정방향·역방향이 같은 `callOnce` 규칙을 쓴다(호출부의 try/catch 제거).
+- 테스트 +6(`geocoder.test.ts` 28개): 성공 응답 `addresses` 없음 → schema(+warn), 형식 오류 5종 → schema, `[]` → empty(warn 없음), 오류 응답 `addresses` 없음 → invalid/system(ERROR·OK 콜백 모두); fake timers로 정방향·역방향 각각 예외 직후 `vi.getTimerCount() === 0`, 결과 unknown, 잡아 둔 콜백을 늦게 불러도·8초가 지나도 결과·경고 수 불변·타이머 0.
+- adapter 내부 처리라 유료 API 재호출·브라우저 재검증은 하지 않았다. `scripts/check` 전체 통과.

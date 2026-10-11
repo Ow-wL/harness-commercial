@@ -297,3 +297,75 @@ describe('reverseGeocode (역방향)', () => {
     await expect(reverseGeocode(undefined, { lat: 37.4, lng: 126.3 })).resolves.toEqual({ status: 'error', kind: 'unavailable' })
   })
 })
+
+// ─── 938682c 검수 보완: 성공 응답의 addresses 누락, callOnce 동기 예외 정리 ─────────────
+describe('geocode — 성공 응답의 addresses (검수 보완 1)', () => {
+  const ok = (v2: Record<string, unknown>) => ({ v2: { status: 'OK', meta: { totalCount: 0, page: 1, count: 0 }, errorMessage: '', ...v2 } })
+
+  it('OK + v2.status OK인데 addresses가 없으면 empty가 아니라 schema', async () => {
+    const p = geocode(fakeApi(), 'x')
+    await reply(geocodeCalls[0], OK, ok({}))
+    await expect(p).resolves.toEqual({ status: 'error', kind: 'schema' })
+    expect(console.warn).toHaveBeenCalledWith('[geocoder] geocode 실패', { kind: 'schema', status: OK })
+  })
+
+  it('addresses 형식이 잘못되면(배열 아님·항목 구조 다름) schema', async () => {
+    for (const bad of ['x', { roadAddress: 'a' }, [null], ['문자열'], [{ roadAddress: 1 }]]) {
+      geocodeCalls = []
+      const p = geocode(fakeApi(), 'x')
+      await reply(geocodeCalls[0], OK, ok({ addresses: bad }))
+      await expect(p).resolves.toEqual({ status: 'error', kind: 'schema' })
+    }
+  })
+
+  it('정상적인 addresses: []만 empty', async () => {
+    const p = geocode(fakeApi(), 'x')
+    await reply(geocodeCalls[0], OK, ok({ addresses: [] }))
+    await expect(p).resolves.toEqual({ status: 'empty' })
+    expect(console.warn).not.toHaveBeenCalled()
+  })
+
+  it('오류 응답에 addresses가 없어도 기존 분류(invalid / system)를 유지한다 — 콜백 ERROR·OK 모두', async () => {
+    for (const [status, kind] of [
+      ['INVALID_REQUEST', 'invalid'],
+      ['SYSTEM_ERROR', 'system'],
+    ] as const) {
+      for (const cbStatus of [ERROR, OK]) {
+        geocodeCalls = []
+        const p = geocode(fakeApi(), 'x')
+        await reply(geocodeCalls[0], cbStatus, { v2: { status, errorMessage: 'e' } })   // addresses 없음
+        await expect(p).resolves.toEqual({ status: 'error', kind })
+      }
+    }
+  })
+})
+
+describe('callOnce — 동기 예외 정리 (검수 보완 2), 정방향·역방향 공통', () => {
+  /** invoke가 콜백을 잡아 둔 뒤 동기로 던진다 — 예외 뒤 늦게 콜백을 불러도 무시되는지 본다 */
+  function throwingApi() {
+    const captured: { cb: NaverServiceCallback | null } = { cb: null }
+    const method = vi.fn((_o: Record<string, unknown>, cb: NaverServiceCallback) => {
+      captured.cb = cb
+      throw new Error('boom')
+    })
+    return { api: fakeApi({ geocode: method, reverseGeocode: method }), captured }
+  }
+
+  it.each([
+    ['geocode', (api: NaverMapsApi) => geocode(api, 'x')],
+    ['reverseGeocode', (api: NaverMapsApi) => reverseGeocode(api, { lat: 37.4, lng: 126.3 })],
+  ] as const)('%s: 예외 직후 남은 타이머가 없고 결과는 unknown, 그 뒤 콜백은 무시한다', async (method, run) => {
+    vi.useFakeTimers()
+    const { api, captured } = throwingApi()
+    const p = run(api)
+    expect(vi.getTimerCount()).toBe(0)                           // 8초 타이머가 즉시 해제됐다
+    await expect(p).resolves.toEqual({ status: 'error', kind: 'unknown' })
+    expect(console.warn).toHaveBeenCalledWith(`[geocoder] ${method} 실패`, { kind: 'unknown', status: undefined })
+    const warns = vi.mocked(console.warn).mock.calls.length
+    captured.cb!(OK, method === 'geocode' ? forwardFixture.response : reverseFixture.response)   // 늦은 콜백
+    await vi.advanceTimersByTimeAsync(GEOCODER_CALL_TIMEOUT_MS)
+    await expect(p).resolves.toEqual({ status: 'error', kind: 'unknown' })   // 바뀌지 않는다
+    expect(vi.mocked(console.warn).mock.calls.length).toBe(warns)             // timeout 경고도 없다
+    expect(vi.getTimerCount()).toBe(0)
+  })
+})

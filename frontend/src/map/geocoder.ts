@@ -120,11 +120,12 @@ function warn(method: string, kind: GeocoderErrorKind, status?: number): void {
 }
 
 // ─── SDK 콜백 → Promise ───────────────────────────────────────────
-type Outcome = { status: number; response: unknown } | { timedOut: true }
+type Outcome = { status: number; response: unknown } | { timedOut: true } | { threw: true }
 
 /**
  * SDK 메서드를 한 번 부르고 첫 콜백만 받는다. 8초 안에 콜백이 없으면 timeout.
- * 두 번째 콜백·timeout 뒤 콜백은 무시한다. 동기 예외는 reject 대신 호출한 쪽이 결과 객체로 바꾼다.
+ * 두 번째 콜백·timeout 뒤 콜백은 무시한다. invoke가 동기 예외를 던지면 타이머를 바로 지우고 그 호출을 종료 상태로
+ * 두며(`threw`), 그 뒤 도착하는 콜백도 무시한다. 이 Promise는 reject하지 않는다 — 정방향·역방향이 같은 규칙을 쓴다.
  */
 function callOnce(invoke: (callback: NaverServiceCallback) => void): Promise<Outcome> {
   return new Promise<Outcome>((resolve) => {
@@ -134,12 +135,17 @@ function callOnce(invoke: (callback: NaverServiceCallback) => void): Promise<Out
       settled = true
       resolve({ timedOut: true })
     }, GEOCODER_CALL_TIMEOUT_MS)
-    invoke((status, response) => {
+    const settle = (outcome: Outcome) => {
       if (settled) return
       settled = true
       clearTimeout(timer)
-      resolve({ status, response })
-    })
+      resolve(outcome)
+    }
+    try {
+      invoke((status, response) => settle({ status, response }))
+    } catch {
+      settle({ threw: true })
+    }
   })
 }
 
@@ -151,11 +157,9 @@ export async function geocode(api: NaverMapsApi | null | undefined, query: strin
   if (options.coordinate) sdkOptions.coordinate = `${options.coordinate.lng},${options.coordinate.lat}`
   if (options.count !== undefined) sdkOptions.count = options.count
 
-  let outcome: Outcome
-  try {
-    outcome = await callOnce((cb) => service.geocode(sdkOptions, cb))
-  } catch {
-    warn('geocode', 'unknown')
+  const outcome = await callOnce((cb) => service.geocode(sdkOptions, cb))
+  if ('threw' in outcome) {
+    warn('geocode', 'unknown')                                 // SDK가 동기 예외 — 원인 불명으로 둔다
     return { status: 'error', kind: 'unknown' }
   }
   if ('timedOut' in outcome) {
@@ -180,7 +184,13 @@ export async function geocode(api: NaverMapsApi | null | undefined, query: strin
     warn('geocode', kind, outcome.status)
     return { status: 'error', kind }
   }
-  const addresses = v2.addresses ?? []
+  // 성공 응답(OK + v2.status OK)에는 addresses 배열이 있어야 한다. 없으면 "결과 없음"이 아니라 계약 위반(schema).
+  // 형식이 잘못된 addresses(배열 아님·항목 구조 다름)는 위 safeParse에서 이미 schema로 걸러졌다. 정상적인 []만 empty
+  const addresses = v2.addresses
+  if (addresses === undefined) {
+    warn('geocode', 'schema', outcome.status)
+    return { status: 'error', kind: 'schema' }
+  }
   if (addresses.length === 0) return { status: 'empty' }
 
   const items: GeocodeItem[] = []
@@ -215,10 +225,8 @@ export async function reverseGeocode(api: NaverMapsApi | null | undefined, point
   const service = api!.Service!
   const sdkOptions = { coords: `${point.lng},${point.lat}`, orders: REVERSE_ORDERS }
 
-  let outcome: Outcome
-  try {
-    outcome = await callOnce((cb) => service.reverseGeocode(sdkOptions, cb))
-  } catch {
+  const outcome = await callOnce((cb) => service.reverseGeocode(sdkOptions, cb))
+  if ('threw' in outcome) {
     warn('reverseGeocode', 'unknown')
     return { status: 'error', kind: 'unknown' }
   }
