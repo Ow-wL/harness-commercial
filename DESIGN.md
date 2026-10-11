@@ -515,6 +515,7 @@
 - 선택 지점: 지름 16px 원 `--color-map-marker` + 흰 2px 외곽선 + 바깥 1px `rgba(23,32,43,0.2)`. 핀 꼬리 모양을 쓰는 경우 높이 28px, 같은 색.
 - 반경 500m 원: `--color-map-radius-fill` + 1.5px 점선 `--color-map-radius-stroke`.
 - 분석 불가 지점: `--color-map-invalid-marker` 회색, 반경 원 없음.
+- 두 위치 비교 중(§8.15): A = 지름 20px 채운 `--color-map-marker` + 흰 "A"(700 11px), B = 20px 흰 채움 + `--color-map-marker` 2px 테두리 + 같은 색 "B". B를 고르기 전에도 A는 글자 마커. 분석 불가 B는 같은 모양에 `--color-map-invalid-marker` 테두리·글자, 반경 원 없음. B 반경 500m는 A와 같은 채움·색, 선 모양만 점(`dot`, A는 `shortdash`). 범례 "A 기준 위치 · B 비교 위치 · A 반경 500m · B 반경 500m · 분석된 행정동 경계".
 - 동종 점포(§8.14): 지름 10px 원 `--color-map-store` + 흰 1.5px 외곽선, 누를 수 있다(선택 지점보다 작게). 선택되면 14px + `--color-text-primary` 2px 링. 범례에 "같은 업종 점포"(마커가 있을 때만). 누르면 정보창(상호·주소·직선거리·닫기, `--color-surface` + 1px `--color-border`). 정보창 내용은 DOM `textContent`로 만든다(상호명을 HTML로 해석하지 않는다). 마커를 눌러도 지도 클릭(새 위치 선택)으로 번지지 않는다.
 - 현재 위치(사용자 GPS)를 쓰게 되면: 지름 12px `--color-info` + 반투명 정확도 원 — 선택 지점과 모양이 달라야 한다.
 
@@ -559,7 +560,8 @@
 - 차이 셀은 중립색(`--color-text-primary`), 부호는 `+`·U+2212. 큰 쪽 강조·화살표·우열 단어 금지. 점수 칸 아래 "병목"(25 미만 `--color-warning`)·"가장 강한 관점" caption은 그 위치 안의 사실.
 - 위치별 전체 결과: 막대(비교 중 · {A 기준 위치|B 비교 위치} 전체 결과 + 최근접역·좌표 보기 | "비교로 돌아가기" ghost) + 기존 결과(§6, 제목 앞에 "A · "/"B · "). 한 번에 하나만.
 - 헤더 분석 조건: 비교 요약은 칩 "A {구 동}" · "B {구 동}" · 업종, 전체 결과는 그 위치의 Context Bar.
-- 비교 중(요약·전체 결과 포함)에는 점포 목록·점포 마커를 두지 않는다. 지도 A/B 표시·B 동종 점포는 아직 없다(COMPARE_DESIGN.md 11장 B4·B5).
+- 비교 중(요약·전체 결과 포함)에는 점포 목록·점포 마커를 두지 않는다. B 동종 점포는 아직 없다(COMPARE_DESIGN.md 11장 B5).
+- 지도(B4): A/B 마커·반경(§8.11), 성공한 B의 행정동 경계(A와 같은 동이면 한 번만). B를 고르면 B로, 비교가 끝나면 A로 `panTo`(zoom 유지, 자동 확대 없음). 지도 아래 안내 칩: B 고르기 전·고른 뒤·분석 중·오류·성공별 문구(COMPARE_DESIGN.md 4.1). mobile 안내 칩은 NAVER 로고 위 `bottom: --space-12`.
 
 ## 9. Data Density & Progressive Disclosure
 

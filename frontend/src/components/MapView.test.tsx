@@ -1,7 +1,17 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import type { Mock } from 'vitest'
 import { resetNaverMapsLoaderForTest, type NaverMapsApi } from '../map/naverMaps.ts'
-import { MapView, type MapStore, type MapViewProps } from './MapView.tsx'
+import { findDongRings } from '../map/dongBoundary.ts'
+import { MapView, type MapCompare, type MapStore, type MapViewProps } from './MapView.tsx'
+
+// 행정동 경계 파일(약 600KB) 대신 동마다 작은 사각형 하나 — 어떤 동을 요청했는지와 polygon 생성·제거만 본다
+vi.mock('../map/dongBoundary.ts', () => ({
+  findDongRings: vi.fn(async () => [[[
+    { lat: 37.48, lng: 126.72 },
+    { lat: 37.49, lng: 126.72 },
+    { lat: 37.49, lng: 126.73 },
+  ]]]),
+}))
 
 // NAVER SDK 경계 계약만 본다 — 실제 SDK 대신 window.naver.maps에 fake를 둔다(로더는 이미 로드된 SDK를 그대로 쓴다).
 class FakeLatLng {
@@ -321,5 +331,177 @@ describe('MapView — 점포 정보창 닫기 접근성 (4차 보완, DESIGN.md 
     infos[0]!.content.querySelector('button')!.click()
     expect(view.onStoreSelect).toHaveBeenCalledWith(null)
     expect(document.activeElement).toBe(view.section)
+  })
+})
+
+describe('MapView — 두 위치 비교 A/B 표시 (5차-B4, COMPARE_DESIGN.md 4.2)', () => {
+  const A = { lat: 37.4894, lng: 126.7246 }
+  const A_DONG = { guCode: '28237', dongName: '부평1동' }
+  const B1 = { lat: 37.4475, lng: 126.7015 }
+  const B2 = { lat: 37.392512, lng: 126.639034 }
+  const GUIDE = 'B 위치를 고르세요 · A: 부평구 부평1동'
+  const cmp = (over: Partial<MapCompare> = {}): MapCompare => ({ location: null, tone: 'selected', dong: null, guide: GUIDE, ...over })
+  const base = (compare: MapCompare | null) => props({ selected: A, dong: A_DONG, compare })
+
+  type Opts = { icon?: { content: string }; strokeStyle?: string; radius?: number; clickable?: boolean; position?: FakeLatLng }
+  const markerOpts = () => vi.mocked(fakeSdk.Marker).mock.calls.map(([o]) => o as Opts)
+  const markerObjs = () => vi.mocked(fakeSdk.Marker).mock.results.map((r) => r.value)
+  const circleOpts = () => vi.mocked(fakeSdk.Circle).mock.calls.map(([o]) => o as Opts)
+  const circleObjs = () => vi.mocked(fakeSdk.Circle).mock.results.map((r) => r.value)
+  const polygonObjs = () => vi.mocked(fakeSdk.Polygon).mock.results.map((r) => r.value)
+  const lastIcon = (m: { setIcon: Mock }) => (m.setIcon.mock.calls.at(-1)![0] as { content: string }).content
+  /** 마커 i의 지금 아이콘: 마지막 setIcon, 없으면 만들 때 아이콘 */
+  const currentIcon = (i: number) =>
+    markerObjs()[i]!.setIcon.mock.calls.length > 0 ? lastIcon(markerObjs()[i]!) : markerOpts()[i]!.icon!.content
+
+  beforeEach(() => {
+    vi.mocked(fakeSdk.Circle).mockClear()
+    vi.mocked(fakeSdk.Polygon).mockClear()
+    vi.mocked(findDongRings).mockClear()
+  })
+
+  async function mountA(compare: MapCompare | null = null) {
+    const view = await mount(base(compare))
+    await waitFor(() => expect(polygonObjs().length).toBeGreaterThanOrEqual(1))   // A 행정동 경계
+    return { ...view, show: (c: MapCompare | null) => view.rerender(<MapView {...base(c)} />) }
+  }
+
+  it('비교를 시작하면(B를 고르기 전에도) A는 글자 "A" 마커가 되고, 범례·안내가 비교용으로 바뀐다', async () => {
+    const view = await mountA()
+    expect(markerOpts()[0]!.icon!.content).toBe('<div class="map-marker map-marker--selected"></div>')
+    expect(screen.getByRole('list', { name: '지도 범례' })).toHaveTextContent('선택 지점')
+
+    view.show(cmp())
+    expect(currentIcon(0)).toBe('<div class="map-marker map-marker--letter map-marker--a">A</div>')
+    expect(markerOpts()).toHaveLength(1)                              // B 마커는 아직 없다
+    expect(circleOpts()).toHaveLength(1)                              // A 반경만
+    const legend = screen.getByRole('list', { name: '지도 범례' })
+    expect([...legend.querySelectorAll('li')].map((li) => li.textContent)).toEqual([
+      'A 기준 위치',
+      'B 비교 위치',
+      'A 반경 500m',
+      'B 반경 500m',
+      '분석된 행정동 경계',
+    ])
+    expect(screen.getByText(GUIDE)).toHaveClass('map__guide')
+    expect(maps).toHaveLength(1)
+  })
+
+  it('B를 고르면 흰 채움 "B" 마커와 점선 반경 500m를 만들고 B로 옮긴다. 다시 고르면 같은 오버레이를 옮긴다 (확대 수준 그대로)', async () => {
+    const view = await mountA(cmp())
+    view.show(cmp({ location: B1 }))
+
+    expect(markerOpts()).toHaveLength(2)
+    const b = markerOpts()[1]!
+    expect(b.icon!.content).toBe('<div class="map-marker map-marker--letter map-marker--b">B</div>')
+    expect(b.clickable).toBe(false)                                    // 지도 클릭(B 다시 고르기)을 막지 않는다
+    expect(circleOpts().map((c) => [c.strokeStyle, c.radius])).toEqual([
+      ['shortdash', 500],                                              // A
+      ['dot', 500],                                                    // B — 선 모양으로 구분
+    ])
+    expect(view.map.panTo).toHaveBeenLastCalledWith(new FakeLatLng(B1.lat, B1.lng))
+
+    view.show(cmp({ location: B2 }))
+    expect(markerOpts()).toHaveLength(2)                               // 새로 만들지 않는다
+    expect(circleOpts()).toHaveLength(2)
+    expect(markerObjs()[1]!.setPosition).toHaveBeenLastCalledWith(new FakeLatLng(B2.lat, B2.lng))
+    expect(circleObjs()[1]!.setCenter).toHaveBeenLastCalledWith(new FakeLatLng(B2.lat, B2.lng))
+    expect(view.map.panTo).toHaveBeenLastCalledWith(new FakeLatLng(B2.lat, B2.lng))
+    expect(view.map.setZoom).not.toHaveBeenCalled()
+    expect(maps).toHaveLength(1)
+  })
+
+  it('B 분석이 끝나 행정동이 생겨도 좌표가 같으면 다시 옮기지 않는다', async () => {
+    const view = await mountA(cmp({ location: B1 }))
+    const pans = view.map.panTo.mock.calls.length
+    view.show(cmp({ location: B1, dong: { guCode: '28200', dongName: '구월3동' }, guide: null }))
+    expect(view.map.panTo.mock.calls.length).toBe(pans)
+  })
+
+  it('분석 불가 위치(tone invalid)는 회색 B 마커·반경 없음, 위치 문제가 아니면(selected) 반경을 다시 보인다', async () => {
+    const view = await mountA(cmp({ location: B2, tone: 'invalid' }))
+    expect(markerOpts()[1]!.icon!.content).toBe('<div class="map-marker map-marker--letter map-marker--b map-marker--invalid">B</div>')
+    expect(circleOpts()).toHaveLength(1)                               // B 반경을 만들지 않는다
+
+    view.show(cmp({ location: B2, tone: 'selected' }))
+    expect(currentIcon(1)).toBe('<div class="map-marker map-marker--letter map-marker--b">B</div>')
+    expect(circleOpts()).toHaveLength(2)
+
+    view.show(cmp({ location: B2, tone: 'invalid' }))
+    expect(circleObjs()[1]!.setMap).toHaveBeenLastCalledWith(null)
+  })
+
+  it('B 다시 고르기(위치 없음)면 B 마커·반경을 지우고 지도는 옮기지 않는다', async () => {
+    const view = await mountA(cmp({ location: B1 }))
+    const pans = view.map.panTo.mock.calls.length
+    view.show(cmp({ location: null }))
+    expect(markerObjs()[1]!.setMap).toHaveBeenLastCalledWith(null)
+    expect(circleObjs()[1]!.setMap).toHaveBeenLastCalledWith(null)
+    expect(view.map.panTo.mock.calls.length).toBe(pans)
+    expect(currentIcon(0)).toContain('map-marker--a')                  // A 글자 마커는 그대로
+  })
+
+  it('비교를 끝내면 B를 지우고 A는 단일 분석 마커로 돌아가며 A로 옮긴다 (지도·확대 수준 그대로)', async () => {
+    const view = await mountA(cmp({ location: B1, dong: { guCode: '28200', dongName: '구월3동' } }))
+    await waitFor(() => expect(polygonObjs()).toHaveLength(2))
+    view.show(null)
+
+    expect(markerObjs()[1]!.setMap).toHaveBeenLastCalledWith(null)
+    expect(circleObjs()[1]!.setMap).toHaveBeenLastCalledWith(null)
+    expect(polygonObjs()[1]!.setMap).toHaveBeenLastCalledWith(null)    // B 경계
+    expect(polygonObjs()[0]!.setMap).not.toHaveBeenCalledWith(null)    // A 경계는 그대로
+    expect(currentIcon(0)).toBe('<div class="map-marker map-marker--selected"></div>')
+    expect(view.map.panTo).toHaveBeenLastCalledWith(new FakeLatLng(A.lat, A.lng))
+    expect(screen.getByRole('list', { name: '지도 범례' })).toHaveTextContent('선택 지점')
+    expect(screen.queryByText(GUIDE)).not.toBeInTheDocument()
+    expect(view.map.setZoom).not.toHaveBeenCalled()
+    expect(maps).toHaveLength(1)
+  })
+
+  it('B 행정동 경계: 같은 동이면 다시 그리지 않고, 같은 구의 다른 동은 그리며, 바뀌거나 지우면 이전 B 경계를 지운다', async () => {
+    const view = await mountA(cmp({ location: B1 }))
+
+    view.show(cmp({ location: B1, dong: { ...A_DONG } }))             // 같은 동
+    await Promise.resolve()
+    expect(vi.mocked(findDongRings).mock.calls).toEqual([['28237', '부평1동']])
+    expect(polygonObjs()).toHaveLength(1)
+
+    view.show(cmp({ location: B1, dong: { guCode: '28237', dongName: '산곡2동' } }))   // 같은 구 다른 동
+    await waitFor(() => expect(polygonObjs()).toHaveLength(2))
+    expect(vi.mocked(findDongRings)).toHaveBeenLastCalledWith('28237', '산곡2동')
+
+    view.show(cmp({ location: B2, dong: { guCode: '28185', dongName: '송도2동' } }))   // B 바뀜
+    await waitFor(() => expect(polygonObjs()).toHaveLength(3))
+    expect(polygonObjs()[1]!.setMap).toHaveBeenLastCalledWith(null)    // 이전 B 경계
+
+    view.show(cmp({ location: null }))                                 // 다시 고르기
+    expect(polygonObjs()[2]!.setMap).toHaveBeenLastCalledWith(null)
+    expect(polygonObjs()[0]!.setMap).not.toHaveBeenCalledWith(null)
+  })
+
+  it('B 표시가 바뀌어도 포커스를 옮기지 않는다 (패널 포커스를 빼앗지 않음)', async () => {
+    const outside = document.createElement('button')
+    document.body.appendChild(outside)
+    const view = await mountA(cmp())
+    outside.focus()
+    view.show(cmp({ location: B1 }))
+    view.show(cmp({ location: B1, dong: { guCode: '28200', dongName: '구월3동' }, guide: null }))
+    view.show(null)
+    expect(document.activeElement).toBe(outside)
+    outside.remove()
+  })
+
+  it('비교 중 지도 클릭은 onSelect로 넘기고(App이 B로 해석), interactive=false(B 분석 중)면 무시한다', async () => {
+    const onSelect = vi.fn()
+    const view = await mount(props({ selected: A, dong: A_DONG, compare: cmp(), onSelect }))
+    const click = listeners.find((l) => l.target === view.map && l.type === 'click')!.handler as unknown as (e: unknown) => void
+    click({ coord: new FakeLatLng(37.4475004, 126.7015004) })
+    expect(onSelect).toHaveBeenCalledWith({ lat: 37.4475, lng: 126.7015 })
+
+    view.rerender(<MapView {...props({ selected: A, dong: A_DONG, compare: cmp({ location: B1, guide: 'B 위치 분석 중…' }), onSelect, interactive: false })} />)
+    expect(screen.getByText('B 위치 분석 중…')).toBeInTheDocument()
+    onSelect.mockClear()
+    click({ coord: new FakeLatLng(37.39, 126.63) })
+    expect(onSelect).not.toHaveBeenCalled()
   })
 })

@@ -9,7 +9,7 @@ import { ConditionPanel, type BusinessesState } from './components/ConditionPane
 import { CompareContextBar, ContextBar } from './components/ContextBar.tsx'
 import { ErrorBlock } from './components/ErrorBlock.tsx'
 import { LocationSummary } from './components/LocationSummary.tsx'
-import { MapView, type LatLng, type MapStore } from './components/MapView.tsx'
+import { MapView, type LatLng, type MapCompare, type MapStore } from './components/MapView.tsx'
 import { NearbyStores, type NearbyState } from './components/NearbyStores.tsx'
 import type { CompareSide } from './lib/compare.ts'
 import { COMPARE_IDS, sameCoordinates, type CompareState, type CompareView } from './lib/compareState.ts'
@@ -359,6 +359,35 @@ function App() {
   const markerTone =
     failure?.kind === 'api' && INVALID_LOCATION_CODES.has(failure.error.code) ? 'invalid' : 'selected'
 
+  // 지도 B 표시 (5차-B4, COMPARE_DESIGN.md 4.1·4.2). 비교 요약·A 전체·B 전체를 오가도 같은 값이다(화면 상태와 무관)
+  const mapCompare: MapCompare | null =
+    result && compare.status !== 'off'
+      ? {
+          location: compare.location,
+          // 분석 불가 위치 오류만 회색(반경 없음). 서버·네트워크·응답 형식 오류는 위치 문제가 아니다
+          tone:
+            compare.status === 'error' &&
+            compare.failure.kind === 'api' &&
+            INVALID_LOCATION_CODES.has(compare.failure.error.code)
+              ? 'invalid'
+              : 'selected',
+          dong:
+            compare.status === 'success'
+              ? { guCode: compare.response.context.gu_code, dongName: compare.response.context.dong_name }
+              : null,
+          guide:
+            compare.status === 'loading'
+              ? 'B 위치 분석 중…'
+              : compare.status === 'success'
+                ? '지도를 누르면 B 위치를 다시 고릅니다'
+                : compare.status === 'error'
+                  ? `B 위치를 다시 고르세요 · A: ${locationName(result.context)}`
+                  : compare.location
+                    ? 'B 위치를 골랐습니다 · "B 분석하기"로 분석합니다'
+                    : `B 위치를 고르세요 · A: ${locationName(result.context)}`,
+        }
+      : null
+
   const compared = compare.status === 'success' ? compare.response : null
   // 헤더 분석 조건: 비교 요약은 A·B를 함께, 전체 결과는 보고 있는 위치, 그 밖(단일 결과·B 고르기)은 A
   const headerBar = !result ? null : compared && compareView === 'summary' ? (
@@ -493,6 +522,7 @@ function App() {
             stores={comparing ? null : mapStores}
             activeStoreId={comparing ? null : activeStoreId}
             onStoreSelect={selectStore}
+            compare={mapCompare}
           />
           {/* mobile 지도 화면 하단 sheet (peek): 선택 확인 → 패널로. 비교 중에는 B 선택용 sheet */}
           {result && compare.status !== 'off' ? (

@@ -47,3 +47,12 @@ describe('mobile 지도 화면 레이아웃', () => {
     expect(mobileRule('.app[data-screen="map"] .workspace__map')).toMatch(/min-width:\s*0;/)
   })
 })
+
+describe('지도 안내 칩 위치 (5차-B4)', () => {
+  it('mobile에서는 NAVER 로고·축척 위(점포 막대와 같은 높이)에 두고, 내용 폭으로 한 줄을 유지한다', () => {
+    const mobile = [...mapCss.matchAll(/@media \(max-width: 639px\) \{([\s\S]*?)\n\}/g)].map((m) => m[1]).join('\n')
+    const rule = mobile.slice(mobile.indexOf('.map__guide {'))
+    expect(rule).toMatch(/^\.map__guide \{[^}]*bottom: var\(--space-12\);/)
+    expect(rule).toMatch(/^\.map__guide \{[^}]*width: max-content;/)
+  })
+})

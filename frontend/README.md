@@ -49,7 +49,7 @@ src/
   api/client.ts         GET /businesses · POST /analyze · POST /nearby-stores. 응답은 모두 schema 검증, 실패는 api/network/schema로 구분
   map/naverMaps.ts      NAVER Maps SDK singleton loader + 이 앱이 쓰는 SDK 타입
   map/dongBoundary.ts   분석된 행정동 경계: data/geo 원본을 ?url로 참조(복사하지 않음), context의 (gu_code, dong_name)으로 찾음
-  components/MapView    지도 클릭 → 좌표, 마커 + 반경 500m 원, 행정동 경계 강조. SDK는 여기서만 쓴다
+  components/MapView    지도 클릭 → 좌표, 마커 + 반경 500m 원, 행정동 경계 강조, 두 위치 비교 A/B 표시(compare prop). SDK는 여기서만 쓴다
   components/ConditionPanel  단계 표시 · 위치(좌표 직접 입력 포함) · 업종 select(그룹) · 분석하기
   components/CoordinateForm  위도·경도 입력(지도 클릭의 키보드 대안). 조건 패널과 두 위치 비교(B)가 같이 쓴다
   components/ComparePanel    두 위치 비교 B 고르기: A 요약 · B 위치 입력·분석·오류(패널) + CompareSheet(mobile sheet)

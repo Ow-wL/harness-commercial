@@ -19,6 +19,12 @@ vi.mock('./components/MapView.tsx', () => ({
       data-dong={props.dong ? `${props.dong.guCode} ${props.dong.dongName}` : ''}
       data-stores={props.stores ? String(props.stores.length) : ''}
       data-active-store={props.activeStoreId ?? ''}
+      data-interactive={String(props.interactive)}
+      data-compare={props.compare ? 'on' : undefined}
+      data-compare-location={props.compare ? (props.compare.location ? `${props.compare.location.lat},${props.compare.location.lng}` : '') : undefined}
+      data-compare-tone={props.compare?.tone}
+      data-compare-dong={props.compare ? (props.compare.dong ? `${props.compare.dong.guCode} ${props.compare.dong.dongName}` : '') : undefined}
+      data-compare-guide={props.compare?.guide ?? undefined}
     >
       <button type="button" onClick={() => props.interactive && props.onSelect({ lat: 37.4894, lng: 126.7246 })}>
         지도 클릭: 부평역
@@ -778,6 +784,106 @@ describe('두 위치 비교 — B 분석 상태 (5차-B2, docs/COMPARE_DESIGN.md
       expect(within(bCard()).getByLabelText('B 위도')).toBeInTheDocument()
       expect(aCard()).toHaveTextContent('부평구 부평1동 · 종합 65.8')
       expect(document.activeElement).toBe(within(panel()).getByRole('heading', { name: 'B 비교 위치' }))
+    })
+  })
+
+  describe('지도 A/B 표시 값 (5차-B4)', () => {
+    const map = () => screen.getByTestId('map')
+
+    it('B 선택·분석 중·성공에 따라 B 위치·안내·행정동을 넘기고, 화면을 오가도 같으며, 종료하면 지운다', async () => {
+      const b = pending()
+      await analyzeA([b.promise])
+      expect(map()).not.toHaveAttribute('data-compare')
+
+      startCompare()
+      expect(map()).toHaveAttribute('data-compare', 'on')
+      expect(map()).toHaveAttribute('data-compare-location', '')
+      expect(map()).toHaveAttribute('data-compare-guide', 'B 위치를 고르세요 · A: 부평구 부평1동')
+      expect(map()).toHaveAttribute('data-selected', '37.4894,126.7246')     // A는 그대로
+
+      fireEvent.click(screen.getByRole('button', { name: '지도 클릭: 송도' }))
+      expect(map()).toHaveAttribute('data-compare-location', '37.392512,126.639034')
+      expect(map()).toHaveAttribute('data-compare-guide', 'B 위치를 골랐습니다 · "B 분석하기"로 분석합니다')
+      expect(map()).toHaveAttribute('data-compare-dong', '')
+
+      analyzeB()
+      expect(map()).toHaveAttribute('data-compare-guide', 'B 위치 분석 중…')
+      expect(map()).toHaveAttribute('data-interactive', 'false')               // 분석 중 클릭 무시
+      expect(map()).toHaveAttribute('data-compare-dong', '')                   // 성공 전에는 B 경계 없음
+
+      await act(async () => b.respond(ok(songdoFixture)))
+      expect(map()).toHaveAttribute('data-interactive', 'true')
+      expect(map()).toHaveAttribute('data-compare-dong', '28185 송도2동')
+      expect(map()).toHaveAttribute('data-compare-tone', 'selected')
+      expect(map()).toHaveAttribute('data-compare-guide', '지도를 누르면 B 위치를 다시 고릅니다')
+      const shown = () =>
+        ['data-selected', 'data-dong', 'data-compare-location', 'data-compare-dong', 'data-compare-tone'].map((k) => map().getAttribute(k))
+      const summary = shown()
+
+      fireEvent.click(screen.getByRole('button', { name: 'B 전체 결과 보기' }))
+      expect(shown()).toEqual(summary)
+      fireEvent.click(screen.getByRole('button', { name: '비교로 돌아가기' }))
+      fireEvent.click(screen.getByRole('button', { name: 'A 전체 결과 보기' }))
+      expect(shown()).toEqual(summary)
+      fireEvent.click(screen.getByRole('button', { name: '비교로 돌아가기' }))
+
+      fireEvent.click(within(panel()).getByRole('button', { name: '비교 종료' }))
+      expect(map()).not.toHaveAttribute('data-compare')
+      expect(map()).toHaveAttribute('data-selected', '37.4894,126.7246')
+      expect(map()).toHaveAttribute('data-dong', '28237 부평1동')
+    })
+
+    it.each([
+      ['location_outside', 'invalid', 422],
+      ['no_data_nearby', 'invalid', 422],
+      ['invalid_coordinate', 'invalid', 422],
+      ['internal_error', 'selected', 500],
+    ])('B 오류 %s → 지도 B 표시 %s (분석 불가 위치만 회색·반경 없음)', async (code, tone, status) => {
+      const body = code === 'internal_error' ? internalError : { error: { code, message: 'x' } }
+      await analyzeA([{ status, body }])
+      startCompare()
+      fireEvent.click(screen.getByRole('button', { name: '지도 클릭: 송도' }))
+      analyzeB()
+      await within(bCard()).findByRole('alert')
+      expect(map()).toHaveAttribute('data-compare-tone', tone)
+      expect(map()).toHaveAttribute('data-compare-location', '37.392512,126.639034')
+      expect(map()).toHaveAttribute('data-compare-dong', '')
+      expect(map()).toHaveAttribute('data-compare-guide', 'B 위치를 다시 고르세요 · A: 부평구 부평1동')
+    })
+
+    it('네트워크 오류도 위치 오류로 보지 않는다', async () => {
+      await analyzeA(['network-error'])
+      startCompare()
+      fireEvent.click(screen.getByRole('button', { name: '지도 클릭: 송도' }))
+      analyzeB()
+      await within(bCard()).findByRole('alert')
+      expect(map()).toHaveAttribute('data-compare-tone', 'selected')
+    })
+
+    it('B 다시 고르기·취소 뒤에는 이전 B 위치·경계를 넘기지 않는다', async () => {
+      await analyzeA([ok(songdoFixture)])
+      startCompare()
+      fireEvent.click(screen.getByRole('button', { name: '지도 클릭: 송도' }))
+      analyzeB()
+      await screen.findByRole('table', { name: /종합·5대 관점 점수 비교/ })
+      expect(map()).toHaveAttribute('data-compare-dong', '28185 송도2동')
+
+      fireEvent.click(within(bCard()).getByRole('button', { name: 'B 위치 다시 고르기' }))
+      expect(map()).toHaveAttribute('data-compare-location', '')
+      expect(map()).toHaveAttribute('data-compare-dong', '')
+
+      fireEvent.click(within(panel()).getByRole('button', { name: '비교 취소' }))
+      expect(map()).not.toHaveAttribute('data-compare')
+    })
+
+    it('B 성공 뒤 패널 포커스(비교 제목)는 지도 갱신으로 바뀌지 않는다', async () => {
+      await analyzeA([ok(guwolFixture)])
+      startCompare()
+      typeB(37.4475, 126.7015)
+      analyzeB()
+      await screen.findByRole('table', { name: /종합·5대 관점 점수 비교/ })
+      expect(map()).toHaveAttribute('data-compare-dong', '28200 구월3동')
+      expect(document.activeElement).toBe(screen.getByRole('heading', { level: 1, name: PANEL }))
     })
   })
 
