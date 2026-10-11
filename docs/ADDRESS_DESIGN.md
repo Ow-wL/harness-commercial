@@ -44,7 +44,7 @@
 → 기존 계획의 "Client ID만으로 가능"은 **Web SDK 서브모듈 경로에 한해 사실**이다. REST를 직접 부르려면 Client Secret이 필요하므로 브라우저에서는 쓸 수 없고 서버 경유가 필요하다.
 
 ### 3.2 API 활성화 조건 (둘 다 동일)
-- Application 설정에서 **Geocoding과 Reverse Geocoding을 각각 선택**해야 한다. 문서상 선택하지 않은 API를 부르면 **429 (Quota Exceed)**. (geocoder 모듈 "사전 준비 사항", Maps API 개요) — 7-B0 실측(§11)에서는 **403**이 왔고 원인은 아직 확인되지 않았다(문서의 429와 다르며, 미선택·상품 소속·권한·URL 중 어느 것인지 콘솔 확인 전에는 단정하지 않는다).
+- Application 설정에서 **Geocoding과 Reverse Geocoding을 각각 선택**해야 한다. 문서상 선택하지 않은 API를 부르면 **429 (Quota Exceed)**. (geocoder 모듈 "사전 준비 사항", Maps API 개요) — 7-B0 실측(§11)에서는 미선택 상태에서 **403**이 왔고, 두 API를 선택한 뒤 같은 조건에서 200이 됐다(§11.3) — 문서의 429와 달리 이 Application에서는 미선택이 403으로 나타났다.
 - Web Dynamic Map은 **Web 서비스 URL** 등록이 필수(최대 10개, http/https 구분 없음, www 생략). 미등록 URL에서는 인증 실패(`navermap_authFailure`). 이미 등록된 `http://localhost:5173`·Cloud Run URL이 Geocoder에도 그대로 적용된다.
 - 서브모듈 호출도 **같은 Application의 Geocoding/Reverse Geocoding 일일 허용량을 소비**한다("Geocoder는 Geocoding와 ReverseGeocoding의 일일 허용량을 사용합니다"). 요금은 Web SDK·REST 구분 없이 **상품별로 부과**된다.
 
@@ -130,6 +130,7 @@ src/components/AddressSearch.tsx     주소 검색 폼 + 결과 목록 → onSel
     사용자 문구는 `invalid`를 뺀 모든 오류에서 같다("주소 기능을 지금 쓸 수 없습니다 …"). 원인 확인은 콘솔·DevTools(HTTP 상태)에서 한다. 문자열 추측(예: 메시지에 "quota"가 있으면 할당량)으로 분류하지 않는다.
   - `reverseGeocode(api, point) → Promise<AddressResult>` : `{ status:'ok', roadAddress|null, jibunAddress|null } | { status:'none' } (code 3) | { status:'error', kind }`
   - 좌표 변환: SDK는 `x`=경도·`y`=위도 **문자열** → `Number()` 후 유한성 검사(아니면 `schema`). `coords`는 `'lng,lat'` 순서.
+  - 문자열 정규화: 실제 응답의 주소 문자열에 이중 공백이 있다(`'인천광역시 부평구 광장로  16 부평민자역사'`, §11.3). adapter가 `trim()` + 연속 공백 1칸으로 정규화한 뒤 넘긴다(표시용일 뿐 좌표·요청에는 영향 없음). 빈 문자열은 `null`로.
   - timeout 8초(SDK 콜백이 오지 않는 경우) → `timeout`. 콜백은 1회만 반영(이중 호출 방어).
   - 로그: `console.warn('[geocoder] …', { kind, status })`만. **query·좌표 외 인증값은 로그에 없다**(Client Secret 자체가 없고, Client ID는 script URL에 이미 공개).
   - 할당량 초과·API 미선택·권한 문제는 SDK 콜백에서는 모두 `status === ERROR`(응답 없음)로만 보인다 → `unknown`. 앱은 이를 구별하지 않고, 운영자는 콘솔 사용량·DevTools HTTP 상태로 본다.
@@ -237,7 +238,7 @@ src/components/AddressSearch.tsx     주소 검색 폼 + 결과 목록 → onSel
 NAVER Cloud Platform 콘솔(https://console.ncloud.com) — 값은 이 저장소·대화에 적지 않는다.
 1. **상품 소속**: 이 앱의 Client ID(`VITE_NAVER_MAP_CLIENT_ID`)가 **Services > Application Services > Maps**(2025-03 신규 상품)의 Application인지, 구 **AI·NAVER API > Application**인지. 구 상품이면 2025-07-01부터 무료 이용량이 없고 종료 예정이므로 **Maps 상품에 새 Application을 만들고 Client ID를 교체**해야 한다(교체 시 `.env`·Cloud Run build arg만 바뀜, 코드 변경 없음).
 2. **대표 계정**: Application 화면 "대표 계정 확인". 아니면 Geocoding·Reverse Geocoding이 **첫 호출부터 0.5원/건** 과금 — 진행 여부 결정 필요.
-3. **API 선택**: Application 수정에서 **Geocoding**, **Reverse Geocoding** 체크(Dynamic Map은 이미 선택). 문서상 미선택이면 429(7-B0 실측은 403, §11). 선택 뒤에도 403이 계속되면 Web 서비스 URL·권한·상품 소속을 함께 본다 — Dynamic Map이 되는 것만으로 Geocoder 쪽 설정이 맞다고 보지 않는다.
+3. **API 선택**: Application 수정에서 **Geocoding**, **Reverse Geocoding** 체크(Dynamic Map은 이미 선택). 문서상 미선택이면 429이지만 이 Application에서는 미선택 상태가 **403**으로 나타났고, 선택 뒤 200이 됐다(§11.3, 2026-10-12 사용자 확인·재검증 완료). 운영 점검 시 403이 보이면 API 선택부터 확인하고, 그래도 계속되면 Web 서비스 URL·권한·상품 소속을 함께 본다 — Dynamic Map이 되는 것만으로 Geocoder 쪽 설정이 맞다고 보지 않는다.
 4. **Web 서비스 URL**: `http://localhost:5173`(및 쓰는 다른 포트), Cloud Run URL이 등록돼 있는지(지도가 뜨고 있으므로 등록돼 있을 것).
 5. **한도 및 알림 설정**: Geocoding·Reverse Geocoding 각각 **일 한도**(예: 1,000건)·**월 한도**(예: 10,000건)와 통보 대상 등록. 과제 규모에서 무료량(월 3,000,000) 안이지만, 브라우저 호출이라 상한을 둔다. 값은 사용자 결정.
 6. **인증 정보 보호**: Client Secret은 어떤 파일·환경변수에도 넣지 않는다(이 설계에서 쓰지 않는다). `.env`는 `.gitignore`(기존).
@@ -264,7 +265,7 @@ NAVER Cloud Platform 콘솔(https://console.ncloud.com) — 값은 이 저장소
 
 ---
 
-## 11. 7-B0 기록 (2026-10-12) — 상태: **준비 시점 확인 완료 / 정상 호출 확인 대기** (구현 시작 안 함)
+## 11. 7-B0 기록 (2026-10-12) — 상태: **준비 시점 확인 완료 / 정상 호출 확인 완료** (구현·배포 시작 안 함, §11.3)
 
 **방법:** `frontend/spike/geocoder-spike.html`을 vite dev(`http://localhost:5173`, 등록된 Web 서비스 URL)에서 열어 SDK를 `submodules=geocoder&callback=__spikeReady`로 **한 번** 로드. 앱 페이지(SDK가 이미 로드된 곳)에는 손대지 않았다. 호출은 역방향 1회·정방향 1회뿐이다(이 밖의 호출 0건). Client ID는 `.env`에서 읽고 로그·문서에 적지 않았다.
 
@@ -290,7 +291,40 @@ SDK는 `maps.js` 뒤에 `https://oapi.map.naver.com/openapi/v3/maps-geocoder.js`
   - 두 요청 모두 HTTP **403**(브라우저 리소스 타이밍 `responseStatus`·콘솔 "Failed to load resource: 403"). SDK 콜백은 둘 다 `status 500(ERROR)`이고 `response`가 없었다 — **SDK만 보면 원인 불명(`unknown`)**이다. 응답 본문은 받지 못했다.
   - 같은 페이지에서 `maps.js`·`maps-geocoder.js` 로드는 정상이었고 `navermap_authFailure`는 불리지 않았다. 지도 로드가 서브모듈 때문에 깨지는 일은 없었다.
   - 콘솔 오류는 위 403 두 건뿐(그 밖은 vite HMR 로그).
-- **추정(미확인)**: 403의 원인 후보는 ① Application에서 Geocoding·Reverse Geocoding 미선택, ② 이 Client ID가 구 AI NAVER API 상품 소속, ③ Geocoder 쪽 URL·권한 설정 문제다. **Dynamic Map이 같은 origin·Client ID로 정상인 것은 ①~③ 중 어느 것도 배제하지 못한다**(Dynamic Map과 Geocoder는 별도 API·권한이다). 공식 문서는 미선택 API를 429로 적고 있어 실측 403과 다르다 — 이 차이도 콘솔 확인 전에는 설명하지 않는다.
+- **추정(1차 호출 시점, §11.3에서 원인 확인됨)**: 403의 원인 후보는 ① Application에서 Geocoding·Reverse Geocoding 미선택, ② 이 Client ID가 구 AI NAVER API 상품 소속, ③ Geocoder 쪽 URL·권한 설정 문제다. **Dynamic Map이 같은 origin·Client ID로 정상인 것은 ①~③ 중 어느 것도 배제하지 못한다**(Dynamic Map과 Geocoder는 별도 API·권한이다). 공식 문서는 미선택 API를 429로 적고 있어 실측 403과 다르다 — 이 차이도 콘솔 확인 전에는 설명하지 않는다.
 - 설계 반영: adapter는 HTTP 상태를 알 수 없으므로 403·429를 추정 분류하지 않고 `unknown`으로 둔다(§5.1). fixture는 정상 응답을 받은 뒤 저장한다.
 
-**다음 행동(사용자, §9):** ① Application 소속 상품(신규 Maps / 구 AI NAVER API) 확인 → ② Geocoding·Reverse Geocoding 선택 → ③ Web 서비스 URL·권한 재확인 → ④ 대표 계정·한도 설정 확인(계정·과금·한도는 사용자 확인 대기). 완료 후 알려 주면 스파이크 페이지에서 **각 1회만** 다시 호출해 §11을 "정상 호출 확인"으로 갱신하고, 그 결과를 보고 7-B1 착수 여부를 결정한다. 그 전에는 추가 API 호출을 하지 않는다.
+위 1차 호출 뒤의 다음 행동은 §9 콘솔 확인이었다 → §11.3.
+
+### 11.3 콘솔 확인과 재검증 (2026-10-12, 같은 날 뒤)
+
+**사용자 확인 사실(NAVER 콘솔, 사용자 보고):**
+
+| §9 항목 | 확인 결과 |
+|---|---|
+| 1 상품 소속 | **신규 Maps 상품**의 Application |
+| 2 대표 계정 | **대표 계정** (무료 이용량 대상) |
+| 3 API 선택 | Geocoding·Reverse Geocoding이 **미선택이었음** → 둘 다 체크하고 저장 완료 |
+| 5 한도 및 알림 | **아직 설정하지 않음** (값은 사용자 결정, 7-B1 전까지 권장) |
+
+(4 Web 서비스 URL은 이번 보고에 없음 — 아래 재검증 성공으로 `http://localhost:5173`은 Geocoder에도 유효함이 확인됐다. Cloud Run URL은 운영 배포 전 §9-4로 확인한다.)
+
+**재검증 결과(사실):** 같은 스파이크 페이지를 새로 열어 SDK를 **한 번만** 로드(`sdkScripts` 2 = `maps.js` + `maps-geocoder.js`), 역방향·정방향 **각 1회** 호출. 실패 시 반복하지 않도록 버튼은 1회 뒤 비활성.
+
+| 항목 | 역방향 `reverseGeocode` | 정방향 `geocode` |
+|---|---|---|
+| 요청 | `coords '126.7246,37.4894'`, `orders 'roadaddr,addr'` | `query '인천광역시 부평구 부평대로 1'`, `coordinate '126.7052,37.4563'`, `count 5` |
+| SDK 콜백 `status` | **200** (`Service.Status.OK`) | **200** |
+| HTTP(리소스 타이밍 `responseStatus`) | **200**, 52ms | **200**, 122ms |
+| 콜백까지 | 54ms | 123ms |
+| `v2` 구조 | `status {code 0, name 'ok', message 'done'}`, `results[2]`(`roadaddr`, `addr` — `code.type 'L'`, `region.area1~3` 인천광역시/부평구/부평동, `land`), `address {roadAddress '인천광역시 부평구 광장로  16 부평민자역사', jibunAddress '인천광역시 부평구 부평동  738-21'}` | `status 'OK'`, `meta {totalCount 1, page 1, count 1}`, `addresses[1]` — `roadAddress '인천광역시 부평구 부평대로 3'`, `jibunAddress '… 부평동 549-39'`, `englishAddress`, `addressElements[9]`(SIDO·SIGUGUN·DONGMYUN·RI·ROAD_NAME·BUILDING_NUMBER·BUILDING_NAME·LAND_NUMBER·POSTAL_CODE, `types`는 배열, `code`는 모두 빈 문자열), `x '126.7227259'`, `y '37.4918321'`(문자열), `distance 4240.06`, `errorMessage ''` |
+| 준비 시점 | `load` 6ms: `Service` 없음 / `callback` 8ms: 있음 (1차와 같음) | |
+
+- 응답 구조는 §3.4의 공식 문서와 일치했다. 설계에 쓰는 필드(`v2.address.roadAddress/jibunAddress`, `addresses[].x/y` 문자열, `addressElements[].types` 배열, `meta`)가 모두 그대로 있다. `address` 문자열에는 **이중 공백**이 있다(`광장로  16`) — 표시 전 공백 정규화를 adapter에 둔다(§5.1 보완 항목).
+- 정방향 `query '… 부평대로 1'`에 대해 결과는 `부평대로 3` 1건(가장 가까운 유효 주소)이었다. 입력 번지가 없으면 근처 번지를 돌려줄 수 있으므로 결과 목록에 도로명·지번을 그대로 보여 사용자가 확인하게 한다(§5.2 A-4 그대로).
+- fixture 저장: `frontend/src/fixtures/geocoder-reverse-bupyeong-station.json`, `geocoder-forward-bupyeong-daero.json` — 응답 그대로 + 요청 파라미터·HTTP 상태·콜백 시간. **인증값·요청 URL은 들어 있지 않다**(파일 내 `ncpKeyId`·`API-KEY`·`apigw` 검색 0건).
+- 콘솔 오류 0건(vite HMR 로그 제외). 이번 재검증의 호출은 정확히 2건이고, 그 밖의 호출은 없었다.
+
+**1차 403의 원인(재검증에 맞춘 표현):** 사용자가 바꾼 설정은 "Geocoding·Reverse Geocoding 선택" 하나이고, 그 뒤 같은 페이지·같은 Client ID·같은 URL에서 두 호출이 200이 됐다. 따라서 1차 403은 **Application에서 두 API가 선택되지 않았던 것**과 일치한다(상품 소속·대표 계정·URL은 사용자 확인과 재검증으로 문제가 아니었음이 확인됨). 공식 문서는 미선택 API를 "429"로 적지만, 이 Application에서는 **403**으로 왔다 — adapter는 HTTP 상태를 볼 수 없으므로 설계(§5.1)대로 `unknown`으로 두고, 운영 점검 항목에 "403도 API 미선택일 수 있다"를 적어 둔다(§9-3).
+
+**상태:** 7-B0 완료 조건 중 "준비 시점 확인"·"정상 호출 확인"·"fixture"는 끝났다. **한도 및 알림 설정(§9-5)은 사용자 미완**이며 7-B1 착수 전 권장 사항으로 남긴다. 7-B1 구현·운영 배포는 별도 승인 뒤 시작한다.

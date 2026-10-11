@@ -1,0 +1,35 @@
+{
+  "_source": "NAVER Maps JS SDK v3 geocoder submodule, naver.maps.Service.geocode — 7-B0 재검증 2026-10-12 (docs/ADDRESS_DESIGN.md §11). 응답 그대로, 인증값·요청 URL 없음",
+  "request": { "query": "인천광역시 부평구 부평대로 1", "coordinate": "126.7052,37.4563", "count": 5 },
+  "http_status": 200,
+  "callback_ms": 123,
+  "status": 200,
+  "response": {
+    "v2": {
+      "status": "OK",
+      "meta": { "totalCount": 1, "page": 1, "count": 1 },
+      "addresses": [
+        {
+          "roadAddress": "인천광역시 부평구 부평대로 3",
+          "jibunAddress": "인천광역시 부평구 부평동 549-39",
+          "englishAddress": "3, Bupyeong-daero, Bupyeong-gu, Incheon, Republic of Korea",
+          "addressElements": [
+            { "types": ["SIDO"], "longName": "인천광역시", "shortName": "인천광역시", "code": "" },
+            { "types": ["SIGUGUN"], "longName": "부평구", "shortName": "부평구", "code": "" },
+            { "types": ["DONGMYUN"], "longName": "부평동", "shortName": "부평동", "code": "" },
+            { "types": ["RI"], "longName": "", "shortName": "", "code": "" },
+            { "types": ["ROAD_NAME"], "longName": "부평대로", "shortName": "부평대로", "code": "" },
+            { "types": ["BUILDING_NUMBER"], "longName": "3", "shortName": "3", "code": "" },
+            { "types": ["BUILDING_NAME"], "longName": "", "shortName": "", "code": "" },
+            { "types": ["LAND_NUMBER"], "longName": "549-39", "shortName": "549-39", "code": "" },
+            { "types": ["POSTAL_CODE"], "longName": "21389", "shortName": "21389", "code": "" }
+          ],
+          "x": "126.7227259",
+          "y": "37.4918321",
+          "distance": 4240.06
+        }
+      ],
+      "errorMessage": ""
+    }
+  }
+}

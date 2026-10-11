@@ -1,0 +1,63 @@
+{
+  "_source": "NAVER Maps JS SDK v3 geocoder submodule, naver.maps.Service.reverseGeocode — 7-B0 재검증 2026-10-12 (docs/ADDRESS_DESIGN.md §11). 응답 그대로, 인증값·요청 URL 없음",
+  "request": { "coords": "126.7246,37.4894", "orders": "roadaddr,addr" },
+  "http_status": 200,
+  "callback_ms": 54,
+  "status": 200,
+  "response": {
+    "v2": {
+      "status": { "code": 0, "name": "ok", "message": "done" },
+      "results": [
+        {
+          "name": "roadaddr",
+          "code": { "id": "2823710100", "type": "L", "mappingId": "11237101" },
+          "region": {
+            "area0": { "name": "kr", "coords": { "center": { "crs": "", "x": 0, "y": 0 } } },
+            "area1": { "name": "인천광역시", "coords": { "center": { "crs": "EPSG:4326", "x": 126.70515, "y": 37.455942 } }, "alias": "인천" },
+            "area2": { "name": "부평구", "coords": { "center": { "crs": "EPSG:4326", "x": 126.721838, "y": 37.507056 } } },
+            "area3": { "name": "부평동", "coords": { "center": { "crs": "EPSG:4326", "x": 126.720071, "y": 37.494216 } } },
+            "area4": { "name": "", "coords": { "center": { "crs": "", "x": 0, "y": 0 } } }
+          },
+          "land": {
+            "type": "",
+            "number1": "16",
+            "number2": "",
+            "addition0": { "type": "building", "value": "부평민자역사" },
+            "addition1": { "type": "zipcode", "value": "21404" },
+            "addition2": { "type": "roadGroupCode", "value": "282373154004" },
+            "addition3": { "type": "", "value": "" },
+            "addition4": { "type": "", "value": "" },
+            "name": "광장로",
+            "coords": { "center": { "crs": "", "x": 0, "y": 0 } }
+          }
+        },
+        {
+          "name": "addr",
+          "code": { "id": "2823710100", "type": "L", "mappingId": "11237101" },
+          "region": {
+            "area0": { "name": "kr", "coords": { "center": { "crs": "", "x": 0, "y": 0 } } },
+            "area1": { "name": "인천광역시", "coords": { "center": { "crs": "EPSG:4326", "x": 126.70515, "y": 37.455942 } }, "alias": "인천" },
+            "area2": { "name": "부평구", "coords": { "center": { "crs": "EPSG:4326", "x": 126.721838, "y": 37.507056 } } },
+            "area3": { "name": "부평동", "coords": { "center": { "crs": "EPSG:4326", "x": 126.720071, "y": 37.494216 } } },
+            "area4": { "name": "", "coords": { "center": { "crs": "", "x": 0, "y": 0 } } }
+          },
+          "land": {
+            "type": "1",
+            "number1": "738",
+            "number2": "21",
+            "addition0": { "type": "", "value": "" },
+            "addition1": { "type": "", "value": "" },
+            "addition2": { "type": "", "value": "" },
+            "addition3": { "type": "", "value": "" },
+            "addition4": { "type": "", "value": "" },
+            "coords": { "center": { "crs": "", "x": 0, "y": 0 } }
+          }
+        }
+      ],
+      "address": {
+        "jibunAddress": "인천광역시 부평구 부평동  738-21",
+        "roadAddress": "인천광역시 부평구 광장로  16 부평민자역사"
+      }
+    }
+  }
+}
