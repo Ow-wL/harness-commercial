@@ -62,6 +62,17 @@
 - [x] 6-2 포커스 대상이 sticky 헤더에 가려짐(800×600 B 성공 비교 제목 등): 문서 `scroll-padding-top` = 헤더 실제 높이(`--header-offset`, App이 ResizeObserver + 포커스 직전 측정). 포커스 대상·지도 동작은 그대로(COMPARE_DESIGN.md 13장 "6-2")
 - [x] 6-3 지도 안 SDK 요소(로고·축척, z-index 100)가 sticky 헤더(10) 위에 그려져 "데이터 출처" 링크를 덮던 문제: `.map { isolation: isolate }` 한 줄로 지도 안 쌓임을 닫음. 헤더 z-index·SDK DOM은 손대지 않음(COMPARE_DESIGN.md 13장 "6-3")
 
+## 7. 주소 표시·주소 검색 (7차) — 설계 검수 대기
+설계: `docs/ADDRESS_DESIGN.md`. 분석 행정동은 backend `context` 그대로, 주소는 참고 정보. 채택안은 NAVER Web SDK Geocoder 서브모듈(Client ID만, backend·Secret 변경 없음) — 공식 문서로 인증·활성화 조건(Geocoding·Reverse Geocoding 선택, 미선택 시 429)·요금(대표 계정 월 3,000,000건 무료, 초과 0.5원/건, 구 AI NAVER API 상품은 2025-07-01부터 무료량 없음)을 확인했다.
+- [x] 7-A 설계 문서 (현재 SDK·설정 조사, 공식 문서 확인, 검색·표시 흐름, A/B 캐시·취소·늦은 응답, 장애 격리, 변경 파일·단계·테스트·콘솔 확인 항목)
+- [ ] 7-B0 콘솔 확인(상품 소속·대표 계정·API 선택·Web 서비스 URL·한도) + 브라우저 스파이크 (코드 변경 없음, ADDRESS_DESIGN §9·§7-0) — **검수 승인 뒤**
+- [ ] 7-B1 로더 `submodules=geocoder` + `map/geocoder.ts` adapter(Zod·timeout·오류 종류) + 테스트
+- [ ] 7-B2 참고 주소 표시(단일): 캐시·hook·`ReferenceAddress`, 위치 필드·mobile sheet·결과 패널. 실패·없음은 기존 표시 그대로
+- [ ] 7-B3 참고 주소(비교 A/B): B 카드·비교 요약 카드, A/B 섞임 없음 테스트
+- [ ] 7-B4 주소 검색(단일) → 기존 `selectLocation` 경로, 인천 밖 꼬리표
+- [ ] 7-B5 주소 검색(비교 B) → `submitCompareLocation`(포커스 "B 분석하기")
+- [ ] 7-B6 브라우저 검증(1280/970/800/375, 장애 모사, 요청 수)·DESIGN §5.D/§7.4/§8.5/§8.5b·README·ARCHITECTURE·DECISIONS D-021. 운영 배포는 별도 승인
+
 ## 보류 (이번 범위 아님)
 로그인, DB, AI 설명, 지원사업 추천, 점수 공식 개선, 업종 추가.
 - 통계청 SGIS(공식 배포)에서 2026-07 이후 기준 행정동 경계를 받을 수 있게 되면 `data/geo/`의 2차 가공본(vuski/admdongkor ver20260701)을 공식 파일로 교체하고 `scripts/build_geo.py`로 재검증한다 (eng review D4·D14, D-009). 2026-10-06 현재 SGIS OpenAPI 경계 최신 연도는 2025(2026-07 개편 미반영)라 구월1/3동만 교정했다 (D-017).
