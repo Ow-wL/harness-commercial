@@ -44,7 +44,7 @@
 → 기존 계획의 "Client ID만으로 가능"은 **Web SDK 서브모듈 경로에 한해 사실**이다. REST를 직접 부르려면 Client Secret이 필요하므로 브라우저에서는 쓸 수 없고 서버 경유가 필요하다.
 
 ### 3.2 API 활성화 조건 (둘 다 동일)
-- Application 설정에서 **Geocoding과 Reverse Geocoding을 각각 선택**해야 한다. 선택하지 않은 API를 부르면 **429 (Quota Exceed)**. (geocoder 모듈 "사전 준비 사항", Maps API 개요)
+- Application 설정에서 **Geocoding과 Reverse Geocoding을 각각 선택**해야 한다. 문서상 선택하지 않은 API를 부르면 **429 (Quota Exceed)**. (geocoder 모듈 "사전 준비 사항", Maps API 개요) — 7-B0 실측(§11)에서는 **403**이 왔고 원인은 아직 확인되지 않았다(문서의 429와 다르며, 미선택·상품 소속·권한·URL 중 어느 것인지 콘솔 확인 전에는 단정하지 않는다).
 - Web Dynamic Map은 **Web 서비스 URL** 등록이 필수(최대 10개, http/https 구분 없음, www 생략). 미등록 URL에서는 인증 실패(`navermap_authFailure`). 이미 등록된 `http://localhost:5173`·Cloud Run URL이 Geocoder에도 그대로 적용된다.
 - 서브모듈 호출도 **같은 Application의 Geocoding/Reverse Geocoding 일일 허용량을 소비**한다("Geocoder는 Geocoding와 ReverseGeocoding의 일일 허용량을 사용합니다"). 요금은 Web SDK·REST 구분 없이 **상품별로 부과**된다.
 
@@ -101,20 +101,38 @@ src/lib/useReferenceAddress.ts  hook: 좌표 하나의 참고 주소(캐시 우�
 src/components/ReferenceAddress.tsx  "참고 주소" 한 줄 (성공일 때만 그린다)
 src/components/AddressSearch.tsx     주소 검색 폼 + 결과 목록 → onSelect({lat,lng})
 ```
-- **로더 준비 시점(7-B0 실측으로 확정)**: `maps.js`의 `load` 이벤트는 서브모듈 스크립트(`maps-geocoder.js`, SDK가 뒤에 따로 붙인다)보다 **먼저** 온다 — 그 시점에 `naver.maps.Service`는 없다(11ms: Service false). SDK `callback=` 파라미터로 지정한 함수는 **서브모듈까지 준비된 뒤** 불린다(12ms: Service true). 따라서 로더는 `&callback=`(모듈 고정 전역 이름, 예 `__naverMapsReady`)으로 준비를 판정하고, `load` 이벤트는 "콜백이 일정 시간 안에 안 오면 `load` 오류"의 보조로만 쓴다. 지도 자체는 지금처럼 `load` 뒤 바로 만들어도 되지만 단순하게 **준비 판정을 콜백 하나로 통일**한다(지도 생성이 수십 ms 늦어질 뿐).
-- **주소 기능 준비 상태(SDK readiness)** — App이 하나의 상태로 들고 주소 컴포넌트에 내려준다:
-  `sdk: { status: 'loading' } | { status: 'ready', api } | { status: 'failed', kind: 'config'|'load'|'auth' }`
-  - `MapView`가 로더 결과를 `onSdkState(state)`로 올린다(새 prop 1개). **뒤늦은 인증 실패**(`onNaverAuthFailure` — 도메인 미등록 등으로 로드 성공 뒤에 올 수 있다)도 같은 콜백으로 `failed/auth`를 올린다.
+- **로더 준비 시점(7-B0 실측)**: `maps.js`의 `load` 이벤트는 서브모듈 스크립트(`maps-geocoder.js`, SDK가 뒤에 따로 붙인다)보다 **먼저** 온다 — 그 시점에 `naver.maps.Service`는 없다(11ms: Service false). SDK `callback=` 파라미터로 지정한 함수는 **서브모듈까지 준비된 뒤** 불린다(12ms: Service true).
+- **지도 준비와 Geocoder 준비를 분리한다** (SDK는 지금처럼 **한 번만** 로드하고, 지도 인스턴스는 지금처럼 `load` 뒤 바로 만들어 유지한다 — 지도 생성 시점·방식은 바꾸지 않는다):
+  - 지도 준비 = 기존 `loadNaverMaps`의 `load` 이벤트(`window.naver.maps` 존재). 기존 `config`/`load`/`auth` 실패 처리 그대로.
+  - Geocoder 준비 = `&callback=__naverMapsReady`(모듈 고정 전역)가 불리고 `isGeocoderAvailable(api)`가 true일 때. 콜백이 `load` 뒤 **10초** 안에 오지 않거나 왔는데 `Service`가 없으면 Geocoder만 `unavailable`로 둔다 — **지도는 그대로 쓴다**. `submodules=geocoder`가 지도 로드 자체를 깨는 사례가 7-B0에서 없었지만(§11), 만약 보이면 로더 상수에서 `submodules`를 빼고 주소 기능만 끈다.
+- **SDK 상태 계약** — `MapView`가 `onSdkState(state)`(새 prop 1개)로 App에 올리고, App이 들고 주소 컴포넌트에 내려준다. 다른 경로(`onReady`·`mapsApi`)는 두지 않는다:
+  ```
+  sdk: { status: 'loading' }
+     | { status: 'ready', api, geocoder: 'loading' | 'ready' | 'unavailable' }
+     | { status: 'failed', kind: 'config' | 'load' | 'auth' }
+  ```
+  - 지도는 `status === 'ready'`면 동작한다(기존과 같다). 주소 기능(검색 폼·참고 주소)은 `status === 'ready' && geocoder === 'ready'`일 때만 켜진다. `geocoder: 'unavailable'`은 "주소 기능만 비활성화" 경로다 — 버튼을 그리지 않고 줄도 없으며, 지도·분석은 영향이 없다.
+  - **뒤늦은 인증 실패**(`onNaverAuthFailure` — 도메인 미등록 등으로 로드 성공 뒤에 올 수 있다)는 같은 콜백으로 `failed/auth`를 올린다. 지도는 기존대로 인증 실패 안내를 보이고, 주소 기능도 함께 꺼진다.
   - 주소 컴포넌트·hook은 `sdk.status === 'ready'`일 때만 `sdk.api`를 쓴다. `failed`로 바뀌면 **이전 `api` 참조를 버리고**(hook deps에 `api`가 있어 effect가 정리된다) 새 호출을 하지 않으며, 검색 폼은 숨기고 참고 주소 줄도 그리지 않는다. 진행 중이던 콜백은 세대(generation) 불일치로 폐기한다(캐시 기록은 유효한 데이터라 남겨도 되지만, 화면에는 쓰지 않는다).
-  - 인증 실패 뒤 SDK 객체가 메모리에 남아 있어도 주소 기능은 그 객체를 다시 잡지 않는다 — 상태의 `api`는 `ready`에만 존재한다(타입으로 강제).
+  - 인증 실패 뒤 SDK 객체가 메모리에 남아 있어도 주소 기능은 그 객체를 다시 잡지 않는다 — 상태의 `api`는 `ready`에만 존재한다(타입으로 강제). 로더를 다시 부르거나 두 번째 SDK를 삽입하지 않는다.
 - `geocoder.ts` 계약:
   - `isGeocoderAvailable(api)`: `api.Service?.geocode && api.Service?.reverseGeocode` (서브모듈 로드 실패·구버전이면 false → UI 숨김). `ready`라도 이 검사를 통과해야 주소 기능이 켜진다.
-  - `geocode(api, query, opts) → Promise<GeocodeResult>` : `{ status:'ok', items:[{roadAddress, jibunAddress, lat, lng, sido, distanceM}] } | { status:'empty' } | { status:'error', kind:'invalid'|'forbidden'|'quota'|'system'|'timeout'|'schema' }` — `forbidden` = HTTP 403/429(API 미선택·상품 소속·할당량, 7-B0 실측은 403; SDK는 `status 500`과 빈 `response`만 주므로 adapter는 "ERROR + response 없음"을 `forbidden`으로 분류한다)
+  - `geocode(api, query, opts) → Promise<GeocodeResult>` : `{ status:'ok', items:[{roadAddress, jibunAddress, lat, lng, sido, distanceM}] } | { status:'empty' } | { status:'error', kind:'invalid'|'system'|'unknown'|'timeout'|'schema' }`
+  - **오류 분류는 SDK가 실제로 넘긴 정보 안에서만 한다.** SDK 콜백은 HTTP 상태를 주지 않으므로 adapter는 403·429·네트워크 단절을 구별할 수 없고, **추정하지 않는다**:
+    | SDK가 준 것 | 분류 |
+    |---|---|
+    | `status === OK`, `v2.status === 'OK'`, 결과 있음 / 없음 | `ok` / `empty`(정방향), reverse `status.code 0` / `3` → `ok` / `none` |
+    | `v2.status === 'INVALID_REQUEST'`, reverse `status.code 100` | `invalid` |
+    | `v2.status === 'SYSTEM_ERROR'`, reverse `status.code 900` | `system` |
+    | `status === ERROR`이고 `response`가 없거나 `v2`가 없음 (7-B0 실측 사례) | **`unknown`** — 원인 불명. 설정·권한·할당량·네트워크 중 무엇인지 앱은 모른다 |
+    | 콜백이 8초 안에 안 옴 | `timeout` |
+    | 응답이 있으나 schema와 다름 | `schema` |
+    사용자 문구는 `invalid`를 뺀 모든 오류에서 같다("주소 기능을 지금 쓸 수 없습니다 …"). 원인 확인은 콘솔·DevTools(HTTP 상태)에서 한다. 문자열 추측(예: 메시지에 "quota"가 있으면 할당량)으로 분류하지 않는다.
   - `reverseGeocode(api, point) → Promise<AddressResult>` : `{ status:'ok', roadAddress|null, jibunAddress|null } | { status:'none' } (code 3) | { status:'error', kind }`
   - 좌표 변환: SDK는 `x`=경도·`y`=위도 **문자열** → `Number()` 후 유한성 검사(아니면 `schema`). `coords`는 `'lng,lat'` 순서.
   - timeout 8초(SDK 콜백이 오지 않는 경우) → `timeout`. 콜백은 1회만 반영(이중 호출 방어).
   - 로그: `console.warn('[geocoder] …', { kind, status })`만. **query·좌표 외 인증값은 로그에 없다**(Client Secret 자체가 없고, Client ID는 script URL에 이미 공개).
-  - 429/할당량: SDK는 `Service.Status.ERROR`로만 온다. `v2.status`나 `status.message`에 "quota"/"429" 문자열이 있으면 `quota`, 아니면 `system`. 사용자 문구는 둘 다 "주소 기능을 지금 쓸 수 없습니다"(원인은 콘솔에서 본다).
+  - 할당량 초과·API 미선택·권한 문제는 SDK 콜백에서는 모두 `status === ERROR`(응답 없음)로만 보인다 → `unknown`. 앱은 이를 구별하지 않고, 운영자는 콘솔 사용량·DevTools HTTP 상태로 본다.
 
 ### 5.2 UI 흐름
 
@@ -146,12 +164,13 @@ src/components/AddressSearch.tsx     주소 검색 폼 + 결과 목록 → onSel
 - **오류 캐시와 재시도(명시)**: `error` 항목은 `expiresAt = 기록 시각 + 60초`를 가진다. **타이머·자동 반복 호출은 없다.** 만료 전에 같은 좌표를 다시 그리면 호출 없이 "줄 없음"이고, 만료 **뒤에 다음 조회가 일어날 때**(마운트·키 변경·화면 전환) 1회 다시 시도한다. 즉 사용자가 아무것도 하지 않으면 추가 호출은 0건이다. `none`(주소 없음)·`ok`는 세션 동안 유지한다. `timeout`도 `error`와 같이 다룬다.
 - **검색(geocode)**: 폼 인스턴스별 상태 1벌 + 요청 번호(`seq`). 제출마다 `++seq`; 응답이 올 때 `seq`가 다르면 버린다. 입력값 변경·폼 닫힘·언마운트 때 `seq`를 올려 늦은 응답을 무효화한다. 검색 결과는 캐시하지 않는다(같은 질의 재제출은 드물고 신선도가 더 중요).
 - **비교와의 경계**: 단일 위치 필드(`ConditionPanel`)와 B 카드(`ComparePanel`)는 동시에 마운트되지 않는다. 비교 요약의 A·B `LocationSummary`는 서로 다른 좌표 키로 각자 hook을 가진다. `pickB`(다시 고르기)·`endCompare`·`cancelAnalysis`는 해당 컴포넌트를 언마운트시키므로 별도 취소 코드가 필요 없다(검색 폼은 언마운트 시 `seq` 무효화).
-- **SDK 로드 전/실패**: hook은 `window.naver?.maps`가 없으면 `idle`로 남고 호출하지 않는다. `loadNaverMaps` 결과를 `MapView`가 이미 쥐고 있으므로, App이 `mapsApi` 준비 여부를 상태로 받아(`MapView` prop `onReady(api)` 1개 추가) 주소 컴포넌트에 넘긴다 — 로더를 두 번 부르지 않는다.
+- **SDK 준비 전·Geocoder 없음·실패**: hook은 `sdk`가 `{status:'ready', geocoder:'ready'}`가 아니면 `idle`로 남고 호출하지 않는다(`window.naver`를 직접 보지 않는다). SDK 상태는 §5.1의 `onSdkState` 계약 하나로만 받는다 — 로더를 두 번 부르지 않고, 두 번째 SDK를 삽입하지 않는다.
 
 ### 5.4 오류 격리
 - 주소 모듈은 `analysis`·`compare` 상태를 읽거나 쓰지 않는다. 어떤 실패도 UI 한 줄(또는 폼 안 문구)로만 끝난다. `ErrorBlock`(분석 오류 계약 D-014)을 재사용하지 않는다 — 분석 오류와 시각적으로 구분.
 - 예외는 adapter 안에서 모두 잡는다(Promise reject 없음, 결과 객체로만). `console.warn` 1줄, 인증값·응답 raw 전체는 남기지 않는다(응답에는 개인정보가 없지만 로그를 짧게 둔다).
-- 서브모듈 추가(`&submodules=geocoder`)가 지도 자체 로드를 깨지 않는지 7-B0에서 확인한다. 만약 서브모듈 때문에 `maps.js` 로드가 실패하는 사례가 보이면 `submodules`를 빼고 주소 기능만 끈다(로더 상수 하나).
+- **지도와 Geocoder의 실패 분리(경로)**: ① `maps-geocoder.js` 로드 실패·`callback` 미도착(10초)·`Service` 없음 → `sdk.geocoder = 'unavailable'`, 지도는 `status:'ready'` 그대로 — 주소 버튼·줄만 없다. ② 지도 `load`/`config` 실패 → 기존 지도 자리 안내, 주소 기능도 없음. ③ 뒤늦은 `auth` 실패 → 기존 인증 실패 안내 + 주소 기능 끔. 7-B0에서 `submodules=geocoder`가 지도 로드를 깨는 사례는 없었다(§11). 어느 경우에도 SDK를 다시 로드하거나 지도 인스턴스를 다시 만들지 않는다.
+- 테스트(§8-2·8-3)로 고정: "callback 없이 `load`만 온 경우 지도는 만들어지고 주소 버튼은 없다", "callback이 왔지만 `Service`가 없으면 `unavailable`", "auth 실패 뒤 `api` 재사용 없음".
 
 ### 5.5 접근성·반응형
 - 검색 폼: 보이는 `<label>`, 결과는 `ol` + `<button>`(Enter/Space), `aria-live` 상태 문구, 44px 터치(§15). 결과 선택 뒤 포커스 규칙은 §5.2 A-4.
@@ -182,7 +201,7 @@ src/components/AddressSearch.tsx     주소 검색 폼 + 결과 목록 → onSel
 | 수정 | `frontend/src/App.tsx` | `sdk` 상태(`loading/ready/failed`), 주소 컴포넌트에 전달, mobile sheet 참고 주소(+ `max-height` 숨김 규칙은 App.css) |
 | 수정 | `frontend/src/components/ConditionPanel.tsx`, `ComparePanel.tsx` | "주소로 찾기" disclosure + 참고 주소 줄 |
 | 수정 | `frontend/src/components/LocationSummary.tsx` | 최근접역 줄 아래 참고 주소 |
-| 테스트 | `naverMaps.test.ts`, 신규 `geocoder.test.ts`, `useReferenceAddress.test.ts`, `App.test.tsx`(MapView mock에 `onReady`·`Service` mock) | §8 |
+| 테스트 | `naverMaps.test.ts`, 신규 `geocoder.test.ts`, `useReferenceAddress.test.ts`, `App.test.tsx`(MapView mock이 `onSdkState`로 상태를 올리고, `Service`는 vi.fn mock) | §8 |
 | 문서 | `DESIGN.md`(§5.D·§7.4·§8.5·§8.5b·§15), `frontend/README.md`(콘솔: Geocoding·Reverse Geocoding 선택, 한도), `docs/ARCHITECTURE.md`(외부 API 경계 1줄), `docs/DECISIONS.md` D-021, `docs/TASKS.md` 7장 | |
 | 변경 없음 | backend 전체, `scoring_engine/`, `data/`, `Dockerfile`, `vite.config.ts`, `.env` 키 종류 | Client ID만 그대로 |
 
@@ -190,11 +209,11 @@ src/components/AddressSearch.tsx     주소 검색 폼 + 결과 목록 → onSel
 
 ## 7. 구현 단계 (작게, 각 단계 끝에 `scripts/check` 통과)
 
-0. **7-B0 콘솔 확인 + 브라우저 스파이크 (앱 코드 변경 없음)** — 스파이크는 **이미 SDK가 로드된 앱 페이지에 두 번째 SDK를 넣지 않고**, 등록된 origin(`http://localhost:5173`)의 별도 페이지 `frontend/spike/geocoder-spike.html`(vite dev가 그대로 서빙, 빌드 밖)에서 Geocoder 포함 SDK를 **한 번만** 로드한다. 버튼당 정확히 1회: `reverseGeocode({coords:'126.7246,37.4894', orders:'roadaddr,addr'})`, `geocode({query:'인천광역시 부평구 부평대로 1', coordinate:'126.7052,37.4563', count:5})`. 기록할 것: (a) `callback`·`load` 시점의 `Service` 유무, (b) 429가 아닌지(미선택 API·할당량), (c) `v2.address`·`addresses[0].x/y` 형태가 §3.4와 같은지, (d) 응답 시간. 응답 샘플은 `frontend/src/fixtures/geocoder-*.json`으로 저장(개인정보 없음, 인증값 없음). 콘솔 항목(§9)은 사용자가 확인하고, 스파이크 결과는 그 간접 증거(429 여부)로만 쓴다. 결과는 §11.
+0. **7-B0 콘솔 확인 + 브라우저 스파이크 (앱 코드 변경 없음)** — 스파이크는 **이미 SDK가 로드된 앱 페이지에 두 번째 SDK를 넣지 않고**, 등록된 origin(`http://localhost:5173`)의 별도 페이지 `frontend/spike/geocoder-spike.html`(vite dev가 그대로 서빙, 빌드 밖)에서 Geocoder 포함 SDK를 **한 번만** 로드한다. 버튼당 정확히 1회: `reverseGeocode({coords:'126.7246,37.4894', orders:'roadaddr,addr'})`, `geocode({query:'인천광역시 부평구 부평대로 1', coordinate:'126.7052,37.4563', count:5})`. 기록할 것: (a) `callback`·`load` 시점의 `Service` 유무, (b) SDK 콜백 결과(`status`·`response` 유무)와 **실제 HTTP 상태(DevTools·리소스 타이밍)를 따로** 적기, (c) `v2.address`·`addresses[0].x/y` 형태가 §3.4와 같은지, (d) 응답 시간. 응답 샘플은 `frontend/src/fixtures/geocoder-*.json`으로 저장(개인정보 없음, 인증값 없음). 콘솔 항목(§9)은 사용자가 확인한다 — 스파이크의 HTTP 상태는 사실로 기록하고, 원인은 추정으로 구분해 적는다. 결과는 §11.
 1. **7-B1 로더·adapter** — `submodules=geocoder` 추가, `geocoder.ts` + Zod + timeout, 테스트(§8-1). 아직 UI 없음.
 2. **7-B2 참고 주소(단일)** — `addressCache`·hook·`ReferenceAddress`, 위치 필드·mobile sheet·`LocationSummary`에 연결. 실패·없음은 줄 없음. App 테스트(§8-3).
 3. **7-B3 참고 주소(비교 A/B)** — B 카드·비교 요약 A/B 카드. A/B 섞임 테스트(§8-3).
-4. **7-B4 주소 검색(단일)** — `AddressSearch` + `LocationField` disclosure → `selectLocation`. 인천 밖 꼬리표. App 테스트.
+4. **7-B4 주소 검색(단일)** — `AddressSearch` + `LocationField` disclosure → `selectLocation`. 결과는 모두 선택 가능(시·도 caption만, 분석 가능 여부는 backend 판정). App 테스트.
 5. **7-B5 주소 검색(비교 B)** — B 카드 disclosure → `submitCompareLocation`(포커스 "B 분석하기"), 같은 좌표(D2)·분석 중 무시 규칙 확인.
 6. **7-B6 브라우저 검증·문서** — 1280/970/800/375, 실패 모사(DevTools 요청 차단·콘솔에서 API 해제), 요청 수 세기(검색 1회·좌표당 역지오코딩 1회), DESIGN/README/ARCHITECTURE/DECISIONS/TASKS 반영. 운영 배포는 **별도 승인 뒤**(Cloud Run 재배포는 Client ID build arg 그대로, 콘솔 설정만 선행).
 
@@ -202,12 +221,12 @@ src/components/AddressSearch.tsx     주소 검색 폼 + 결과 목록 → onSel
 
 ## 8. 테스트 계획
 
-1. **adapter 단위**(`geocoder.test.ts`, `window.naver.maps.Service`를 vi.fn으로 대체): 콜백 → Promise 변환, `x/y` 문자열 → 숫자·유한성, `v2.status` 매핑(OK/INVALID_REQUEST/SYSTEM_ERROR, reverse code 0/3/100/900), 할당량 문자열 → `quota`, 콜백 미도착 8초 → `timeout`(fake timers), schema 불일치 → `schema` + `console.warn` 1회(인증값 없음), 콜백 2회 호출 시 1회만 반영, `Service` 없음 → `isGeocoderAvailable=false`.
-2. **로더**(`naverMaps.test.ts`): script src가 `…maps.js?ncpKeyId=test-client-id&submodules=geocoder`(순서 고정), 기존 singleton·실패 테스트 그대로.
-3. **캐시·hook·A/B 분리**(`useReferenceAddress.test.ts` + `App.test.tsx`): 같은 키 동시 조회 1회, 늦은 응답은 자기 키에만 기록되고 바뀐 포인트의 화면에는 반영되지 않음(콜백을 수동으로 늦게 호출), 비교에서 A·B 카드가 각자 주소(B 응답이 A 줄에 나타나지 않음), B 다시 고르기 뒤 이전 B 주소가 새 B에 남지 않음, `error` 60초 뒤 재시도·`none` 유지, SDK 없음(`mapsApi=null`) → 호출 0·줄 없음.
-4. **검색 흐름**(`App.test.tsx`): "주소로 찾기" → 입력 → 검색 → 결과 선택 → `/analyze` body 좌표가 선택한 `x/y`와 같음(단일·B 모두), 인천 밖 결과는 선택 불가, 0건·오류 문구와 입력값 유지, 늦은 검색 응답(seq) 폐기, 검색 오류 뒤에도 좌표 입력·분석 성공(격리), `Service` 없으면 버튼 자체가 없음, B 선택 뒤 포커스 "B 분석하기"(기존 규칙 유지), 분석 중 disabled.
+1. **adapter 단위**(`geocoder.test.ts`, `window.naver.maps.Service`를 vi.fn으로 대체): 콜백 → Promise 변환, `x/y` 문자열 → 숫자·유한성, `v2.status` 매핑(OK/INVALID_REQUEST/SYSTEM_ERROR, reverse code 0/3/100/900), `status === ERROR` + `response` 없음 → `unknown`(추정 분류 없음, 7-B0 실측 모양으로 fixture), 콜백 미도착 8초 → `timeout`(fake timers), schema 불일치 → `schema` + `console.warn` 1회(인증값 없음), 콜백 2회 호출 시 1회만 반영, `Service` 없음 → `isGeocoderAvailable=false`.
+2. **로더·SDK 상태**(`naverMaps.test.ts`, `MapView.test.tsx`): script src가 `…maps.js?ncpKeyId=test-client-id&submodules=geocoder&callback=__naverMapsReady`(순서 고정), script는 여전히 1개(singleton, 두 번째 삽입 없음), 기존 실패 테스트 그대로. 지도/Geocoder 분리: `load`만 오고 `callback`이 안 오면(fake timers 10초) 지도는 만들어지고 `onSdkState`는 `{ready, geocoder:'unavailable'}`; `callback`이 왔지만 `Service`가 없으면 `unavailable`; `callback` + `Service` 있으면 `geocoder:'ready'`; 로드 뒤 `navermap_authFailure` → `failed/auth`가 올라가고 그 뒤 주소 호출 0건.
+3. **캐시·hook·A/B 분리**(`useReferenceAddress.test.ts` + `App.test.tsx`): 같은 키 동시 조회 1회, 늦은 응답은 자기 키에만 기록되고 바뀐 포인트의 화면에는 반영되지 않음(콜백을 수동으로 늦게 호출), 비교에서 A·B 카드가 각자 주소(B 응답이 A 줄에 나타나지 않음), B 다시 고르기 뒤 이전 B 주소가 새 B에 남지 않음, `error` 만료(60초) 전 재조회는 호출 0·만료 뒤 다음 조회 때 1회(타이머 없음), `none` 유지, `sdk`가 `loading`/`failed`/`geocoder:'unavailable'`이면 호출 0·줄 없음, `ready`→`failed` 전환 뒤 이전 `api`로 호출 없음.
+4. **검색 흐름**(`App.test.tsx`): "주소로 찾기" → 입력 → 검색 → 결과 선택 → `/analyze` body 좌표가 선택한 `x/y`와 같음(단일·B 모두), 다른 시·도 결과도 선택 가능하고 시·도 caption이 붙으며 선택 뒤 backend `location_outside` 응답은 기존 오류 블록으로 처리(사전 차단 없음), 0건·오류 문구와 입력값 유지, 늦은 검색 응답(seq) 폐기, 검색 오류 뒤에도 좌표 입력·분석 성공(격리), `Service` 없으면 버튼 자체가 없음, B 선택 뒤 포커스 "B 분석하기"(기존 규칙 유지), 분석 중 disabled.
 5. **표시 규칙**: 실패·없음에서 기존 행정동·최근접역·좌표 문구가 그대로이고 추가 줄 없음, 성공 시 "참고 주소 · … (NAVER 지도)", Context Bar·결과 제목은 변하지 않음(스냅샷이 아니라 텍스트 단언), a11y: `brokenReferences`·`duplicateIds` 기존 검사 통과(disclosure id 유일).
-6. **레이아웃 계약**(`layout.test.ts`): mobile sheet 참고 주소 줄 말줄임 규칙(sheet 높이 불변)·터치 44px(검색 버튼·결과 항목).
+6. **레이아웃 계약**(`layout.test.ts`): mobile sheet 참고 주소 줄 한 줄 말줄임 규칙과 `max-height` 숨김 규칙(sheet 높이는 한 줄만큼 커질 수 있다 — 지도 높이 ≥ 280px는 §5.5 브라우저 실측으로 확인)·터치 44px(검색 버튼·결과 항목).
 7. **브라우저**(7-B6, gstack `/browse` 또는 내장 브라우저): 실제 키로 검색→선택→분석, 역지오코딩 표시, 비교 A/B, DevTools로 `oapi.map.naver.com`/`maps.apigw` 요청 차단 시 기존 표시 유지·분석 정상, 네트워크 탭에서 호출 수 확인(검색 1·좌표당 1), 콘솔 오류 0, 1280/970/800/375.
 8. **회귀**: `scripts/check` 전체(golden regression 포함) — 엔진·backend는 변경이 없으므로 통과가 전제.
 
@@ -218,7 +237,7 @@ src/components/AddressSearch.tsx     주소 검색 폼 + 결과 목록 → onSel
 NAVER Cloud Platform 콘솔(https://console.ncloud.com) — 값은 이 저장소·대화에 적지 않는다.
 1. **상품 소속**: 이 앱의 Client ID(`VITE_NAVER_MAP_CLIENT_ID`)가 **Services > Application Services > Maps**(2025-03 신규 상품)의 Application인지, 구 **AI·NAVER API > Application**인지. 구 상품이면 2025-07-01부터 무료 이용량이 없고 종료 예정이므로 **Maps 상품에 새 Application을 만들고 Client ID를 교체**해야 한다(교체 시 `.env`·Cloud Run build arg만 바뀜, 코드 변경 없음).
 2. **대표 계정**: Application 화면 "대표 계정 확인". 아니면 Geocoding·Reverse Geocoding이 **첫 호출부터 0.5원/건** 과금 — 진행 여부 결정 필요.
-3. **API 선택**: Application 수정에서 **Geocoding**, **Reverse Geocoding** 체크(Dynamic Map은 이미 선택). 미선택이면 429.
+3. **API 선택**: Application 수정에서 **Geocoding**, **Reverse Geocoding** 체크(Dynamic Map은 이미 선택). 문서상 미선택이면 429(7-B0 실측은 403, §11). 선택 뒤에도 403이 계속되면 Web 서비스 URL·권한·상품 소속을 함께 본다 — Dynamic Map이 되는 것만으로 Geocoder 쪽 설정이 맞다고 보지 않는다.
 4. **Web 서비스 URL**: `http://localhost:5173`(및 쓰는 다른 포트), Cloud Run URL이 등록돼 있는지(지도가 뜨고 있으므로 등록돼 있을 것).
 5. **한도 및 알림 설정**: Geocoding·Reverse Geocoding 각각 **일 한도**(예: 1,000건)·**월 한도**(예: 10,000건)와 통보 대상 등록. 과제 규모에서 무료량(월 3,000,000) 안이지만, 브라우저 호출이라 상한을 둔다. 값은 사용자 결정.
 6. **인증 정보 보호**: Client Secret은 어떤 파일·환경변수에도 넣지 않는다(이 설계에서 쓰지 않는다). `.env`는 `.gitignore`(기존).
@@ -228,7 +247,7 @@ NAVER Cloud Platform 콘솔(https://console.ncloud.com) — 값은 이 저장소
 
 ## 10. 검수 결정 (2026-10-12 보완)
 
-1차 검수 지시(2026-10-12)로 아래를 확정했다. 지시문에 "위 표의 UX 결정"이 언급됐으나 표 자체는 전달되지 않아, 본문에 명시된 Q4만 지시대로 바꾸고 나머지는 제안안을 적용했다 — **표의 결정이 다르면 알려 주면 바로 고친다.**
+1차 검수(2026-10-12)에서 Q4를 지시대로 바꾸고 나머지는 제안안을 적용했으며, 2차 검수(`7598511` 검수)에서 **UX 결정(Q1~Q4·Q6)은 아래 표대로 확정**했다. **계정·과금·한도(Q5, §9-1·9-2·9-5)는 사용자 확인 대기**로 남긴다.
 
 | 항목 | 결정 | 반영 |
 |---|---|---|
@@ -245,7 +264,7 @@ NAVER Cloud Platform 콘솔(https://console.ncloud.com) — 값은 이 저장소
 
 ---
 
-## 11. 7-B0 기록 (2026-10-12, 환경 확인 — 구현 시작 안 함)
+## 11. 7-B0 기록 (2026-10-12) — 상태: **준비 시점 확인 완료 / 정상 호출 확인 대기** (구현 시작 안 함)
 
 **방법:** `frontend/spike/geocoder-spike.html`을 vite dev(`http://localhost:5173`, 등록된 Web 서비스 URL)에서 열어 SDK를 `submodules=geocoder&callback=__spikeReady`로 **한 번** 로드. 앱 페이지(SDK가 이미 로드된 곳)에는 손대지 않았다. 호출은 역방향 1회·정방향 1회뿐이다(이 밖의 호출 0건). Client ID는 `.env`에서 읽고 로그·문서에 적지 않았다.
 
@@ -259,16 +278,19 @@ NAVER Cloud Platform 콘솔(https://console.ncloud.com) — 값은 이 저장소
 
 SDK는 `maps.js` 뒤에 `https://oapi.map.naver.com/openapi/v3/maps-geocoder.js`를 비동기 `<script>`로 따로 붙인다. 열거형 실측: `Service.Status {OK:200, ERROR:500}`, `GeocodeStatus {OK, INVALID_REQUEST, SYSTEM_ERROR}`, `OrderType {ADDR:'addr', ADM_CODE:'admcode', LEGAL_CODE:'legalcode', ROAD_ADDR:'roadaddr'}` — 레퍼런스 설명문의 뒤바뀜과 달리 값은 이름대로다.
 
-**결과 2 — 호출 (둘 다 실패, 원인은 콘솔 설정으로 판단):**
+**결과 2 — 호출 (둘 다 실패. 아래 "사실"과 "추정"을 구분한다):**
 
 | 호출 | SDK 콜백 | 실제 HTTP | 엔드포인트(리소스 타이밍, 키 가림) |
 |---|---|---|---|
 | `reverseGeocode({coords:'126.7246,37.4894', orders:'roadaddr,addr'})` | `status 500(ERROR)`, `response.v2` 없음, 47ms | **403** | `https://maps.apigw.ntruss.com/map-reversegeocode/v2/gc-js?coords=…&orders=…&output=json&X-NCP-APIGW-API-KEY-ID=***&url=http%3A%2F%2Flocalhost…` |
 | `geocode({query:'인천광역시 부평구 부평대로 1', coordinate:'126.7052,37.4563', count:5})` | `status 500(ERROR)`, `response.v2` 없음, 22ms | **403** | `https://maps.apigw.ntruss.com/map-geocode/v2/geocode-js?query=…&X-NCP-APIGW-API-KEY-ID=***&url=…` |
 
-- 확인된 사실: Web SDK Geocoder는 브라우저에서 **`X-NCP-APIGW-API-KEY-ID`(Client ID)와 현재 페이지 `url`만** 붙여 전용 `-js` 엔드포인트를 XHR로 부른다. Client Secret은 어디에도 쓰이지 않는다 → "Client ID만" 경로 자체는 맞다.
-- 403은 **코드 문제가 아니라 Application 설정**(Geocoding·Reverse Geocoding 미선택, 또는 이 Client ID가 구 AI NAVER API 상품 소속)으로 본다. 같은 origin·같은 Client ID로 Dynamic Map은 정상이므로 Web 서비스 URL 미등록은 아니다. 문서는 미선택 API를 "429"로 적지만 실측은 403이었다 — adapter 설계에서 **403·429 모두 `quota`가 아닌 `forbidden`(설정 문제) 종류로 묶고** 사용자 문구는 같게 한다(§5.1 오류 종류에 `forbidden` 추가).
-- 응답 본문은 받지 못했으므로(SDK가 `response`를 넘기지 않음) **fixture는 저장하지 않았다.** 콘솔 설정 뒤 같은 페이지에서 각 1회를 다시 호출해 §3.4 형태를 확인하고 그때 저장한다.
-- 콘솔 오류: 두 건의 `Failed to load resource: 403`뿐(그 밖은 vite HMR 로그). 지도 SDK 로드·인증 실패 콜백은 없었다.
+- **사실(실측)**:
+  - Web SDK Geocoder는 브라우저에서 `X-NCP-APIGW-API-KEY-ID`(Client ID)와 현재 페이지 `url`을 쿼리로 붙여 전용 `-js` 엔드포인트를 XHR로 불렀다. 요청에 Client Secret은 없었다.
+  - 두 요청 모두 HTTP **403**(브라우저 리소스 타이밍 `responseStatus`·콘솔 "Failed to load resource: 403"). SDK 콜백은 둘 다 `status 500(ERROR)`이고 `response`가 없었다 — **SDK만 보면 원인 불명(`unknown`)**이다. 응답 본문은 받지 못했다.
+  - 같은 페이지에서 `maps.js`·`maps-geocoder.js` 로드는 정상이었고 `navermap_authFailure`는 불리지 않았다. 지도 로드가 서브모듈 때문에 깨지는 일은 없었다.
+  - 콘솔 오류는 위 403 두 건뿐(그 밖은 vite HMR 로그).
+- **추정(미확인)**: 403의 원인 후보는 ① Application에서 Geocoding·Reverse Geocoding 미선택, ② 이 Client ID가 구 AI NAVER API 상품 소속, ③ Geocoder 쪽 URL·권한 설정 문제다. **Dynamic Map이 같은 origin·Client ID로 정상인 것은 ①~③ 중 어느 것도 배제하지 못한다**(Dynamic Map과 Geocoder는 별도 API·권한이다). 공식 문서는 미선택 API를 429로 적고 있어 실측 403과 다르다 — 이 차이도 콘솔 확인 전에는 설명하지 않는다.
+- 설계 반영: adapter는 HTTP 상태를 알 수 없으므로 403·429를 추정 분류하지 않고 `unknown`으로 둔다(§5.1). fixture는 정상 응답을 받은 뒤 저장한다.
 
-**다음 행동(사용자, §9):** ① Application 소속 상품(신규 Maps / 구 AI NAVER API) 확인 → ② Geocoding·Reverse Geocoding 선택 → ③ 대표 계정·한도 설정 확인. 완료 후 알려 주면 스파이크 페이지에서 **각 1회만** 다시 호출해 §11을 갱신하고, 그 결과를 보고 7-B1 착수 여부를 결정한다.
+**다음 행동(사용자, §9):** ① Application 소속 상품(신규 Maps / 구 AI NAVER API) 확인 → ② Geocoding·Reverse Geocoding 선택 → ③ Web 서비스 URL·권한 재확인 → ④ 대표 계정·한도 설정 확인(계정·과금·한도는 사용자 확인 대기). 완료 후 알려 주면 스파이크 페이지에서 **각 1회만** 다시 호출해 §11을 "정상 호출 확인"으로 갱신하고, 그 결과를 보고 7-B1 착수 여부를 결정한다. 그 전에는 추가 API 호출을 하지 않는다.

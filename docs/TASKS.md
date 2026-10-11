@@ -63,13 +63,13 @@
 - [x] 6-3 지도 안 SDK 요소(로고·축척, z-index 100)가 sticky 헤더(10) 위에 그려져 "데이터 출처" 링크를 덮던 문제: `.map { isolation: isolate }` 한 줄로 지도 안 쌓임을 닫음. 헤더 z-index·SDK DOM은 손대지 않음(COMPARE_DESIGN.md 13장 "6-3")
 
 ## 7. 주소 표시·주소 검색 (7차) — 설계 검수 대기
-설계: `docs/ADDRESS_DESIGN.md`. 분석 행정동은 backend `context` 그대로, 주소는 참고 정보. 채택안은 NAVER Web SDK Geocoder 서브모듈(Client ID만, backend·Secret 변경 없음) — 공식 문서로 인증·활성화 조건(Geocoding·Reverse Geocoding 선택, 미선택 시 429)·요금(대표 계정 월 3,000,000건 무료, 초과 0.5원/건, 구 AI NAVER API 상품은 2025-07-01부터 무료량 없음)을 확인했다.
+설계: `docs/ADDRESS_DESIGN.md`. 분석 행정동은 backend `context` 그대로, 주소는 참고 정보. 채택안은 NAVER Web SDK Geocoder 서브모듈(Client ID만, backend·Secret 변경 없음) — 공식 문서로 인증·활성화 조건(Geocoding·Reverse Geocoding 선택, 문서상 미선택 시 429 — 7-B0 실측은 403, 원인 미확인)·요금(대표 계정 월 3,000,000건 무료, 초과 0.5원/건, 구 AI NAVER API 상품은 2025-07-01부터 무료량 없음)을 확인했다.
 - [x] 7-A 설계 문서 (현재 SDK·설정 조사, 공식 문서 확인, 검색·표시 흐름, A/B 캐시·취소·늦은 응답, 장애 격리, 변경 파일·단계·테스트·콘솔 확인 항목)
-- [ ] 7-B0 콘솔 확인(상품 소속·대표 계정·API 선택·Web 서비스 URL·한도) + 브라우저 스파이크 (ADDRESS_DESIGN §9·§7-0·§11) — 2026-10-12 스파이크 수행: 별도 페이지 `frontend/spike/geocoder-spike.html`에서 SDK 1회 로드, 역방향·정방향 각 1회 → 둘 다 HTTP **403**(Client ID만 붙는 `-js` 엔드포인트, 코드 아닌 Application 설정 문제). 로더 준비 시점은 `callback` 파라미터로 확정(§5.1). **사용자 콘솔 확인 대기**(API 선택·상품 소속) → 각 1회 재호출 후 7-B1 착수 판단
+- [ ] 7-B0 콘솔 확인(상품 소속·대표 계정·API 선택·Web 서비스 URL·한도) + 브라우저 스파이크 (ADDRESS_DESIGN §9·§7-0·§11) — 상태 **준비 시점 확인 완료 / 정상 호출 확인 대기**. 2026-10-12: 별도 페이지 `frontend/spike/geocoder-spike.html`에서 SDK 1회 로드, `load` 시점엔 `Service` 없고 `callback` 시점엔 있음(지도 준비와 Geocoder 준비를 분리해 설계 §5.1). 역방향·정방향 각 1회 호출 → 사실: 둘 다 HTTP 403(Client ID + 페이지 url만 전송), SDK 콜백은 ERROR·응답 없음(원인 불명). 추정(미확인): API 미선택·상품 소속·URL/권한 — Dynamic Map 정상만으로 배제하지 않음. **사용자 콘솔 확인 대기**(계정·과금·한도 포함) → 각 1회 재호출 후 7-B1 착수 판단. 그 전 추가 호출 없음
 - [ ] 7-B1 로더 `submodules=geocoder` + `map/geocoder.ts` adapter(Zod·timeout·오류 종류) + 테스트
 - [ ] 7-B2 참고 주소 표시(단일): 캐시·hook·`ReferenceAddress`, 위치 필드·mobile sheet·결과 패널. 실패·없음은 기존 표시 그대로
 - [ ] 7-B3 참고 주소(비교 A/B): B 카드·비교 요약 카드, A/B 섞임 없음 테스트
-- [ ] 7-B4 주소 검색(단일) → 기존 `selectLocation` 경로, 인천 밖 꼬리표
+- [ ] 7-B4 주소 검색(단일) → 기존 `selectLocation` 경로. 결과는 모두 선택 가능(시·도 caption만), 분석 가능 여부는 backend 판정
 - [ ] 7-B5 주소 검색(비교 B) → `submitCompareLocation`(포커스 "B 분석하기")
 - [ ] 7-B6 브라우저 검증(1280/970/800/375, 장애 모사, 요청 수)·DESIGN §5.D/§7.4/§8.5/§8.5b·README·ARCHITECTURE·DECISIONS D-021. 운영 배포는 별도 승인
 
