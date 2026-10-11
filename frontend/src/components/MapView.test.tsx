@@ -1,4 +1,4 @@
-import { cleanup, render, waitFor } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import type { Mock } from 'vitest'
 import { resetNaverMapsLoaderForTest, type NaverMapsApi } from '../map/naverMaps.ts'
 import { MapView, type MapStore, type MapViewProps } from './MapView.tsx'
@@ -255,5 +255,71 @@ describe('MapView — 동종 점포 마커 (4차, DESIGN.md §8.11·§8.14)', ()
     expect(clicks()).toHaveLength(0)
     expect(infos[0]!.close).toHaveBeenCalled()
     expect(maps).toHaveLength(1)
+  })
+})
+
+describe('MapView — 점포 정보창 닫기 접근성 (4차 보완, DESIGN.md §8.14)', () => {
+  const STORES: MapStore[] = [
+    { id: 'a', name: '라네이즈PC방', address: '인천 부평구 1', distance: '직선거리 115m', lat: 37.4888, lng: 126.7235 },
+    { id: 'b', name: '벨류피씨', address: '인천 부평구 2', distance: '직선거리 221m', lat: 37.49, lng: 126.726 },
+  ]
+
+  /** 선택 상태를 부모처럼 들고 있는 하네스 — 닫기 뒤 실제로 activeStoreId가 null로 바뀐다 */
+  async function mountActive() {
+    const onStoreSelect = vi.fn()
+    const view = await mount(props({ stores: STORES, activeStoreId: 'a', onStoreSelect }))
+    onStoreSelect.mockImplementation((id: string | null) =>
+      view.rerender(<MapView {...props({ stores: STORES, activeStoreId: id, onStoreSelect })} />),
+    )
+    return { ...view, onStoreSelect }
+  }
+
+  it('점포를 고르면 SDK 정보창 밖(지도 위)에 키보드로 누를 수 있는 "정보창 닫기"가 생긴다', async () => {
+    const view = await mount(props({ stores: STORES }))
+    expect(screen.queryByRole('group', { name: '선택한 점포' })).not.toBeInTheDocument()
+    view.rerender(<MapView {...props({ stores: STORES, activeStoreId: 'a' })} />)
+    const bar = screen.getByRole('group', { name: '선택한 점포' })
+    expect(bar).toHaveTextContent('라네이즈PC방')
+    const close = screen.getByRole('button', { name: '정보창 닫기' })
+    expect(close).toHaveAttribute('type', 'button')
+    expect(view.section.contains(close)).toBe(true)
+    expect(infos[0]!.content.contains(close)).toBe(false)           // SDK 정보창 내용이 아니다
+  })
+
+  it('"정보창 닫기"를 누르면 선택만 지우고, 포커스는 지도 영역으로 옮긴다 (마커·중심·줌 유지)', async () => {
+    const view = await mountActive()
+    const markers = vi.mocked(fakeSdk.Marker).mock.calls.length
+    const pans = view.map.panTo.mock.calls.length
+    screen.getByRole('button', { name: '정보창 닫기' }).focus()
+    fireEvent.click(screen.getByRole('button', { name: '정보창 닫기' }))
+
+    expect(view.onStoreSelect).toHaveBeenCalledWith(null)
+    expect(infos[0]!.close).toHaveBeenCalled()
+    expect(screen.queryByRole('group', { name: '선택한 점포' })).not.toBeInTheDocument()
+    expect(document.activeElement).toBe(view.section)               // 포커스를 잃지 않는다
+    expect(view.section).toHaveAttribute('tabindex', '-1')
+    expect(vi.mocked(fakeSdk.Marker).mock.calls.length).toBe(markers)
+    vi.mocked(fakeSdk.Marker).mock.results.forEach((r) => expect(r.value.setMap).not.toHaveBeenCalledWith(null))
+    expect(view.map.panTo.mock.calls.length).toBe(pans)
+    expect(view.map.setZoom).not.toHaveBeenCalled()
+    expect(maps).toHaveLength(1)
+  })
+
+  it('지도 영역에서 Escape를 누르면 닫고, 선택이 없으면 아무것도 하지 않는다', async () => {
+    const view = await mountActive()
+    fireEvent.keyDown(screen.getByRole('button', { name: '정보창 닫기' }), { key: 'Escape' })
+    expect(view.onStoreSelect).toHaveBeenCalledWith(null)
+    expect(document.activeElement).toBe(view.section)
+
+    view.onStoreSelect.mockClear()
+    fireEvent.keyDown(view.section, { key: 'Escape' })
+    expect(view.onStoreSelect).not.toHaveBeenCalled()
+  })
+
+  it('정보창 안 "닫기"도 포커스를 지도 영역으로 옮긴다', async () => {
+    const view = await mountActive()
+    infos[0]!.content.querySelector('button')!.click()
+    expect(view.onStoreSelect).toHaveBeenCalledWith(null)
+    expect(document.activeElement).toBe(view.section)
   })
 })

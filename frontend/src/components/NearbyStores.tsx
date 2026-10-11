@@ -1,4 +1,4 @@
-import { useId, useState } from 'react'
+import { useId, useState, type KeyboardEvent } from 'react'
 import type { ApiFailure } from '../api/client.ts'
 import type { NearbyStoresResponse } from '../api/schemas.ts'
 import { formatDistance, storeAddress, storeName } from '../lib/format.ts'
@@ -16,6 +16,7 @@ export const NEARBY_PREVIEW = 5
 /**
  * 반경 안 같은 업종 점포 (4차, DESIGN.md §8.14). 분석과 별도 요청이라 실패해도 분석 결과는 그대로다.
  * 목록 항목은 버튼 — 누르면 지도 마커를 강조하고 정보창을 연다(지도 마커를 누르는 것과 같은 기능, 키보드 대안).
+ * 목록 영역에서 Escape를 누르면 선택과 정보창을 닫는다.
  */
 export function NearbyStores({
   state,
@@ -36,7 +37,8 @@ export function NearbyStores({
   show: boolean
   onShowChange: (show: boolean) => void
   activeId: string | null
-  onSelect: (id: string) => void
+  /** 점포 선택(id) · 선택 해제(null, Escape) */
+  onSelect: (id: string | null) => void
   onRetry: () => void
 }) {
   const listId = useId()
@@ -52,8 +54,15 @@ export function NearbyStores({
   const expanded = all
   const visible = expanded ? stores : stores.slice(0, NEARBY_PREVIEW)
 
+  // 목록 영역에서 Escape → 선택·정보창 닫기. 포커스는 누른 자리(목록 항목 등)에 그대로 남는다
+  const onKeyDown = (e: KeyboardEvent<HTMLElement>) => {
+    if (e.key !== 'Escape' || activeId === null) return
+    e.preventDefault()
+    onSelect(null)
+  }
+
   return (
-    <section className="result-section" aria-labelledby="nearby-title">
+    <section className="result-section" aria-labelledby="nearby-title" onKeyDown={onKeyDown}>
       <div className="result-section__head">
         <h2 id="nearby-title" className="result-section__title">
           반경 {radiusM}m 안 같은 업종 점포

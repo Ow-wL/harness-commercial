@@ -17,6 +17,30 @@ function mobileRule(selector: string): string {
   return media.slice(at, media.indexOf('}', at))
 }
 
+const mapCss = readFileSync(join(process.cwd(), 'src', 'components', 'MapView.css'), 'utf-8')
+
+describe('점포 정보창 닫기 버튼 터치 영역 (4차 보완, DESIGN.md §15)', () => {
+  it('지도 위 "정보창 닫기"와 정보창 안 "닫기"는 최소 44×44px', () => {
+    const at = mapCss.indexOf('.map__store-bar-close,\n.map-store-info__close {')
+    expect(at).toBeGreaterThan(-1)
+    const rule = mapCss.slice(at, mapCss.indexOf('}', at))
+    expect(rule).toMatch(/min-width:\s*44px;/)
+    expect(rule).toMatch(/min-height:\s*44px;/)
+    // 뒤에서 더 작은 min-height로 덮어쓰지 않는다
+    expect(mapCss.slice(at)).not.toMatch(/\.map-store-info__close \{[^}]*min-height:\s*(?!44px)\d+px/)
+  })
+})
+
+describe('지도 영역 포커스 표시 (4차 보완, DESIGN.md §15)', () => {
+  it('지도 영역은 outline 대신 지도 레이어 위 포커스 링(::after inset 2px)을 그린다 — 포커스 표시가 없어지지 않게', () => {
+    const at = mapCss.indexOf('.map:focus-visible::after {')
+    expect(at).toBeGreaterThan(-1)
+    const rule = mapCss.slice(at, mapCss.indexOf('}', at))
+    expect(rule).toMatch(/box-shadow:\s*inset 0 0 0 2px var\(--color-focus-ring\);/)
+    expect(rule).toMatch(/pointer-events:\s*none;/)                // 지도 조작을 막지 않는다
+  })
+})
+
 describe('mobile 지도 화면 레이아웃', () => {
   it('지도 영역은 flex 항목 최소 폭을 풀어 부모 폭을 따른다 — SDK canvas의 이전 inline 폭에 막히지 않게', () => {
     // 재현: 970px에서 분석 → 375px로 축소 → "지도 보기" 시 .workspace__map이 970px로 남아 595px 가로 넘침

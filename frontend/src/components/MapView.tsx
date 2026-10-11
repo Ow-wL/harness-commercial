@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
 import { findDongRings } from '../map/dongBoundary.ts'
 import {
   loadNaverMaps,
@@ -241,6 +241,24 @@ export function MapView({
     [map],
   )
 
+  // 점포 정보창 닫기 (4차 보완): 선택만 지운다 — 마커·목록·지도 중심·줌은 그대로.
+  // 닫는 데 쓴 버튼(지도 위 막대·정보창 안)이 사라지므로 포커스를 지도 영역으로 옮겨 잃지 않게 한다
+  const closeStore = () => {
+    onStoreSelectRef.current?.(null)
+    sectionRef.current?.focus()
+  }
+  const closeStoreRef = useRef(closeStore)
+  useEffect(() => {
+    closeStoreRef.current = closeStore
+  })
+  const activeStore = stores?.find((s) => s.id === activeStoreId) ?? null
+  /** 지도 영역 안(지도 위 막대, SDK 컨트롤, 정보창 버튼, 영역 자체)에서 Escape → 선택·정보창 닫기 */
+  const onMapKeyDown = (e: KeyboardEvent<HTMLElement>) => {
+    if (e.key !== 'Escape' || !activeStore) return
+    e.preventDefault()
+    closeStore()
+  }
+
   // 동종 점포 마커 (4차). stores가 바뀌면 이전 마커·클릭 리스너를 모두 지우고 새로 그린다
   const storeMarkersRef = useRef<Map<string, NaverMarker>>(new Map())
   useEffect(() => {
@@ -279,7 +297,7 @@ export function MapView({
       pannedStoreRef.current = null
       return
     }
-    const content = storeInfoContent(store, () => onStoreSelectRef.current?.(null))
+    const content = storeInfoContent(store, () => closeStoreRef.current())
     if (infoRef.current) infoRef.current.setContent(content)
     else
       infoRef.current = new api.InfoWindow({
@@ -337,8 +355,18 @@ export function MapView({
   }, [api, map, guCode, dongName])
 
   return (
-    <section ref={sectionRef} className="map" aria-label="위치 선택 지도">
+    // tabIndex=-1: 정보창을 닫은 뒤 포커스를 받을 수 있게 (탭 순서에는 넣지 않는다)
+    <section ref={sectionRef} className="map" aria-label="위치 선택 지도" tabIndex={-1} onKeyDown={onMapKeyDown}>
       <div ref={canvasRef} className="map__canvas" />
+      {/* SDK 정보창 밖에서도 키보드로 닫을 수 있는 조작 (DESIGN.md §8.14). 지도 위 우리 DOM이라 탭 순서에 들어간다 */}
+      {activeStore && (
+        <div className="map__store-bar" role="group" aria-label="선택한 점포">
+          <span className="map__store-bar-name">{activeStore.name}</span>
+          <button type="button" className="map__store-bar-close" onClick={closeStore}>
+            정보창 닫기
+          </button>
+        </div>
+      )}
       {error ? (
         <div className="map__state" role="alert">
           <Icon name="alert-triangle" size={20} />

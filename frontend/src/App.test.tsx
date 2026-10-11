@@ -364,6 +364,23 @@ describe('반경 안 같은 업종 점포 (POST /nearby-stores, 4차)', () => {
     expect(first).toHaveAttribute('aria-pressed', 'false')
   })
 
+  it('키보드로 목록 점포를 열고 Escape로 닫아도 분석 결과·목록·마커는 그대로이고 포커스가 남는다', async () => {
+    await analyzeBupyeong([{ status: 200, body: nearbyFixture }])
+    const list = await screen.findByRole('list', { name: 'PC방 점포 목록' })
+    const item = within(list).getAllByRole('button')[2]!
+    item.focus()
+    fireEvent.click(item)                                          // Enter·Space = 버튼 click
+    expect(screen.getByTestId('map')).toHaveAttribute('data-active-store', nearbyFixture.stores[2]!.id)
+
+    fireEvent.keyDown(item, { key: 'Escape' })
+    expect(screen.getByTestId('map')).toHaveAttribute('data-active-store', '')
+    expect(item).toHaveAttribute('aria-pressed', 'false')
+    expect(document.activeElement).toBe(item)
+    expect(screen.getByTestId('map')).toHaveAttribute('data-stores', '12')
+    expect(within(list).getAllByRole('button')).toHaveLength(5)
+    expect(screen.getByRole('region', { name: '종합 적합도' })).toBeInTheDocument()
+  })
+
   it('"지도에 표시"를 끄면 마커와 선택을 지우고, 다시 켜면 마커를 그린다', async () => {
     await analyzeBupyeong([{ status: 200, body: nearbyFixture }])
     const toggle = await screen.findByRole('checkbox', { name: '지도에 표시' })

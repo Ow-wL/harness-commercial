@@ -87,6 +87,35 @@ describe('NearbyStores (DESIGN.md §8.14)', () => {
     expect(within(screen.getByRole('list', { name: 'PC방 점포 목록' })).getAllByRole('button')).toHaveLength(5)
   })
 
+  it('목록 영역에서 Escape를 누르면 선택을 지우고(onSelect(null)), 포커스는 그 항목에 남는다', () => {
+    const onSelect = vi.fn()
+    render(
+      <NearbyStores
+        state={{ status: 'success', data: NEARBY }}
+        bizName="PC방"
+        radiusM={500}
+        expectedCount={12}
+        show
+        onShowChange={() => {}}
+        activeId={NEARBY.stores[1]!.id}
+        onSelect={onSelect}
+        onRetry={() => {}}
+      />,
+    )
+    const item = within(screen.getByRole('list', { name: 'PC방 점포 목록' })).getAllByRole('button')[1]!
+    item.focus()
+    fireEvent.keyDown(item, { key: 'Escape' })
+    expect(onSelect).toHaveBeenCalledWith(null)
+    expect(document.activeElement).toBe(item)
+  })
+
+  it('선택이 없으면 Escape는 아무것도 하지 않는다', () => {
+    const onSelect = renderList({ status: 'success', data: NEARBY })
+    const item = within(screen.getByRole('list', { name: 'PC방 점포 목록' })).getAllByRole('button')[0]!
+    fireEvent.keyDown(item, { key: 'Escape' })
+    expect(onSelect).not.toHaveBeenCalled()
+  })
+
   it('불러오는 중은 aria-live로 알린다', () => {
     renderList({ status: 'loading' })
     expect(screen.getByText('점포 목록을 불러오는 중…')).toHaveAttribute('aria-live', 'polite')
