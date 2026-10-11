@@ -179,10 +179,20 @@ function App() {
     focusLater(COMPARE_IDS.start)
   }
 
-  /** 비교 중 지도 클릭·좌표 입력 = B 선택. A는 바꾸지 않는다. B 분석 중에는 무시(D9) */
-  const selectCompareLocation = (point: LatLng) => {
-    if (compare.status === 'off' || compare.status === 'loading') return
+  /** 비교 중 지도 클릭·좌표 입력 = B 선택. A는 바꾸지 않는다. B 분석 중에는 무시(D9). 받아들였으면 true */
+  const selectCompareLocation = (point: LatLng): boolean => {
+    if (compare.status === 'off' || compare.status === 'loading') return false
     setCompare({ status: 'picking', location: point })    // 이전 B 결과·오류는 지운다
+    return true
+  }
+
+  /**
+   * B 좌표 직접 입력 제출(유효한 좌표만 들어온다 — 잘못된 값은 CoordinateForm이 막고 오류를 보인다).
+   * 입력란은 B 좌표가 바뀌면 새로 그려져(key) 제출 버튼·입력란이 사라지므로, 렌더 뒤 "B 분석하기"로 포커스를 옮긴다.
+   * 지도 클릭(selectCompareLocation 직접)은 포커스를 옮기지 않는다 — 지도를 쓰는 중에 패널로 빼앗지 않게.
+   */
+  const submitCompareLocation = (point: LatLng) => {
+    if (selectCompareLocation(point)) focusLater(COMPARE_IDS.bAnalyze)
   }
 
   const requestCompare = (point: LatLng) => {
@@ -347,7 +357,7 @@ function App() {
             <ComparePanel
               a={result}
               compare={compare}
-              onLocationInput={selectCompareLocation}
+              onLocationSubmit={submitCompareLocation}
               onAnalyze={runCompare}
               onErrorAction={handleCompareErrorAction}
               onReselect={pickB}

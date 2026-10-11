@@ -153,6 +153,23 @@ describe('분석 흐름', () => {
     expect(analyzeButton()).toBeEnabled()
   })
 
+  it('단일 분석 좌표 입력: 제출 뒤 입력란이 그대로 남고 포커스도 제출 버튼에 남는다 (B 포커스 이동이 번지지 않는다)', async () => {
+    mockApi()
+    render(<App />)
+    const conditions = screen.getByRole('region', { name: '분석 조건' })
+    fireEvent.click(within(conditions).getByRole('button', { name: '좌표 직접 입력' }))   // 펼침 토글(mobile sheet에도 같은 이름 버튼이 있다)
+    fireEvent.change(screen.getByLabelText('위도'), { target: { value: '37.4894' } })
+    fireEvent.change(screen.getByLabelText('경도'), { target: { value: '126.7246' } })
+    const submit = screen.getByRole('button', { name: '이 좌표로 선택' })
+    submit.focus()
+    fireEvent.click(submit)
+
+    expect(screen.getByText('37.4894, 126.7246', { selector: '.location__value .mono' })).toBeInTheDocument()
+    expect(screen.getByTestId('map')).toHaveAttribute('data-selected', '37.4894,126.7246')
+    expect(document.activeElement).toBe(submit)
+    expect(screen.getByLabelText('위도')).toHaveValue('37.4894')
+  })
+
   it('POST /analyze body는 선택 좌표·업종코드와 정확히 같고, 성공 응답을 결과 화면에 보여 준다', async () => {
     let respond!: (r: { status: number; body: unknown }) => void
     const pending = new Promise<{ status: number; body: unknown }>((r) => (respond = r))
@@ -655,6 +672,98 @@ describe('두 위치 비교 — B 분석 상태 (5차-B2, docs/COMPARE_DESIGN.md
     fireEvent.click(within(panel()).getByRole('button', { name: '비교 취소' }))
     expect(screen.getByTestId('map')).toHaveAttribute('data-active-store', '')
     expect(screen.getByTestId('map')).toHaveAttribute('data-stores', '12')
+  })
+
+  describe('B 좌표 직접 입력 뒤 포커스 (5차-B2 보완)', () => {
+    const latInput = () => within(bCard()).getByLabelText('B 위도')
+    const lngInput = () => within(bCard()).getByLabelText('B 경도')
+    const analyzeBButton = () => within(bCard()).getByRole('button', { name: 'B 분석하기' })
+    function fill(lat: string, lng: string) {
+      fireEvent.change(latInput(), { target: { value: lat } })
+      fireEvent.change(lngInput(), { target: { value: lng } })
+    }
+    /** 입력란에서 Enter = 폼 암묵 제출 (jsdom은 Enter 키로 submit을 일으키지 않아 submit 이벤트로 대신한다) */
+    function pressEnterIn(input: HTMLElement) {
+      input.focus()
+      fireEvent.submit(input.closest('form')!)
+    }
+
+    it('최초 입력을 제출 버튼으로 내면 "B 분석하기"로 포커스가 간다 (body로 빠지지 않는다)', async () => {
+      await analyzeA()
+      startCompare()
+      fill('37.4475', '126.7015')
+      const submit = within(bCard()).getByRole('button', { name: 'B 위치로 선택' })
+      submit.focus()
+      fireEvent.click(submit)
+
+      expect(submit).not.toBeInTheDocument()                     // 입력란이 새 좌표로 다시 그려진다
+      expect(document.activeElement).not.toBe(document.body)
+      expect(document.activeElement).toBe(analyzeBButton())
+      expect(analyzeBButton()).toBeEnabled()
+      expect(bCard()).toHaveTextContent('선택됨 · 37.4475, 126.7015')
+    })
+
+    it('입력란에서 Enter로 제출해도 "B 분석하기"로 간다', async () => {
+      await analyzeA()
+      startCompare()
+      fill('37.4475', '126.7015')
+      pressEnterIn(lngInput())
+      expect(document.activeElement).toBe(analyzeBButton())
+    })
+
+    it('좌표를 고쳐 다시 제출해도 "B 분석하기"로 가고, 고친 좌표가 반영된다', async () => {
+      await analyzeA()
+      startCompare()
+      fill('37.4475', '126.7015')
+      pressEnterIn(latInput())
+      expect(latInput()).toHaveValue('37.4475')
+
+      fireEvent.change(latInput(), { target: { value: '37.448' } })   // 수정
+      pressEnterIn(latInput())
+      expect(document.activeElement).toBe(analyzeBButton())
+      expect(bCard()).toHaveTextContent('선택됨 · 37.448, 126.7015')
+      expect(latInput()).toHaveValue('37.448')
+    })
+
+    it('잘못된 좌표를 내면 분석 버튼으로 옮기지 않고, 포커스는 낸 자리에 남는다', async () => {
+      await analyzeA()
+      startCompare()
+      fill('137', '126.7015')
+      const submit = within(bCard()).getByRole('button', { name: 'B 위치로 선택' })
+      submit.focus()
+      fireEvent.click(submit)
+      expect(document.activeElement).toBe(submit)
+      expect(latInput()).toHaveAttribute('aria-invalid', 'true')
+      expect(bCard()).toHaveTextContent('위도는 -90~90 사이 숫자입니다')
+      expect(analyzeBButton()).toBeDisabled()                      // B 좌표는 선택되지 않았다
+
+      pressEnterIn(latInput())                                      // Enter도 같다
+      expect(document.activeElement).toBe(latInput())
+    })
+
+    it('지도 클릭은 입력값만 갱신하고 패널로 포커스를 빼앗지 않는다', async () => {
+      await analyzeA()
+      startCompare()
+      const mapClick = screen.getByRole('button', { name: '지도 클릭: 송도' })
+      mapClick.focus()
+      fireEvent.click(mapClick)
+      expect(latInput()).toHaveValue('37.392512')
+      expect(lngInput()).toHaveValue('126.639034')
+      expect(document.activeElement).toBe(mapClick)
+    })
+
+    it('B 오류 뒤 새 좌표를 제출하면 다시 나타난 "B 분석하기"로 간다', async () => {
+      await analyzeA([{ status: 422, body: { error: { code: 'no_data_nearby', message: 'x' } } }])
+      startCompare()
+      fireEvent.click(screen.getByRole('button', { name: '지도 클릭: 송도' }))
+      analyzeB()
+      await within(bCard()).findByRole('alert')
+      expect(within(bCard()).queryByRole('button', { name: 'B 분석하기' })).not.toBeInTheDocument()
+
+      fill('37.4475', '126.7015')
+      pressEnterIn(lngInput())
+      expect(document.activeElement).toBe(analyzeBButton())
+    })
   })
 
   describe('mobile (<640px)', () => {

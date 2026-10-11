@@ -19,7 +19,7 @@ const scoreText = (score: number | null) => (score === null ? '미산출' : form
 export function ComparePanel({
   a,
   compare,
-  onLocationInput,
+  onLocationSubmit,
   onAnalyze,
   onErrorAction,
   onReselect,
@@ -29,7 +29,8 @@ export function ComparePanel({
 }: {
   a: AnalyzeResponse
   compare: ActiveCompare
-  onLocationInput: (point: LatLng) => void
+  /** B 좌표 직접 입력 제출 (지도 클릭은 App이 따로 받는다) */
+  onLocationSubmit: (point: LatLng) => void
   onAnalyze: () => void
   onErrorAction: (action: ErrorAction) => void
   onReselect: () => void
@@ -104,18 +105,19 @@ export function ComparePanel({
         {!done && (
           <>
             <CoordinateForm
-              // 지도에서 고른 좌표로 입력란을 새로 채운다
+              // 지도에서 고른 좌표로 입력란을 새로 채운다(좌표가 바뀌면 새로 그린다 → 제출 뒤 포커스는 App이 "B 분석하기"로 옮긴다)
               key={location ? `${location.lat},${location.lng}` : 'empty'}
               id={formId}
               initial={location}
               disabled={loading}
-              onSubmit={onLocationInput}
+              onSubmit={onLocationSubmit}
               labelPrefix="B "
               submitLabel="B 위치로 선택"
             />
             {/* 오류 상태에서는 숨긴다: 다시 시도·다시 고르기는 오류 블록의 행동 버튼이 맡고, 새 좌표를 고르면 다시 나온다 */}
             {compare.status !== 'error' && (
               <button
+                id={COMPARE_IDS.bAnalyze}
                 type="button"
                 className="button button--primary button--block"
                 disabled={!location || loading}
