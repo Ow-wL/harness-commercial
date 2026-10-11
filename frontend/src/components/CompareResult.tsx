@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState } from 'react'
+import { useId, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { PERSPECTIVE_KEYS, type AnalyzeResponse, type EngineResult } from '../api/schemas.ts'
 import {
   displayScoreDiff,
@@ -33,6 +33,7 @@ type Indicator = EngineResult['지표'][number]
 export function CompareResult({
   a,
   b,
+  nearby,
   onShowDetail,
   onReselect,
   onEnd,
@@ -41,6 +42,8 @@ export function CompareResult({
 }: {
   a: AnalyzeResponse
   b: AnalyzeResponse
+  /** 반경 안 같은 업종 점포 — 고른 기준 위치 하나 (5차-B5, App이 기준 전환과 함께 넘긴다) */
+  nearby?: ReactNode
   onShowDetail: (side: CompareSide) => void
   onReselect: () => void
   onEnd: () => void
@@ -65,6 +68,7 @@ export function CompareResult({
       <NotComputed a={a} b={b} />
       <Warnings a={a} b={b} />
       <RawValues a={a} b={b} />
+      {nearby}
       {/* 같은 업종·같은 엔진이라 출처는 하나다. 화면에 한 번만 둔다(#data-sources, 헤더 링크 대상) */}
       <DataSources meta={a.result.meta} disclaimer={a.result.면책} />
 
@@ -86,25 +90,61 @@ export function CompareResult({
 const SIDE_TITLE: Record<CompareSide, string> = { A: 'A 기준 위치', B: 'B 비교 위치' }
 
 /**
+ * 비교 요약의 점포 기준 전환 (§4.3, D4): aria-pressed 버튼 2개. 고른 위치의 목록·마커만 보인다.
+ * 전환하면 점포 목록이 새로 그려지므로(펼침 상태가 섞이지 않게) App이 누른 버튼으로 포커스를 돌려준다.
+ */
+export function StoreSideSwitch({
+  side,
+  a,
+  b,
+  onChange,
+}: {
+  side: CompareSide
+  a: AnalyzeResponse
+  b: AnalyzeResponse
+  onChange: (side: CompareSide) => void
+}) {
+  return (
+    <div className="compare__store-switch" role="group" aria-label="점포 기준 위치">
+      {(['A', 'B'] as const).map((s) => (
+        <button
+          key={s}
+          id={s === 'A' ? COMPARE_IDS.storeSideA : COMPARE_IDS.storeSideB}
+          type="button"
+          className="compare__store-switch-button"
+          aria-pressed={side === s}
+          onClick={() => onChange(s)}
+        >
+          {s} {(s === 'A' ? a : b).context.dong_name}
+        </button>
+      ))}
+    </div>
+  )
+}
+
+/**
  * 위치별 전체 결과 (§3.3 detail-A / detail-B). 기존 AnalysisResult 하나를 그 위치 응답으로 띄운다 —
- * 한 번에 하나만 마운트하므로 고정 id가 겹치지 않는다(6장). 점포 목록은 B5 전까지 두지 않는다(B 화면에 A 점포를 보이지 않게).
+ * 한 번에 하나만 마운트하므로 고정 id가 겹치지 않는다(6장). 점포 목록은 그 위치의 것만 받는다(B 화면에 A 점포를 보이지 않게).
  */
 export function CompareDetail({
   side,
   analysis,
+  nearby,
   onBack,
   onShowMap,
 }: {
   side: CompareSide
   analysis: AnalyzeResponse
+  /** 그 위치의 점포 목록 (A 전체 → A 점포, B 전체 → B 점포, 5차-B5) */
+  nearby?: ReactNode
   onBack: () => void
   onShowMap: () => void
 }) {
   // 요약에서 내려가 있던 스크롤 위치를 이어받지 않게, 열릴 때 맨 위("비교로 돌아가기" 막대)부터 보인다.
   // 스크롤하는 쪽이 desktop은 패널, tablet·mobile은 문서라 조상을 모두 맨 위로 둔다(sticky 헤더에 막대가 가리지 않게).
-  // 포커스(결과 제목)는 App이 이 effect 뒤에 옮긴다
+  // 포커스(결과 제목)는 App이 이 뒤에 옮긴다(자식 layout effect가 부모보다 먼저 돈다)
   const rootRef = useRef<HTMLDivElement>(null)
-  useEffect(() => {
+  useLayoutEffect(() => {
     for (let el = rootRef.current?.parentElement; el; el = el.parentElement) el.scrollTop = 0
   }, [])
 
@@ -124,7 +164,7 @@ export function CompareDetail({
           </button>
         </span>
       </div>
-      <AnalysisResult analysis={analysis} titlePrefix={side} />
+      <AnalysisResult analysis={analysis} titlePrefix={side} nearby={nearby} />
     </div>
   )
 }

@@ -1,4 +1,4 @@
-import { useId, useState, type KeyboardEvent } from 'react'
+import { useId, useState, type KeyboardEvent, type ReactNode } from 'react'
 import type { ApiFailure } from '../api/client.ts'
 import type { NearbyStoresResponse } from '../api/schemas.ts'
 import { formatDistance, storeAddress, storeName } from '../lib/format.ts'
@@ -28,6 +28,8 @@ export function NearbyStores({
   activeId,
   onSelect,
   onRetry,
+  place,
+  sideSwitch,
 }: {
   state: NearbyState
   bizName: string
@@ -40,6 +42,10 @@ export function NearbyStores({
   /** 점포 선택(id) · 선택 해제(null, Escape) */
   onSelect: (id: string | null) => void
   onRetry: () => void
+  /** 두 위치 비교 중 기준 위치(예: "B 남동구 구월3동") — 제목·개수 안내·목록 이름에 붙인다 (5차-B5) */
+  place?: string
+  /** 두 위치 비교 요약의 점포 기준 A/B 전환 (제목 아래) */
+  sideSwitch?: ReactNode
 }) {
   const listId = useId()
   const stores = state.status === 'success' ? state.data.stores : []
@@ -66,6 +72,13 @@ export function NearbyStores({
       <div className="result-section__head">
         <h2 id="nearby-title" className="result-section__title">
           반경 {radiusM}m 안 같은 업종 점포
+          {/* 구분자는 span 밖 텍스트로 — span 안 앞 공백은 접근 가능한 이름에서 사라진다 */}
+          {place && (
+            <>
+              {' · '}
+              <span className="nearby__place">{place}</span>
+            </>
+          )}
         </h2>
         {state.status === 'success' && state.data.count > 0 && (
           <label className="nearby__toggle">
@@ -74,6 +87,7 @@ export function NearbyStores({
           </label>
         )}
       </div>
+      {sideSwitch}
 
       {state.status === 'loading' && (
         <p className="result-section__note" aria-live="polite">
@@ -95,6 +109,7 @@ export function NearbyStores({
       {state.status === 'success' && (
         <>
           <p className="result-section__note">
+            {place && `${place} · `}
             {bizName} {state.data.count}곳 · {state.data.count > 0 && '가까운 순 · 거리는 분석 지점에서의 직선거리 · '}
             상가정보 {state.data.as_of} 기준 (이후 개업·폐업은 반영되지 않음)
           </p>
@@ -108,7 +123,7 @@ export function NearbyStores({
             <p className="result-section__empty">반경 {radiusM}m 안에 같은 업종 점포가 없습니다.</p>
           ) : (
             <>
-              <ol id={listId} className="nearby__list" aria-label={`${bizName} 점포 목록`}>
+              <ol id={listId} className="nearby__list" aria-label={`${place ? `${place} ` : ''}${bizName} 점포 목록`}>
                 {visible.map((s) => (
                   <li key={s.id}>
                     <button

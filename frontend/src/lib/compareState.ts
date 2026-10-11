@@ -25,6 +25,8 @@ export const COMPARE_IDS = {
   bAnalyze: 'compare-b-analyze',
   detailA: 'compare-detail-a',
   detailB: 'compare-detail-b',
+  storeSideA: 'compare-store-side-a',
+  storeSideB: 'compare-store-side-b',
   bError: 'compare-b-error',
   sheetAction: 'compare-sheet-action',
 } as const

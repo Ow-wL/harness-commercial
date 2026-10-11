@@ -63,12 +63,14 @@ src/
   lib/errorView.ts      실패 → 오류 문구·위치·다음 행동 (DESIGN.md §10.3 표)
   lib/warnings.ts       "주의할 점" 문장(병목 경고 표시 문장·데이터 한계). WarningPanel과 두 위치 비교가 같이 쓴다
   lib/compareState.ts   두 위치 비교 B 분석 상태 타입 · 포커스 대상 id · 좌표 일치 판정
+  lib/useNearbyRequest.ts  동종 점포 조회 1벌(요청 번호·취소·응답 조건 대조). A·B 점포가 각자 쓴다
   lib/compare.ts        두 위치 비교 표시 규칙(표시용 차이 A−B, 같은 구·동, 적용 가중치, 미산출, 반경 겹침, 원시값) — docs/COMPARE_DESIGN.md
   fixtures/             실제 POST /analyze 응답 캡처 (테스트 전용, 화면 데이터 아님)
                         bupyeong-pcbang.json = 부평역·PC방(정상 산출) / bupyeong-nailshop.json = 부평역·네일숍(안정성 미산출 + 병목 < 25)
                         bupyeong-pcbang-nearby.json = 같은 조건의 POST /nearby-stores 응답(12곳)
                         compare-*.json = 두 위치 비교 B 후보(PC방): guwol 다른 구 / bupyeong1b 같은 동 /
                           ganghwa 안정성 미산출 / songdo 동종 점포 0곳·경쟁성 미산출 (좌표는 docs/COMPARE_DESIGN.md 10.1)
+                        compare-guwol-pcbang-nearby.json · compare-songdo-pcbang-nearby.json = 같은 조건의 POST /nearby-stores 응답(6곳·0곳)
   styles/tokens.css     DESIGN.md §17 디자인 토큰 그대로 (값 변경은 DESIGN.md 먼저)
   styles/global.css · controls.css   전역 기본 · 버튼/입력 공통
   test/setup.ts         jest-dom matcher, 테스트 후 cleanup

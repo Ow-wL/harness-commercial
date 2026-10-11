@@ -1,20 +1,21 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { analyze, fetchBusinesses, fetchNearbyStores, type AnalyzeRequest, type ApiFailure } from './api/client.ts'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { analyze, fetchBusinesses, type AnalyzeRequest, type ApiFailure } from './api/client.ts'
 import type { AnalyzeResponse } from './api/schemas.ts'
 import { AnalysisResult } from './components/AnalysisResult.tsx'
 import { AnalysisEmpty, AnalysisLoading } from './components/AnalysisStatus.tsx'
 import { ComparePanel, CompareSheet } from './components/ComparePanel.tsx'
-import { CompareDetail, CompareResult } from './components/CompareResult.tsx'
+import { CompareDetail, CompareResult, StoreSideSwitch } from './components/CompareResult.tsx'
 import { ConditionPanel, type BusinessesState } from './components/ConditionPanel.tsx'
 import { CompareContextBar, ContextBar } from './components/ContextBar.tsx'
 import { ErrorBlock } from './components/ErrorBlock.tsx'
 import { LocationSummary } from './components/LocationSummary.tsx'
 import { MapView, type LatLng, type MapCompare, type MapStore } from './components/MapView.tsx'
-import { NearbyStores, type NearbyState } from './components/NearbyStores.tsx'
+import { NearbyStores } from './components/NearbyStores.tsx'
 import type { CompareSide } from './lib/compare.ts'
 import { COMPARE_IDS, sameCoordinates, type CompareState, type CompareView } from './lib/compareState.ts'
 import { errorView, type ErrorAction } from './lib/errorView.ts'
 import { formatDistance, locationName, nearestStation, storeAddress, storeName } from './lib/format.ts'
+import { useNearbyRequest } from './lib/useNearbyRequest.ts'
 import './App.css'
 
 type Analysis =
@@ -48,9 +49,16 @@ function App() {
   const [analysis, setAnalysis] = useState<Analysis>({ status: 'idle' })
   const [mobileScreen, setMobileScreen] = useState<MobileScreen>('map')
   // 반경 안 동종 점포 (4차): 분석 성공 뒤 같은 좌표·업종으로 따로 조회한다. null = 분석 결과 없음
-  const [nearby, setNearby] = useState<NearbyState | null>(null)
+  // 조건이 바뀌면 취소·제거하고, 늦게 온 이전 요청 응답은 버린다 (useNearbyRequest)
+  const nearbyA = useNearbyRequest()
+  const nearby = nearbyA.state
   const [showStores, setShowStores] = useState(true)
   const [activeStoreId, setActiveStoreId] = useState<string | null>(null)
+  // 비교 중 B 점포 (5차-B5): A와 별도 요청 번호·AbortController. B 분석 성공 뒤 같은 좌표·업종으로 조회한다
+  const nearbyB = useNearbyRequest()
+  // 비교 요약의 점포 기준(B 성공 뒤 기본 B)과 비교 중 "지도에 표시". A 단일 결과의 showStores는 건드리지 않는다
+  const [storeSide, setStoreSide] = useState<CompareSide>('B')
+  const [compareShowStores, setCompareShowStores] = useState(true)
   // 두 위치 비교 (5차, docs/COMPARE_DESIGN.md 3장): A = 위 analysis 그대로, B만 따로 둔다
   const [compare, setCompare] = useState<CompareState>({ status: 'off' })
   // B 성공 뒤 패널 화면: 비교 요약 / A 전체 결과 / B 전체 결과 (§3.3). 오가도 A·B 응답은 그대로다
@@ -77,50 +85,32 @@ function App() {
   const inflight = useRef<{ seq: number; controller: AbortController } | null>(null)
   const seq = useRef(0)
 
-  // 동종 점포 요청도 같은 방식: 조건이 바뀌면 취소·제거하고, 늦게 온 이전 요청 응답은 버린다
-  const nearbyInflight = useRef<{ seq: number; controller: AbortController } | null>(null)
-  const nearbySeq = useRef(0)
-
-  const cancelNearby = () => {
-    nearbyInflight.current?.controller.abort()
-    nearbyInflight.current = null
-    setNearby(null)
+  const { cancel: cancelNearbyA, load: loadNearbyA } = nearbyA
+  const { cancel: cancelNearbyB } = nearbyB
+  const cancelNearby = useCallback(() => {
+    cancelNearbyA()
     setActiveStoreId(null)
-  }
+  }, [cancelNearbyA])
 
-  const loadNearby = useCallback((request: AnalyzeRequest) => {
-    nearbyInflight.current?.controller.abort()
-    const current = { seq: ++nearbySeq.current, controller: new AbortController() }
-    nearbyInflight.current = current
-    setNearby({ status: 'loading' })
-    setActiveStoreId(null)
-
-    fetchNearbyStores(request, current.controller.signal)
-      .then((r) => {
-        if (nearbyInflight.current?.seq !== current.seq) return
-        nearbyInflight.current = null
-        if (!r.ok) {
-          setNearby({ status: 'error', failure: r.failure })
-        } else if (r.data.lat !== request.lat || r.data.lng !== request.lng || r.data.biz_code !== request.biz_code) {
-          console.error('[api] /nearby-stores 응답 조건이 요청과 다릅니다', { request, data: r.data })
-          setNearby({ status: 'error', failure: { kind: 'schema', endpoint: '/nearby-stores', status: 200 } })
-        } else {
-          setNearby({ status: 'success', data: r.data })
-        }
-      })
-      .catch(() => {})                                     // 취소된 요청
-  }, [])
+  const loadNearby = useCallback(
+    (request: AnalyzeRequest) => {
+      loadNearbyA(request)
+      setActiveStoreId(null)
+    },
+    [loadNearbyA],
+  )
 
   // B 분석 요청: A와 다른 AbortController·요청 번호. 취소·종료·조건 변경 뒤 도착한 응답은 seq가 달라 버린다
   const compareInflight = useRef<{ seq: number; controller: AbortController } | null>(null)
   const compareSeq = useRef(0)
 
-  const resetCompare = () => {
+  const resetCompare = useCallback(() => {
     compareInflight.current?.controller.abort()
     compareInflight.current = null
+    cancelNearbyB()                                        // 늦게 온 B 점포 응답도 버린다
     setCompare({ status: 'off' })
     setCompareView('summary')
-  }
+  }, [cancelNearbyB])
 
   const cancelAnalysis = () => {
     inflight.current?.controller.abort()
@@ -156,7 +146,7 @@ function App() {
         }
       })
       .catch(() => {})                                     // 취소된 요청
-  }, [location, bizCode, loadNearby])
+  }, [location, bizCode, loadNearby, cancelNearby, resetCompare])
 
   const analyzing = analysis.status === 'loading'
   const comparing = compare.status !== 'off'
@@ -166,6 +156,7 @@ function App() {
   const pickB = () => {
     compareInflight.current?.controller.abort()
     compareInflight.current = null
+    nearbyB.cancel()                                       // B를 다시 고르면 이전 B 점포 요청·목록을 버린다
     setCompare({ status: 'picking', location: null })
     setCompareView('summary')
     setActiveStoreId(null)                                 // 비교 중에는 A 점포 선택·정보창을 닫는다(A 점포 데이터는 그대로)
@@ -176,13 +167,23 @@ function App() {
   /** 비교 요약 → 위치별 전체 결과. 응답은 상태에 있는 것을 그대로 쓰고 다시 요청하지 않는다. 포커스는 그 결과 제목 */
   const showCompareDetail = (side: CompareSide) => {
     setCompareView(side === 'A' ? 'detail-A' : 'detail-B')
+    setActiveStoreId(null)                                 // 점포 기준이 그 위치로 바뀐다 → 선택·정보창 해제
     focusLater('result-title')
   }
 
   /** 전체 결과 → 비교 요약. 포커스는 눌렀던 "A/B 전체 결과 보기" 버튼으로 돌려준다 */
   const backToCompareSummary = (side: CompareSide) => {
-    setCompareView('summary')
+    setCompareView('summary')                              // 요약의 점포 기준(storeSide)은 그대로 → 열기 전 기준 복원
+    setActiveStoreId(null)
     focusLater(side === 'A' ? COMPARE_IDS.detailA : COMPARE_IDS.detailB)
+  }
+
+  /** 비교 요약에서 점포 기준 A/B 전환. 각 위치 점포 데이터는 그대로 두고 다시 조회하지 않는다 */
+  const changeStoreSide = (side: CompareSide) => {
+    if (side === storeSide) return
+    setStoreSide(side)
+    setActiveStoreId(null)
+    focusLater(side === 'A' ? COMPARE_IDS.storeSideA : COMPARE_IDS.storeSideB)   // 목록이 새로 그려져도 누른 버튼에
   }
 
   const startCompare = () => {
@@ -200,7 +201,8 @@ function App() {
   /** 비교 중 지도 클릭·좌표 입력 = B 선택. A는 바꾸지 않는다. B 분석 중에는 무시(D9). 받아들였으면 true */
   const selectCompareLocation = (point: LatLng): boolean => {
     if (compare.status === 'off' || compare.status === 'loading') return false
-    setCompare({ status: 'picking', location: point })    // 이전 B 결과·오류는 지운다
+    nearbyB.cancel()
+    setCompare({ status: 'picking', location: point })    // 이전 B 결과·오류·점포는 지운다
     return true
   }
 
@@ -220,6 +222,7 @@ function App() {
       return
     }
     compareInflight.current?.controller.abort()
+    nearbyB.cancel()
     // 업종은 A 요청의 업종으로 고정
     const request: AnalyzeRequest = { lat: point.lat, lng: point.lng, biz_code: analysis.request.biz_code }
     const current = { seq: ++compareSeq.current, controller: new AbortController() }
@@ -241,6 +244,10 @@ function App() {
         } else {
           setCompare({ status: 'success', location: point, response: r.data })
           setCompareView('summary')
+          setStoreSide('B')                                // 점포 기준 기본값 B (D4)
+          setCompareShowStores(true)
+          setActiveStoreId(null)
+          nearbyB.load(request)                            // 실패해도 A·B 분석 결과는 그대로 둔다
           focusLater(COMPARE_IDS.title)
         }
       })
@@ -316,8 +323,9 @@ function App() {
     if (analysis.status === 'success') document.getElementById('result-title')?.focus()
   }, [analysis.status])
 
-  // 비교 화면 전환 뒤 포커스 (렌더가 끝난 뒤라 새로 생긴 요소도 찾는다). 오류 블록은 그 안 첫 버튼(행동)으로
-  useEffect(() => {
+  // 비교 화면 전환 뒤 포커스 (렌더가 끝난 뒤라 새로 생긴 요소도 찾는다). 오류 블록은 그 안 첫 버튼(행동)으로.
+  // layout effect: 화면이 그려지기 전에 옮긴다 — 사라진 요소에 포커스가 남은 프레임이 없고, 순서가 늘 같다
+  useLayoutEffect(() => {
     if (!focusRequest) return
     const el = document.getElementById(focusRequest.id)
     const target = focusRequest.id === COMPARE_IDS.bError ? el?.querySelector<HTMLElement>('button') : el
@@ -325,11 +333,25 @@ function App() {
   }, [focusRequest])
 
   const result = analysis.status === 'success' ? analysis.response : null
+  // 지금 보이는 점포 기준 (§3.3·4.3): 비교가 아니면 A. 비교 중에는 B 성공 뒤에만 — 요약은 고른 기준, 전체 결과는 그 위치.
+  // B 고르기·분석 중·실패에는 없다(목록·마커를 숨긴다)
+  const visibleSide: CompareSide | null =
+    compare.status === 'off'
+      ? 'A'
+      : compare.status !== 'success'
+        ? null
+        : compareView === 'detail-A'
+          ? 'A'
+          : compareView === 'detail-B'
+            ? 'B'
+            : storeSide
+  const visibleNearby = visibleSide === 'A' ? nearby : visibleSide === 'B' ? nearbyB.state : null
+  const storesShown = compare.status === 'off' ? showStores : compareShowStores
   // 지도 마커용 표시 문구. 같은 응답·같은 토글이면 같은 배열(지도가 마커를 다시 만들지 않게)
   const mapStores = useMemo<MapStore[] | null>(
     () =>
-      nearby?.status === 'success' && showStores
-        ? nearby.data.stores.map((s) => ({
+      visibleNearby?.status === 'success' && storesShown
+        ? visibleNearby.data.stores.map((s) => ({
             id: s.id,
             name: storeName(s),
             address: storeAddress(s),
@@ -338,15 +360,45 @@ function App() {
             lng: s.lng,
           }))
         : null,
-    [nearby, showStores],
+    [visibleNearby, storesShown],
   )
   const selectStore = (id: string | null) => {
     setActiveStoreId(id)
-    if (id) setShowStores(true)
+    if (id) (compare.status === 'off' ? setShowStores : setCompareShowStores)(true)
   }
   const changeShowStores = (show: boolean) => {
-    setShowStores(show)
+    ;(compare.status === 'off' ? setShowStores : setCompareShowStores)(show)
     if (!show) setActiveStoreId(null)
+  }
+
+  /**
+   * 비교 중 한 위치의 점포 목록 (요약·전체 결과). 제목·개수 안내에 A/B와 위치 이름, 수 대조는 그 위치의 동종점포수.
+   * key에 위치를 넣어 전환할 때 펼침 상태가 섞이지 않게 한다
+   */
+  const compareStores = (side: CompareSide, response: AnalyzeResponse, withSwitch: boolean) => {
+    const state = side === 'A' ? nearby : nearbyB.state
+    if (!state || analysis.status !== 'success' || compare.status !== 'success') return null
+    const request: AnalyzeRequest = { lat: response.context.lat, lng: response.context.lng, biz_code: analysis.request.biz_code }
+    return (
+      <NearbyStores
+        key={`${side},${response.context.lat},${response.context.lng},${response.result.meta.업종코드}`}
+        state={state}
+        bizName={response.result.meta.업종}
+        radiusM={response.result.meta.분석반경_m}
+        expectedCount={response.result.지표[2].raw.동종점포수}
+        show={compareShowStores}
+        onShowChange={changeShowStores}
+        activeId={activeStoreId}
+        onSelect={selectStore}
+        onRetry={() => (side === 'A' ? loadNearby : nearbyB.load)(request)}
+        place={`${side} ${locationName(response.context)}`}
+        sideSwitch={
+          withSwitch ? (
+            <StoreSideSwitch side={side} a={result!} b={compare.response} onChange={changeStoreSide} />
+          ) : undefined
+        }
+      />
+    )
   }
   const station = result ? nearestStation(result.result.지표) : null
   // mobile sheet: 지금 선택한 좌표가 결과의 좌표와 같을 때만 행정동 이름을 쓴다 (이전 결과 이름이 남지 않게)
@@ -422,6 +474,7 @@ function App() {
               <CompareResult
                 a={result}
                 b={compare.response}
+                nearby={compareStores(storeSide, storeSide === 'A' ? result : compare.response, true)}
                 onShowDetail={showCompareDetail}
                 onReselect={pickB}
                 onEnd={endCompare}
@@ -433,6 +486,11 @@ function App() {
                 key={compareView}
                 side={compareView === 'detail-A' ? 'A' : 'B'}
                 analysis={compareView === 'detail-A' ? result : compare.response}
+                nearby={
+                  compareView === 'detail-A'
+                    ? compareStores('A', result, false)
+                    : compareStores('B', compare.response, false)
+                }
                 onBack={() => backToCompareSummary(compareView === 'detail-A' ? 'A' : 'B')}
                 onShowMap={showMapFromCompare}
               />
@@ -518,10 +576,15 @@ function App() {
             dong={result ? { guCode: result.context.gu_code, dongName: result.context.dong_name } : null}
             interactive={!analyzing && compare.status !== 'loading'}
             onSelect={selectLocation}
-            // 비교 중에는 A 점포 마커·정보창을 숨긴다(B 위치를 고르는 클릭과 섞이지 않게). A 점포 데이터는 그대로 둔다
-            stores={comparing ? null : mapStores}
-            activeStoreId={comparing ? null : activeStoreId}
+            // 지금 보이는 점포 기준의 마커만 (B 고르기·분석 중·실패에는 없음). A 점포 데이터는 비교 중에도 그대로 둔다
+            stores={mapStores}
+            activeStoreId={activeStoreId}
             onStoreSelect={selectStore}
+            storeContext={
+              comparing && visibleSide
+                ? `${visibleSide} ${(visibleSide === 'A' ? result : compared)?.context.dong_name} 주변`
+                : undefined
+            }
             compare={mapCompare}
           />
           {/* mobile 지도 화면 하단 sheet (peek): 선택 확인 → 패널로. 비교 중에는 B 선택용 sheet */}

@@ -217,6 +217,7 @@
   display: flex;
   align-items: center;
   gap: var(--space-2);
+  width: max-content; /* left: 50%라 남은 폭(절반)에 갇혀 상호가 잘리지 않게 — 내용 폭, 최대값까지 */
   max-width: calc(100% - 2 * var(--space-16));
   padding: var(--space-1) var(--space-1) var(--space-1) var(--space-3);
   border: 1px solid var(--color-border);
@@ -234,6 +235,12 @@
   font-weight: 600;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* 비교 중 기준 위치(예: "B 구월3동 주변 · ") — 상호보다 가볍게 */
+.map__store-bar-context {
+  font-weight: 400;
+  color: var(--color-text-secondary);
 }
 
 /* 닫기 버튼 터치 영역 44×44px 이상 (§15) */
@@ -307,6 +314,16 @@
 
   /* NAVER 로고·축척(지도 아래 약 10~20px) 위로: 점포 막대와 같은 높이. 둘은 함께 보이지 않는다
      (안내는 위치 미선택·비교 중, 점포 막대는 단일 분석 결과의 점포 선택 때) */
+  /* 비교 중에는 안내 칩과 선택한 점포 막대가 함께 생길 수 있다 — 같은 자리라 점포 막대가 있을 때는 안내를 숨긴다 */
+  .map--store-active .map__guide {
+    display: none;
+  }
+
+  /* mobile 범례는 위쪽이라 점포 정보창(상호)을 가린다 — 점포를 고른 동안은 숨긴다(상호는 점포 막대에도 있다) */
+  .map--store-active .map__legend {
+    display: none;
+  }
+
   .map__guide {
     bottom: var(--space-12);
     width: max-content; /* left: 50% 때문에 남은 폭(절반)에서 줄바꿈하지 않게 — 내용 폭, 최대 화면 폭 - 여백 */

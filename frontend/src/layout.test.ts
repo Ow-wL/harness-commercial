@@ -51,8 +51,22 @@ describe('mobile 지도 화면 레이아웃', () => {
 describe('지도 안내 칩 위치 (5차-B4)', () => {
   it('mobile에서는 NAVER 로고·축척 위(점포 막대와 같은 높이)에 두고, 내용 폭으로 한 줄을 유지한다', () => {
     const mobile = [...mapCss.matchAll(/@media \(max-width: 639px\) \{([\s\S]*?)\n\}/g)].map((m) => m[1]).join('\n')
-    const rule = mobile.slice(mobile.indexOf('.map__guide {'))
+    const rule = mobile.slice(mobile.indexOf('\n  .map__guide {') + 3)
     expect(rule).toMatch(/^\.map__guide \{[^}]*bottom: var\(--space-12\);/)
     expect(rule).toMatch(/^\.map__guide \{[^}]*width: max-content;/)
+  })
+
+  it('mobile에서 선택한 점포 막대가 있으면(같은 자리) 안내 칩을 숨긴다 (5차-B5)', () => {
+    const mobile = [...mapCss.matchAll(/@media \(max-width: 639px\) \{([\s\S]*?)\n\}/g)].map((m) => m[1]).join('\n')
+    expect(mobile).toMatch(/\.map--store-active \.map__guide \{\s*display: none;/)
+    // 점포 막대도 같은 높이(NAVER 로고·축척 위)
+    expect(mobile).toMatch(/\.map__store-bar \{[^}]*bottom: var\(--space-12\);/)
+    // 위쪽 범례가 점포 정보창(상호)을 가리지 않게
+    expect(mobile).toMatch(/\.map--store-active \.map__legend \{\s*display: none;/)
+  })
+
+  it('선택한 점포 막대는 내용 폭(left: 50%의 절반 폭에 갇혀 상호가 잘리지 않게)', () => {
+    const at = mapCss.indexOf('.map__store-bar {')
+    expect(mapCss.slice(at, mapCss.indexOf('}', at))).toMatch(/width: max-content;/)
   })
 })

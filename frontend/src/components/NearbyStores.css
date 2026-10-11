@@ -93,3 +93,9 @@
 .nearby__mismatch .icon {
   color: var(--color-warning);
 }
+
+/* 두 위치 비교 중 기준 위치(제목 뒤, 5차-B5) */
+.nearby__place {
+  font-weight: 400;
+  color: var(--color-text-secondary);
+}

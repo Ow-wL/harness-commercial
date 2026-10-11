@@ -505,3 +505,27 @@ describe('MapView — 두 위치 비교 A/B 표시 (5차-B4, COMPARE_DESIGN.md 4
     expect(onSelect).not.toHaveBeenCalled()
   })
 })
+
+describe('MapView — 비교 중 선택한 점포 막대 (5차-B5)', () => {
+  const STORES: MapStore[] = [
+    { id: 'a', name: '라네이즈PC방', address: '인천 부평구 1', distance: '직선거리 115m', lat: 37.4888, lng: 126.7235 },
+  ]
+
+  it('막대에 기준 위치(storeContext)를 상호 앞에 붙이고, 막대가 있으면 지도에 map--store-active를 단다', async () => {
+    const view = await mount(props({ stores: STORES }))
+    expect(view.section).not.toHaveClass('map--store-active')
+    view.rerender(<MapView {...props({ stores: STORES, activeStoreId: 'a', storeContext: 'B 구월3동 주변' })} />)
+    const bar = screen.getByRole('group', { name: '선택한 점포' })
+    expect(bar).toHaveTextContent('B 구월3동 주변 · 라네이즈PC방')
+    expect(view.section).toHaveClass('map--store-active')
+    expect(screen.getByRole('button', { name: '정보창 닫기' })).toBeInTheDocument()
+
+    view.rerender(<MapView {...props({ stores: STORES, activeStoreId: null, storeContext: 'B 구월3동 주변' })} />)
+    expect(view.section).not.toHaveClass('map--store-active')
+  })
+
+  it('storeContext가 없으면(단일 분석) 막대는 상호만', async () => {
+    await mount(props({ stores: STORES, activeStoreId: 'a' }))
+    expect(screen.getByRole('group', { name: '선택한 점포' }).querySelector('.map__store-bar-name')).toHaveTextContent(/^라네이즈PC방$/)
+  })
+})

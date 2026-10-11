@@ -121,3 +121,34 @@ describe('NearbyStores (DESIGN.md §8.14)', () => {
     expect(screen.getByText('점포 목록을 불러오는 중…')).toHaveAttribute('aria-live', 'polite')
   })
 })
+
+describe('NearbyStores — 두 위치 비교 중 기준 위치 (5차-B5)', () => {
+  it('place가 있으면 제목·개수 안내·목록 이름에 붙이고, sideSwitch를 제목 아래에 둔다', () => {
+    render(
+      <NearbyStores
+        state={{ status: 'success', data: NEARBY }}
+        bizName="PC방"
+        radiusM={500}
+        expectedCount={12}
+        show
+        onShowChange={() => {}}
+        activeId={null}
+        onSelect={() => {}}
+        onRetry={() => {}}
+        place="A 부평구 부평1동"
+        sideSwitch={<div role="group" aria-label="점포 기준 위치" />}
+      />,
+    )
+    const region = screen.getByRole('region', { name: '반경 500m 안 같은 업종 점포 · A 부평구 부평1동' })
+    expect(region).toHaveTextContent('A 부평구 부평1동 · PC방 12곳')
+    expect(within(region).getByRole('list', { name: 'A 부평구 부평1동 PC방 점포 목록' })).toBeInTheDocument()
+    const group = within(region).getByRole('group', { name: '점포 기준 위치' })
+    expect(group.previousElementSibling).toHaveClass('result-section__head')
+  })
+
+  it('place가 없으면 지금(단일 분석) 문구 그대로', () => {
+    renderList({ status: 'success', data: NEARBY })
+    expect(screen.getByRole('region', { name: '반경 500m 안 같은 업종 점포' })).toHaveTextContent(/^반경 500m 안 같은 업종 점포/)
+    expect(screen.getByRole('list', { name: 'PC방 점포 목록' })).toBeInTheDocument()
+  })
+})

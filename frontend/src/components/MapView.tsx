@@ -55,6 +55,8 @@ export type MapViewProps = {
   onStoreSelect?: (id: string | null) => void
   /** 두 위치 비교 중이면 B 표시 (5차-B4). null·생략이면 단일 분석 표시 그대로 */
   compare?: MapCompare | null
+  /** 선택한 점포 막대 앞에 붙는 기준 위치 (비교 중, 예: "B 구월3동 주변", 5차-B5) */
+  storeContext?: string
 }
 
 /** 인천 중심 초기 화면 (인천광역시청 부근) */
@@ -189,6 +191,7 @@ export function MapView({
   activeStoreId = null,
   onStoreSelect,
   compare = null,
+  storeContext,
 }: MapViewProps) {
   const sectionRef = useRef<HTMLElement>(null)
   const canvasRef = useRef<HTMLDivElement>(null)
@@ -446,12 +449,22 @@ export function MapView({
 
   return (
     // tabIndex=-1: 정보창을 닫은 뒤 포커스를 받을 수 있게 (탭 순서에는 넣지 않는다)
-    <section ref={sectionRef} className="map" aria-label="위치 선택 지도" tabIndex={-1} onKeyDown={onMapKeyDown}>
+    // map--store-active: 선택한 점포 막대가 있다 → mobile에서는 같은 자리의 안내 칩을 숨긴다(겹치지 않게, MapView.css)
+    <section
+      ref={sectionRef}
+      className={`map${activeStore ? ' map--store-active' : ''}`}
+      aria-label="위치 선택 지도"
+      tabIndex={-1}
+      onKeyDown={onMapKeyDown}
+    >
       <div ref={canvasRef} className="map__canvas" />
       {/* SDK 정보창 밖에서도 키보드로 닫을 수 있는 조작 (DESIGN.md §8.14). 지도 위 우리 DOM이라 탭 순서에 들어간다 */}
       {activeStore && (
         <div className="map__store-bar" role="group" aria-label="선택한 점포">
-          <span className="map__store-bar-name">{activeStore.name}</span>
+          <span className="map__store-bar-name">
+            {storeContext && <span className="map__store-bar-context">{storeContext} · </span>}
+            {activeStore.name}
+          </span>
           <button type="button" className="map__store-bar-close" onClick={closeStore}>
             정보창 닫기
           </button>

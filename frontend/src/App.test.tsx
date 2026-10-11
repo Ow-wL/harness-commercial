@@ -5,7 +5,9 @@ import type { MapViewProps } from './components/MapView.tsx'
 import fixture from './fixtures/bupyeong-pcbang.json'
 import nearbyFixture from './fixtures/bupyeong-pcbang-nearby.json'
 import guwolFixture from './fixtures/compare-guwol-pcbang.json'
+import guwolNearbyFixture from './fixtures/compare-guwol-pcbang-nearby.json'
 import songdoFixture from './fixtures/compare-songdo-pcbang.json'
+import songdoNearbyFixture from './fixtures/compare-songdo-pcbang-nearby.json'
 import { brokenControls, brokenReferences, duplicateIds, expandAll } from './test/a11yRefs.ts'
 
 // 지도는 SDK 경계(MapView) 통째로 mock한다 — 실제 NAVER SDK를 부르지 않는다.
@@ -25,6 +27,7 @@ vi.mock('./components/MapView.tsx', () => ({
       data-compare-tone={props.compare?.tone}
       data-compare-dong={props.compare ? (props.compare.dong ? `${props.compare.dong.guCode} ${props.compare.dong.dongName}` : '') : undefined}
       data-compare-guide={props.compare?.guide ?? undefined}
+      data-store-context={props.storeContext}
     >
       <button type="button" onClick={() => props.interactive && props.onSelect({ lat: 37.4894, lng: 126.7246 })}>
         지도 클릭: 부평역
@@ -475,9 +478,12 @@ describe('두 위치 비교 — B 분석 상태 (5차-B2, docs/COMPARE_DESIGN.md
   const overallRow = () => within(within(panel()).getByRole('table', { name: /종합·5대 관점 점수 비교/ })).getAllByRole('row')[1]!
   const ok = (body: unknown) => ({ status: 200, body })
 
-  /** A(부평역·PC방) 분석과 A 점포 목록까지 마친 상태. analyze 뒤쪽 replies는 B 요청에 쓰인다 */
-  async function analyzeA(bReplies: Reply[] = []) {
-    const fetchMock = mockApi({ analyze: [ok(fixture), ...bReplies], nearby: [ok(nearbyFixture)] })
+  /**
+   * A(부평역·PC방) 분석과 A 점포 목록까지 마친 상태. analyze 뒤쪽 replies는 B 분석, bNearby는 B 점포 조회(5차-B5)에 차례로 쓰인다.
+   * B 점포 응답을 주지 않으면 그 조회는 네트워크 실패가 된다(분석 결과와 무관)
+   */
+  async function analyzeA(bReplies: Reply[] = [], bNearby: Reply[] = []) {
+    const fetchMock = mockApi({ analyze: [ok(fixture), ...bReplies], nearby: [ok(nearbyFixture), ...bNearby] })
     render(<App />)
     await selectBupyeongPcBang()
     fireEvent.click(analyzeButton())
@@ -503,7 +509,7 @@ describe('두 위치 비교 — B 분석 상태 (5차-B2, docs/COMPARE_DESIGN.md
   }
 
   it('A 결과를 보존한 채 B를 좌표로 고르고 A 업종으로 분석한다. 비교를 끝내면 A 결과·점포 목록이 돌아온다', async () => {
-    const fetchMock = await analyzeA([ok(guwolFixture)])
+    const fetchMock = await analyzeA([ok(guwolFixture)], [ok(guwolNearbyFixture)])
     expect(screen.getByTestId('map')).toHaveAttribute('data-stores', '12')
 
     startCompare()
@@ -533,7 +539,11 @@ describe('두 위치 비교 — B 분석 상태 (5차-B2, docs/COMPARE_DESIGN.md
     expect(within(screen.getByRole('list', { name: 'PC방 점포 목록' })).getAllByRole('button')).toHaveLength(5)
     expect(screen.getByTestId('map')).toHaveAttribute('data-stores', '12')
     expect(document.activeElement).toBe(screen.getByRole('button', { name: '다른 위치와 비교' }))
-    expect(nearbyCalls(fetchMock)).toHaveLength(1)                   // A 점포 데이터를 보존했다(다시 조회하지 않음)
+    // 점포 조회는 A 1번 + B 1번(5차-B5). 비교를 끝내도 A 점포를 다시 조회하지 않는다(A 데이터 보존)
+    expect(nearbyCalls(fetchMock).map(bodyOf)).toEqual([
+      { lat: 37.4894, lng: 126.7246, biz_code: 'R10406' },
+      { lat: 37.4475, lng: 126.7015, biz_code: 'R10406' },
+    ])
   })
 
   it('비교 중 지도 클릭은 B 선택이고 A를 바꾸지 않는다. B 분석 중 새 클릭은 무시한다', async () => {
@@ -684,11 +694,10 @@ describe('두 위치 비교 — B 분석 상태 (5차-B2, docs/COMPARE_DESIGN.md
   })
 
   describe('비교 요약 ↔ 위치별 전체 결과 (5차-B3, §3.3)', () => {
-    const NEARBY_REGION = '반경 500m 안 같은 업종 점포'
     const header = () => screen.getByRole('group', { name: '분석 조건' })
 
     async function compareWithGuwol() {
-      const fetchMock = await analyzeA([ok(guwolFixture)])
+      const fetchMock = await analyzeA([ok(guwolFixture)], [ok(guwolNearbyFixture)])
       startCompare()
       typeB(37.4475, 126.7015)
       analyzeB()
@@ -698,11 +707,11 @@ describe('두 위치 비교 — B 분석 상태 (5차-B2, docs/COMPARE_DESIGN.md
 
     it('전체 결과로 갔다 돌아와도 다시 요청하지 않고, 제목으로 포커스·복귀 시 누른 버튼으로 돌려준다', async () => {
       const fetchMock = await compareWithGuwol()
-      // 비교 요약: 헤더는 A·B, 점포 목록·마커 없음, 데이터 출처는 한 번
+      // 비교 요약: 헤더는 A·B, 점포는 기본 기준 B(5차-B5), 데이터 출처는 한 번
       expect(header()).toHaveTextContent('A 부평구 부평1동')
       expect(header()).toHaveTextContent('B 남동구 구월3동')
-      expect(screen.queryByRole('region', { name: NEARBY_REGION })).not.toBeInTheDocument()
-      expect(screen.getByTestId('map')).toHaveAttribute('data-stores', '')
+      expect(await screen.findByRole('list', { name: 'B 남동구 구월3동 PC방 점포 목록' })).toBeInTheDocument()
+      expect(screen.getByTestId('map')).toHaveAttribute('data-stores', '6')
       expect(document.querySelectorAll('#data-sources')).toHaveLength(1)
       expect(screen.getByRole('link', { name: '데이터 출처' })).toHaveAttribute('href', '#data-sources')
 
@@ -715,9 +724,10 @@ describe('두 위치 비교 — B 분석 상태 (5차-B2, docs/COMPARE_DESIGN.md
       expect(within(screen.getByRole('region', { name: '종합 적합도' })).getByText('59.1')).toBeInTheDocument()
       expect(header()).toHaveTextContent('남동구 구월3동')
       expect(header()).not.toHaveTextContent('부평1동')
-      // B 화면에 A 점포를 보이지 않는다 (B 점포 조회는 B5)
-      expect(screen.queryByRole('region', { name: NEARBY_REGION })).not.toBeInTheDocument()
-      expect(screen.getByTestId('map')).toHaveAttribute('data-stores', '')
+      // B 전체 결과에는 B 점포만 (A 점포를 보이지 않는다)
+      expect(screen.getByRole('list', { name: 'B 남동구 구월3동 PC방 점포 목록' })).toBeInTheDocument()
+      expect(screen.queryByRole('list', { name: /부평1동 PC방 점포 목록/ })).not.toBeInTheDocument()
+      expect(screen.getByTestId('map')).toHaveAttribute('data-stores', '6')
       expect(document.querySelectorAll('#data-sources')).toHaveLength(1)
 
       fireEvent.click(screen.getByRole('button', { name: '비교로 돌아가기' }))
@@ -727,20 +737,22 @@ describe('두 위치 비교 — B 분석 상태 (5차-B2, docs/COMPARE_DESIGN.md
       fireEvent.click(screen.getByRole('button', { name: 'A 전체 결과 보기' }))
       expect(document.activeElement).toBe(screen.getByRole('heading', { level: 1, name: 'A · 부평구 부평1동 · PC방 분석' }))
       expect(within(screen.getByRole('region', { name: '종합 적합도' })).getByText('65.8')).toBeInTheDocument()
-      expect(screen.queryByRole('region', { name: NEARBY_REGION })).not.toBeInTheDocument()
+      expect(screen.getByRole('list', { name: 'A 부평구 부평1동 PC방 점포 목록' })).toBeInTheDocument()   // A 전체 → A 점포
+      expect(screen.getByTestId('map')).toHaveAttribute('data-stores', '12')
       fireEvent.click(screen.getByRole('button', { name: '비교로 돌아가기' }))
       expect(document.activeElement).toBe(screen.getByRole('button', { name: 'A 전체 결과 보기' }))
       expect(overallRow()).toHaveTextContent(/65\.8.*59\.1/)
 
       expect(analyzeCalls(fetchMock)).toHaveLength(2)                             // A 1번 + B 1번
-      expect(nearbyCalls(fetchMock)).toHaveLength(1)
+      expect(nearbyCalls(fetchMock)).toHaveLength(2)                              // 점포도 A 1번 + B 1번 — 화면을 오가도 다시 조회하지 않는다
+      expect(screen.getByTestId('map')).toHaveAttribute('data-stores', '6')        // 요약으로 돌아오면 기준 B 그대로
 
       // 비교 종료 → A 단일 결과·A 점포 목록·마커 복원
       fireEvent.click(within(panel()).getByRole('button', { name: '비교 종료' }))
       expect(screen.getByRole('heading', { level: 1, name: '부평구 부평1동 · PC방 분석' })).toBeInTheDocument()
       expect(screen.getByRole('list', { name: 'PC방 점포 목록' })).toBeInTheDocument()
       expect(screen.getByTestId('map')).toHaveAttribute('data-stores', '12')
-      expect(nearbyCalls(fetchMock)).toHaveLength(1)
+      expect(nearbyCalls(fetchMock)).toHaveLength(2)
     })
 
     it('요약 / A 전체 / B 전체 각 화면에서 id가 유일하고 접근성 참조가 이어진다 (펼친 뒤 aria-controls)', async () => {
@@ -884,6 +896,202 @@ describe('두 위치 비교 — B 분석 상태 (5차-B2, docs/COMPARE_DESIGN.md
       await screen.findByRole('table', { name: /종합·5대 관점 점수 비교/ })
       expect(map()).toHaveAttribute('data-compare-dong', '28200 구월3동')
       expect(document.activeElement).toBe(screen.getByRole('heading', { level: 1, name: PANEL }))
+    })
+  })
+
+  describe('비교 중 동종 점포 조회·기준 전환 (5차-B5, §3.3·4.3)', () => {
+    const map = () => screen.getByTestId('map')
+    const B_LIST = 'B 남동구 구월3동 PC방 점포 목록'
+    const A_LIST = 'A 부평구 부평1동 PC방 점포 목록'
+    const sideButton = (name: RegExp) => within(screen.getByRole('group', { name: '점포 기준 위치' })).getByRole('button', { name })
+    const items = (list: string) => within(screen.getByRole('list', { name: list })).getAllByRole('button')
+
+    /** A 분석 → 비교 → B(구월3동) 분석 성공까지. bNearby는 B 점포 조회 응답들 */
+    async function compareGuwol(bNearby: Reply[] = [ok(guwolNearbyFixture)], more: Reply[] = []) {
+      const fetchMock = await analyzeA([ok(guwolFixture), ...more], bNearby)
+      startCompare()
+      typeB(37.4475, 126.7015)
+      analyzeB()
+      await screen.findByRole('table', { name: /종합·5대 관점 점수 비교/ })
+      return fetchMock
+    }
+
+    it('B 성공 뒤 같은 좌표·업종으로 B 점포를 조회하고, 기본 기준은 B다 (제목·개수·막대에 A/B와 위치)', async () => {
+      const fetchMock = await compareGuwol()
+      expect(bodyOf(nearbyCalls(fetchMock)[1]!)).toEqual({ lat: 37.4475, lng: 126.7015, biz_code: 'R10406' })
+      expect(await screen.findByRole('list', { name: B_LIST })).toBeInTheDocument()
+      const region = screen.getByRole('region', { name: /반경 500m 안 같은 업종 점포/ })
+      expect(within(region).getByRole('heading', { level: 2 })).toHaveTextContent('반경 500m 안 같은 업종 점포 · B 남동구 구월3동')
+      expect(region).toHaveTextContent('B 남동구 구월3동 · PC방 6곳')
+      expect(region).not.toHaveTextContent('목록 수(')                       // 6곳 == B 동종점포수 6
+      expect(sideButton(/^B 구월3동$/)).toHaveAttribute('aria-pressed', 'true')
+      expect(sideButton(/^A 부평1동$/)).toHaveAttribute('aria-pressed', 'false')
+      expect(map()).toHaveAttribute('data-stores', '6')
+      expect(map()).toHaveAttribute('data-store-context', 'B 구월3동 주변')
+    })
+
+    it('A/B 전환: 다시 조회하지 않고 목록·마커를 바꾸며, 선택·정보창을 해제하고, 펼침 상태가 섞이지 않는다', async () => {
+      const fetchMock = await compareGuwol()
+      await screen.findByRole('list', { name: B_LIST })
+      fireEvent.click(screen.getByRole('button', { name: '모두 보기 (6곳)' }))
+      expect(items(B_LIST)).toHaveLength(6)
+      fireEvent.click(items(B_LIST)[5]!)
+      expect(map()).toHaveAttribute('data-active-store', guwolNearbyFixture.stores[5]!.id)
+
+      sideButton(/^A 부평1동$/).focus()
+      fireEvent.click(sideButton(/^A 부평1동$/))
+      expect(map()).toHaveAttribute('data-active-store', '')                 // 선택·정보창 해제
+      expect(map()).toHaveAttribute('data-stores', '12')
+      expect(map()).toHaveAttribute('data-store-context', 'A 부평1동 주변')
+      expect(items(A_LIST)).toHaveLength(5)                                  // A는 접힌 상태(B의 펼침이 섞이지 않음)
+      expect(screen.queryByRole('list', { name: B_LIST })).not.toBeInTheDocument()
+      expect(sideButton(/^A 부평1동$/)).toHaveAttribute('aria-pressed', 'true')
+      expect(document.activeElement).toBe(sideButton(/^A 부평1동$/))         // 목록이 새로 그려져도 누른 버튼에
+
+      fireEvent.click(sideButton(/^B 구월3동$/))
+      expect(items(B_LIST)).toHaveLength(5)                                  // 다시 접힌 상태로 시작
+      expect(map()).toHaveAttribute('data-stores', '6')
+      expect(nearbyCalls(fetchMock)).toHaveLength(2)                         // 전환해도 다시 조회하지 않는다
+    })
+
+    it('전체 결과는 그 위치의 점포, 요약으로 돌아오면 열기 전 기준을 되살린다', async () => {
+      await compareGuwol()
+      await screen.findByRole('list', { name: B_LIST })
+      fireEvent.click(sideButton(/^A 부평1동$/))                               // 요약 기준 A
+      fireEvent.click(items(A_LIST)[0]!)
+      expect(map()).not.toHaveAttribute('data-active-store', '')
+
+      fireEvent.click(screen.getByRole('button', { name: 'B 전체 결과 보기' }))
+      expect(screen.getByRole('list', { name: B_LIST })).toBeInTheDocument()
+      expect(screen.queryByRole('list', { name: A_LIST })).not.toBeInTheDocument()
+      expect(map()).toHaveAttribute('data-stores', '6')
+      expect(map()).toHaveAttribute('data-active-store', '')
+      expect(screen.queryByRole('group', { name: '점포 기준 위치' })).not.toBeInTheDocument()   // 전환은 요약에만
+
+      fireEvent.click(screen.getByRole('button', { name: '비교로 돌아가기' }))
+      expect(sideButton(/^A 부평1동$/)).toHaveAttribute('aria-pressed', 'true')   // 열기 전 기준 A 복원
+      expect(map()).toHaveAttribute('data-stores', '12')
+      expect(map()).toHaveAttribute('data-active-store', '')
+    })
+
+    it('B가 0곳이면 B 목록은 없다고 표시하고 마커가 없다 (경쟁성 미산출 위치)', async () => {
+      await analyzeA([ok(songdoFixture)], [ok(songdoNearbyFixture)])
+      startCompare()
+      fireEvent.click(screen.getByRole('button', { name: '지도 클릭: 송도' }))
+      analyzeB()
+      const region = await screen.findByText('반경 500m 안에 같은 업종 점포가 없습니다.')
+      expect(region).toBeInTheDocument()
+      expect(screen.getByText(/B 연수구 송도2동 · PC방 0곳/)).toBeInTheDocument()
+      expect(screen.queryByRole('checkbox', { name: '지도에 표시' })).not.toBeInTheDocument()
+      expect(screen.queryByText(/목록 수\(/)).not.toBeInTheDocument()
+      expect(map()).toHaveAttribute('data-stores', '0')
+    })
+
+    it('B 점포 조회가 실패해도 A·B 분석 결과는 그대로이고, 점포만 같은 조건으로 다시 조회한다', async () => {
+      const fetchMock = await compareGuwol([{ status: 500, body: internalError }, ok(guwolNearbyFixture)])
+      const region = await screen.findByRole('region', { name: /반경 500m 안 같은 업종 점포/ })
+      expect(await within(region).findByText(/점포 목록을 불러오지 못했습니다. 분석 결과는 그대로입니다./)).toBeInTheDocument()
+      expect(overallRow()).toHaveTextContent(/65\.8.*59\.1/)
+      expect(map()).toHaveAttribute('data-stores', '')
+
+      fireEvent.click(within(region).getByRole('button', { name: '다시 시도' }))
+      expect(await screen.findByRole('list', { name: B_LIST })).toBeInTheDocument()
+      expect(analyzeCalls(fetchMock)).toHaveLength(2)                         // 분석은 다시 요청하지 않는다
+      const [, b1, b2] = nearbyCalls(fetchMock).map(bodyOf)
+      expect(b2).toEqual(b1)
+    })
+
+    it('B 목록 수가 B의 동종점포수와 다르면 경고한다 (A가 아니라 지금 기준 위치와 대조)', async () => {
+      await compareGuwol([ok({ ...guwolNearbyFixture, count: 12, stores: nearbyFixture.stores })])
+      const region = await screen.findByRole('region', { name: /반경 500m 안 같은 업종 점포/ })
+      await waitFor(() => expect(region).toHaveTextContent('목록 수(12곳)가 분석의 동종 점포 수(6곳)와 다릅니다'))
+      fireEvent.click(sideButton(/^A 부평1동$/))
+      expect(screen.getByRole('region', { name: /반경 500m 안 같은 업종 점포/ })).not.toHaveTextContent('목록 수(')
+    })
+
+    it('B 고르기·분석 중·분석 실패에는 점포 목록·마커가 없다', async () => {
+      const b = pending()
+      await analyzeA([b.promise])
+      startCompare()
+      expect(map()).toHaveAttribute('data-stores', '')
+      fireEvent.click(screen.getByRole('button', { name: '지도 클릭: 송도' }))
+      analyzeB()
+      expect(screen.queryByRole('region', { name: /반경 500m 안 같은 업종 점포/ })).not.toBeInTheDocument()
+      expect(map()).toHaveAttribute('data-stores', '')
+      await act(async () => b.respond({ status: 422, body: { error: { code: 'location_outside', message: 'x' } } }))
+      expect(screen.queryByRole('region', { name: /반경 500m 안 같은 업종 점포/ })).not.toBeInTheDocument()
+      expect(map()).toHaveAttribute('data-stores', '')
+    })
+
+    it.each([
+      ['비교 종료', () => fireEvent.click(within(panel()).getByRole('button', { name: '비교 종료' }))],
+      ['조건 변경', () => fireEvent.click(within(panel()).getByRole('button', { name: '조건 변경' }))],
+    ])('B 점포 조회 중 %s → 늦게 온 B 점포 응답은 버린다', async (_, act1) => {
+      const late = pending()
+      const fetchMock = await compareGuwol([late.promise])
+      expect(nearbyCalls(fetchMock)).toHaveLength(2)
+      const signal = (nearbyCalls(fetchMock)[1]![1] as RequestInit).signal!
+      act1()
+      expect(signal.aborted).toBe(true)
+      await act(async () => late.respond(ok(guwolNearbyFixture)))
+      expect(screen.queryByRole('list', { name: B_LIST })).not.toBeInTheDocument()
+      expect(map()).not.toHaveAttribute('data-store-context')
+    })
+
+    it('B1 점포 조회 중 → B 다시 고르기 → B2 성공 → 늦은 B1 점포 응답은 버린다', async () => {
+      const b1Stores = pending()
+      const fetchMock = await compareGuwol([b1Stores.promise, ok(songdoNearbyFixture)], [ok(songdoFixture)])
+      const b1Signal = (nearbyCalls(fetchMock)[1]![1] as RequestInit).signal!
+      fireEvent.click(within(bCard()).getByRole('button', { name: 'B 위치 다시 고르기' }))
+      expect(b1Signal.aborted).toBe(true)                                     // 다시 고르면 B1 점포 요청을 바로 취소
+      fireEvent.click(screen.getByRole('button', { name: '지도 클릭: 송도' }))
+      analyzeB()                                                              // B2 (송도, 0곳)
+      expect(await screen.findByText('반경 500m 안에 같은 업종 점포가 없습니다.')).toBeInTheDocument()
+
+      await act(async () => b1Stores.respond(ok(guwolNearbyFixture)))        // 늦은 B1(구월 6곳)
+      expect(screen.getByText('반경 500m 안에 같은 업종 점포가 없습니다.')).toBeInTheDocument()
+      expect(screen.queryByRole('list', { name: B_LIST })).not.toBeInTheDocument()
+      expect(map()).toHaveAttribute('data-stores', '0')
+      expect(map()).toHaveAttribute('data-store-context', 'B 송도2동 주변')
+    })
+
+    it('비교 종료 뒤 A 점포와 표시 설정("지도에 표시")을 되살린다', async () => {
+      await analyzeA([ok(guwolFixture)], [ok(guwolNearbyFixture)])
+      fireEvent.click(screen.getByRole('checkbox', { name: '지도에 표시' }))    // A 단일 결과에서 끔
+      expect(map()).toHaveAttribute('data-stores', '')
+
+      startCompare()
+      typeB(37.4475, 126.7015)
+      analyzeB()
+      await screen.findByRole('list', { name: B_LIST })
+      expect(screen.getByRole('checkbox', { name: '지도에 표시' })).toBeChecked()  // 비교는 따로(기본 켬)
+      expect(map()).toHaveAttribute('data-stores', '6')
+
+      fireEvent.click(within(panel()).getByRole('button', { name: '비교 종료' }))
+      expect(screen.getByRole('list', { name: 'PC방 점포 목록' })).toBeInTheDocument()
+      expect(screen.getByRole('checkbox', { name: '지도에 표시' })).not.toBeChecked()
+      expect(map()).toHaveAttribute('data-stores', '')
+      expect(map()).not.toHaveAttribute('data-store-context')
+    })
+
+    it('비교 요약 목록에서도 Escape는 선택만 지우고 포커스는 그 항목에 남는다', async () => {
+      await compareGuwol()
+      await screen.findByRole('list', { name: B_LIST })
+      const item = items(B_LIST)[1]!
+      item.focus()
+      fireEvent.click(item)
+      expect(map()).toHaveAttribute('data-active-store', guwolNearbyFixture.stores[1]!.id)
+      fireEvent.keyDown(item, { key: 'Escape' })
+      expect(map()).toHaveAttribute('data-active-store', '')
+      expect(document.activeElement).toBe(item)
+      expect(overallRow()).toHaveTextContent(/65\.8.*59\.1/)
+    })
+
+    it('지도 점포 마커를 누르면 지금 기준 위치의 목록 항목이 선택된다', async () => {
+      await compareGuwol()
+      await screen.findByRole('list', { name: B_LIST })
+      fireEvent.click(screen.getByRole('button', { name: `지도 점포 마커: ${guwolNearbyFixture.stores[1]!.name}` }))
+      expect(items(B_LIST)[1]).toHaveAttribute('aria-pressed', 'true')
     })
   })
 
