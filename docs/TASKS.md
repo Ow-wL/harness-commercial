@@ -48,10 +48,10 @@
 - [x] 5-4 production 배포 구조 결정: 서빙 방식(같은 origin reverse proxy 등)·워커 수·환경변수 관리·build asset(행정동 경계) 포함을 DECISIONS에 기록하고, 워커 수에 따라 디스크 캐시 재검토 조건(D-016)을 판단한다 (구현은 결정 후)
   - 결과 (2026-10-08): Cloud Run 서비스 1개에서 FastAPI가 frontend build까지 같은 origin으로 서빙(D-018). `Dockerfile`·`backend/app/frontend.py`·테스트, 로컬 Docker 실행·golden 검증. **Cloud Run(`asia-northeast3`) 배포 완료**, NAVER 콘솔에 서비스 URL 등록, 운영 사이트 점검 통과 (D-018 "배포·운영 점검")
 
-## 6. 두 위치 비교 (5차) — 설계 완료, 구현 전
-설계: `docs/COMPARE_DESIGN.md` (두 위치 × 같은 업종, 기존 `/analyze`·`/nearby-stores` 재사용, 엔진·API 계약 불변). 12장 검토할 결정이 정해진 뒤 시작한다.
+## 6. 두 위치 비교 (5차) — 설계 확정(D1~D10), 단계별 구현 중
+설계: `docs/COMPARE_DESIGN.md` (두 위치 × 같은 업종, 기존 `/analyze`·`/nearby-stores` 재사용, 엔진·API 계약 불변). 12장 결정은 추천안으로 확정(자동 확대·"두 위치 모두 보기" 제외).
 - [x] 5-A 설계 문서 (현재 코드 확인, 상태 전이·늦은 응답·지도 A/B·점포 기준·비교 항목·DOM id·모바일·키보드·테스트)
-- [ ] 5-B1 순수 함수(`lib/compare.ts`)·비교 fixture·`displayWarnings`/`dataLimits` export
+- [x] 5-B1 순수 함수(`lib/compare.ts`)·비교 fixture 4개·`displayWarnings`/`dataLimits`를 `lib/warnings.ts`로 export (동작 그대로)
 - [ ] 5-B2 App 비교 상태 기계 (A 보존, B 로딩·실패·재시도·다시 고르기·종료, 늦은 응답 폐기)
 - [ ] 5-B3 비교 화면 (점수 표·표시용 차이 A−B·같은 구·동 안내·미산출·경고·원시값, id 유일성)
 - [ ] 5-B4 지도 A/B 마커·반경·경계 (zoom 불변)
