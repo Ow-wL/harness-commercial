@@ -60,21 +60,6 @@
   font-variant-numeric: tabular-nums;
 }
 
-.coords {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  align-items: start;
-  gap: var(--space-3);
-  padding: var(--space-4);
-  border-radius: var(--radius-md);
-  background: var(--color-surface-muted);
-}
-
-.coords .button {
-  grid-column: 1 / -1;
-  justify-self: start;
-}
-
 /* 업종 select: 닫힌 상태 오른쪽에 그룹명 --text-caption muted (§7.3) */
 .select-wrap {
   position: relative;
@@ -124,5 +109,6 @@
 
 .conditions-summary__actions {
   display: flex;
+  flex-wrap: wrap; /* 지도 보기(mobile)·다른 위치와 비교·조건 변경 — 좁은 폭에서 줄바꿈 */
   gap: var(--space-1);
 }

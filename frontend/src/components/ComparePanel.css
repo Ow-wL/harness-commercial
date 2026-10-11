@@ -1,0 +1,100 @@
+/* 두 위치 비교 — 최소 조작 화면 (docs/COMPARE_DESIGN.md 5차-B2). 결과 패널과 같이 카드 대신 구분선(DESIGN.md §7.5) */
+.compare {
+  display: flex;
+  flex-direction: column;
+}
+
+.compare__head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding-bottom: var(--space-6);
+}
+
+.compare__title {
+  margin: 0;
+  font: var(--text-page-title);
+  letter-spacing: -0.015em;
+  color: var(--color-text-primary);
+}
+
+.compare__lead {
+  margin: 0;
+  font: var(--text-body);
+  color: var(--color-text-secondary);
+}
+
+.compare__card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-6) 0;
+  border-top: 1px solid var(--color-border);
+}
+
+.compare__card-title {
+  margin: 0;
+  font: var(--text-section);
+  letter-spacing: -0.01em;
+  color: var(--color-text-primary);
+}
+
+.compare__place {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1);
+  margin: 0;
+  font: var(--text-body);
+  color: var(--color-text-primary);
+}
+
+.compare__place .mono {
+  font-variant-numeric: tabular-nums;
+}
+
+.compare__hint {
+  margin: 0;
+  font: var(--text-small);
+  color: var(--color-text-secondary);
+}
+
+.compare__notice {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  padding: var(--space-3);
+  border: 1px solid var(--color-info-border);
+  border-radius: var(--radius-md);
+  background: var(--color-info-subtle);
+  font: var(--text-small);
+  color: var(--color-text-primary);
+}
+
+.compare__notice svg {
+  flex: none;
+  color: var(--color-info);
+}
+
+.compare__status {
+  margin: 0;
+  font: var(--text-small);
+  color: var(--color-text-secondary);
+}
+
+.compare__status:empty {
+  display: none;
+}
+
+.compare__card > .button--secondary {
+  align-self: flex-start;
+}
+
+.compare__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--color-border);
+}

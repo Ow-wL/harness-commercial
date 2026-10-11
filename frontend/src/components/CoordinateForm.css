@@ -1,0 +1,15 @@
+/* 좌표 직접 입력 (지도 클릭의 키보드 대안, DESIGN.md §7.4·§15) */
+.coords {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  align-items: start;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-muted);
+}
+
+.coords .button {
+  grid-column: 1 / -1;
+  justify-self: start;
+}

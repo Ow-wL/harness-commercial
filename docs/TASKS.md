@@ -52,7 +52,7 @@
 설계: `docs/COMPARE_DESIGN.md` (두 위치 × 같은 업종, 기존 `/analyze`·`/nearby-stores` 재사용, 엔진·API 계약 불변). 12장 결정은 추천안으로 확정(자동 확대·"두 위치 모두 보기" 제외).
 - [x] 5-A 설계 문서 (현재 코드 확인, 상태 전이·늦은 응답·지도 A/B·점포 기준·비교 항목·DOM id·모바일·키보드·테스트)
 - [x] 5-B1 순수 함수(`lib/compare.ts`)·비교 fixture 4개·`displayWarnings`/`dataLimits`를 `lib/warnings.ts`로 export (동작 그대로)
-- [ ] 5-B2 App 비교 상태 기계 (A 보존, B 로딩·실패·재시도·다시 고르기·종료, 늦은 응답 폐기)
+- [x] 5-B2 App 비교 상태 기계 (A 보존, B 로딩·실패·재시도·다시 고르기·종료, 늦은 응답 폐기) + 최소 조작 화면(`ComparePanel`·`CompareSheet`), 좌표 입력 재사용(`CoordinateForm`)
 - [ ] 5-B3 비교 화면 (점수 표·표시용 차이 A−B·같은 구·동 안내·미산출·경고·원시값, id 유일성)
 - [ ] 5-B4 지도 A/B 마커·반경·경계 (zoom 불변)
 - [ ] 5-B5 동종 점포 기준 위치 전환

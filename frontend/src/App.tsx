@@ -3,12 +3,14 @@ import { analyze, fetchBusinesses, fetchNearbyStores, type AnalyzeRequest, type 
 import type { AnalyzeResponse } from './api/schemas.ts'
 import { AnalysisResult } from './components/AnalysisResult.tsx'
 import { AnalysisEmpty, AnalysisLoading } from './components/AnalysisStatus.tsx'
+import { ComparePanel, CompareSheet } from './components/ComparePanel.tsx'
 import { ConditionPanel, type BusinessesState } from './components/ConditionPanel.tsx'
 import { ContextBar } from './components/ContextBar.tsx'
 import { ErrorBlock } from './components/ErrorBlock.tsx'
 import { LocationSummary } from './components/LocationSummary.tsx'
 import { MapView, type LatLng, type MapStore } from './components/MapView.tsx'
 import { NearbyStores, type NearbyState } from './components/NearbyStores.tsx'
+import { COMPARE_IDS, sameCoordinates, type CompareState } from './lib/compareState.ts'
 import { errorView, type ErrorAction } from './lib/errorView.ts'
 import { formatDistance, locationName, nearestStation, storeAddress, storeName } from './lib/format.ts'
 import './App.css'
@@ -21,6 +23,9 @@ type Analysis =
 
 /** mobile(<640px)에서 지금 보이는 화면 (DESIGN.md §14). desktop·tablet에서는 무시된다 */
 type MobileScreen = 'map' | 'panel'
+
+/** mobile(<640px) 화면인지 — 포커스를 옮길 대상(패널 / 지도 화면 sheet)을 고를 때만 쓴다 */
+const isMobile = () => window.matchMedia?.('(max-width: 639px)').matches ?? false
 
 /** 분석 불가 지점은 회색 마커·반경 없음 (§8.11, §10.3) */
 const INVALID_LOCATION_CODES = new Set(['invalid_coordinate', 'location_outside', 'no_data_nearby'])
@@ -44,6 +49,11 @@ function App() {
   const [nearby, setNearby] = useState<NearbyState | null>(null)
   const [showStores, setShowStores] = useState(true)
   const [activeStoreId, setActiveStoreId] = useState<string | null>(null)
+  // 두 위치 비교 (5차, docs/COMPARE_DESIGN.md 3장): A = 위 analysis 그대로, B만 따로 둔다
+  const [compare, setCompare] = useState<CompareState>({ status: 'off' })
+  // 비교 화면 전환 뒤 포커스를 옮길 요소 id (렌더 뒤에 옮긴다)
+  const [focusRequest, setFocusRequest] = useState<{ id: string; n: number } | null>(null)
+  const focusLater = (id: string) => setFocusRequest((r) => ({ id, n: (r?.n ?? 0) + 1 }))
 
   // GET /businesses — 업종 목록은 API에서만 받는다
   useEffect(() => {
@@ -97,11 +107,22 @@ function App() {
       .catch(() => {})                                     // 취소된 요청
   }, [])
 
+  // B 분석 요청: A와 다른 AbortController·요청 번호. 취소·종료·조건 변경 뒤 도착한 응답은 seq가 달라 버린다
+  const compareInflight = useRef<{ seq: number; controller: AbortController } | null>(null)
+  const compareSeq = useRef(0)
+
+  const resetCompare = () => {
+    compareInflight.current?.controller.abort()
+    compareInflight.current = null
+    setCompare({ status: 'off' })
+  }
+
   const cancelAnalysis = () => {
     inflight.current?.controller.abort()
     inflight.current = null
     setAnalysis({ status: 'idle' })
     cancelNearby()
+    resetCompare()                                         // A가 없으면 비교도 없다
   }
 
   const runAnalysis = useCallback(() => {
@@ -112,6 +133,7 @@ function App() {
     inflight.current = current
     setAnalysis({ status: 'loading', request })
     cancelNearby()
+    resetCompare()
 
     analyze(request, current.controller.signal)
       .then((r) => {
@@ -132,9 +154,95 @@ function App() {
   }, [location, bizCode, loadNearby])
 
   const analyzing = analysis.status === 'loading'
+  const comparing = compare.status !== 'off'
+
+  // ─── 두 위치 비교 (B) ───────────────────────────────────────────
+  /** B 위치 고르기로 (시작·다시 고르기). desktop은 B 카드 제목, mobile은 지도 화면 sheet로 포커스 */
+  const pickB = () => {
+    compareInflight.current?.controller.abort()
+    compareInflight.current = null
+    setCompare({ status: 'picking', location: null })
+    setActiveStoreId(null)                                 // 비교 중에는 A 점포 선택·정보창을 닫는다(A 점포 데이터는 그대로)
+    setMobileScreen('map')
+    focusLater(isMobile() ? COMPARE_IDS.sheetAction : COMPARE_IDS.bTitle)
+  }
+
+  const startCompare = () => {
+    if (analysis.status !== 'success') return
+    pickB()
+  }
+
+  /** 비교 종료·취소: B만 지우고 A 결과·A 점포 목록으로 돌아간다. 포커스는 "다른 위치와 비교" 버튼 */
+  const endCompare = () => {
+    resetCompare()
+    setMobileScreen('panel')
+    focusLater(COMPARE_IDS.start)
+  }
+
+  /** 비교 중 지도 클릭·좌표 입력 = B 선택. A는 바꾸지 않는다. B 분석 중에는 무시(D9) */
+  const selectCompareLocation = (point: LatLng) => {
+    if (compare.status === 'off' || compare.status === 'loading') return
+    setCompare({ status: 'picking', location: point })    // 이전 B 결과·오류는 지운다
+  }
+
+  const requestCompare = (point: LatLng) => {
+    if (analysis.status !== 'success') return
+    if (sameCoordinates(point, analysis.request)) {
+      setCompare({ status: 'picking', location: point, sameAsA: true })   // 요청하지 않는다 (D2)
+      return
+    }
+    compareInflight.current?.controller.abort()
+    // 업종은 A 요청의 업종으로 고정
+    const request: AnalyzeRequest = { lat: point.lat, lng: point.lng, biz_code: analysis.request.biz_code }
+    const current = { seq: ++compareSeq.current, controller: new AbortController() }
+    compareInflight.current = current
+    setCompare({ status: 'loading', location: point })
+
+    analyze(request, current.controller.signal)
+      .then((r) => {
+        if (compareInflight.current?.seq !== current.seq) return    // 취소·종료·조건 변경·재요청 뒤 늦게 온 응답
+        compareInflight.current = null
+        setMobileScreen('panel')
+        if (!r.ok) {
+          setCompare({ status: 'error', location: point, failure: r.failure })
+          focusLater(COMPARE_IDS.bError)
+        } else if (!matchesRequest(r.data, request)) {
+          console.error('[api] /analyze(B) 응답 조건이 요청과 다릅니다', { request, context: r.data.context })
+          setCompare({ status: 'error', location: point, failure: { kind: 'schema', endpoint: '/analyze', status: 200 } })
+          focusLater(COMPARE_IDS.bError)
+        } else {
+          setCompare({ status: 'success', location: point, response: r.data })
+          focusLater(COMPARE_IDS.title)
+        }
+      })
+      .catch(() => {})                                     // 취소된 요청
+  }
+
+  const runCompare = () => {
+    if (compare.status === 'picking' && compare.location) requestCompare(compare.location)
+  }
+
+  const handleCompareErrorAction = (action: ErrorAction) => {
+    if (compare.status !== 'error') return
+    switch (action) {
+      case 'retry':
+        requestCompare(compare.location)                   // 같은 B 좌표·같은 업종, 새 요청 번호
+        return
+      case 'reselect-location':
+        pickB()
+        return
+      case 'reselect-business':
+      case 'reselect-conditions':
+        handleErrorAction(action)                          // 비교 안에서는 업종을 바꿀 수 없다 → 비교를 끝내고 조건부터
+    }
+  }
 
   const selectLocation = (point: LatLng) => {
     if (analyzing) return                                  // 분석 중 새 선택은 무시 (§8.12)
+    if (comparing) {
+      selectCompareLocation(point)                         // 비교 중 지도 클릭은 B 선택 (A를 바꾸지 않는다)
+      return
+    }
     cancelAnalysis()
     setLocation(point)
   }
@@ -179,6 +287,14 @@ function App() {
     if (analysis.status === 'success') document.getElementById('result-title')?.focus()
   }, [analysis.status])
 
+  // 비교 화면 전환 뒤 포커스 (렌더가 끝난 뒤라 새로 생긴 요소도 찾는다). 오류 블록은 그 안 첫 버튼(행동)으로
+  useEffect(() => {
+    if (!focusRequest) return
+    const el = document.getElementById(focusRequest.id)
+    const target = focusRequest.id === COMPARE_IDS.bError ? el?.querySelector<HTMLElement>('button') : el
+    target?.focus()
+  }, [focusRequest])
+
   const result = analysis.status === 'success' ? analysis.response : null
   // 지도 마커용 표시 문구. 같은 응답·같은 토글이면 같은 배열(지도가 마커를 다시 만들지 않게)
   const mapStores = useMemo<MapStore[] | null>(
@@ -219,7 +335,7 @@ function App() {
       <header className="app-header">
         <span className="app-header__title">우리동네 상권분석 매니저</span>
         {result && <ContextBar context={result.context} meta={result.result.meta} station={station} />}
-        {result && (
+        {result && !comparing && (
           <a className="app-header__link" href="#data-sources">
             데이터 출처
           </a>
@@ -227,13 +343,31 @@ function App() {
       </header>
       <div className="workspace">
         <main className="workspace__panel">
-          {result ? (
+          {result && compare.status !== 'off' ? (
+            <ComparePanel
+              a={result}
+              compare={compare}
+              onLocationInput={selectCompareLocation}
+              onAnalyze={runCompare}
+              onErrorAction={handleCompareErrorAction}
+              onReselect={pickB}
+              onEnd={endCompare}
+              onChangeConditions={cancelAnalysis}
+              onShowMap={() => {
+                setMobileScreen('map')
+                focusLater(COMPARE_IDS.sheetAction)
+              }}
+            />
+          ) : result ? (
             <>
               <div className="conditions-summary">
                 <LocationSummary context={result.context} station={station} />
                 <span className="conditions-summary__actions">
                   <button type="button" className="button-ghost mobile-only" onClick={() => setMobileScreen('map')}>
                     지도 보기
+                  </button>
+                  <button id={COMPARE_IDS.start} type="button" className="button-ghost" onClick={startCompare}>
+                    다른 위치와 비교
                   </button>
                   <button type="button" className="button-ghost" onClick={cancelAnalysis}>
                     조건 변경
@@ -292,42 +426,56 @@ function App() {
             selected={location}
             markerTone={markerTone}
             dong={result ? { guCode: result.context.gu_code, dongName: result.context.dong_name } : null}
-            interactive={!analyzing}
+            interactive={!analyzing && compare.status !== 'loading'}
             onSelect={selectLocation}
-            stores={mapStores}
-            activeStoreId={activeStoreId}
+            // 비교 중에는 A 점포 마커·정보창을 숨긴다(B 위치를 고르는 클릭과 섞이지 않게). A 점포 데이터는 그대로 둔다
+            stores={comparing ? null : mapStores}
+            activeStoreId={comparing ? null : activeStoreId}
             onStoreSelect={selectStore}
           />
-          {/* mobile 지도 화면 하단 sheet (peek): 선택 확인 → 패널로 */}
-          <div className="map-sheet mobile-only">
-            <p className="map-sheet__text">
-              {resultIsForSelection ? (
-                <>
-                  <strong>{locationName(result.context)}</strong>
-                  {station && (
-                    <span className="map-sheet__sub">
-                      {' '}
-                      · {station.name} 직선거리 {formatDistance(station.distanceM)}
-                    </span>
-                  )}
-                </>
-              ) : location ? (
-                // 분석 전에는 행정동을 모른다(backend가 판정) — 고른 좌표만 보여 준다
-                <>
-                  선택됨 · <span className="mono">{location.lat}, {location.lng}</span>
-                </>
-              ) : (
-                '지도를 눌러 위치를 고르세요'
-              )}
-            </p>
-            <button
-              type="button"
-              className={`button ${location ? 'button--primary' : 'button--secondary'}`}
-              onClick={() => setMobileScreen('panel')}
-            >
-              {result ? '결과 보기' : location ? '이 위치로 계속' : '좌표 직접 입력'}
-            </button>
-          </div>
+          {/* mobile 지도 화면 하단 sheet (peek): 선택 확인 → 패널로. 비교 중에는 B 선택용 sheet */}
+          {result && compare.status !== 'off' ? (
+            <CompareSheet
+              a={result}
+              compare={compare}
+              onAnalyze={runCompare}
+              onShowPanel={() => {
+                setMobileScreen('panel')
+                focusLater(COMPARE_IDS.bTitle)
+              }}
+              onEnd={endCompare}
+            />
+          ) : (
+            <div className="map-sheet mobile-only">
+              <p className="map-sheet__text">
+                {resultIsForSelection ? (
+                  <>
+                    <strong>{locationName(result.context)}</strong>
+                    {station && (
+                      <span className="map-sheet__sub">
+                        {' '}
+                        · {station.name} 직선거리 {formatDistance(station.distanceM)}
+                      </span>
+                    )}
+                  </>
+                ) : location ? (
+                  // 분석 전에는 행정동을 모른다(backend가 판정) — 고른 좌표만 보여 준다
+                  <>
+                    선택됨 · <span className="mono">{location.lat}, {location.lng}</span>
+                  </>
+                ) : (
+                  '지도를 눌러 위치를 고르세요'
+                )}
+              </p>
+              <button
+                type="button"
+                className={`button ${location ? 'button--primary' : 'button--secondary'}`}
+                onClick={() => setMobileScreen('panel')}
+              >
+                {result ? '결과 보기' : location ? '이 위치로 계속' : '좌표 직접 입력'}
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>

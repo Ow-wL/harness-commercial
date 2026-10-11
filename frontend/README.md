@@ -51,6 +51,8 @@ src/
   map/dongBoundary.ts   분석된 행정동 경계: data/geo 원본을 ?url로 참조(복사하지 않음), context의 (gu_code, dong_name)으로 찾음
   components/MapView    지도 클릭 → 좌표, 마커 + 반경 500m 원, 행정동 경계 강조. SDK는 여기서만 쓴다
   components/ConditionPanel  단계 표시 · 위치(좌표 직접 입력 포함) · 업종 select(그룹) · 분석하기
+  components/CoordinateForm  위도·경도 입력(지도 클릭의 키보드 대안). 조건 패널과 두 위치 비교(B)가 같이 쓴다
+  components/ComparePanel    두 위치 비교: A 요약 · B 위치 입력·분석·오류·성공 확인(패널) + CompareSheet(mobile sheet)
   components/ErrorBlock      error.code별 오류 블록, internal_error request_id 복사
   components/AnalysisStatus  분석 중 skeleton · 분석 전 빈 상태
   components/AnalysisResult  결과 (4-3) — OverallScore · PerspectiveScores · CoverageMeta · WarningPanel ·
@@ -59,6 +61,7 @@ src/
   content/scoreGuide.ts 5대 관점 설명 정적 문장 (근거: docs/SCORE_GUIDE_SOURCES.md). 결과 값은 넣지 않는다
   lib/errorView.ts      실패 → 오류 문구·위치·다음 행동 (DESIGN.md §10.3 표)
   lib/warnings.ts       "주의할 점" 문장(병목 경고 표시 문장·데이터 한계). WarningPanel과 두 위치 비교가 같이 쓴다
+  lib/compareState.ts   두 위치 비교 B 분석 상태 타입 · 포커스 대상 id · 좌표 일치 판정
   lib/compare.ts        두 위치 비교 표시 규칙(표시용 차이 A−B, 같은 구·동, 적용 가중치, 미산출, 반경 겹침, 원시값) — docs/COMPARE_DESIGN.md
   fixtures/             실제 POST /analyze 응답 캡처 (테스트 전용, 화면 데이터 아님)
                         bupyeong-pcbang.json = 부평역·PC방(정상 산출) / bupyeong-nailshop.json = 부평역·네일숍(안정성 미산출 + 병목 < 25)
