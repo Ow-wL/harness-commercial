@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>우리동네 상권분석 매니저 — Geocoder 차단 검증 (7-B1)</title>
+    <script>
+      // 개발 서버 전용 검증 페이지(빌드에 포함되지 않는다): 앱을 그대로 띄우되 NAVER SDK가 뒤에 붙이는
+      // 서브모듈 script(maps-geocoder.js)의 src만 존재하지 않는 경로로 바꿔 "서브모듈 요청만 차단"을 흉내 낸다.
+      // maps.js 자체와 지도·분석은 그대로여야 하고, Geocoder는 지도 준비 10초 뒤 'unavailable'이어야 한다.
+      ;(() => {
+        const BLOCK = /maps-geocoder\.js/
+        const rewrite = (url) => (typeof url === 'string' && BLOCK.test(url) ? url.replace('maps-geocoder.js', 'maps-geocoder.BLOCKED.js') : url)
+        const desc = Object.getOwnPropertyDescriptor(HTMLScriptElement.prototype, 'src')
+        Object.defineProperty(HTMLScriptElement.prototype, 'src', {
+          configurable: true,
+          get() { return desc.get.call(this) },
+          set(v) { desc.set.call(this, rewrite(v)) },
+        })
+        const setAttribute = Element.prototype.setAttribute
+        Element.prototype.setAttribute = function (name, value) {
+          return setAttribute.call(this, name, this instanceof HTMLScriptElement && name === 'src' ? rewrite(value) : value)
+        }
+        window.__geocoderBlocked = true
+      })()
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

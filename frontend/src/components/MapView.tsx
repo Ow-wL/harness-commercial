@@ -1,10 +1,15 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
 import { findDongRings } from '../map/dongBoundary.ts'
 import {
+  getGeocoderAvailability,
   loadNaverMaps,
   MapLoadError,
+  onGeocoderAvailability,
   onNaverAuthFailure,
+  reduceSdkState,
   type MapLoadErrorKind,
+  type SdkEvent,
+  type SdkState,
   type NaverCircle,
   type NaverInfoWindow,
   type NaverMap,
@@ -57,6 +62,11 @@ export type MapViewProps = {
   compare?: MapCompare | null
   /** 선택한 점포 막대 앞에 붙는 기준 위치 (비교 중, 예: "B 구월3동 주변", 5차-B5) */
   storeContext?: string
+  /**
+   * SDK 상태 변화 (7-B1, docs/ADDRESS_DESIGN.md §5.1): 지도 준비(ready + Geocoder 준비 상태)·로드 실패·뒤늦은 인증 실패.
+   * App이 주소 기능 on/off에 쓴다(7-B2). failed 뒤에는 어떤 알림도 ready로 되돌리지 않는다
+   */
+  onSdkState?: (state: SdkState) => void
 }
 
 /** 인천 중심 초기 화면 (인천광역시청 부근) */
@@ -192,6 +202,7 @@ export function MapView({
   onStoreSelect,
   compare = null,
   storeContext,
+  onSdkState,
 }: MapViewProps) {
   const sectionRef = useRef<HTMLElement>(null)
   const canvasRef = useRef<HTMLDivElement>(null)
@@ -203,10 +214,12 @@ export function MapView({
   const onSelectRef = useRef(onSelect)
   const interactiveRef = useRef(interactive)
   const onStoreSelectRef = useRef(onStoreSelect)
+  const onSdkStateRef = useRef(onSdkState)
   useEffect(() => {
     onSelectRef.current = onSelect
     interactiveRef.current = interactive
     onStoreSelectRef.current = onStoreSelect
+    onSdkStateRef.current = onSdkState
   })
 
   // SDK 로드 + 지도 생성 (StrictMode에서 effect가 두 번 돌아도 script는 loader가 한 번만 붙인다)
@@ -215,7 +228,19 @@ export function MapView({
     let created: NaverMap | null = null
     let clickListener: unknown = null
     let maps: NaverMapsApi | null = null
-    const unsubscribe = onNaverAuthFailure(() => setError('auth'))
+    // SDK 상태를 App에 올린다 (7-B1). failed는 끝 상태 — 뒤늦은 인증 실패 뒤 Geocoder 준비 알림이 ready로 되돌리지 못한다
+    let sdkState: SdkState = { status: 'loading' }
+    const report = (event: SdkEvent) => {
+      const next = reduceSdkState(sdkState, event)
+      if (next === sdkState || cancelled) return
+      sdkState = next
+      onSdkStateRef.current?.(next)
+    }
+    let unsubscribeGeocoder: (() => void) | null = null
+    const unsubscribe = onNaverAuthFailure(() => {
+      setError('auth')
+      report({ type: 'auth-failed' })
+    })
 
     loadNaverMaps(import.meta.env.VITE_NAVER_MAP_CLIENT_ID)
       .then((loaded) => {
@@ -235,14 +260,21 @@ export function MapView({
         })
         setApi(loaded)
         setMap(created)
+        // 지도는 준비됐다. Geocoder는 지금 상태를 올리고, 뒤에 정해지면(ready/unavailable) 다시 올린다
+        report({ type: 'map-ready', api: loaded, geocoder: getGeocoderAvailability() })
+        unsubscribeGeocoder = onGeocoderAvailability((geocoder) => report({ type: 'geocoder', geocoder }))
       })
       .catch((e: unknown) => {
-        if (!cancelled) setError(e instanceof MapLoadError ? e.kind : 'load')
+        if (cancelled) return
+        const kind = e instanceof MapLoadError ? e.kind : 'load'
+        setError(kind)
+        report({ type: 'map-failed', kind })
       })
 
     return () => {
       cancelled = true
       unsubscribe()
+      unsubscribeGeocoder?.()
       if (maps && clickListener) maps.Event.removeListener(clickListener)
       created?.destroy?.()
       setMap(null)

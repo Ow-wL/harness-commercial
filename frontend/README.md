@@ -36,7 +36,7 @@ production에서는 FastAPI가 `dist/`를 같은 origin에서 서빙한다(`FRON
   ```
   Client ID만 쓴다. **Client Secret은 frontend에 넣지 않는다**(브라우저에 그대로 노출된다). 값이 없는 템플릿은 `.env.example`.
 - `.env`를 바꾸면 개발 서버를 다시 시작한다. Client ID가 없거나 SDK 로드·인증이 실패하면 지도 자리에 설정/오류 안내가 나오고, 패널의 "좌표 직접 입력"으로 위치를 고를 수 있다.
-- SDK는 `https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=…`를 singleton으로 한 번만 붙인다(`src/map/naverMaps.ts`).
+- SDK는 `https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=…&submodules=geocoder&callback=__naverMapsReady`를 singleton으로 한 번만 붙인다(`src/map/naverMaps.ts`). Geocoder 서브모듈(`maps-geocoder.js`)은 SDK가 뒤에 붙이며, 준비 여부는 지도와 따로 본다 — 서브모듈이 실패해도 지도는 그대로 쓴다(7-B1, `docs/ADDRESS_DESIGN.md` §5.1). 주소 기능을 켜려면 콘솔 Application에서 **Geocoding·Reverse Geocoding**을 선택해야 한다(미선택이면 호출이 403/429로 실패하고 지도는 영향 없음).
 
 ## 구조
 
@@ -47,7 +47,8 @@ src/
   App.test.tsx          흐름 테스트 (fetch mock, MapView mock)
   api/schemas.ts        API 응답 Zod schema (source of truth) + z.infer 타입
   api/client.ts         GET /businesses · POST /analyze · POST /nearby-stores. 응답은 모두 schema 검증, 실패는 api/network/schema로 구분
-  map/naverMaps.ts      NAVER Maps SDK singleton loader + 이 앱이 쓰는 SDK 타입
+  map/naverMaps.ts      NAVER Maps SDK singleton loader + 이 앱이 쓰는 SDK 타입, 지도/Geocoder 준비 상태(SdkState)
+  map/geocoder.ts       Geocoder 서브모듈 adapter(콜백 → 결과 객체, 7-B1; UI 연결은 7-B2)
   map/dongBoundary.ts   분석된 행정동 경계: data/geo 원본을 ?url로 참조(복사하지 않음), context의 (gu_code, dong_name)으로 찾음
   components/MapView    지도 클릭 → 좌표, 마커 + 반경 500m 원, 행정동 경계 강조, 두 위치 비교 A/B 표시(compare prop). SDK는 여기서만 쓴다
   components/ConditionPanel  단계 표시 · 위치(좌표 직접 입력 포함) · 업종 select(그룹) · 분석하기

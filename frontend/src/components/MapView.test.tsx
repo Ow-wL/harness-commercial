@@ -1,6 +1,6 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import type { Mock } from 'vitest'
-import { resetNaverMapsLoaderForTest, type NaverMapsApi } from '../map/naverMaps.ts'
+import { NAVER_SCRIPT_ID, resetNaverMapsLoaderForTest, type NaverMapsApi } from '../map/naverMaps.ts'
 import { findDongRings } from '../map/dongBoundary.ts'
 import { MapView, type MapCompare, type MapStore, type MapViewProps } from './MapView.tsx'
 
@@ -527,5 +527,82 @@ describe('MapView — 비교 중 선택한 점포 막대 (5차-B5)', () => {
   it('storeContext가 없으면(단일 분석) 막대는 상호만', async () => {
     await mount(props({ stores: STORES, activeStoreId: 'a' }))
     expect(screen.getByRole('group', { name: '선택한 점포' }).querySelector('.map__store-bar-name')).toHaveTextContent(/^라네이즈PC방$/)
+  })
+})
+
+describe('MapView — SDK 상태 보고 onSdkState (7-B1, docs/ADDRESS_DESIGN.md §5.1)', () => {
+  const fakeService = { geocode: () => {}, reverseGeocode: () => {}, Status: { OK: 200, ERROR: 500 } }
+  const script = () => document.getElementById(NAVER_SCRIPT_ID)!
+
+  /** 실제 첫 로드 경로(script 삽입 → load → callback)로 마운트한다. beforeEach의 미리 로드된 SDK는 치운다 */
+  async function mountFresh(onSdkState: Mock) {
+    delete window.naver
+    vi.stubEnv('VITE_NAVER_MAP_CLIENT_ID', 'test-client-id')
+    const view = render(<MapView {...props({ onSdkState })} />)
+    expect(script()).toBeTruthy()
+    window.naver = { maps: fakeSdk }
+    script().dispatchEvent(new Event('load'))
+    await waitFor(() => expect(observed).toHaveLength(1))
+    return view
+  }
+
+  it('지도 준비(ready, geocoder loading) → callback 뒤 geocoder ready. 지도는 callback 전에도 동작한다', async () => {
+    const onSdkState = vi.fn()
+    await mountFresh(onSdkState)
+    expect(onSdkState).toHaveBeenLastCalledWith({ status: 'ready', api: fakeSdk, geocoder: 'loading' })
+    expect(maps).toHaveLength(1)
+    window.naver = { maps: { ...fakeSdk, Service: fakeService } as unknown as NaverMapsApi }
+    window.__naverMapsReady!()
+    expect(onSdkState).toHaveBeenLastCalledWith({ status: 'ready', api: fakeSdk, geocoder: 'ready' })
+    expect(onSdkState).toHaveBeenCalledTimes(2)
+    expect(maps).toHaveLength(1)                                      // 지도를 다시 만들지 않는다
+  })
+
+  it('callback이 왔지만 Service가 없으면 geocoder unavailable — 지도는 그대로', async () => {
+    const onSdkState = vi.fn()
+    await mountFresh(onSdkState)
+    window.__naverMapsReady!()
+    expect(onSdkState).toHaveBeenLastCalledWith({ status: 'ready', api: fakeSdk, geocoder: 'unavailable' })
+    expect(maps).toHaveLength(1)
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+
+  it('뒤늦은 인증 실패 뒤에 온 callback은 상태를 ready로 되돌리지 못한다', async () => {
+    const onSdkState = vi.fn()
+    await mountFresh(onSdkState)
+    window.navermap_authFailure!()
+    expect(onSdkState).toHaveBeenLastCalledWith({ status: 'failed', kind: 'auth' })
+    expect(await screen.findByRole('alert')).toBeInTheDocument()
+    const calls = onSdkState.mock.calls.length
+    window.naver = { maps: { ...fakeSdk, Service: fakeService } as unknown as NaverMapsApi }
+    window.__naverMapsReady!()
+    expect(onSdkState).toHaveBeenCalledTimes(calls)
+    expect(onSdkState.mock.calls.at(-1)![0]).toEqual({ status: 'failed', kind: 'auth' })
+  })
+
+  it('이미 로드된 SDK에 Service가 있으면 바로 ready·geocoder ready', async () => {
+    window.naver = { maps: { ...fakeSdk, Service: fakeService } as unknown as NaverMapsApi }
+    const onSdkState = vi.fn()
+    await mount(props({ onSdkState }))
+    expect(onSdkState).toHaveBeenCalledExactlyOnceWith({ status: 'ready', api: window.naver.maps, geocoder: 'ready' })
+  })
+
+  it('언마운트 뒤에는 알리지 않는다 (구독 해제)', async () => {
+    const onSdkState = vi.fn()
+    const view = await mountFresh(onSdkState)
+    view.unmount()
+    const calls = onSdkState.mock.calls.length
+    window.naver = { maps: { ...fakeSdk, Service: fakeService } as unknown as NaverMapsApi }
+    window.__naverMapsReady!()
+    expect(onSdkState).toHaveBeenCalledTimes(calls)
+  })
+
+  it('지도 로드 실패(config)는 failed로 알린다', async () => {
+    delete window.naver
+    vi.stubEnv('VITE_NAVER_MAP_CLIENT_ID', '')
+    const onSdkState = vi.fn()
+    render(<MapView {...props({ onSdkState })} />)
+    await waitFor(() => expect(onSdkState).toHaveBeenCalledWith({ status: 'failed', kind: 'config' }))
+    expect(screen.getByRole('alert')).toBeInTheDocument()
   })
 })

@@ -193,16 +193,17 @@ src/components/AddressSearch.tsx     주소 검색 폼 + 결과 목록 → onSel
 
 | 구분 | 파일 | 변경 |
 |---|---|---|
-| 로더 | `frontend/src/map/naverMaps.ts` | script URL `&submodules=geocoder&callback=…`, 준비 판정을 `callback`으로(§5.1), `NaverMapsApi.Service?` 타입 |
+| 로더 ✅ 7-B1 | `frontend/src/map/naverMaps.ts` | script URL `&submodules=geocoder&callback=__naverMapsReady`, 지도 준비(`load` 또는 callback)와 Geocoder 준비(callback + `Service`, 지도 준비 뒤 10초 타임아웃 → `unavailable`) 분리, `GeocoderAvailability`·`SdkState`·`reduceSdkState`(failed 끝 상태)·`onGeocoderAvailability`·`isGeocoderAvailable`, `NaverMapsApi.Service?`·`NaverService` 타입 |
 | 스파이크 | `frontend/spike/geocoder-spike.html` | 7-B0 전용 dev 페이지(빌드·타입검사 밖, `.env`의 Client ID만 사용, 버튼당 1회 호출). 구현 뒤에도 콘솔 조건 재확인용으로 남긴다 |
-| 신규 | `frontend/src/map/geocoder.ts` | adapter(§5.1) + Zod schema(`v2` 중 쓰는 필드만, `.loose()`) |
+| 스파이크 ✅ 7-B1 | `frontend/spike/app-geocoder-blocked.html` | 앱 전체를 같은 origin에서 띄우되 SDK가 뒤에 붙이는 `maps-geocoder.js`의 src만 바꿔 "서브모듈 요청만 차단"을 흉내 내는 dev 페이지(§12 검증). 빌드 밖 |
+| 신규 ✅ 7-B1 | `frontend/src/map/geocoder.ts` | adapter(§5.1) + Zod `looseObject` schema(`v2` 중 쓰는 필드만), `normalizeAddress`·`parseCoordinate`, 8초 timeout·첫 콜백만·동기 예외도 결과 객체 |
 | 신규 | `frontend/src/lib/addressCache.ts`, `frontend/src/lib/useReferenceAddress.ts` | 캐시·hook(§5.3) |
 | 신규 | `frontend/src/components/ReferenceAddress.tsx`(+css), `AddressSearch.tsx`(+css) | 표시·검색 UI |
-| 수정 | `frontend/src/components/MapView.tsx` | `onSdkState?(state)` prop 1개 — 로더 성공·실패와 **뒤늦은 인증 실패**를 App에 올린다(로더 재호출 없음) |
+| 수정 ✅ 7-B1 | `frontend/src/components/MapView.tsx` | `onSdkState?(state)` prop 1개 — 로더 성공(`map-ready` + 현재 Geocoder 상태)·Geocoder 판정·로드 실패·**뒤늦은 인증 실패**를 `reduceSdkState`로 App에 올린다(로더 재호출 없음, 지도 생성 시점·방식 불변). App 연결은 7-B2 |
 | 수정 | `frontend/src/App.tsx` | `sdk` 상태(`loading/ready/failed`), 주소 컴포넌트에 전달, mobile sheet 참고 주소(+ `max-height` 숨김 규칙은 App.css) |
 | 수정 | `frontend/src/components/ConditionPanel.tsx`, `ComparePanel.tsx` | "주소로 찾기" disclosure + 참고 주소 줄 |
 | 수정 | `frontend/src/components/LocationSummary.tsx` | 최근접역 줄 아래 참고 주소 |
-| 테스트 | `naverMaps.test.ts`, 신규 `geocoder.test.ts`, `useReferenceAddress.test.ts`, `App.test.tsx`(MapView mock이 `onSdkState`로 상태를 올리고, `Service`는 vi.fn mock) | §8 |
+| 테스트 ✅ 7-B1(일부) | `naverMaps.test.ts`(+8 로더·+2 reducer), 신규 `geocoder.test.ts`(22), `MapView.test.tsx`(+6 onSdkState) — 7-B2 이후: `useReferenceAddress.test.ts`, `App.test.tsx`(MapView mock이 `onSdkState`로 상태를 올리고, `Service`는 vi.fn mock) | §8 |
 | 문서 | `DESIGN.md`(§5.D·§7.4·§8.5·§8.5b·§15), `frontend/README.md`(콘솔: Geocoding·Reverse Geocoding 선택, 한도), `docs/ARCHITECTURE.md`(외부 API 경계 1줄), `docs/DECISIONS.md` D-021, `docs/TASKS.md` 7장 | |
 | 변경 없음 | backend 전체, `scoring_engine/`, `data/`, `Dockerfile`, `vite.config.ts`, `.env` 키 종류 | Client ID만 그대로 |
 
@@ -236,8 +237,10 @@ src/components/AddressSearch.tsx     주소 검색 폼 + 결과 목록 → onSel
 ## 9. 사용자가 직접 확인해야 할 콘솔 항목 (구현 시작 전)
 
 NAVER Cloud Platform 콘솔(https://console.ncloud.com) — 값은 이 저장소·대화에 적지 않는다.
-1. **상품 소속**: 이 앱의 Client ID(`VITE_NAVER_MAP_CLIENT_ID`)가 **Services > Application Services > Maps**(2025-03 신규 상품)의 Application인지, 구 **AI·NAVER API > Application**인지. 구 상품이면 2025-07-01부터 무료 이용량이 없고 종료 예정이므로 **Maps 상품에 새 Application을 만들고 Client ID를 교체**해야 한다(교체 시 `.env`·Cloud Run build arg만 바뀜, 코드 변경 없음).
-2. **대표 계정**: Application 화면 "대표 계정 확인". 아니면 Geocoding·Reverse Geocoding이 **첫 호출부터 0.5원/건** 과금 — 진행 여부 결정 필요.
+> 2026-10-12 확인 상태(§11.3): 1·2·3은 **확인 완료**(신규 Maps 상품, 대표 계정, Geocoding·Reverse Geocoding 선택). 잔여 항목은 **5 한도 및 알림 설정**과 **4의 운영(Cloud Run) URL 검증**(배포 전)뿐이다.
+
+1. **상품 소속** — ✅ 확인됨(신규 Maps 상품): 이 앱의 Client ID(`VITE_NAVER_MAP_CLIENT_ID`)가 **Services > Application Services > Maps**(2025-03 신규 상품)의 Application인지, 구 **AI·NAVER API > Application**인지. 구 상품이면 2025-07-01부터 무료 이용량이 없고 종료 예정이므로 **Maps 상품에 새 Application을 만들고 Client ID를 교체**해야 한다(교체 시 `.env`·Cloud Run build arg만 바뀜, 코드 변경 없음).
+2. **대표 계정** — ✅ 확인됨(대표 계정): Application 화면 "대표 계정 확인". 아니면 Geocoding·Reverse Geocoding이 **첫 호출부터 0.5원/건** 과금 — 진행 여부 결정 필요.
 3. **API 선택**: Application 수정에서 **Geocoding**, **Reverse Geocoding** 체크(Dynamic Map은 이미 선택). 문서상 미선택이면 429이지만 이 Application에서는 미선택 상태가 **403**으로 나타났고, 선택 뒤 200이 됐다(§11.3, 2026-10-12 사용자 확인·재검증 완료). 운영 점검 시 403이 보이면 API 선택부터 확인하고, 그래도 계속되면 Web 서비스 URL·권한·상품 소속을 함께 본다 — Dynamic Map이 되는 것만으로 Geocoder 쪽 설정이 맞다고 보지 않는다.
 4. **Web 서비스 URL**: `http://localhost:5173`(및 쓰는 다른 포트), Cloud Run URL이 등록돼 있는지(지도가 뜨고 있으므로 등록돼 있을 것).
 5. **한도 및 알림 설정**: Geocoding·Reverse Geocoding 각각 **일 한도**(예: 1,000건)·**월 한도**(예: 10,000건)와 통보 대상 등록. 과제 규모에서 무료량(월 3,000,000) 안이지만, 브라우저 호출이라 상한을 둔다. 값은 사용자 결정.
@@ -248,7 +251,7 @@ NAVER Cloud Platform 콘솔(https://console.ncloud.com) — 값은 이 저장소
 
 ## 10. 검수 결정 (2026-10-12 보완)
 
-1차 검수(2026-10-12)에서 Q4를 지시대로 바꾸고 나머지는 제안안을 적용했으며, 2차 검수(`7598511` 검수)에서 **UX 결정(Q1~Q4·Q6)은 아래 표대로 확정**했다. **계정·과금·한도(Q5, §9-1·9-2·9-5)는 사용자 확인 대기**로 남긴다.
+1차 검수(2026-10-12)에서 Q4를 지시대로 바꾸고 나머지는 제안안을 적용했으며, 2차 검수(`7598511` 검수)에서 **UX 결정(Q1~Q4·Q6)은 아래 표대로 확정**했다. 계정·과금은 같은 날 사용자 콘솔 확인으로 **확정됐다**(신규 Maps 상품·대표 계정·API 선택, §11.3). 남은 사용자 항목은 **한도 및 알림 설정(§9-5)**과 **배포 URL 검증(§9-4, 운영 배포 전)**뿐이다.
 
 | 항목 | 결정 | 반영 |
 |---|---|---|
@@ -256,7 +259,7 @@ NAVER Cloud Platform 콘솔(https://console.ncloud.com) — 값은 이 저장소
 | Q2 검색 결과 선택 뒤 포커스 | 단일: 위치 필드 요약(`tabIndex=-1`). B: "B 분석하기"(기존) | §5.2 A-4 |
 | Q3 로딩 표시 | 없음 — 성공 시에만 줄이 나타남 | §5.2 B |
 | Q4 인천 밖 결과 | **지시: NAVER 지역 정보로 backend보다 먼저 차단하지 않는다.** 선택 허용, 시·도 caption만 표시, 판정은 backend `location_outside` | §5.2 A-3 |
-| Q5 한도 값·비대표 계정 | 사용자 콘솔 결정(§9-5·9-2). 스파이크는 각 1회만 호출 | §9·§11 |
+| Q5 한도 값·비대표 계정 | 대표 계정·신규 Maps 상품·API 선택은 확인 완료(§11.3). **한도 및 알림 값은 사용자 미설정(잔여)** | §9·§11 |
 | Q6 영문 주소 | 쓰지 않음 | §5.2 B |
 
 추가 보완(같은 지시): 스파이크는 별도 페이지에서 SDK 1회 로드(§7-0), 뒤늦은 인증 실패를 주소 기능 준비 상태에 반영(§5.1), 오류 캐시 재시도는 자동 반복이 아니라 만료 뒤 다음 조회 때(§5.3), mobile sheet 높이 증가를 인정하고 공간 확보·실측 계획(§5.5).
@@ -327,4 +330,41 @@ SDK는 `maps.js` 뒤에 `https://oapi.map.naver.com/openapi/v3/maps-geocoder.js`
 
 **1차 403의 원인(재검증에 맞춘 표현):** 사용자가 바꾼 설정은 "Geocoding·Reverse Geocoding 선택" 하나이고, 그 뒤 같은 페이지·같은 Client ID·같은 URL에서 두 호출이 200이 됐다. 따라서 1차 403은 **Application에서 두 API가 선택되지 않았던 것**과 일치한다(상품 소속·대표 계정·URL은 사용자 확인과 재검증으로 문제가 아니었음이 확인됨). 공식 문서는 미선택 API를 "429"로 적지만, 이 Application에서는 **403**으로 왔다 — adapter는 HTTP 상태를 볼 수 없으므로 설계(§5.1)대로 `unknown`으로 두고, 운영 점검 항목에 "403도 API 미선택일 수 있다"를 적어 둔다(§9-3).
 
-**상태:** 7-B0 완료 조건 중 "준비 시점 확인"·"정상 호출 확인"·"fixture"는 끝났다. **한도 및 알림 설정(§9-5)은 사용자 미완**이며 7-B1 착수 전 권장 사항으로 남긴다. 7-B1 구현·운영 배포는 별도 승인 뒤 시작한다.
+**상태:** 7-B0 완료 조건 중 "준비 시점 확인"·"정상 호출 확인"·"fixture"는 끝났다. **한도 및 알림 설정(§9-5)은 사용자 미완**이며 권장 사항으로 남긴다. 7-B1은 검수 통과 뒤 §12에서 구현했다. 운영 배포는 별도 승인 뒤.
+
+---
+
+## 12. 구현 기록
+
+### 7-B1 — Geocoder 로더·타입·adapter·테스트 (2026-10-12, 기준 `f1e0573`)
+범위: 로더 준비 상태 분리, SDK 상태 계약, adapter. **주소 UI·캐시·App 연결은 없다**(7-B2) — 앱은 아직 주소 조회를 한 건도 하지 않는다. 엔진·backend·보호 영역 변경 없음.
+
+**로더 `src/map/naverMaps.ts`**
+- script URL `…maps.js?ncpKeyId=…&submodules=geocoder&callback=__naverMapsReady`. singleton(고정 id, 모듈 Promise)은 그대로 — script는 여전히 1개(`maps-geocoder.js`는 SDK가 붙인다).
+- 지도 준비: `load` 이벤트(기존) **또는** callback(먼저 올 수도 있다) 어느 쪽이든 Promise를 resolve한다. 지도 생성 시점·방식(`MapView`가 resolve 뒤 바로 `new Map`)은 바꾸지 않았다.
+- Geocoder 준비(`GeocoderAvailability` loading/ready/unavailable): callback이 와서 `isGeocoderAvailable(maps)`(`Service.geocode`·`reverseGeocode` 함수)면 `ready`, callback은 왔는데 Service가 없으면 `unavailable`, 지도 준비 뒤 **10초(`GEOCODER_TIMEOUT_MS`)** 안에 callback이 없으면 `unavailable`. 한 번 정해지면 바꾸지 않는다(타임아웃 뒤 늦은 callback 무시). script 로드 실패도 `unavailable`, 재시도(새 pending)에서는 `loading`부터 다시. 이미 로드된 SDK를 쓰는 경로(HMR)는 Service가 있으면 바로 `ready`, 없으면 타임아웃을 기다린다.
+- `onGeocoderAvailability(listener)`: 이미 정해졌으면 구독 즉시 1회 알린다(구독이 늦어도 놓치지 않음). 해제 함수 반환. `resetNaverMapsLoaderForTest`가 타이머·리스너·전역 callback을 모두 지운다.
+- `SdkState`(`loading | ready{api, geocoder} | failed{kind}`)와 순수 `reduceSdkState`: **failed는 끝 상태** — 뒤늦은 `auth` 실패 뒤 Geocoder `ready`·`map-ready`가 와도 바뀌지 않는다. 같은 값이면 같은 객체(불필요한 알림 없음). `loading` 중 Geocoder 알림은 무시한다(`map-ready`가 현재 값을 읽어 올린다).
+
+**MapView `onSdkState`(최소 연결)**: prop 1개 추가. effect 안에서 `reduceSdkState`로 상태를 쌓아 바뀔 때만 올린다 — `map-ready`(현재 Geocoder 상태 포함) → `onGeocoderAvailability` 구독 → `geocoder` 알림, `map-failed`, `auth-failed`(기존 `onNaverAuthFailure` 구독에 추가). 언마운트·StrictMode 재실행 시 구독 해제, cancelled 뒤에는 알리지 않는다. App은 아직 이 prop을 쓰지 않는다.
+
+**adapter `src/map/geocoder.ts`** (§5.1 계약 그대로)
+- `geocode(api, query, {coordinate?, count?})` → `ok{items[]} | empty | error{kind}`, `reverseGeocode(api, point)` → `ok{roadAddress, jibunAddress} | none | error{kind}`. kind: `unavailable`(Service 없음, 부르지 않음) · `invalid`(INVALID_REQUEST / reverse code 100) · `system`(SYSTEM_ERROR / 900) · `unknown`(**ERROR + 응답 없음**, 모르는 status, 동기 예외) · `timeout`(8초) · `schema`(구조·좌표 계약 위반).
+- 분류는 SDK가 준 값으로만 한다(HTTP 상태·문자열 추정 없음). 콜백은 첫 번째만 반영하고 timeout 뒤·두 번째 콜백은 무시. SDK 메서드가 동기로 throw해도 결과 객체(`unknown`)로 돌려준다(reject 없음).
+- 좌표 `x/y` 문자열: 숫자 형식(`^-?\d+(\.\d+)?$`)·유한성·위경도 범위만 검사 — 빈 문자열·공백·글자는 `null`(0이 아님) → 그런 항목이 있으면 `schema`. 인천 밖(예: 서울 좌표)은 거부하지 않는다.
+- 주소: `trim` + 연속 공백 1칸, 빈 문자열은 `null`. 역방향은 code 0이어도 도로명·지번이 모두 비면 `none`. SIDO는 `addressElements`의 `types`에 `SIDO`가 있는 요소의 `longName`(정렬·표시 보조). `distanceM`은 유한한 0 이상 숫자만.
+- 로그는 모든 `error` 결과에 `console.warn('[geocoder] <method> 실패', { kind, status })` 1줄(성공·empty·none은 없음). 인증값은 다루지 않는다.
+
+**테스트 (`scripts/check` 통과, frontend 328개)**
+- `geocoder.test.ts` 22개: 7-B0 재검증 fixture의 `response`를 입력으로(콜백 status는 fixture의 `status`, `http_status`는 쓰지 않음) 정방향 `{lat 37.4918321, lng 126.7227259, sido '인천광역시', distanceM 4240.06, 도로명·지번}`·역방향 이중 공백 정규화(`광장로 16 부평민자역사`, `부평동 738-21`), SDK 옵션(`coordinate 'lng,lat'`, `coords 'lng,lat'`, `orders 'roadaddr,addr'`), 검색 결과 없음 → empty, reverse code 3 → none, code 0 + 빈 주소/`address` 없음 → none, 도로명만 비면 지번만 ok, ERROR + 응답 없음 → unknown(+warn), v2.status/code → invalid·system·unknown(콜백 OK여도 v2가 아니면 그 값으로), schema(v2 없음·status 객체 아님), 좌표 `''`·`'abc'`·`'95'`·`undefined` → schema, 주소 정규화·빈 주소 null, 8초 timeout → 늦은 콜백 무시, 중복 콜백 무시, 동기 예외 → unknown, Service 없음·`null`·`undefined` → unavailable(호출 0).
+- `naverMaps.test.ts` +10: URL(submodules·callback)·script 1개, load→callback(ready, 늦은 구독 즉시 알림), callback→load 순서 뒤바뀜, callback 미도착 10초 → unavailable(지도 Promise는 성공, 늦은 callback 무시), callback+Service 없음 → unavailable, script 실패 → unavailable·재시도 시 loading, 이미 로드된 SDK 경로(ready/타임아웃), 구독 해제, reducer(순서·같은 객체·loading 중 무시·**failed 뒤 ready 되돌림 없음**·map-failed).
+- `MapView.test.tsx` +6: 실제 첫 로드 경로(script 삽입 → load → callback)로 ready(loading) → ready(ready)이며 지도는 callback 전에 만들어지고 다시 만들지 않음, callback+Service 없음 → unavailable·오류 안내 없음, **뒤늦은 인증 실패 뒤 callback은 상태를 되돌리지 못함**(오류 안내 표시), 이미 로드된 SDK + Service → 즉시 ready/ready 1회, 언마운트 뒤 알림 없음, config 실패 → failed. 기존 URL 기대값 1개만 갱신.
+
+**브라우저 검증 (내장 Chromium 152, 로컬 backend + vite dev, 콘솔 API 설정 변경 없음)**
+| 조건 | 확인 |
+|---|---|
+| 1280×800 앱 | SDK script 2개(`maps.js?…&submodules=geocoder&callback=__naverMapsReady`, `maps-geocoder.js`), `naver.maps.Service.geocode` function. 좌표 입력 → PC방 단일 분석(부평6동, 점포 5) → 비교 B(구월3동) 성공 → 비교 종료 → A 결과·점포 목록. **`maps.apigw.ntruss.com` 요청 0건**(주소 조회 자동 발생 없음), 이 페이지 4xx 0건 |
+| 800×600 앱 | 같은 흐름 정상(결과 지도 320px), 로더 상태 `getGeocoderAvailability()` = `ready`, ntruss 0건, 4xx 0건 |
+| 서브모듈만 차단 (`spike/app-geocoder-blocked.html`, `maps-geocoder.js` → 없는 경로) | `maps.js`는 로드, `Service` undefined, 지도 생성(캔버스 자식 3, 마커 38)·지도 오류 안내 없음, 단일 분석 성공(부평6동, 점포 5), 지도 준비 10초 뒤 로더 상태 `unavailable`, ntruss 0건 |
+
+**잔여(사용자)**: 한도 및 알림 설정(§9-5), 운영 URL의 Geocoder 유효성(§9-4, 배포 전). 다음 단계 7-B2(참고 주소 표시·캐시·App `onSdkState` 연결)는 별도 승인 뒤.
