@@ -127,6 +127,64 @@
   background: var(--color-map-invalid-marker);
 }
 
+/* 동종 점포 마커 (4차, §8.11): 선택 지점보다 작게, 선택되면 커지고 진한 테두리 */
+.map-store-marker {
+  width: 10px;
+  height: 10px;
+  border: 1.5px solid var(--color-surface);
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px rgba(23, 32, 43, 0.25);
+  background: var(--color-map-store);
+  cursor: pointer;
+}
+
+.map-store-marker--active {
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--color-surface);
+  box-shadow: 0 0 0 2px var(--color-text-primary);
+}
+
+.map__legend-store {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--color-map-store);
+}
+
+/* 정보창 내용 (NAVER InfoWindow 안) */
+.map-store-info {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  max-width: 240px;
+  padding: var(--space-3);
+  font: var(--text-small);
+  color: var(--color-text-secondary);
+}
+
+.map-store-info__name {
+  font: var(--text-label);
+  color: var(--color-text-primary);
+}
+
+.map-store-info__text {
+  margin: 0;
+}
+
+.map-store-info__close {
+  align-self: flex-end;
+  min-height: 32px;
+  padding: 0 var(--space-2);
+  border: 0;
+  border-radius: var(--radius-md);
+  background: none;
+  font: var(--text-small);
+  font-weight: 600;
+  color: var(--color-accent);
+  cursor: pointer;
+}
+
 @media (max-width: 639px) {
   .map__legend {
     bottom: auto;

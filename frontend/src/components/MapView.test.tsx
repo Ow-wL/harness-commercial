@@ -1,6 +1,7 @@
 import { cleanup, render, waitFor } from '@testing-library/react'
+import type { Mock } from 'vitest'
 import { resetNaverMapsLoaderForTest, type NaverMapsApi } from '../map/naverMaps.ts'
-import { MapView, type MapViewProps } from './MapView.tsx'
+import { MapView, type MapStore, type MapViewProps } from './MapView.tsx'
 
 // NAVER SDK 경계 계약만 본다 — 실제 SDK 대신 window.naver.maps에 fake를 둔다(로더는 이미 로드된 SDK를 그대로 쓴다).
 class FakeLatLng {
@@ -37,6 +38,16 @@ class FakeMap {
 const overlay = function () {
   return { setMap: vi.fn(), setPosition: vi.fn(), setIcon: vi.fn(), setCenter: vi.fn() }
 }
+type FakeInfo = { open: Mock; close: Mock; setContent: Mock; content: HTMLElement }
+let infos: FakeInfo[] = []
+const infoWindow = function (opts: { content: HTMLElement }) {
+  const info: FakeInfo = { open: vi.fn(), close: vi.fn(), setContent: vi.fn(), content: opts.content }
+  info.setContent.mockImplementation((c: HTMLElement) => (info.content = c))
+  infos.push(info)
+  return info
+}
+// 마커 click 리스너를 잡아 두고 테스트에서 부른다
+let listeners: { target: unknown; type: string; handler: () => void }[] = []
 
 const fakeSdk = {
   Map: FakeMap,
@@ -46,8 +57,16 @@ const fakeSdk = {
   Marker: vi.fn(overlay),
   Circle: vi.fn(overlay),
   Polygon: vi.fn(overlay),
+  InfoWindow: vi.fn(infoWindow),
   Position: { TOP_RIGHT: 'TOP_RIGHT' },
-  Event: { addListener: vi.fn(() => ({})), removeListener: vi.fn() },
+  Event: {
+    addListener: vi.fn((target: unknown, type: string, handler: () => void) => {
+      const l = { target, type, handler }
+      listeners.push(l)
+      return l
+    }),
+    removeListener: vi.fn((l: unknown) => (listeners = listeners.filter((x) => x !== l))),
+  },
 } as unknown as NaverMapsApi
 
 // jsdom에는 ResizeObserver·레이아웃이 없다 — 관찰 대상과 콜백을 잡아 두고 크기는 직접 정한다
@@ -57,6 +76,9 @@ const layout = new Map<Element, { w: number; h: number }>()
 
 beforeEach(() => {
   maps = []
+  infos = []
+  listeners = []
+  vi.mocked(fakeSdk.Marker).mockClear()
   observed = []
   layout.clear()
   window.naver = { maps: fakeSdk }
@@ -185,5 +207,53 @@ describe('MapView — 선택 위치로 이동 (B1)', () => {
     // 사용자가 지도를 옮겨 둔 뒤 오류 응답(회색 마커)이 와도 같은 지점이면 끌어당기지 않는다
     view.rerender(<MapView {...props({ selected: { ...outside }, markerTone: 'invalid' })} />)
     expect(view.map.panTo).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('MapView — 동종 점포 마커 (4차, DESIGN.md §8.11·§8.14)', () => {
+  const STORES: MapStore[] = [
+    { id: 'a', name: '<img src=x onerror=alert(1)>PC방', address: '인천 부평구 1', distance: '직선거리 115m', lat: 37.4888, lng: 126.7235 },
+    { id: 'b', name: '두번째PC', address: '주소 정보 없음', distance: '직선거리 221m', lat: 37.49, lng: 126.726 },
+  ]
+  const storeMarkers = () => vi.mocked(fakeSdk.Marker).mock.results.slice(-STORES.length).map((r) => r.value)
+  const clicks = () => listeners.filter((l) => l.type === 'click' && l.target !== maps[0])
+
+  it('점포마다 누를 수 있는 마커를 만들고, 마커를 누르면 그 점포 id를 넘긴다', async () => {
+    const onStoreSelect = vi.fn()
+    await mount(props({ stores: STORES, onStoreSelect }))
+    const calls = vi.mocked(fakeSdk.Marker).mock.calls.map(([o]) => o as { clickable: boolean; title: string })
+    expect(calls).toHaveLength(2)
+    expect(calls.every((o) => o.clickable)).toBe(true)
+    expect(clicks()).toHaveLength(2)
+    clicks()[1]!.handler()
+    expect(onStoreSelect).toHaveBeenCalledWith('b')
+  })
+
+  it('선택한 점포는 정보창에 상호·주소·직선거리를 텍스트로 보이고(HTML로 해석하지 않음), 닫기는 선택을 지운다', async () => {
+    const onStoreSelect = vi.fn()
+    const view = await mount(props({ stores: STORES, onStoreSelect }))
+    view.rerender(<MapView {...props({ stores: STORES, activeStoreId: 'a', onStoreSelect })} />)
+    expect(infos).toHaveLength(1)
+    const info = infos[0]!
+    expect(info.open).toHaveBeenCalledWith(view.map, storeMarkers()[0])
+    expect(info.content.textContent).toContain('<img src=x onerror=alert(1)>PC방')
+    expect(info.content.querySelector('img')).toBeNull()
+    expect(info.content).toHaveTextContent('인천 부평구 1')
+    expect(info.content).toHaveTextContent('직선거리 115m')
+    expect(view.map.panTo).toHaveBeenLastCalledWith(new FakeLatLng(37.4888, 126.7235))
+
+    info.content.querySelector('button')!.click()
+    expect(onStoreSelect).toHaveBeenLastCalledWith(null)
+  })
+
+  it('stores가 바뀌거나 없어지면 이전 마커·리스너를 지우고 정보창을 닫는다 (지도는 다시 만들지 않는다)', async () => {
+    const view = await mount(props({ stores: STORES }))
+    view.rerender(<MapView {...props({ stores: STORES, activeStoreId: 'a' })} />)
+    const old = storeMarkers()
+    view.rerender(<MapView {...props({ stores: null, activeStoreId: null })} />)
+    old.forEach((m) => expect(m.setMap).toHaveBeenLastCalledWith(null))
+    expect(clicks()).toHaveLength(0)
+    expect(infos[0]!.close).toHaveBeenCalled()
+    expect(maps).toHaveLength(1)
   })
 })

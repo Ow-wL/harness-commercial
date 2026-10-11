@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import type { AnalyzeResponse } from '../api/schemas.ts'
 import { locationName } from '../lib/format.ts'
 import { BeginnerAccess } from './BeginnerAccess.tsx'
@@ -11,10 +12,10 @@ import './AnalysisResult.css'
 
 /**
  * 분석 결과 (DESIGN.md §6 위계, §9 progressive disclosure).
- * 요약(종합·5대 관점·메타) → 주의할 점 → 초보자 접근성 → 세부 분석(접힘) → 데이터 출처·면책.
+ * 요약(종합·5대 관점·메타) → 주의할 점 → 초보자 접근성 → 반경 안 같은 업종 점포 → 세부 분석(접힘) → 데이터 출처·면책.
  * 입력은 AnalyzeResponseSchema로 검증된 값만 받는다. 엔진 값은 그대로 보여 준다.
  */
-export function AnalysisResult({ analysis }: { analysis: AnalyzeResponse }) {
+export function AnalysisResult({ analysis, nearby }: { analysis: AnalyzeResponse; nearby?: ReactNode }) {
   const { context, result } = analysis
 
   return (
@@ -29,6 +30,7 @@ export function AnalysisResult({ analysis }: { analysis: AnalyzeResponse }) {
       </div>
       <WarningPanel analysis={analysis} />
       <BeginnerAccess access={result.초보자_접근성} />
+      {nearby /* 반경 안 같은 업종 점포 (4차, §8.14) — App이 별도 요청 상태와 함께 넘긴다 */}
       <IndicatorDetails indicators={result.지표} summary={result.종합} meta={result.meta} />
       <DataSources meta={result.meta} disclaimer={result.면책} />
     </article>

@@ -46,7 +46,7 @@ src/
   App.tsx / App.css     상태(위치·업종·분석) + shell: Header · 조건/결과 패널 · 지도 (DESIGN.md §4.3·§14)
   App.test.tsx          흐름 테스트 (fetch mock, MapView mock)
   api/schemas.ts        API 응답 Zod schema (source of truth) + z.infer 타입
-  api/client.ts         GET /businesses · POST /analyze. 응답은 모두 schema 검증, 실패는 api/network/schema로 구분
+  api/client.ts         GET /businesses · POST /analyze · POST /nearby-stores. 응답은 모두 schema 검증, 실패는 api/network/schema로 구분
   map/naverMaps.ts      NAVER Maps SDK singleton loader + 이 앱이 쓰는 SDK 타입
   map/dongBoundary.ts   분석된 행정동 경계: data/geo 원본을 ?url로 참조(복사하지 않음), context의 (gu_code, dong_name)으로 찾음
   components/MapView    지도 클릭 → 좌표, 마커 + 반경 500m 원, 행정동 경계 강조. SDK는 여기서만 쓴다
@@ -54,12 +54,13 @@ src/
   components/ErrorBlock      error.code별 오류 블록, internal_error request_id 복사
   components/AnalysisStatus  분석 중 skeleton · 분석 전 빈 상태
   components/AnalysisResult  결과 (4-3) — OverallScore · PerspectiveScores · CoverageMeta · WarningPanel ·
-                             BeginnerAccess · IndicatorDetails(+ ScoreGuide) · DataSources · ContextBar · LocationSummary · Chip · Icon
+                             BeginnerAccess · IndicatorDetails(+ ScoreGuide) · DataSources · ContextBar · LocationSummary · NearbyStores · Chip · Icon
   lib/format.ts         표시 형식(점수 소수 1자리, %, 신뢰도·해상도 표기) — 값을 재계산하지 않는다
   content/scoreGuide.ts 5대 관점 설명 정적 문장 (근거: docs/SCORE_GUIDE_SOURCES.md). 결과 값은 넣지 않는다
   lib/errorView.ts      실패 → 오류 문구·위치·다음 행동 (DESIGN.md §10.3 표)
   fixtures/             실제 POST /analyze 응답 캡처 (테스트 전용, 화면 데이터 아님)
                         bupyeong-pcbang.json = 부평역·PC방(정상 산출) / bupyeong-nailshop.json = 부평역·네일숍(안정성 미산출 + 병목 < 25)
+                        bupyeong-pcbang-nearby.json = 같은 조건의 POST /nearby-stores 응답(12곳)
   styles/tokens.css     DESIGN.md §17 디자인 토큰 그대로 (값 변경은 DESIGN.md 먼저)
   styles/global.css · controls.css   전역 기본 · 버튼/입력 공통
   test/setup.ts         jest-dom matcher, 테스트 후 cleanup
@@ -74,5 +75,5 @@ src/
 - 엔진 결과를 재계산·반올림·번역·key 재구성하지 않는다.
 - UI는 `DESIGN.md`를 따른다. 색·spacing·radius·글꼴은 토큰, 컴포넌트별 고정 치수는 DESIGN 본문 값.
 - 업종 목록을 frontend에 하드코딩하지 않는다(GET /businesses).
-- 테스트 fixture 갱신: backend에서 `POST /analyze {"lat": 37.4894, "lng": 126.7246, "biz_code": "R10406"}`(네일숍은 `"S20703"`) 응답을 그대로 저장한다(손으로 고치지 않는다).
+- 테스트 fixture 갱신: backend에서 `POST /analyze {"lat": 37.4894, "lng": 126.7246, "biz_code": "R10406"}`(네일숍은 `"S20703"`) 응답을, 동종 점포는 같은 body의 `POST /nearby-stores` 응답을 그대로 저장한다(손으로 고치지 않는다).
 - 화면 시안 참고: `sources/team_v0.3/06_MVP화면/` (읽기 전용).

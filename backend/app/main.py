@@ -13,7 +13,8 @@ FastAPI backend (TASKS 3-1, docs/DECISIONS.md D-012).
 테스트: create_app(service=공유 서비스, warm_biz=[...]) — RuntimeData 를 다시 읽지 않고 지정 업종만 warm.
 
 엔드포인트: GET /health (3-1), GET /businesses (3-2, 엔진 config.BIZ_GROUP 그대로),
-            POST /analyze (3-3, ContextBuilder → AnalysisService, 엔진 결과는 변형 없이 result 에)
+            POST /analyze (3-3, ContextBuilder → AnalysisService, 엔진 결과는 변형 없이 result 에),
+            POST /nearby-stores (4차, 반경 안 동종 점포 목록 — /analyze 와 같은 좌표 검증·엔진 반경·업종 기준, D-019)
 frontend: frontend_dist(또는 환경변수 FRONTEND_DIST)를 주면 Vite build 를 같은 origin 에서 서빙한다 — API route 다음에
           붙어서 API 가 항상 우선, 나머지 GET 은 SPA fallback (backend/app/frontend.py, D-018). 주지 않으면 API 만.
 오류 계약: backend/app/errors.py (3-5) — 사용자 입력·분석 불가 422, 내부 오류 500 + request_id
@@ -32,6 +33,7 @@ from pydantic import BaseModel, Field, StrictFloat, StrictInt, StrictStr
 
 from scoring_engine import config as C, scoring
 from scoring_engine.location import ContextBuilder, InvalidCoordinate, LocationOutside, NoDataNearby
+from scoring_engine.nearby import SHOPS_AS_OF, NearbyStoreFinder
 
 from .errors import (ERROR_RESPONSES, INVALID_ANALYSIS_OPTIONS, INVALID_BUSINESS, INVALID_COORDINATE,
                      LOCATION_OUTSIDE, NO_DATA_NEARBY, ApiError, install_error_handlers)
@@ -89,6 +91,32 @@ class AnalyzeContext(BaseModel):
 class AnalyzeResponse(BaseModel):
     context: AnalyzeContext
     result: dict[str, Any]       # AnalysisService.analyze 반환 dict 그대로 (엔진 JSON 계약: docs/ENGINE.md)
+
+
+class NearbyStoresRequest(BaseModel):
+    lat: Latitude
+    lng: Longitude
+    biz_code: StrictStr
+
+
+class NearbyStore(BaseModel):
+    id: str                          # 상가업소번호
+    name: Optional[str]              # 상호명 (없으면 null)
+    road_address: Optional[str]      # 도로명주소 (없으면 null)
+    jibun_address: Optional[str]     # 지번주소 (없으면 null)
+    lat: float
+    lng: float
+    distance_m: int                  # 분석 지점과의 직선거리(m). 도보 거리가 아니다
+
+
+class NearbyStoresResponse(BaseModel):
+    lat: float                       # 판정에 쓴 좌표 = 요청 좌표 (ContextBuilder 검증 후)
+    lng: float
+    biz_code: str
+    radius_m: int                    # 엔진 config.RADIUS_M
+    as_of: str                       # 상가(상권)정보 기준일
+    count: int                       # == len(stores) == 같은 조건 /analyze 의 경쟁성.raw.동종점포수
+    stores: list[NearbyStore]        # 가까운 순
 
 
 def business_catalog() -> BusinessCatalog:
@@ -163,6 +191,7 @@ def create_app(service: Optional[AnalysisService] = None, warm_biz: Optional[Ite
     async def lifespan(app: FastAPI):
         app.state.service = service if service is not None else AnalysisService()
         app.state.context_builder = None
+        app.state.nearby_finder = None
         app.state.warm = WarmProgress(biz_codes)
         app.state.warm.start(app.state.service.cache)
         try:
@@ -177,6 +206,7 @@ def create_app(service: Optional[AnalysisService] = None, warm_biz: Optional[Ite
     app.state.service = None
     app.state.warm = None
     app.state.context_builder = None
+    app.state.nearby_finder = None
     builder_lock = threading.Lock()
 
     def context_builder() -> ContextBuilder:
@@ -186,6 +216,25 @@ def create_app(service: Optional[AnalysisService] = None, warm_biz: Optional[Ite
                 if app.state.context_builder is None:
                     app.state.context_builder = ContextBuilder(app.state.service.rt)
         return app.state.context_builder
+
+    def nearby_finder() -> NearbyStoreFinder:
+        """앱 수명 동안 1개 (RuntimeData 의 상가 배열을 잡아 둔다). context_builder 와 같은 lock 규칙."""
+        if app.state.nearby_finder is None:
+            with builder_lock:
+                if app.state.nearby_finder is None:
+                    app.state.nearby_finder = NearbyStoreFinder(app.state.service.rt)
+        return app.state.nearby_finder
+
+    def resolve_context(lat: float, lng: float):
+        """/analyze·/nearby-stores 공통 좌표 검증 → SiteContext. 오류 코드는 D-014 계약 그대로."""
+        try:
+            return context_builder().build(lat, lng)
+        except InvalidCoordinate as e:
+            raise ApiError(INVALID_COORDINATE) from e
+        except LocationOutside as e:
+            raise ApiError(LOCATION_OUTSIDE) from e
+        except NoDataNearby as e:
+            raise ApiError(NO_DATA_NEARBY) from e
 
     @app.get("/health")
     def health() -> dict:
@@ -209,14 +258,7 @@ def create_app(service: Optional[AnalysisService] = None, warm_biz: Optional[Ite
             scoring.resolve_weights(C.group_of(req.biz_code), req.user_weights, req.importance)
         except ValueError as e:
             raise ApiError(INVALID_ANALYSIS_OPTIONS, str(e)) from e
-        try:
-            ctx = context_builder().build(req.lat, req.lng)
-        except InvalidCoordinate as e:
-            raise ApiError(INVALID_COORDINATE) from e
-        except LocationOutside as e:
-            raise ApiError(LOCATION_OUTSIDE) from e
-        except NoDataNearby as e:
-            raise ApiError(NO_DATA_NEARBY) from e
+        ctx = resolve_context(req.lat, req.lng)
         # 이후 예외(ContextDataError 포함, analyze 안의 ValueError 도)는 내부 오류 → 500 (errors.install_error_handlers)
         result = app.state.service.analyze(ctx, req.biz_code, user_weights=req.user_weights,
                                            importance=req.importance, user_licenses=req.user_licenses)
@@ -225,8 +267,20 @@ def create_app(service: Optional[AnalysisService] = None, warm_biz: Optional[Ite
                                    dong_name=ctx.dong_name, label=ctx.label, rent_area=ctx.rent_area),
             result=result)
 
+    @app.post("/nearby-stores", response_model=NearbyStoresResponse, responses=ERROR_RESPONSES)
+    def nearby_stores(req: NearbyStoresRequest) -> NearbyStoresResponse:
+        """반경 config.RADIUS_M 안 같은 업종 점포 (표시용). 엔진 경쟁성과 같은 거리·반경·업종 기준 (scoring_engine/nearby.py).
+        /analyze 와 같은 순서로 검증한다: 업종 → 좌표(ContextBuilder). 엔진 analyze 는 부르지 않는다."""
+        if req.biz_code not in C.CODE_NAME:
+            raise ApiError(INVALID_BUSINESS)
+        ctx = resolve_context(req.lat, req.lng)
+        stores = nearby_finder().find(ctx.lat, ctx.lng, req.biz_code)
+        return NearbyStoresResponse(lat=ctx.lat, lng=ctx.lng, biz_code=req.biz_code, radius_m=C.RADIUS_M,
+                                    as_of=SHOPS_AS_OF, count=len(stores),
+                                    stores=[NearbyStore(**vars(s)) for s in stores])
+
     if frontend_dist:   # API route 를 모두 등록한 뒤에 붙인다 — route 순서상 API 가 먼저 매칭된다
-        mount_frontend(app, frontend_dist, api_paths={"/health", "/businesses", "/analyze"},
+        mount_frontend(app, frontend_dist, api_paths={"/health", "/businesses", "/analyze", "/nearby-stores"},
                        hidden_paths={"/docs", "/docs/oauth2-redirect", "/redoc", "/openapi.json"})
     return app
 

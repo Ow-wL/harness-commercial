@@ -1,0 +1,135 @@
+import { useId, useState } from 'react'
+import type { ApiFailure } from '../api/client.ts'
+import type { NearbyStoresResponse } from '../api/schemas.ts'
+import { formatDistance, storeAddress, storeName } from '../lib/format.ts'
+import { Icon } from './Icon.tsx'
+import './NearbyStores.css'
+
+export type NearbyState =
+  | { status: 'loading' }
+  | { status: 'success'; data: NearbyStoresResponse }
+  | { status: 'error'; failure: ApiFailure }
+
+/** 처음에 보이는 목록 수. 나머지는 "모두 보기"로 연다 (DESIGN.md §8.14) */
+export const NEARBY_PREVIEW = 5
+
+/**
+ * 반경 안 같은 업종 점포 (4차, DESIGN.md §8.14). 분석과 별도 요청이라 실패해도 분석 결과는 그대로다.
+ * 목록 항목은 버튼 — 누르면 지도 마커를 강조하고 정보창을 연다(지도 마커를 누르는 것과 같은 기능, 키보드 대안).
+ */
+export function NearbyStores({
+  state,
+  bizName,
+  radiusM,
+  expectedCount,
+  show,
+  onShowChange,
+  activeId,
+  onSelect,
+  onRetry,
+}: {
+  state: NearbyState
+  bizName: string
+  radiusM: number
+  /** 같은 분석의 경쟁성.raw.동종점포수 — 목록 수와 같아야 한다 */
+  expectedCount: number
+  show: boolean
+  onShowChange: (show: boolean) => void
+  activeId: string | null
+  onSelect: (id: string) => void
+  onRetry: () => void
+}) {
+  const listId = useId()
+  const stores = state.status === 'success' ? state.data.stores : []
+  // 지도에서 고른 점포가 접힌 뒤쪽에 있으면, 선택이 바뀔 때 목록을 펼쳐 선택 상태가 보이게 한다
+  // (렌더 중 상태 조정 — 사용자가 다시 접으면 그대로 접힌다)
+  const [seenActive, setSeenActive] = useState(activeId)
+  const [all, setAll] = useState(() => stores.findIndex((s) => s.id === activeId) >= NEARBY_PREVIEW)
+  if (activeId !== seenActive) {
+    setSeenActive(activeId)
+    if (stores.findIndex((s) => s.id === activeId) >= NEARBY_PREVIEW) setAll(true)
+  }
+  const expanded = all
+  const visible = expanded ? stores : stores.slice(0, NEARBY_PREVIEW)
+
+  return (
+    <section className="result-section" aria-labelledby="nearby-title">
+      <div className="result-section__head">
+        <h2 id="nearby-title" className="result-section__title">
+          반경 {radiusM}m 안 같은 업종 점포
+        </h2>
+        {state.status === 'success' && state.data.count > 0 && (
+          <label className="nearby__toggle">
+            <input type="checkbox" checked={show} onChange={(e) => onShowChange(e.target.checked)} />
+            지도에 표시
+          </label>
+        )}
+      </div>
+
+      {state.status === 'loading' && (
+        <p className="result-section__note" aria-live="polite">
+          점포 목록을 불러오는 중…
+        </p>
+      )}
+
+      {state.status === 'error' && (
+        <div className="nearby__error" role="status">
+          <p>
+            <Icon name="alert-triangle" /> 점포 목록을 불러오지 못했습니다. 분석 결과는 그대로입니다.
+          </p>
+          <button type="button" className="button-ghost" onClick={onRetry}>
+            다시 시도
+          </button>
+        </div>
+      )}
+
+      {state.status === 'success' && (
+        <>
+          <p className="result-section__note">
+            {bizName} {state.data.count}곳 · {state.data.count > 0 && '가까운 순 · 거리는 분석 지점에서의 직선거리 · '}
+            상가정보 {state.data.as_of} 기준 (이후 개업·폐업은 반영되지 않음)
+          </p>
+          {state.data.count !== expectedCount && (
+            <p className="nearby__mismatch" role="status">
+              <Icon name="alert-triangle" /> 목록 수({state.data.count}곳)가 분석의 동종 점포 수({expectedCount}곳)와
+              다릅니다.
+            </p>
+          )}
+          {state.data.count === 0 ? (
+            <p className="result-section__empty">반경 {radiusM}m 안에 같은 업종 점포가 없습니다.</p>
+          ) : (
+            <>
+              <ol id={listId} className="nearby__list" aria-label={`${bizName} 점포 목록`}>
+                {visible.map((s) => (
+                  <li key={s.id}>
+                    <button
+                      type="button"
+                      className="nearby__item"
+                      aria-pressed={s.id === activeId}
+                      onClick={() => onSelect(s.id)}
+                    >
+                      <span className="nearby__name">{storeName(s)}</span>
+                      <span className="nearby__address">{storeAddress(s)}</span>
+                      <span className="nearby__distance">직선거리 {formatDistance(s.distance_m)}</span>
+                    </button>
+                  </li>
+                ))}
+              </ol>
+              {stores.length > NEARBY_PREVIEW && (
+                <button
+                  type="button"
+                  className="button-ghost button-ghost--small"
+                  aria-expanded={expanded}
+                  aria-controls={listId}
+                  onClick={() => setAll(!expanded)}
+                >
+                  {expanded ? `가까운 ${NEARBY_PREVIEW}곳만 보기` : `모두 보기 (${stores.length}곳)`}
+                </button>
+              )}
+            </>
+          )}
+        </>
+      )}
+    </section>
+  )
+}

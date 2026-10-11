@@ -3,6 +3,7 @@ import type { Mock } from 'vitest'
 import App from './App.tsx'
 import type { MapViewProps } from './components/MapView.tsx'
 import fixture from './fixtures/bupyeong-pcbang.json'
+import nearbyFixture from './fixtures/bupyeong-pcbang-nearby.json'
 
 // 지도는 SDK 경계(MapView) 통째로 mock한다 — 실제 NAVER SDK를 부르지 않는다.
 // mock은 실제 MapView와 같은 계약: interactive=false면 클릭을 무시하고, 클릭 좌표를 onSelect로 넘긴다.
@@ -13,6 +14,8 @@ vi.mock('./components/MapView.tsx', () => ({
       data-selected={props.selected ? `${props.selected.lat},${props.selected.lng}` : ''}
       data-tone={props.markerTone}
       data-dong={props.dong ? `${props.dong.guCode} ${props.dong.dongName}` : ''}
+      data-stores={props.stores ? String(props.stores.length) : ''}
+      data-active-store={props.activeStoreId ?? ''}
     >
       <button type="button" onClick={() => props.interactive && props.onSelect({ lat: 37.4894, lng: 126.7246 })}>
         지도 클릭: 부평역
@@ -20,6 +23,11 @@ vi.mock('./components/MapView.tsx', () => ({
       <button type="button" onClick={() => props.interactive && props.onSelect({ lat: 37.392512, lng: 126.639034 })}>
         지도 클릭: 송도
       </button>
+      {props.stores?.[1] && (
+        <button type="button" onClick={() => props.onStoreSelect?.(props.stores![1]!.id)}>
+          지도 점포 마커: {props.stores[1].name}
+        </button>
+      )}
     </div>
   ),
 }))
@@ -52,11 +60,16 @@ const json = (status: number, body: unknown) =>
     headers: { 'Content-Type': typeof body === 'string' ? 'text/plain' : 'application/json' },
   })
 
-/** fetch mock: /businesses는 CATALOG, /analyze는 차례대로 replies */
-function mockApi({ businesses = { status: 200, body: CATALOG } as Reply, analyze = [] as Reply[] } = {}) {
+/** fetch mock: /businesses는 CATALOG, /analyze·/nearby-stores는 각자 차례대로 replies (분석 뒤 /nearby-stores가 없으면 네트워크 실패로 끝난다) */
+function mockApi({
+  businesses = { status: 200, body: CATALOG } as Reply,
+  analyze = [] as Reply[],
+  nearby = [] as Reply[],
+} = {}) {
   const queue = [...analyze]
+  const nearbyQueue = [...nearby]
   const fetchMock = vi.fn(async (url: string) => {
-    const reply = url === '/businesses' ? businesses : queue.shift()
+    const reply = url === '/businesses' ? businesses : url === '/nearby-stores' ? nearbyQueue.shift() : queue.shift()
     if (reply === undefined) throw new Error(`예상하지 못한 요청: ${url}`)
     if (reply === 'network-error') throw new TypeError('Failed to fetch')
     const { status, body } = await reply
@@ -68,6 +81,10 @@ function mockApi({ businesses = { status: 200, body: CATALOG } as Reply, analyze
 
 function analyzeCalls(fetchMock: Mock) {
   return fetchMock.mock.calls.filter(([url]) => url === '/analyze')
+}
+
+function nearbyCalls(fetchMock: Mock) {
+  return fetchMock.mock.calls.filter(([url]) => url === '/nearby-stores')
 }
 
 const analyzeButton = () => screen.getByRole('button', { name: /분석하기|분석 중/ })
@@ -298,5 +315,109 @@ describe('분석 오류 — error.code로 분기', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('분석 결과를 표시할 수 없습니다')
     expect(screen.queryByRole('region', { name: '종합 적합도' })).not.toBeInTheDocument()
     expect(console.error).toHaveBeenCalled()
+  })
+})
+
+describe('반경 안 같은 업종 점포 (POST /nearby-stores, 4차)', () => {
+  const NEARBY = '반경 500m 안 같은 업종 점포'
+
+  async function analyzeBupyeong(nearby: Reply[]) {
+    const fetchMock = mockApi({ analyze: [{ status: 200, body: fixture }], nearby })
+    render(<App />)
+    await selectBupyeongPcBang()
+    fireEvent.click(analyzeButton())
+    await screen.findByRole('heading', { level: 1, name: '부평구 부평1동 · PC방 분석' })
+    return fetchMock
+  }
+
+  it('분석 성공 뒤 같은 좌표·업종으로 조회하고, 엔진 동종점포수와 같은 수를 가까운 순으로 보여 준다', async () => {
+    const fetchMock = await analyzeBupyeong([{ status: 200, body: nearbyFixture }])
+    const [[, init]] = nearbyCalls(fetchMock) as [[string, RequestInit]]
+    expect(init.method).toBe('POST')
+    expect(JSON.parse(init.body as string)).toEqual({ lat: 37.4894, lng: 126.7246, biz_code: 'R10406' })
+
+    const section = await screen.findByRole('region', { name: NEARBY })
+    const list = await within(section).findByRole('list', { name: 'PC방 점포 목록' })
+    expect(fixture.result.지표[2]!.raw.동종점포수).toBe(12)               // 엔진 경쟁성.raw.동종점포수 == 목록 수
+    expect(section).toHaveTextContent('PC방 12곳 · 가까운 순')
+    expect(section).toHaveTextContent('상가정보 2026-06-30 기준')
+    expect(section).not.toHaveTextContent('분석의 동종 점포 수')        // 수가 같으면 불일치 경고 없음
+    const items = within(list).getAllByRole('button')
+    expect(items).toHaveLength(5)
+    expect(items[0]).toHaveTextContent(nearbyFixture.stores[0]!.name)
+    expect(items[0]).toHaveTextContent('직선거리 115m')
+    fireEvent.click(within(section).getByRole('button', { name: '모두 보기 (12곳)' }))
+    expect(within(list).getAllByRole('button')).toHaveLength(12)
+    expect(screen.getByTestId('map')).toHaveAttribute('data-stores', '12')
+  })
+
+  it('목록을 누르면 지도 점포가 선택되고, 지도 마커를 누르면 목록이 선택된다', async () => {
+    await analyzeBupyeong([{ status: 200, body: nearbyFixture }])
+    const list = await screen.findByRole('list', { name: 'PC방 점포 목록' })
+    const first = within(list).getAllByRole('button')[0]!
+    fireEvent.click(first)
+    expect(first).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByTestId('map')).toHaveAttribute('data-active-store', nearbyFixture.stores[0]!.id)
+
+    fireEvent.click(screen.getByRole('button', { name: `지도 점포 마커: ${nearbyFixture.stores[1]!.name}` }))
+    expect(within(list).getAllByRole('button')[1]).toHaveAttribute('aria-pressed', 'true')
+    expect(first).toHaveAttribute('aria-pressed', 'false')
+  })
+
+  it('"지도에 표시"를 끄면 마커와 선택을 지우고, 다시 켜면 마커를 그린다', async () => {
+    await analyzeBupyeong([{ status: 200, body: nearbyFixture }])
+    const toggle = await screen.findByRole('checkbox', { name: '지도에 표시' })
+    expect(toggle).toBeChecked()
+    fireEvent.click(within(screen.getByRole('list', { name: 'PC방 점포 목록' })).getAllByRole('button')[0]!)
+    fireEvent.click(toggle)
+    expect(screen.getByTestId('map')).toHaveAttribute('data-stores', '')
+    expect(screen.getByTestId('map')).toHaveAttribute('data-active-store', '')
+    fireEvent.click(toggle)
+    expect(screen.getByTestId('map')).toHaveAttribute('data-stores', '12')
+  })
+
+  it('조회가 실패해도 분석 결과는 그대로이고, 다시 시도할 수 있다', async () => {
+    await analyzeBupyeong([{ status: 500, body: internalError }, { status: 200, body: nearbyFixture }])
+    expect(await screen.findByText(/점포 목록을 불러오지 못했습니다/)).toBeInTheDocument()
+    expect(screen.getByRole('region', { name: '종합 적합도' })).toBeInTheDocument()
+    expect(screen.getByTestId('map')).toHaveAttribute('data-stores', '')
+
+    fireEvent.click(within(screen.getByRole('region', { name: NEARBY })).getByRole('button', { name: '다시 시도' }))
+    expect(await screen.findByRole('list', { name: 'PC방 점포 목록' })).toBeInTheDocument()
+    expect(screen.getByTestId('map')).toHaveAttribute('data-stores', '12')
+  })
+
+  it('새 위치를 고르면 목록·마커를 지우고, 늦게 도착한 이전 조회 응답은 버린다', async () => {
+    let respond!: (r: { status: number; body: unknown }) => void
+    const late = new Promise<{ status: number; body: unknown }>((r) => (respond = r))
+    await analyzeBupyeong([late])
+    expect(await screen.findByText('점포 목록을 불러오는 중…')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: '지도 클릭: 송도' }))
+    await act(async () => respond({ status: 200, body: nearbyFixture }))
+
+    expect(screen.queryByRole('region', { name: NEARBY })).not.toBeInTheDocument()
+    expect(screen.getByTestId('map')).toHaveAttribute('data-stores', '')
+  })
+
+  it('조건 변경으로 결과를 지우면 목록·마커도 지운다', async () => {
+    await analyzeBupyeong([{ status: 200, body: nearbyFixture }])
+    await screen.findByRole('list', { name: 'PC방 점포 목록' })
+    fireEvent.click(screen.getByRole('button', { name: '조건 변경' }))
+    expect(screen.queryByRole('region', { name: NEARBY })).not.toBeInTheDocument()
+    expect(screen.getByTestId('map')).toHaveAttribute('data-stores', '')
+  })
+
+  it('응답 조건이 요청과 다르면(다른 업종) 쓰지 않고 오류로 보여 준다', async () => {
+    await analyzeBupyeong([{ status: 200, body: { ...nearbyFixture, biz_code: 'R10407' } }])
+    expect(await screen.findByText(/점포 목록을 불러오지 못했습니다/)).toBeInTheDocument()
+    expect(screen.getByTestId('map')).toHaveAttribute('data-stores', '')
+  })
+
+  it('목록 수가 분석의 동종 점포 수와 다르면 경고한다', async () => {
+    await analyzeBupyeong([{ status: 200, body: { ...nearbyFixture, count: 0, stores: [] } }])
+    const section = await screen.findByRole('region', { name: NEARBY })
+    await waitFor(() => expect(section).toHaveTextContent('목록 수(0곳)가 분석의 동종 점포 수(12곳)와 다릅니다'))
+    expect(section).toHaveTextContent('반경 500m 안에 같은 업종 점포가 없습니다')
   })
 })

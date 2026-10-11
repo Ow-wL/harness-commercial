@@ -7,7 +7,7 @@ python -m uvicorn backend.app.main:app --reload
 ```
 
 구조
-- `app/main.py` — `create_app(service=None, warm_biz=None, frontend_dist=None)` + module-level `app`. `GET /health`, `GET /businesses`, `POST /analyze`.
+- `app/main.py` — `create_app(service=None, warm_biz=None, frontend_dist=None)` + module-level `app`. `GET /health`, `GET /businesses`, `POST /analyze`, `POST /nearby-stores`.
 - `app/errors.py` — 오류 응답 모델(`ErrorResponse`)·error code·exception handler.
 - `app/frontend.py` — production에서 Vite build(`FRONTEND_DIST`)를 같은 origin으로 서빙: `/assets/*`, SPA fallback. API route 뒤에 붙어 API가 우선 (D-018). 이 모드에서는 `/docs`·`/redoc`·`/openapi.json`을 끈다(404, 인증 아님). 환경변수가 없으면 API만(문서 유지).
 - `tests/` — `python -m pytest -q backend` (`scripts/check.py`가 `backend/app`이 있으면 자동 실행).
@@ -43,6 +43,17 @@ python -m uvicorn backend.app.main:app --reload
 - 일반 좌표의 `rent_area`는 항상 `null`(MVP 정책, D-015: 임대료 상권을 일반 좌표에 연결하지 않음). 부평역 좌표도 `BUPYEONG_STATION`을 쓰지 않으므로 안정성·종합 점수가 legacy golden과 다를 수 있다(의도된 동작).
 - `importance`·`user_weights`·`user_licenses`는 요청 검증을 통과한 값 그대로 엔진에 넘긴다.
 - warm되지 않은 업종도 바로 계산한다(업종당 약 2.5s, `ReferenceCache` on-demand).
+
+`POST /nearby-stores` (4차, D-019) — 반경 500m 안 같은 업종 점포 목록(표시용). `/analyze` 계약은 바꾸지 않고 별도 경로로 둔다. 검증 순서·오류 코드는 `/analyze`와 같다(업종 → 좌표 `ContextBuilder`). 엔진 `analyze`는 부르지 않는다.
+```json
+요청  {"lat": 37.4894, "lng": 126.7246, "biz_code": "R10406"}
+응답  {"lat": 37.4894, "lng": 126.7246, "biz_code": "R10406", "radius_m": 500, "as_of": "2026-06-30", "count": 12,
+       "stores": [{"id": "MA0101…", "name": "라네이즈PC방", "road_address": "인천광역시 부평구 동수북로 156",
+                   "jibun_address": "인천광역시 부평구 부평동 728-9", "lat": 37.48881, "lng": 126.72352, "distance_m": 115}, …]}
+```
+- 기준은 엔진 경쟁성과 같다: 거리 `radius_demand.haversine_m`, 반경 `거리 <= config.RADIUS_M`, 업종 `상권업종소분류코드 == biz_code` (`scoring_engine/nearby.py`). 그래서 `count == len(stores) ==` 같은 요청 `/analyze`의 `경쟁성.raw.동종점포수` (`tests/test_nearby.py` 부평역 29개 업종·여러 지점 × 29개, `backend/tests/test_nearby_stores.py`).
+- `stores`는 가까운 순. `distance_m`은 직선거리(m, 반올림)이며 도보 거리가 아니다. 상호·주소가 비면 `null`.
+- `as_of`는 상가(상권)정보 기준일(`SHOPS_AS_OF`, 원본 `00_README.md` 데이터 표). `NearbyStoreFinder`는 첫 요청 때 1회 만들어 재사용한다(RuntimeData 다시 읽지 않음, 요청당 약 15ms).
 
 오류 계약 (3-5, D-014) — frontend는 status로 사용자/서버 오류를 나누고 `error.code`로 원인을 나눈다(`message`로 분기하지 않는다).
 ```json

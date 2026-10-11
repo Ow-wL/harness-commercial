@@ -58,7 +58,7 @@ scripts/check.*         전체 검증 (python 단계 + `pytest backend` + `npm r
 scripts/build_geo.py    data/geo 가공 (재현성 검사). fetch_sgis_boundary.py·verify_guwol_admin_dong.py는 SGIS 유지보수용(루트 .env)
 backend/app/
   main.py               create_app(service, warm_biz): lifespan에서 AnalysisService 1회 생성(RuntimeData 로드),
-                        29개 업종 warm은 background thread. GET /health · GET /businesses · POST /analyze (TASKS 3-1~3-3)
+                        29개 업종 warm은 background thread. GET /health · GET /businesses · POST /analyze (TASKS 3-1~3-3) · POST /nearby-stores (4차, D-019)
   errors.py             오류 계약: 422 + error.code / 500 + request_id (D-014)
 frontend/src/
   api/schemas.ts        API 응답 Zod schema (source of truth, 타입은 z.infer). client.ts가 모든 응답을 검증 (D-012)
@@ -74,9 +74,10 @@ frontend/src/
 
 ```
 Frontend (React+TS, NAVER Maps)  지도 클릭/좌표 입력 → lat,lng. 업종 select. 응답은 Zod 검증, 오류는 error.code로 분기
-  │                              dev: vite proxy가 /businesses·/analyze를 backend로 (backend에 CORS 없음)
+  │                              dev: vite proxy가 /businesses·/analyze·/nearby-stores를 backend로 (backend에 CORS 없음)
   │  GET /businesses (업종 29개·그룹 4개, 엔진 config 그대로)
   │  POST /analyze {lat, lng, biz_code, importance?, user_weights?, user_licenses?}
+  │  POST /nearby-stores {lat, lng, biz_code}  분석 성공 뒤 같은 조건으로 — 반경 안 동종 점포(표시용, 엔진 analyze 안 부름)
   ▼
 Backend API (FastAPI)            입력 검증, 오류 응답, 응답 스키마. 엔진 결과를 바꾸지 않는다 (pass-through)
                                  입력·분석 불가 → 422 + error.code, 내부 오류 → 500 + request_id (D-014)

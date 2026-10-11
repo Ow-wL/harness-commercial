@@ -134,6 +134,7 @@
 | `--color-map-boundary` | `#656F7C` | 인천 시 경계 1px |
 | `--color-map-outside-dim` | `rgba(23,32,43,0.06)` | 인천 밖 영역 옅은 덮개(선택 불가 표시) |
 | `--color-map-invalid-marker` | `#656F7C` | 분석 불가 지점 핀(회색) |
+| `--color-map-store` | `#6D5BA8` | 반경 안 동종 점포 마커(경쟁성 식별색과 같은 값, 지도 전용 토큰) |
 
 ---
 
@@ -514,6 +515,7 @@
 - 선택 지점: 지름 16px 원 `--color-map-marker` + 흰 2px 외곽선 + 바깥 1px `rgba(23,32,43,0.2)`. 핀 꼬리 모양을 쓰는 경우 높이 28px, 같은 색.
 - 반경 500m 원: `--color-map-radius-fill` + 1.5px 점선 `--color-map-radius-stroke`.
 - 분석 불가 지점: `--color-map-invalid-marker` 회색, 반경 원 없음.
+- 동종 점포(§8.14): 지름 10px 원 `--color-map-store` + 흰 1.5px 외곽선, 누를 수 있다(선택 지점보다 작게). 선택되면 14px + `--color-text-primary` 2px 링. 범례에 "같은 업종 점포"(마커가 있을 때만). 누르면 정보창(상호·주소·직선거리·닫기, `--color-surface` + 1px `--color-border`). 정보창 내용은 DOM `textContent`로 만든다(상호명을 HTML로 해석하지 않는다). 마커를 눌러도 지도 클릭(새 위치 선택)으로 번지지 않는다.
 - 현재 위치(사용자 GPS)를 쓰게 되면: 지름 12px `--color-info` + 반투명 정확도 원 — 선택 지점과 모양이 달라야 한다.
 
 ### 8.12 Map Selection State
@@ -522,7 +524,7 @@
 | 미선택 | 인천 전체, 안내 오버레이 "지도를 눌러 위치를 고르세요"(지도 아래쪽 가운데, surface 칩) | 위치 필드 비어 있음 |
 | 선택(분석 전) | 마커 + 반경 원 | "선택됨 · 좌표", "분석하기" 활성(업종 선택 시) |
 | 분석 중 | 마커 유지, 지도 조작 가능, 새 클릭은 무시하고 토스트 없이 커서만 기본 | loading |
-| 분석 완료 | 마커 + 반경 원 + 행정동 polygon 강조 | 결과 |
+| 분석 완료 | 마커 + 반경 원 + 행정동 polygon 강조 + 동종 점포 마커(§8.14) | 결과 |
 | 분석 불가 | 회색 마커, 반경 원 없음 | 오류 블록(§10.3) |
 | 밖 영역 hover | 커서 not-allowed, dim 영역 | — |
 
@@ -531,6 +533,14 @@
 - 결과 화면에서는 숨기고 Context Bar로 대체한다.
 
 ---
+
+### 8.14 반경 안 같은 업종 점포 (Nearby Stores, 4차)
+- 위치: 결과 패널 초보자 접근성 다음, "왜 이런 점수가 나왔나" 앞 섹션(`h2` "반경 500m 안 같은 업종 점포", 반경은 `meta.분석반경_m`). 데이터는 `POST /nearby-stores`(분석 성공 뒤 같은 좌표·업종, D-019) — 분석과 별도 요청이라 실패해도 분석 결과는 그대로다.
+- 머리 오른쪽: 체크박스 "지도에 표시"(기본 켬, 1곳 이상일 때만). 끄면 마커·선택·정보창을 지운다.
+- 안내 한 줄(`--text-small` muted): "{업종} N곳 · 가까운 순 · 거리는 분석 지점에서의 직선거리 · 상가정보 {as_of} 기준 (이후 개업·폐업은 반영되지 않음)". 0곳이면 "반경 500m 안에 같은 업종 점포가 없습니다."
+- 목록(`ol`, 가까운 순): 처음 5곳, "모두 보기 (N곳)" ghost small(`aria-expanded`)로 전체. 각 행은 `<button aria-pressed>` — 상호(없으면 "상호 정보 없음") / 도로명주소(없으면 지번주소, 둘 다 없으면 "주소 정보 없음") / "직선거리 Nm". 누르면 지도 마커를 강조하고 정보창을 연다(지도 마커를 누르는 것과 같은 기능 — 키보드 대안). 지도에서 6번째 이후 점포를 고르면 목록을 펼쳐 선택 상태를 보인다.
+- 수 검증: 목록 수가 같은 분석의 `경쟁성.raw.동종점포수`와 다르면 경고 한 줄(정상은 항상 같다).
+- 상태: 불러오는 중(`aria-live="polite"`) / 실패("점포 목록을 불러오지 못했습니다. 분석 결과는 그대로입니다." + "다시 시도") / 성공. 위치·업종이 바뀌면 목록·마커를 지우고, 늦게 온 이전 요청 응답은 버린다.
 
 ## 9. Data Density & Progressive Disclosure
 
@@ -763,6 +773,7 @@ framework-agnostic CSS custom properties. 구현은 이 블록을 그대로 전�
   --color-map-boundary: #656F7C;
   --color-map-outside-dim: rgba(23, 32, 43, 0.06);
   --color-map-invalid-marker: #656F7C;
+  --color-map-store: #6D5BA8;
 
   /* typography */
   --font-sans: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo",

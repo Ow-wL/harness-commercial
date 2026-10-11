@@ -288,6 +288,32 @@ export const AnalyzeResponseSchema = z.strictObject({
   result: EngineResultSchema,
 })
 
+// ─── POST /nearby-stores (4차, D-019) ────────────────────────────────
+
+/** 반경 안 같은 업종 점포 1곳 (scoring_engine/nearby.py NearbyStore). 상호·주소는 없을 수 있다(null). */
+export const NearbyStoreSchema = z.strictObject({
+  id: z.string(),                                // 상가업소번호
+  name: z.string().nullable(),
+  road_address: z.string().nullable(),
+  jibun_address: z.string().nullable(),
+  lat: z.number(),
+  lng: z.number(),
+  distance_m: z.number().int().min(0),           // 분석 지점과의 직선거리(m). 도보 거리가 아니다
+})
+
+/** 반경 안 동종 점포 목록. count == stores.length == 같은 조건 /analyze 의 경쟁성.raw.동종점포수. */
+export const NearbyStoresResponseSchema = z
+  .strictObject({
+    lat: z.number(),
+    lng: z.number(),
+    biz_code: z.string(),
+    radius_m: z.number(),
+    as_of: z.string(),                           // 상가(상권)정보 기준일
+    count: z.number().int().min(0),
+    stores: z.array(NearbyStoreSchema),          // 가까운 순
+  })
+  .refine((r) => r.count === r.stores.length, { message: 'count와 stores 수가 다릅니다' })
+
 // ─── 오류 (D-014) ────────────────────────────────────────────────────
 
 /** 422 사용자 입력·분석 불가 code. */
@@ -361,3 +387,5 @@ export type ErrorResponse = z.infer<typeof ErrorResponseSchema>
 export type Business = z.infer<typeof BusinessSchema>
 export type BusinessGroup = z.infer<typeof BusinessGroupSchema>
 export type BusinessCatalog = z.infer<typeof BusinessCatalogSchema>
+export type NearbyStore = z.infer<typeof NearbyStoreSchema>
+export type NearbyStoresResponse = z.infer<typeof NearbyStoresResponseSchema>

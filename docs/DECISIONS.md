@@ -175,3 +175,12 @@ eng review에서 승인됐지만 이 기록에 없던 결정. 구현 단계에�
   - `/health` warm 29/29 완료, `/`·SPA 경로 200(`no-cache`), `/businesses` 200, `/docs`·`/redoc`·`/openapi.json` 404, `GET /analyze` 405, 없는 asset 404, JS·GeoJSON asset 200 + immutable 캐시, GeoJSON 610,826 bytes·sha256 = 매니페스트 값. 응답 약 0.07~0.17s.
   - `/analyze` 8개 시나리오(부평역·구월 교정·아라2동·importance·인천 밖·점포 없음·잘못된 업종·위도 범위)를 같은 코드의 로컬 응답과 비교: 7개 JSON 완전 일치, 아라2동·미용실 1개는 `지표[입지성].raw.유인시설_종류별.초등학교`의 마지막 자리만 다름(0.8126628455769709 vs 0.812662845576971, Linux/Windows 부동소수 1ulp). 점수·화면 표시값은 같고 golden 허용오차(1e-9) 안이다.
   - 브라우저: NAVER 지도 인증 정상, 1280px 좌표 입력 → 구월3동·카페 분석 → GeoJSON 경계 강조·마커 화면 안, 375px 지도 화면·가로 넘침 없음, 콘솔 오류 없음.
+
+## D-019 동종 점포 지도 표시: 별도 API, 엔진 경쟁성과 같은 기준 (2026-10-11, 4차)
+- 결정: 반경 안 같은 업종 점포 목록은 `POST /nearby-stores`로 따로 준다. `/analyze` 응답 계약(`{context, result}` pass-through, D-012)은 그대로 둔다.
+  - 이유: 분석 결과와 목록의 실패를 분리한다(목록 조회가 실패해도 분석 결과는 보인다). 목록은 표시용이라 엔진 출력에 끼우지 않는다.
+- 기준: 엔진 `radius_demand.radius_profile`과 같은 거리 함수(`haversine_m`)·반경(`<= config.RADIUS_M`)·업종(`상권업종소분류코드`)·데이터(`RuntimeData.shops`). 새 모듈 `scoring_engine/nearby.py`(예약 이름 아님, v0.3 엔진 파일 불변).
+  - 고정: 조회 수 == `경쟁성.raw.동종점포수` — 부평역 29개 업종(golden과 같은 좌표의 엔진 결과), 4개 지점 × 29개 업종(`radius_profile` n_same), 0곳 지점, API 수준(`backend/tests/test_nearby_stores.py`). 2026-10-11 실행 중인 backend로 3개 지점 × 29개 업종 87건 대조: 불일치 0건.
+- 좌표 검증은 `/analyze`와 같은 `ContextBuilder.build`(오류 코드 D-014 그대로). frontend는 분석 성공 뒤 같은 `{lat, lng, biz_code}`로 부르고, 응답 조건이 요청과 다르거나 늦게 온 이전 요청이면 버린다.
+- 표시: 상호·도로명주소(없으면 지번주소, 둘 다 없으면 "주소 정보 없음")·직선거리. 상가정보 기준일 `2026-06-30`(원본 `00_README.md`)을 함께 보인다 — 이후 개업·폐업은 반영되지 않는다.
+- 범위 밖: 반경 변경, 비교 분석, 주소 검색. 지도 확대 수준은 바꾸지 않는다(초기 zoom 11에서는 점포 마커가 겹쳐 보인다 — 목록·확대로 본다).

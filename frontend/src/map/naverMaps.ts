@@ -43,6 +43,13 @@ export interface NaverCircle extends NaverOverlay {
 
 export type NaverPolygon = NaverOverlay
 
+/** 정보창 (동종 점포 상호·주소·거리, 4차). content는 DOM 요소로 넘긴다(문자열 HTML을 만들지 않는다). */
+export interface NaverInfoWindow {
+  open(map: NaverMap, anchor: NaverMarker): void
+  close(): void
+  setContent(content: HTMLElement): void
+}
+
 export interface NaverMapsApi {
   Map: new (el: HTMLElement, options: Record<string, unknown>) => NaverMap
   LatLng: new (lat: number, lng: number) => NaverLatLng
@@ -51,9 +58,10 @@ export interface NaverMapsApi {
   Marker: new (options: Record<string, unknown>) => NaverMarker
   Circle: new (options: Record<string, unknown>) => NaverCircle
   Polygon: new (options: Record<string, unknown>) => NaverPolygon
+  InfoWindow: new (options: Record<string, unknown>) => NaverInfoWindow
   Position: Record<string, unknown>
   Event: {
-    addListener(target: unknown, type: string, handler: (e: NaverMapEvent) => void): unknown
+    addListener(target: unknown, type: string, handler: (e: NaverMapEvent) => void): unknown   // marker click은 e를 쓰지 않는다
     removeListener(listener: unknown): void
   }
 }

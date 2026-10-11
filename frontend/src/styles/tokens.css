@@ -59,6 +59,7 @@
   --color-map-boundary: #656F7C;
   --color-map-outside-dim: rgba(23, 32, 43, 0.06);
   --color-map-invalid-marker: #656F7C;
+  --color-map-store: #6D5BA8;
 
   /* typography */
   --font-sans: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo",

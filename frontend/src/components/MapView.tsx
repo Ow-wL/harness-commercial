@@ -6,6 +6,7 @@ import {
   onNaverAuthFailure,
   type MapLoadErrorKind,
   type NaverCircle,
+  type NaverInfoWindow,
   type NaverMap,
   type NaverMapsApi,
   type NaverMarker,
@@ -15,6 +16,9 @@ import { Icon } from './Icon.tsx'
 import './MapView.css'
 
 export type LatLng = { lat: number; lng: number }
+
+/** 지도에 표시할 동종 점포 (4차). 문구는 표시용으로 만들어 넘긴다(App이 API 응답으로 만든다). */
+export type MapStore = { id: string; name: string; address: string; distance: string; lat: number; lng: number }
 
 export type MapViewProps = {
   /** 선택 지점. null이면 마커·반경 없음 */
@@ -26,6 +30,12 @@ export type MapViewProps = {
   /** false면 지도 클릭을 무시한다 (분석 중, §8.12) */
   interactive: boolean
   onSelect: (point: LatLng) => void
+  /** 반경 안 동종 점포 마커. null·빈 배열이면 그리지 않는다 (DESIGN.md §8.11·§8.14) */
+  stores?: readonly MapStore[] | null
+  /** 정보창을 연 점포 id. null이면 닫는다 */
+  activeStoreId?: string | null
+  /** 점포 마커를 누르거나 정보창을 닫을 때 */
+  onStoreSelect?: (id: string | null) => void
 }
 
 /** 인천 중심 초기 화면 (인천광역시청 부근) */
@@ -37,6 +47,34 @@ export const RADIUS_M = 500
 const COORD_DIGITS = 6
 
 const round = (v: number) => Number(v.toFixed(COORD_DIGITS))
+
+/** 동종 점포 마커 아이콘 (지름 10px, 선택되면 14px + 테두리, §8.11) */
+const storeIcon = (api: NaverMapsApi, active: boolean) => ({
+  content: `<div class="map-store-marker${active ? ' map-store-marker--active' : ''}"></div>`,
+  anchor: active ? new api.Point(7, 7) : new api.Point(5, 5),
+})
+
+/** 정보창 내용: 상호·주소·직선거리 + 닫기. 문자열 HTML이 아니라 textContent로 만든다(상호명 그대로 표시, 주입 방지) */
+function storeInfoContent(store: MapStore, onClose: () => void): HTMLElement {
+  const root = document.createElement('div')
+  root.className = 'map-store-info'
+  const line = (tag: 'strong' | 'p', text: string, className: string) => {
+    const el = document.createElement(tag)
+    el.className = className
+    el.textContent = text
+    root.appendChild(el)
+  }
+  line('strong', store.name, 'map-store-info__name')
+  line('p', store.address, 'map-store-info__text')
+  line('p', store.distance, 'map-store-info__text')
+  const close = document.createElement('button')
+  close.type = 'button'
+  close.className = 'map-store-info__close'
+  close.textContent = '닫기'
+  close.addEventListener('click', onClose)
+  root.appendChild(close)
+  return root
+}
 
 /** 지도 오버레이 색은 DESIGN 토큰(§2.6)에서 읽는다 — 컴포넌트에 색 값을 직접 쓰지 않는다 */
 function token(name: string): string {
@@ -62,7 +100,16 @@ const MESSAGES: Record<MapLoadErrorKind, { title: string; body: string }> = {
  * NAVER 지도 (DESIGN.md §5.D, §8.11·§8.12). SDK는 map/naverMaps.ts 로더를 통해서만 쓴다.
  * 클릭 → onSelect(좌표). 선택 지점에 마커 + 반경 500m 원, 분석 후 행정동 경계 강조.
  */
-export function MapView({ selected, markerTone, dong, interactive, onSelect }: MapViewProps) {
+export function MapView({
+  selected,
+  markerTone,
+  dong,
+  interactive,
+  onSelect,
+  stores = null,
+  activeStoreId = null,
+  onStoreSelect,
+}: MapViewProps) {
   const sectionRef = useRef<HTMLElement>(null)
   const canvasRef = useRef<HTMLDivElement>(null)
   const [api, setApi] = useState<NaverMapsApi | null>(null)
@@ -72,9 +119,11 @@ export function MapView({ selected, markerTone, dong, interactive, onSelect }: M
   // 최신 콜백·상태를 클릭 핸들러가 읽는다 (지도를 다시 만들지 않기 위해)
   const onSelectRef = useRef(onSelect)
   const interactiveRef = useRef(interactive)
+  const onStoreSelectRef = useRef(onStoreSelect)
   useEffect(() => {
     onSelectRef.current = onSelect
     interactiveRef.current = interactive
+    onStoreSelectRef.current = onStoreSelect
   })
 
   // SDK 로드 + 지도 생성 (StrictMode에서 effect가 두 번 돌아도 script는 loader가 한 번만 붙인다)
@@ -192,6 +241,70 @@ export function MapView({ selected, markerTone, dong, interactive, onSelect }: M
     [map],
   )
 
+  // 동종 점포 마커 (4차). stores가 바뀌면 이전 마커·클릭 리스너를 모두 지우고 새로 그린다
+  const storeMarkersRef = useRef<Map<string, NaverMarker>>(new Map())
+  useEffect(() => {
+    if (!api || !map || !stores || stores.length === 0) return
+    const markers = new Map<string, NaverMarker>()
+    const listeners: unknown[] = []
+    for (const store of stores) {
+      const marker = new api.Marker({
+        map,
+        position: new api.LatLng(store.lat, store.lng),
+        icon: storeIcon(api, false),
+        clickable: true,
+        title: store.name,
+      })
+      listeners.push(api.Event.addListener(marker, 'click', () => onStoreSelectRef.current?.(store.id)))
+      markers.set(store.id, marker)
+    }
+    storeMarkersRef.current = markers
+    return () => {
+      listeners.forEach((l) => api.Event.removeListener(l))
+      markers.forEach((m) => m.setMap(null))
+      storeMarkersRef.current = new Map()
+    }
+  }, [api, map, stores])
+
+  // 선택한 점포: 마커 강조 + 정보창. 새로 선택했을 때만 그 점포로 지도를 옮긴다 (zoom은 그대로)
+  const infoRef = useRef<NaverInfoWindow | null>(null)
+  const pannedStoreRef = useRef<string | null>(null)
+  useEffect(() => {
+    if (!api || !map) return
+    storeMarkersRef.current.forEach((m, id) => m.setIcon(storeIcon(api, id === activeStoreId)))
+    const marker = activeStoreId ? storeMarkersRef.current.get(activeStoreId) : undefined
+    const store = stores?.find((s) => s.id === activeStoreId)
+    if (!marker || !store) {
+      infoRef.current?.close()
+      pannedStoreRef.current = null
+      return
+    }
+    const content = storeInfoContent(store, () => onStoreSelectRef.current?.(null))
+    if (infoRef.current) infoRef.current.setContent(content)
+    else
+      infoRef.current = new api.InfoWindow({
+        content,
+        borderWidth: 1,
+        borderColor: token('--color-border'),
+        backgroundColor: token('--color-surface'),
+        anchorSize: new api.Size(10, 8),
+        disableAnchor: false,
+      })
+    infoRef.current.open(map, marker)
+    if (pannedStoreRef.current !== activeStoreId) {
+      map.panTo(new api.LatLng(store.lat, store.lng))
+      pannedStoreRef.current = activeStoreId
+    }
+  }, [api, map, stores, activeStoreId])
+
+  useEffect(
+    () => () => {
+      infoRef.current?.close()
+      infoRef.current = null
+    },
+    [map],
+  )
+
   // 분석된 행정동 경계 강조
   const guCode = dong?.guCode
   const dongName = dong?.dongName
@@ -255,6 +368,12 @@ export function MapView({ selected, markerTone, dong, interactive, onSelect }: M
             <span className="map__legend-dong" aria-hidden="true" />
             분석된 행정동 경계
           </li>
+          {stores && stores.length > 0 && (
+            <li>
+              <span className="map__legend-store" aria-hidden="true" />
+              같은 업종 점포
+            </li>
+          )}
         </ul>
       )}
     </section>

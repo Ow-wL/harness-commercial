@@ -83,4 +83,14 @@ export function formatDistance(m: number): string {
   return `${m.toLocaleString('ko-KR')}m`
 }
 
+/** 동종 점포 표시 문구 (DESIGN.md §8.14). 상호·주소가 없으면 없다고 쓴다(지어내지 않는다). */
+export function storeName(store: { name: string | null }): string {
+  return store.name ?? '상호 정보 없음'
+}
+
+/** 도로명주소 우선, 없으면 지번주소, 둘 다 없으면 "주소 정보 없음". */
+export function storeAddress(store: { road_address: string | null; jibun_address: string | null }): string {
+  return store.road_address ?? store.jibun_address ?? '주소 정보 없음'
+}
+
 export type Indicator = EngineResult['지표'][number]

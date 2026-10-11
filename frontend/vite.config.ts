@@ -14,6 +14,7 @@ export default defineConfig(({ mode }) => {
       proxy: {
         '/businesses': backend,
         '/analyze': backend,
+        '/nearby-stores': backend,
       },
       fs: {
         // 행정동 경계는 data/geo 원본을 그대로 읽는다 (frontend로 복사하지 않는다, DECISIONS D-009)

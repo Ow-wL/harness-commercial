@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
-import { analyze, fetchBusinesses, type AnalyzeRequest, type ApiFailure } from './api/client.ts'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { analyze, fetchBusinesses, fetchNearbyStores, type AnalyzeRequest, type ApiFailure } from './api/client.ts'
 import type { AnalyzeResponse } from './api/schemas.ts'
 import { AnalysisResult } from './components/AnalysisResult.tsx'
 import { AnalysisEmpty, AnalysisLoading } from './components/AnalysisStatus.tsx'
@@ -7,9 +7,10 @@ import { ConditionPanel, type BusinessesState } from './components/ConditionPane
 import { ContextBar } from './components/ContextBar.tsx'
 import { ErrorBlock } from './components/ErrorBlock.tsx'
 import { LocationSummary } from './components/LocationSummary.tsx'
-import { MapView, type LatLng } from './components/MapView.tsx'
+import { MapView, type LatLng, type MapStore } from './components/MapView.tsx'
+import { NearbyStores, type NearbyState } from './components/NearbyStores.tsx'
 import { errorView, type ErrorAction } from './lib/errorView.ts'
-import { formatDistance, locationName, nearestStation } from './lib/format.ts'
+import { formatDistance, locationName, nearestStation, storeAddress, storeName } from './lib/format.ts'
 import './App.css'
 
 type Analysis =
@@ -39,6 +40,10 @@ function App() {
   const [bizCode, setBizCode] = useState<string | null>(null)
   const [analysis, setAnalysis] = useState<Analysis>({ status: 'idle' })
   const [mobileScreen, setMobileScreen] = useState<MobileScreen>('map')
+  // 반경 안 동종 점포 (4차): 분석 성공 뒤 같은 좌표·업종으로 따로 조회한다. null = 분석 결과 없음
+  const [nearby, setNearby] = useState<NearbyState | null>(null)
+  const [showStores, setShowStores] = useState(true)
+  const [activeStoreId, setActiveStoreId] = useState<string | null>(null)
 
   // GET /businesses — 업종 목록은 API에서만 받는다
   useEffect(() => {
@@ -58,10 +63,45 @@ function App() {
   const inflight = useRef<{ seq: number; controller: AbortController } | null>(null)
   const seq = useRef(0)
 
+  // 동종 점포 요청도 같은 방식: 조건이 바뀌면 취소·제거하고, 늦게 온 이전 요청 응답은 버린다
+  const nearbyInflight = useRef<{ seq: number; controller: AbortController } | null>(null)
+  const nearbySeq = useRef(0)
+
+  const cancelNearby = () => {
+    nearbyInflight.current?.controller.abort()
+    nearbyInflight.current = null
+    setNearby(null)
+    setActiveStoreId(null)
+  }
+
+  const loadNearby = useCallback((request: AnalyzeRequest) => {
+    nearbyInflight.current?.controller.abort()
+    const current = { seq: ++nearbySeq.current, controller: new AbortController() }
+    nearbyInflight.current = current
+    setNearby({ status: 'loading' })
+    setActiveStoreId(null)
+
+    fetchNearbyStores(request, current.controller.signal)
+      .then((r) => {
+        if (nearbyInflight.current?.seq !== current.seq) return
+        nearbyInflight.current = null
+        if (!r.ok) {
+          setNearby({ status: 'error', failure: r.failure })
+        } else if (r.data.lat !== request.lat || r.data.lng !== request.lng || r.data.biz_code !== request.biz_code) {
+          console.error('[api] /nearby-stores 응답 조건이 요청과 다릅니다', { request, data: r.data })
+          setNearby({ status: 'error', failure: { kind: 'schema', endpoint: '/nearby-stores', status: 200 } })
+        } else {
+          setNearby({ status: 'success', data: r.data })
+        }
+      })
+      .catch(() => {})                                     // 취소된 요청
+  }, [])
+
   const cancelAnalysis = () => {
     inflight.current?.controller.abort()
     inflight.current = null
     setAnalysis({ status: 'idle' })
+    cancelNearby()
   }
 
   const runAnalysis = useCallback(() => {
@@ -71,6 +111,7 @@ function App() {
     const current = { seq: ++seq.current, controller: new AbortController() }
     inflight.current = current
     setAnalysis({ status: 'loading', request })
+    cancelNearby()
 
     analyze(request, current.controller.signal)
       .then((r) => {
@@ -84,10 +125,11 @@ function App() {
         } else {
           setAnalysis({ status: 'success', request, response: r.data })
           setMobileScreen('panel')
+          loadNearby(request)                              // 실패해도 분석 결과는 그대로 둔다
         }
       })
       .catch(() => {})                                     // 취소된 요청
-  }, [location, bizCode])
+  }, [location, bizCode, loadNearby])
 
   const analyzing = analysis.status === 'loading'
 
@@ -138,6 +180,29 @@ function App() {
   }, [analysis.status])
 
   const result = analysis.status === 'success' ? analysis.response : null
+  // 지도 마커용 표시 문구. 같은 응답·같은 토글이면 같은 배열(지도가 마커를 다시 만들지 않게)
+  const mapStores = useMemo<MapStore[] | null>(
+    () =>
+      nearby?.status === 'success' && showStores
+        ? nearby.data.stores.map((s) => ({
+            id: s.id,
+            name: storeName(s),
+            address: storeAddress(s),
+            distance: `직선거리 ${formatDistance(s.distance_m)}`,
+            lat: s.lat,
+            lng: s.lng,
+          }))
+        : null,
+    [nearby, showStores],
+  )
+  const selectStore = (id: string | null) => {
+    setActiveStoreId(id)
+    if (id) setShowStores(true)
+  }
+  const changeShowStores = (show: boolean) => {
+    setShowStores(show)
+    if (!show) setActiveStoreId(null)
+  }
   const station = result ? nearestStation(result.result.지표) : null
   // mobile sheet: 지금 선택한 좌표가 결과의 좌표와 같을 때만 행정동 이름을 쓴다 (이전 결과 이름이 남지 않게)
   const resultIsForSelection =
@@ -175,7 +240,25 @@ function App() {
                   </button>
                 </span>
               </div>
-              <AnalysisResult analysis={result} />
+              <AnalysisResult
+                analysis={result}
+                nearby={
+                  nearby && (
+                    <NearbyStores
+                      key={`${result.context.lat},${result.context.lng},${result.result.meta.업종코드}`}
+                      state={nearby}
+                      bizName={result.result.meta.업종}
+                      radiusM={result.result.meta.분석반경_m}
+                      expectedCount={result.result.지표[2].raw.동종점포수}
+                      show={showStores}
+                      onShowChange={changeShowStores}
+                      activeId={activeStoreId}
+                      onSelect={selectStore}
+                      onRetry={() => analysis.status === 'success' && loadNearby(analysis.request)}
+                    />
+                  )
+                }
+              />
             </>
           ) : (
             <div className="intro">
@@ -211,6 +294,9 @@ function App() {
             dong={result ? { guCode: result.context.gu_code, dongName: result.context.dong_name } : null}
             interactive={!analyzing}
             onSelect={selectLocation}
+            stores={mapStores}
+            activeStoreId={activeStoreId}
+            onStoreSelect={selectStore}
           />
           {/* mobile 지도 화면 하단 sheet (peek): 선택 확인 → 패널로 */}
           <div className="map-sheet mobile-only">

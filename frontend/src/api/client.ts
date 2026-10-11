@@ -1,5 +1,6 @@
 /**
- * Backend API 호출 (TASKS 4-4). frontend는 이 두 경로만 부른다: GET /businesses, POST /analyze.
+ * Backend API 호출 (TASKS 4-4). frontend는 이 경로만 부른다: GET /businesses, POST /analyze,
+ * POST /nearby-stores(4차, 분석 성공 뒤 같은 좌표·업종으로 반경 안 동종 점포).
  * 개발 서버에서는 vite proxy가 같은 경로를 FastAPI로 넘긴다(vite.config.ts).
  *
  * 모든 응답은 schemas.ts의 Zod schema로 검증한다. 검증 실패는 조용히 넘기지 않고
@@ -11,9 +12,11 @@ import {
   AnalyzeResponseSchema,
   BusinessCatalogSchema,
   ErrorResponseSchema,
+  NearbyStoresResponseSchema,
   type AnalyzeResponse,
   type BusinessCatalog,
   type ErrorResponse,
+  type NearbyStoresResponse,
 } from './schemas.ts'
 
 export type ApiFailure =
@@ -64,6 +67,16 @@ export function fetchBusinesses(signal?: AbortSignal): Promise<ApiResult<Busines
 
 export function analyze(body: AnalyzeRequest, signal?: AbortSignal): Promise<ApiResult<AnalyzeResponse>> {
   return request('/analyze', AnalyzeResponseSchema, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+    signal,
+  })
+}
+
+/** POST /nearby-stores — body는 분석 요청과 같은 좌표·업종 (backend NearbyStoresRequest). */
+export function fetchNearbyStores(body: AnalyzeRequest, signal?: AbortSignal): Promise<ApiResult<NearbyStoresResponse>> {
+  return request('/nearby-stores', NearbyStoresResponseSchema, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
