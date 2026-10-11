@@ -97,3 +97,13 @@ describe('비교 마무리 겹침·터치 영역 (5차-B6)', () => {
     )
   })
 })
+
+describe('tablet 결과 지도 높이 (정보창 잘림 수정)', () => {
+  it('결과 지도는 320px — 가운데로 옮긴 점포 위로 정보창(꼬리 포함 약 148px)이 다 들어간다 (200px이면 윗부분이 잘린다)', () => {
+    const tablet = appCss.slice(appCss.indexOf('@media (min-width: 640px) and (max-width: 1023px)'))
+    const block = tablet.slice(0, tablet.indexOf('\n}\n'))
+    const at = block.indexOf('.app[data-phase="result"] .workspace__map {')
+    expect(at).toBeGreaterThan(-1)
+    expect(block.slice(at, block.indexOf('}', at))).toMatch(/height: 320px;/)
+  })
+})

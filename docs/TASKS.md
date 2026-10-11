@@ -48,7 +48,7 @@
 - [x] 5-4 production 배포 구조 결정: 서빙 방식(같은 origin reverse proxy 등)·워커 수·환경변수 관리·build asset(행정동 경계) 포함을 DECISIONS에 기록하고, 워커 수에 따라 디스크 캐시 재검토 조건(D-016)을 판단한다 (구현은 결정 후)
   - 결과 (2026-10-08): Cloud Run 서비스 1개에서 FastAPI가 frontend build까지 같은 origin으로 서빙(D-018). `Dockerfile`·`backend/app/frontend.py`·테스트, 로컬 Docker 실행·golden 검증. **Cloud Run(`asia-northeast3`) 배포 완료**, NAVER 콘솔에 서비스 URL 등록, 운영 사이트 점검 통과 (D-018 "배포·운영 점검")
 
-## 6. 두 위치 비교 (5차) — 구현 완료, 최종 검수 대기 (D-020)
+## 6. 두 위치 비교 (5차) — 구현 완료·검수 승인 (D-020)
 설계: `docs/COMPARE_DESIGN.md` (두 위치 × 같은 업종, 기존 `/analyze`·`/nearby-stores` 재사용, 엔진·API 계약 불변). 12장 결정은 추천안으로 확정(자동 확대·"두 위치 모두 보기" 제외).
 - [x] 5-A 설계 문서 (현재 코드 확인, 상태 전이·늦은 응답·지도 A/B·점포 기준·비교 항목·DOM id·모바일·키보드·테스트)
 - [x] 5-B1 순수 함수(`lib/compare.ts`)·비교 fixture 4개·`displayWarnings`/`dataLimits`를 `lib/warnings.ts`로 export (동작 그대로)
@@ -57,6 +57,8 @@
 - [x] 5-B4 지도 A/B 마커·반경·경계 (zoom 불변) — 글자 마커 A/B, B 점선 반경, 성공한 B 행정동 경계(같은 동 중복 없음), 분석 불가 B 회색, `panTo(B)`/종료 시 `panTo(A)`, 비교 안내·범례
 - [x] 5-B5 동종 점포 기준 위치 전환 — B 점포 조회(별도 요청 번호·늦은 응답 폐기·실패 시 점포만 다시 시도), 요약 A/B 전환(기본 B, 재조회 없음), 전체 결과 위치별 점포·복귀 시 기준 복원, 막대·제목에 A/B와 위치, mobile 안내·범례 겹침 정리
 - [x] 5-B6 통합 검증·모바일·문서 마무리 — 실제 브라우저 통합 흐름·4개 사례·실패/재시도·요청 수, 375px 로고·sheet 접촉과 970px 점포 막대의 정보창 가림 수정, 터치 영역("지도에 표시" 44px), ARCHITECTURE 6장·DECISIONS D-020·DESIGN §8.15·§14
+
+- [x] 6-1 태블릿 정보창 잘림: tablet 결과 지도 200 → 320px(`App.css`). autoPan 방식은 막대 겹침·크기 변경 잘림으로 실패해 되돌림(COMPARE_DESIGN.md 13장 "B6 후속")
 
 ## 보류 (이번 범위 아님)
 로그인, DB, AI 설명, 지원사업 추천, 점수 공식 개선, 업종 추가.
