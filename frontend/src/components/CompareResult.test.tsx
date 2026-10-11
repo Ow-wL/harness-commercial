@@ -150,6 +150,9 @@ describe('CompareResult — 해석 안내', () => {
       expandAll(container)
       expect(container.textContent).not.toMatch(ASSERTIVE)
       expect(container).toHaveTextContent('어느 위치가 낫다는 판정이 아닙니다')   // 올바른 설명은 있다
+      expect(container).toHaveTextContent('작은 원시값 차이도 백분위 차이로 크게 나타날 수 있습니다')
+      expect(container).toHaveTextContent('적용 가중치에 따라 달라지므로, 원시값도 함께 확인하세요')
+      expect(container.textContent).not.toMatch(/\d+~\d+점이 달라|점 단위로 끊/)   // 관점 점수를 고정 폭으로 끊어 말하지 않는다
       unmount()
     }
   })
