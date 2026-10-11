@@ -40,6 +40,12 @@
   color: var(--color-text-primary);
 }
 
+.result-section__subtitle {
+  margin: var(--space-2) 0 0;
+  font: var(--text-label);
+  color: var(--color-text-secondary);
+}
+
 .result-section__empty,
 .result-section__note {
   margin: 0;

@@ -1,16 +1,36 @@
 import { useId, useState } from 'react'
-import { confidenceLabel, formatRatio, formatScore, type Indicator } from '../lib/format.ts'
+import type { EngineResult } from '../api/schemas.ts'
+import { confidenceLabel, formatRatio, formatScore, notComputedText, type Indicator } from '../lib/format.ts'
 import { Chip } from './Chip.tsx'
 import { Icon } from './Icon.tsx'
+import { PerspectiveGuide, ScoreReadingGuide } from './ScoreGuide.tsx'
 import './IndicatorDetails.css'
 
 /**
  * "왜 이런 점수가 나왔나" — 관점별 아코디언 (DESIGN.md §7.8, §8.9, §8.10, §9 L2·L3).
  * 기본은 모두 접힘. 여러 개를 동시에 펼칠 수 있고 "모두 펼치기"가 있다.
- * 펼친 내용: note → 계산 메타 → breakdown 표 → flags → 원시값(2차 disclosure).
+ * 섹션 맨 위 "점수 읽는 법"(접힘, §8.9b). 펼친 내용: note → 계산 메타 → 관점 설명(2차 disclosure, §8.9a)
+ * → breakdown 표 → flags → 원시값(2차 disclosure). "모두 펼치기"는 관점 아코디언만 연다(설명은 각자 접힘 유지).
  * 차트(§8.9 표)는 그 데이터가 현재 API에 없어 그리지 않는다.
  */
-export function IndicatorDetails({ indicators }: { indicators: readonly Indicator[] }) {
+
+/**
+ * 안정성 note는 엔진이 폴백 레벨만 보고 "표본이 부족해 … 단위로 계산했습니다"라고 쓴다(scoring.score_stability).
+ * 관점 점수가 null이면 실제로 계산된 값이 없으므로 이 note 대신 score·coverage로 만든 안내를 보인다
+ * (docs/SCORE_EXPLANATION_AUDIT.md 4장). 엔진 원문은 API 응답에 그대로 있다.
+ */
+function showsEngineNote(ind: Indicator): boolean {
+  return ind.note !== '' && !(ind.key === 'stability' && ind.score === null)
+}
+export function IndicatorDetails({
+  indicators,
+  summary,
+  meta,
+}: {
+  indicators: readonly Indicator[]
+  summary: EngineResult['종합']
+  meta: EngineResult['meta']
+}) {
   const [open, setOpen] = useState<ReadonlySet<string>>(new Set())
   const allOpen = open.size === indicators.length
 
@@ -36,9 +56,16 @@ export function IndicatorDetails({ indicators }: { indicators: readonly Indicato
           {allOpen ? '모두 접기' : '모두 펼치기'}
         </button>
       </div>
+      <ScoreReadingGuide summary={summary} meta={meta} indicators={indicators} />
       <div className="details">
         {indicators.map((ind) => (
-          <IndicatorAccordion key={ind.key} indicator={ind} open={open.has(ind.key)} onToggle={() => toggle(ind.key)} />
+          <IndicatorAccordion
+            key={ind.key}
+            indicator={ind}
+            summary={summary}
+            open={open.has(ind.key)}
+            onToggle={() => toggle(ind.key)}
+          />
         ))}
       </div>
     </section>
@@ -47,10 +74,12 @@ export function IndicatorDetails({ indicators }: { indicators: readonly Indicato
 
 function IndicatorAccordion({
   indicator: ind,
+  summary,
   open,
   onToggle,
 }: {
   indicator: Indicator
+  summary: EngineResult['종합']
   open: boolean
   onToggle: () => void
 }) {
@@ -76,7 +105,8 @@ function IndicatorAccordion({
       </h3>
       {open && (
         <div id={panelId} className="detail__panel">
-          {ind.note && <p className="detail__note">{ind.note}</p>}
+          {ind.score === null && <p className="detail__note">{notComputedText(ind)}</p>}
+          {showsEngineNote(ind) && <p className="detail__note">{ind.note}</p>}
           <dl className="detail__meta">
             <div>
               <dt>세부지표 충족률</dt>
@@ -84,9 +114,10 @@ function IndicatorAccordion({
             </div>
             <div>
               <dt>계산 단위</dt>
-              <dd className="mono">{ind.fallback}</dd>
+              {ind.score === null ? <dd>산출하지 않음</dd> : <dd className="mono">{ind.fallback}</dd>}
             </div>
           </dl>
+          <PerspectiveGuide indicator={ind} summary={summary} />
           <BreakdownTable indicator={ind} />
           {ind.flags.length > 0 && (
             <div className="detail__flags">

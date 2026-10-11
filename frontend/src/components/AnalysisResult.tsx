@@ -1,4 +1,5 @@
 import type { AnalyzeResponse } from '../api/schemas.ts'
+import { locationName } from '../lib/format.ts'
 import { BeginnerAccess } from './BeginnerAccess.tsx'
 import { CoverageMeta } from './CoverageMeta.tsx'
 import { DataSources } from './DataSources.tsx'
@@ -19,7 +20,7 @@ export function AnalysisResult({ analysis }: { analysis: AnalyzeResponse }) {
   return (
     <article className="result">
       <h1 id="result-title" className="result__title" tabIndex={-1}>
-        {context.label} · {result.meta.업종} 분석
+        {locationName(context)} · {result.meta.업종} 분석
       </h1>
       <div className="result__summary">
         <OverallScore summary={result.종합} indicators={result.지표} />
@@ -28,7 +29,7 @@ export function AnalysisResult({ analysis }: { analysis: AnalyzeResponse }) {
       </div>
       <WarningPanel analysis={analysis} />
       <BeginnerAccess access={result.초보자_접근성} />
-      <IndicatorDetails indicators={result.지표} />
+      <IndicatorDetails indicators={result.지표} summary={result.종합} meta={result.meta} />
       <DataSources meta={result.meta} disclaimer={result.면책} />
     </article>
   )

@@ -1,15 +1,20 @@
 import type { EngineResult } from '../api/schemas.ts'
-import { formatScore, resolutionLabel, type Indicator } from '../lib/format.ts'
+import {
+  BOTTLENECK_WARN_BELOW,
+  formatScore,
+  notComputedText,
+  resolutionLabel,
+  type Indicator,
+} from '../lib/format.ts'
 import { Chip } from './Chip.tsx'
 import { Icon } from './Icon.tsx'
 import './PerspectiveScores.css'
 
-/** 병목 경고 기준 = 엔진 config.BOTTLENECK_THRESHOLD (DESIGN.md §8.3). 표시 톤에만 쓴다. */
-export const BOTTLENECK_WARN_BELOW = 25
-
 /**
  * Perspective Score 막대 행 (DESIGN.md §6, §8.2, §8.3).
  * 순서는 엔진 지표 배열 그대로(시장성→안정성, 정렬하지 않는다). 채움은 모두 --color-data-bar, 50 기준선.
+ * 관점 점수는 세부지표 백분위의 가중평균이라 인천 내 순위가 아니다 — 50 기준선은 0~100 척도의 중간일 뿐
+ * "인천 중앙"이 아니다 (docs/SCORE_EXPLANATION_AUDIT.md 3장).
  * 막대는 aria-hidden이고 같은 값을 숫자 텍스트로 준다(§15: "시장성 61.6점").
  */
 export function PerspectiveScores({
@@ -31,7 +36,7 @@ export function PerspectiveScores({
         </h2>
         <p className="perspectives__legend">
           <span className="perspectives__legend-line" aria-hidden="true" />
-          50 = 인천 중앙
+          50 = 척도 중간 · 순위 아님
         </p>
       </div>
       <ul className="perspectives__list">
@@ -66,7 +71,7 @@ function PerspectiveRow({
   isBottleneck: boolean
   bottleneckWarn: boolean
 }) {
-  const resolution = resolutionLabel(ind.flags)
+  const resolution = resolutionLabel(ind)
   const lowConfidence = ind.confidence === 'low'
   const hasTags = isStrongest || isBottleneck || lowConfidence || resolution !== null
   const trackClass = [
@@ -98,9 +103,7 @@ function PerspectiveRow({
         )}
       </div>
       {ind.score === null && (
-        <p className="perspective__sub perspective__missing-note">
-          이 업종은 해당 관점 데이터가 부족해 종합점수에서 제외했습니다
-        </p>
+        <p className="perspective__sub perspective__missing-note">{notComputedText(ind)}</p>
       )}
       {hasTags && (
         <div className="perspective__sub perspective__tags">

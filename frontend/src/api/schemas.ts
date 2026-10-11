@@ -28,7 +28,11 @@ export const BusinessGroupCodeSchema = z.enum(['A_고객밀착형', 'B_유동인
 
 const nullableNumber = z.number().nullable()
 
-/** 0~100 백분위 점수 (pct_rank). None = 계산 불가. */
+/**
+ * 0~100 점수. None = 계산 불가.
+ * 세부지표(breakdown) 점수는 비교 모집단 대비 백분위(pct_rank, 역방향 지표는 100 − 백분위, C4·L3 예외)이고,
+ * 관점·종합 점수는 그 가중평균이라 백분위·순위가 아니다 (docs/SCORE_EXPLANATION_AUDIT.md 3장).
+ */
 const scoreSchema = z.number().min(0).max(100)
 
 /** 5대 관점 전부를 키로 갖는 가중치 (resolve_weights: 기본_가중치·중요도). */

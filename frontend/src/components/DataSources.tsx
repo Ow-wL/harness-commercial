@@ -15,6 +15,28 @@ const SOURCES = [
   { perspective: '초보자 접근성', name: '법령(식품위생법 등 9개)', asOf: '2026-10-02 확인' },
 ] as const
 
+/**
+ * 관점별 점수 비교 대상 (docs/SCORE_EXPLANATION_AUDIT.md 4장, 엔진 v0.3 코드 기준 정적 내용).
+ * 엔진 `meta.정규화_기준`("인천 전체 행정동 백분위")은 고객성에만 맞는 설명이라 화면에 쓰지 않는다.
+ * 반경은 응답의 `meta.분석반경_m`을 쓴다.
+ */
+const comparisons = (radiusM: number) =>
+  [
+    { perspective: '시장성', target: '인천 11개 구', unit: '지점이 속한 구의 값' },
+    { perspective: '고객성', target: '인천 158개 행정동', unit: '지점이 속한 행정동의 값' },
+    {
+      perspective: '경쟁성',
+      target: '인천 158개 행정동의 점포 중심 지점 (점포당 잠재수요는 같은 업종이 있는 지점만)',
+      unit: `지점 반경 ${radiusM}m`,
+    },
+    { perspective: '입지성', target: '인천 158개 행정동의 점포 중심 지점', unit: '지점 좌표' },
+    {
+      perspective: '안정성',
+      target: '같은 업종의 3년 표본이 30건 이상인 인천 구',
+      unit: '지점이 속한 구의 같은 업종 값',
+    },
+  ] as const
+
 /** 데이터 출처 · 면책 (§9 부록). 면책은 엔진 `면책` 원문, 접지 않는다. */
 export function DataSources({ meta, disclaimer }: { meta: EngineResult['meta']; disclaimer: string }) {
   return (
@@ -43,8 +65,36 @@ export function DataSources({ meta, disclaimer }: { meta: EngineResult['meta']; 
           </tbody>
         </table>
       </div>
+      <h3 className="result-section__subtitle">점수 비교 대상</h3>
       <p className="result-section__note">
-        {meta.정규화_기준} · 분석 반경 {meta.분석반경_m}m · 엔진 {meta.엔진버전}
+        관점마다 비교 대상이 다릅니다. 세부지표 점수는 비교 대상 대비 백분위이고, 관점·종합 점수는 그 가중평균이라
+        인천 내 순위가 아닙니다.
+      </p>
+      <div className="table-scroll">
+        <table className="data-table">
+          <caption className="visually-hidden">관점별 점수 비교 대상</caption>
+          <thead>
+            <tr>
+              <th scope="col">관점</th>
+              <th scope="col">비교 대상</th>
+              <th scope="col">분석 지점 값</th>
+            </tr>
+          </thead>
+          <tbody>
+            {comparisons(meta.분석반경_m).map((c) => (
+              <tr key={c.perspective}>
+                <th scope="row" className="nowrap">
+                  {c.perspective}
+                </th>
+                <td>{c.target}</td>
+                <td>{c.unit}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <p className="result-section__note">
+        분석 반경 {meta.분석반경_m}m · 엔진 {meta.엔진버전}
       </p>
       <p className="disclaimer">{disclaimer}</p>
     </section>

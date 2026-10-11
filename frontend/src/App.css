@@ -248,6 +248,11 @@
     color: var(--color-text-primary);
   }
 
+  .map-sheet__sub {
+    font: var(--text-small);
+    color: var(--color-text-muted);
+  }
+
   .map-sheet .button {
     width: 100%;
   }

@@ -1,7 +1,7 @@
 /**
  * 표시 형식 규칙 (DESIGN.md §3.2). 엔진 값을 다시 계산하거나 반올림하지 않는다.
  */
-import type { EngineResult } from '../api/schemas.ts'
+import type { AnalyzeContext, EngineResult } from '../api/schemas.ts'
 
 /**
  * 점수 표기: 소수 1자리. 엔진이 이미 round(…, 1)로 낸 값이라 자릿수만 맞춘다
@@ -28,15 +28,59 @@ export function groupName(groupCode: string): string {
   return groupCode.split('_').slice(1).join('_')
 }
 
+/** 병목 경고 기준 = 엔진 config.BOTTLENECK_THRESHOLD (병목 관점 점수 < 25면 엔진이 경고). 표시 판단에만 쓴다. */
+export const BOTTLENECK_WARN_BELOW = 25
+
+/** 관점 점수 산출 기준 = 엔진 config.MIN_COVERAGE. 계산된 세부지표 가중치 비율이 이보다 작으면 관점 점수는 null. */
+export const MIN_COVERAGE = 0.5
+
 /**
  * 해상도 한계 flag → 칩 문구 (DESIGN.md §8.4). 단위 이름은 엔진 FALLBACK_LADDER 정의를 따른다.
- * 해상도 flag가 없으면 null.
+ * 점수가 산출된 관점에만 붙인다 — 엔진은 산출하지 못한 관점에도 폴백 flag(예: `해상도_저하__incheon_avg`)를
+ * 남기므로, 그 flag는 "그 단위로 계산했다"는 뜻이 아니다 (docs/SCORE_EXPLANATION_AUDIT.md 4장).
+ * 해상도 flag가 없거나 점수가 null이면 null.
  */
-export function resolutionLabel(flags: readonly string[]): string | null {
+export function resolutionLabel(ind: Indicator): string | null {
+  if (ind.score === null) return null
+  const { flags } = ind
   if (flags.includes('해상도_시군구') || flags.includes('해상도_저하__gugu_sobun')) return '시군구 단위 데이터'
   if (flags.includes('해상도_저하__incheon_avg')) return '인천 전체 업종평균 데이터'
   if (flags.includes('해상도_저하__dong_jung')) return '업종 중분류 데이터'
   return null
+}
+
+/** 관점 점수가 null인 이유를 score·coverage로만 쓴다 (엔진 note의 "…단위로 계산했습니다"는 쓰지 않는다). */
+export function notComputedText(ind: Indicator): string {
+  const excluded = '점수를 내지 않았고, 종합점수에서 제외했습니다'
+  return ind.coverage < MIN_COVERAGE
+    ? `세부지표 충족률 ${formatRatio(ind.coverage)}로 기준(${formatRatio(MIN_COVERAGE)})에 못 미쳐 ${excluded}`
+    : excluded
+}
+
+/**
+ * 위치 이름 = API context의 시군구 + 행정동 (DESIGN.md §8.5). 행정동 이름이며 도로명주소가 아니다.
+ * 행정동은 backend가 좌표로 판정한 값이라 분석 응답이 오기 전에는 쓸 수 없다(좌표만 보여 준다).
+ */
+export function locationName(context: AnalyzeContext): string {
+  return `${context.gu_name} ${context.dong_name}`
+}
+
+export type NearestStation = { name: string; distanceM: number }
+
+/**
+ * 최근접역 = 입지성 raw `최근접역`·`최근접역_거리m` (DESIGN.md §8.5a). 정보가 없으면 null.
+ * - 거리는 분석 좌표와 역 좌표 사이의 직선거리(m, 엔진이 반올림)다. 도보 거리가 아니다.
+ * - 엔진은 역 이름에서 "역" 접미사·괄호를 떼어 둔다(etl_location.load_stations, 예 "부평") → 표시할 때 "역"을 붙인다.
+ */
+export function nearestStation(indicators: EngineResult['지표']): NearestStation | null {
+  const { 최근접역: name, 최근접역_거리m: distanceM } = indicators[3].raw
+  if (!name || distanceM === null) return null
+  return { name: `${name}역`, distanceM }
+}
+
+/** 직선거리 표기: 엔진 정수 m 그대로, 천 단위 구분 (예: 85m, 1,240m). */
+export function formatDistance(m: number): string {
+  return `${m.toLocaleString('ko-KR')}m`
 }
 
 export type Indicator = EngineResult['지표'][number]

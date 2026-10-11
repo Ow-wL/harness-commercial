@@ -34,7 +34,8 @@ export function OverallScore({
               {formatScore(summary.점수)}
               <span className="overall__unit">/100</span>
             </p>
-            <p className="overall__note">인천 158개 행정동 대비 백분위</p>
+            {/* 종합은 관점 점수의 가중평균이라 백분위가 아니다 — "상위 N%"로 바꿔 표시하지 않는다 (docs/SCORE_EXPLANATION_AUDIT.md 3장) */}
+            <p className="overall__note">5대 관점 점수의 가중평균 · 인천 순위(백분위) 아님</p>
           </>
         )}
       </div>

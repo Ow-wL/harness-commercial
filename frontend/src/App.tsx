@@ -6,8 +6,10 @@ import { AnalysisEmpty, AnalysisLoading } from './components/AnalysisStatus.tsx'
 import { ConditionPanel, type BusinessesState } from './components/ConditionPanel.tsx'
 import { ContextBar } from './components/ContextBar.tsx'
 import { ErrorBlock } from './components/ErrorBlock.tsx'
+import { LocationSummary } from './components/LocationSummary.tsx'
 import { MapView, type LatLng } from './components/MapView.tsx'
 import { errorView, type ErrorAction } from './lib/errorView.ts'
+import { formatDistance, locationName, nearestStation } from './lib/format.ts'
 import './App.css'
 
 type Analysis =
@@ -136,6 +138,10 @@ function App() {
   }, [analysis.status])
 
   const result = analysis.status === 'success' ? analysis.response : null
+  const station = result ? nearestStation(result.result.지표) : null
+  // mobile sheet: 지금 선택한 좌표가 결과의 좌표와 같을 때만 행정동 이름을 쓴다 (이전 결과 이름이 남지 않게)
+  const resultIsForSelection =
+    result !== null && location !== null && result.context.lat === location.lat && result.context.lng === location.lng
   const failure = analysis.status === 'error' ? analysis.failure : null
   const failureView = failure ? errorView(failure) : null
   const errorAt = (placement: string) =>
@@ -147,7 +153,7 @@ function App() {
     <div className="app" data-phase={result ? 'result' : 'select'} data-screen={mobileScreen}>
       <header className="app-header">
         <span className="app-header__title">우리동네 상권분석 매니저</span>
-        {result && <ContextBar context={result.context} meta={result.result.meta} />}
+        {result && <ContextBar context={result.context} meta={result.result.meta} station={station} />}
         {result && (
           <a className="app-header__link" href="#data-sources">
             데이터 출처
@@ -159,9 +165,7 @@ function App() {
           {result ? (
             <>
               <div className="conditions-summary">
-                <span>
-                  선택 좌표 <span className="mono">{result.context.lat}, {result.context.lng}</span>
-                </span>
+                <LocationSummary context={result.context} station={station} />
                 <span className="conditions-summary__actions">
                   <button type="button" className="button-ghost mobile-only" onClick={() => setMobileScreen('map')}>
                     지도 보기
@@ -211,7 +215,18 @@ function App() {
           {/* mobile 지도 화면 하단 sheet (peek): 선택 확인 → 패널로 */}
           <div className="map-sheet mobile-only">
             <p className="map-sheet__text">
-              {location ? (
+              {resultIsForSelection ? (
+                <>
+                  <strong>{locationName(result.context)}</strong>
+                  {station && (
+                    <span className="map-sheet__sub">
+                      {' '}
+                      · {station.name} 직선거리 {formatDistance(station.distanceM)}
+                    </span>
+                  )}
+                </>
+              ) : location ? (
+                // 분석 전에는 행정동을 모른다(backend가 판정) — 고른 좌표만 보여 준다
                 <>
                   선택됨 · <span className="mono">{location.lat}, {location.lng}</span>
                 </>

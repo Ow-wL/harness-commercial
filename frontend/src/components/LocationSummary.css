@@ -1,0 +1,30 @@
+/* 결과 패널 위치 보조 정보: 최근접역 + 접힌 좌표 (DESIGN.md §8.5a) */
+.location-summary {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.location-summary__station {
+  margin: 0;
+  font: var(--text-small);
+  color: var(--color-text-secondary);
+}
+
+.location-summary__station strong {
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.location-summary__hint {
+  color: var(--color-text-muted);
+}
+
+.location-summary__coord {
+  margin: 0;
+  font: var(--text-caption);
+  letter-spacing: 0.01em;
+  color: var(--color-text-muted);
+}

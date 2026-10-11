@@ -185,6 +185,33 @@ describe('분석 흐름', () => {
     expect(analyzeCalls(fetchMock)).toHaveLength(1)
   })
 
+  it('결과 화면 위치 표시는 행정동 이름 중심이고, 좌표는 접혀 있으며, 새 위치를 고르면 갱신된다', async () => {
+    mockApi({ analyze: [{ status: 200, body: fixture }] })
+    const { container } = render(<App />)
+    await selectBupyeongPcBang()
+    const sheet = () => container.querySelector('.map-sheet__text')!
+    // 분석 전: 행정동은 아직 모른다 → 고른 좌표만
+    expect(sheet()).toHaveTextContent('선택됨 · 37.4894, 126.7246')
+
+    fireEvent.click(analyzeButton())
+    await screen.findByRole('heading', { level: 1, name: '부평구 부평1동 · PC방 분석' })
+    expect(within(screen.getByRole('group', { name: '분석 조건' })).getByText('부평역 · 직선거리 85m')).toBeInTheDocument()
+    expect(sheet()).toHaveTextContent('부평구 부평1동 · 부평역 직선거리 85m')
+    expect(sheet()).not.toHaveTextContent('37.4894')
+    // 결과 패널: 최근접역 + 접힌 좌표
+    const summary = container.querySelector('.conditions-summary')!
+    expect(summary).toHaveTextContent('가장 가까운 역 부평역 · 직선거리 85m')
+    expect(summary).not.toHaveTextContent('37.4894')
+    fireEvent.click(within(summary as HTMLElement).getByRole('button', { name: '좌표 보기' }))
+    expect(summary).toHaveTextContent('분석 좌표(WGS84) 37.4894, 126.7246')
+
+    // 새 위치: 이전 행정동 이름·역 정보가 남지 않고 새 좌표가 보인다
+    fireEvent.click(screen.getByRole('button', { name: '지도 클릭: 송도' }))
+    expect(sheet()).toHaveTextContent('선택됨 · 37.392512, 126.639034')
+    expect(sheet()).not.toHaveTextContent('부평')
+    expect(screen.queryByRole('group', { name: '분석 조건' })).not.toBeInTheDocument()
+  })
+
   it('업종을 바꿔도 이전 결과가 남지 않는다 (조건 변경)', async () => {
     mockApi({ analyze: [{ status: 200, body: fixture }] })
     render(<App />)
