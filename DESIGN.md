@@ -641,6 +641,7 @@
 | Overall Score | 숫자 + 오른쪽 요약 2줄 | 같음 | 숫자 위, 요약 2줄 아래 |
 
 - **mobile bottom sheet**: 상단 radius `--radius-lg`, 손잡이 32×4px `--color-border-strong`, 높이 3단(peek 160px / half 50vh / full 90vh), `--shadow-overlay`. 지도와 결과를 한 화면에 동시에 좁게 넣지 않는다.
+- **화면 폭이 바뀌어도 지도는 하나**: 창 크기·화면 전환(지도↔패널, desktop·tablet·mobile 사이)마다 지도를 다시 만들지 않고, 바깥 `.map` 크기가 바뀌면 `setSize`만 한다(중심·줌·마커·반경·행정동 경계 유지). mobile 지도 화면의 지도 영역은 `min-width: 0`으로 부모 폭을 따른다 — SDK가 canvas에 남긴 이전 inline 폭(예: tablet 970px)에 막혀 넘치지 않게 (3차-B).
 - 터치 목표 44×44px 이상(모든 breakpoint, 터치 기기).
 - 가로 스크롤은 표 내부에만. 페이지 전체 가로 스크롤 금지.
 - 폰트 크기는 breakpoint별로 바꾸지 않는다. Display만 mobile에서 24px.

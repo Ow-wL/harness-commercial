@@ -130,6 +130,35 @@ describe('MapView — 지도 크기 (B2)', () => {
     resize()
     expect(map.setSize).not.toHaveBeenCalled()
   })
+
+  it('tablet → (숨김) → mobile 지도 화면: 줄어든 크기로 setSize 하고, 지도·오버레이를 다시 만들지 않는다 (3차-B)', async () => {
+    const selected = { lat: 37.4894, lng: 126.7246 }
+    const view = render(<MapView {...props({ selected, dong: { guCode: '28237', dongName: '부평1동' } })} />)
+    const section = view.container.querySelector('section.map')!
+    layout.set(section, { w: 970, h: 199 })                      // tablet 결과 화면
+    await waitFor(() => expect(observed).toHaveLength(1))
+    const map = maps[0]!
+    expect(map.setSize).toHaveBeenLastCalledWith(new FakeSize(970, 199))
+    const markers = vi.mocked(fakeSdk.Marker).mock.calls.length
+    const circles = vi.mocked(fakeSdk.Circle).mock.calls.length
+    const pans = map.panTo.mock.calls.length
+
+    layout.set(section, { w: 0, h: 0 })                          // 375px 패널 화면: 지도 숨김
+    resize()
+    layout.set(section, { w: 375, h: 570 })                      // "지도 보기": 부모 폭(375)을 따른다
+    resize()
+    expect(map.setSize).toHaveBeenLastCalledWith(new FakeSize(375, 570))
+    layout.set(section, { w: 970, h: 199 })                      // 다시 tablet
+    resize()
+    expect(map.setSize).toHaveBeenLastCalledWith(new FakeSize(970, 199))
+
+    expect(maps).toHaveLength(1)                                 // 지도 1개 유지 (중심·줌 그대로)
+    expect(map.destroy).not.toHaveBeenCalled()
+    expect(vi.mocked(fakeSdk.Marker).mock.calls.length).toBe(markers)
+    expect(vi.mocked(fakeSdk.Circle).mock.calls.length).toBe(circles)
+    expect(map.panTo.mock.calls.length).toBe(pans)              // 크기만 바뀌면 다시 이동하지 않는다
+    expect(map.setZoom).not.toHaveBeenCalled()
+  })
 })
 
 describe('MapView — 선택 위치로 이동 (B1)', () => {
