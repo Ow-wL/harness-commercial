@@ -687,6 +687,7 @@
 - **색만으로 전달 금지**: 병목·경고·데이터 없음·신뢰도는 항상 텍스트 라벨 + 아이콘/패턴. 관점은 라벨이 주, 색이 보조.
 - **헤딩 구조**: `h1` 페이지 제목(결과: "부평구 부평1동 · PC방 분석") → `h2` 섹션(주의할 점, 왜 이런 점수가…, 초보자 접근성, 데이터 출처) → `h3` 관점별 세부·점수 읽는 법 주제. 단계를 건너뛰지 않는다.
 - **지도 영역 포커스**: 정보창을 닫은 뒤 포커스를 받는 `section.map`은 outline이 잘리거나 SDK 레이어에 가려지므로, outline 대신 같은 색·두께의 포커스 링을 지도 레이어 위 `::after`(inset 2px `--color-focus-ring`, `pointer-events: none`)로 그린다. 포커스 표시를 없애는 예외가 아니다.
+- **sticky 헤더와 포커스 이동**: tablet·mobile은 문서가 스크롤하고 헤더가 그 위를 덮는데, 브라우저는 포커스·앵커·Tab 이동 대상이 뷰포트 안이면(헤더 뒤라도) 스크롤하지 않는다. 문서(`html`)에 `scroll-padding-top` = 헤더 실제 높이(`--header-offset`, App이 잰다. Context Bar가 줄바꿈되면 56px보다 높다)를 두어 대상이 헤더 아래 보이는 영역에 오게 한다. 포커스 대상을 바꾸거나 지연·고정 픽셀 스크롤로 풀지 않는다 (`docs/COMPARE_DESIGN.md` 13장 "6-2").
 - **펼침 상태**: 아코디언·disclosure 토글은 모두 `<button type="button">`(Enter·Space로 조작) + `aria-expanded` + `aria-controls`. 펼친 설명은 이름 붙은 `role="region"`.
 - **폼 라벨**: 모든 입력·select에 보이는 `<label>`. 지도 클릭 선택에는 같은 기능의 키보드 대안(좌표 입력 또는 "목록에서 행정동 선택")을 4-4에서 함께 제공한다.
 - **오류 연결**: 필드 오류는 `aria-invalid` + `aria-describedby`로 문구와 연결. 결과 자리 오류 블록은 `role="alert"`(422·500 모두), 로딩 문구는 `aria-live="polite"`.

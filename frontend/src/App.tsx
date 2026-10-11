@@ -18,6 +18,16 @@ import { formatDistance, locationName, nearestStation, storeAddress, storeName }
 import { useNearbyRequest } from './lib/useNearbyRequest.ts'
 import './App.css'
 
+/**
+ * sticky 헤더의 실제 높이를 html의 `--header-offset`에 쓴다 (`App.css`의 `html { scroll-padding-top }`).
+ * 포커스·앵커·Tab 이동이 대상을 헤더 아래 보이는 영역으로 스크롤하게 한다 — 브라우저는 대상이 뷰포트 안이면(헤더 뒤라도)
+ * 스크롤하지 않는다. 헤더는 Context Bar가 줄바꿈되면 56px보다 높아지므로 토큰 값이 아니라 잰 값을 쓴다
+ */
+function syncHeaderOffset(header: HTMLElement | null) {
+  const height = header?.getBoundingClientRect().height
+  if (height) document.documentElement.style.setProperty('--header-offset', `${Math.ceil(height)}px`)
+}
+
 type Analysis =
   | { status: 'idle' }
   | { status: 'loading'; request: AnalyzeRequest }
@@ -318,9 +328,21 @@ function App() {
     }
   }
 
+  // sticky 헤더 높이 → 문서 스크롤 여백(syncHeaderOffset). 마운트 때와 헤더 크기가 바뀔 때(창 크기·글꼴 로드로 줄바꿈이 바뀜).
+  // 포커스를 옮기는 effect는 그 전에 한 번 더 잰다 — 같은 렌더에서 헤더(Context Bar)가 바뀌면 ResizeObserver는 포커스 뒤에야 알린다
+  const headerRef = useRef<HTMLElement>(null)
+  useLayoutEffect(() => {
+    syncHeaderOffset(headerRef.current)
+    const observer = new ResizeObserver(() => syncHeaderOffset(headerRef.current))
+    if (headerRef.current) observer.observe(headerRef.current)
+    return () => observer.disconnect()
+  }, [])
+
   // 결과가 나오면 결과 제목으로 포커스를 옮긴다 (스크린리더·키보드 사용자가 새 내용 시작점을 안다)
   useEffect(() => {
-    if (analysis.status === 'success') document.getElementById('result-title')?.focus()
+    if (analysis.status !== 'success') return
+    syncHeaderOffset(headerRef.current)
+    document.getElementById('result-title')?.focus()
   }, [analysis.status])
 
   // 비교 화면 전환 뒤 포커스 (렌더가 끝난 뒤라 새로 생긴 요소도 찾는다). 오류 블록은 그 안 첫 버튼(행동)으로.
@@ -329,6 +351,7 @@ function App() {
     if (!focusRequest) return
     const el = document.getElementById(focusRequest.id)
     const target = focusRequest.id === COMPARE_IDS.bError ? el?.querySelector<HTMLElement>('button') : el
+    syncHeaderOffset(headerRef.current)
     target?.focus()
   }, [focusRequest])
 
@@ -456,7 +479,7 @@ function App() {
 
   return (
     <div className="app" data-phase={result ? 'result' : 'select'} data-screen={mobileScreen}>
-      <header className="app-header">
+      <header ref={headerRef} className="app-header">
         <span className="app-header__title">우리동네 상권분석 매니저</span>
         {headerBar}
         {/* 대상 #data-sources가 있는 화면에서만: 단일 결과·비교 요약·전체 결과 (B 고르기 화면에는 없다) */}

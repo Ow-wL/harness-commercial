@@ -1187,6 +1187,40 @@ describe('두 위치 비교 — B 분석 상태 (5차-B2, docs/COMPARE_DESIGN.md
     })
   })
 
+  describe('포커스 대상이 sticky 헤더 아래 보이게 — 헤더 높이를 문서 스크롤 여백에 쓴다 (6-2)', () => {
+    // jsdom에는 레이아웃이 없다(모든 크기 0 → App은 값을 쓰지 않는다). 헤더 높이만 흉내 낸다 — 헤더 요소는 렌더를 거쳐도 같은 노드다
+    const stubHeaderHeight = (height: number) =>
+      vi.spyOn(document.querySelector<HTMLElement>('.app-header')!, 'getBoundingClientRect').mockReturnValue({ height } as DOMRect)
+    const headerOffset = () => document.documentElement.style.getPropertyValue('--header-offset')
+    afterEach(() => document.documentElement.style.removeProperty('--header-offset'))
+
+    it('B 성공·전체 결과 열기로 포커스를 옮길 때마다 그 렌더의 헤더 높이를 html --header-offset에 쓴다 (Context Bar 줄 수가 바뀐다)', async () => {
+      await analyzeA([ok(guwolFixture)], [ok(guwolNearbyFixture)])
+      expect(headerOffset()).toBe('')                                   // 잰 높이가 0이면 쓰지 않는다(CSS 기본 --header-height)
+      startCompare()
+      typeB(37.4475, 126.7015)
+      stubHeaderHeight(81)                                              // B 성공 렌더: 헤더에 A·B 칩이 두 줄로
+      analyzeB()
+      await waitFor(() => expect(document.activeElement).toBe(screen.getByRole('heading', { level: 1, name: PANEL })))
+      expect(headerOffset()).toBe('81px')
+
+      stubHeaderHeight(56.5)                                            // 전체 결과: 한 위치 Context Bar, 한 줄 (소수는 올림)
+      fireEvent.click(within(bCard()).getByRole('button', { name: 'B 전체 결과 보기' }))
+      expect(document.activeElement).toHaveAttribute('id', 'result-title')
+      expect(headerOffset()).toBe('57px')
+    })
+
+    it('단일 분석 결과 제목으로 포커스할 때도 헤더 높이를 다시 잰다', async () => {
+      mockApi({ analyze: [ok(fixture)], nearby: [ok(nearbyFixture)] })
+      render(<App />)
+      await selectBupyeongPcBang()
+      stubHeaderHeight(81)
+      fireEvent.click(analyzeButton())
+      await waitFor(() => expect(document.activeElement).toHaveAttribute('id', 'result-title'))
+      expect(headerOffset()).toBe('81px')
+    })
+  })
+
   describe('mobile (<640px)', () => {
     beforeEach(() => {
       vi.stubGlobal('matchMedia', (q: string) => ({ matches: q === '(max-width: 639px)', media: q }))

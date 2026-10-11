@@ -107,3 +107,16 @@ describe('tablet 결과 지도 높이 (정보창 잘림 수정)', () => {
     expect(block.slice(at, block.indexOf('}', at))).toMatch(/height: 320px;/)
   })
 })
+
+describe('포커스 대상이 sticky 헤더 아래 보이게 (6-2)', () => {
+  it('문서 스크롤 여백은 헤더 실제 높이(--header-offset, 없으면 --header-height)다 — 포커스·앵커 이동 대상이 헤더 뒤에 남지 않게', () => {
+    // 재현: 800×600에서 B 분석 성공 → 포커스를 받은 비교 제목이 y 0~30, sticky 헤더(두 줄 81px) 뒤.
+    // 브라우저는 대상이 뷰포트 안이면(헤더 뒤라도) 스크롤하지 않는다 → scroll-padding-top으로 헤더 영역을 안 보이는 영역으로 알린다
+    const at = appCss.indexOf('html {')
+    expect(at, 'html 규칙이 App.css에 있어야 한다').toBeGreaterThan(-1)
+    expect(appCss.slice(at, appCss.indexOf('}', at))).toMatch(/scroll-padding-top:\s*var\(--header-offset, var\(--header-height\)\);/)
+    // 헤더가 sticky라서 필요한 규칙이다 (헤더가 흐름 안에 있으면 여백도 필요 없다)
+    const header = appCss.indexOf('.app-header {')
+    expect(appCss.slice(header, appCss.indexOf('}', header))).toMatch(/position:\s*sticky;/)
+  })
+})
