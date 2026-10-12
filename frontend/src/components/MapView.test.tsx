@@ -501,6 +501,98 @@ describe('MapView — 숨겨진 지도에서 고른 점포 정보창 (6-4, mobil
     })
   })
 
+  describe('화면 전환 신호(layoutKey)만으로 — ResizeObserver 콜백 없이 같은 크기로 패널 → 점포 선택 → 지도 (6-4 마지막 보완)', () => {
+    const at = (screenKey: string, over: Partial<MapViewProps> = {}) => props({ stores: STORES, layoutKey: screenKey, ...over })
+
+    /** 지도 화면(955×365, mount 때 한 번 맞춤) → 패널(숨김) 전환. 이 describe에서는 resize()를 한 번도 부르지 않는다 */
+    async function toPanel(over: Partial<MapViewProps> = {}) {
+      const view = await mount(at('map', over))
+      layout.set(view.section, { w: 0, h: 0 })
+      view.rerender(<MapView {...at('panel', over)} />)
+      return view
+    }
+    const backToMap = (view: Awaited<ReturnType<typeof toPanel>>, over: Partial<MapViewProps> = {}) => {
+      layout.set(view.section, { w: 955, h: 365 })                              // 같은 크기 — 크기 알림은 없다
+      view.rerender(<MapView {...at('map', over)} />)
+    }
+
+    it('패널에서 고른 점포는 지도 화면 신호 뒤 setSize 다음에 한 번 열고 한 번 옮긴다', async () => {
+      const view = await toPanel()
+      view.map.setSize.mockClear()
+      view.rerender(<MapView {...at('panel', { activeStoreId: 'a' })} />)
+      expect(infos).toHaveLength(0)
+      backToMap(view, { activeStoreId: 'a' })
+      expect(view.map.setSize).toHaveBeenCalledWith(new FakeSize(955, 365))
+      expect(infos).toHaveLength(1)
+      const info = infos[0]!
+      expect(info.open).toHaveBeenCalledTimes(1)
+      expect(info.open).toHaveBeenCalledWith(view.map, storeMarkers()[0])
+      expect(view.map.setSize.mock.invocationCallOrder.at(-1)!).toBeLessThan(info.open.mock.invocationCallOrder[0]!)
+      expect(view.map.panTo).toHaveBeenCalledTimes(1)
+      expect(view.map.panTo).toHaveBeenLastCalledWith(new FakeLatLng(37.4888, 126.7235))
+
+      view.rerender(<MapView {...at('map', { activeStoreId: 'a' })} />)          // 같은 화면 다시 그림: 중복 열기 없음
+      expect(info.open).toHaveBeenCalledTimes(1)
+      expect(maps).toHaveLength(1)
+      expect(view.map.setZoom).not.toHaveBeenCalled()
+    })
+
+    it('화면 신호 없이 숨겨진 채(sized 그대로) 고른 경우도 지도 화면 신호에서 연다', async () => {
+      const view = await mount(at('map'))
+      layout.set(view.section, { w: 0, h: 0 })                                   // 숨김 알림도 화면 신호도 아직 없음
+      view.rerender(<MapView {...at('map', { activeStoreId: 'a' })} />)
+      expect(infos).toHaveLength(0)
+      layout.set(view.section, { w: 955, h: 365 })
+      view.rerender(<MapView {...at('panel', { activeStoreId: 'a' })} />)        // 신호가 바뀌는 렌더(값과 무관하게 다시 맞춤)
+      expect(infos[0]!.open).toHaveBeenCalledTimes(1)
+    })
+
+    it('지도로 돌아오기 전에 선택 해제·위치 변경이면 열지 않고, 다른 점포면 그 점포로 연다', async () => {
+      const cleared = await toPanel()
+      cleared.rerender(<MapView {...at('panel', { activeStoreId: 'a' })} />)
+      cleared.rerender(<MapView {...at('panel', { activeStoreId: null })} />)
+      backToMap(cleared)
+      expect(infos).toHaveLength(0)
+      cleared.unmount()
+
+      maps = []
+      observed = []
+      const moved = await toPanel()
+      moved.rerender(<MapView {...at('panel', { activeStoreId: 'a' })} />)
+      moved.rerender(<MapView {...at('panel', { stores: null, activeStoreId: null, selected: { lat: 37.4475, lng: 126.7015 } })} />)
+      backToMap(moved, { stores: null, activeStoreId: null, selected: { lat: 37.4475, lng: 126.7015 } })
+      expect(infos).toHaveLength(0)
+      moved.unmount()
+
+      maps = []
+      observed = []
+      const other = await toPanel()
+      other.rerender(<MapView {...at('panel', { activeStoreId: 'a' })} />)
+      other.rerender(<MapView {...at('panel', { activeStoreId: 'b' })} />)
+      backToMap(other, { activeStoreId: 'b' })
+      expect(infos).toHaveLength(1)
+      expect(infos[0]!.open).toHaveBeenCalledTimes(1)
+      expect(infos[0]!.content).toHaveTextContent('벨류피씨')
+      expect(other.map.panTo).toHaveBeenLastCalledWith(new FakeLatLng(37.49, 126.726))
+    })
+
+    it('지도에서 연 정보창: 패널 → 지도 왕복 뒤 다시 열되 다시 옮기지 않고, 닫기 포커스 규칙은 그대로', async () => {
+      const onStoreSelect = vi.fn()
+      const view = await mount(at('map', { activeStoreId: 'a', onStoreSelect }))
+      const pans = view.map.panTo.mock.calls.length
+      layout.set(view.section, { w: 0, h: 0 })
+      view.rerender(<MapView {...at('panel', { activeStoreId: 'a', onStoreSelect })} />)
+      expect(infos[0]!.close).toHaveBeenCalled()
+      backToMap(view, { activeStoreId: 'a', onStoreSelect })
+      expect(infos[0]!.open).toHaveBeenCalledTimes(2)
+      expect(view.map.panTo.mock.calls.length).toBe(pans)
+      screen.getByRole('button', { name: '정보창 닫기' }).focus()
+      fireEvent.click(screen.getByRole('button', { name: '정보창 닫기' }))
+      expect(onStoreSelect).toHaveBeenCalledWith(null)
+      expect(document.activeElement).toBe(view.section)
+    })
+  })
+
   it('보이는 지도에서는 목록 선택·마커 클릭 즉시 연다 (기존 그대로)', async () => {
     const onStoreSelect = vi.fn()
     const view = await mount(props({ stores: STORES, onStoreSelect }))

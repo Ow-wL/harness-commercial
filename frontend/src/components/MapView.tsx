@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent } from 'react'
 import { findDongRings } from '../map/dongBoundary.ts'
 import {
   getGeocoderAvailability,
@@ -67,6 +67,11 @@ export type MapViewProps = {
    * App이 주소 기능 on/off에 쓴다(7-B2). failed 뒤에는 어떤 알림도 ready로 되돌리지 않는다
    */
   onSdkState?: (state: SdkState) => void
+  /**
+   * 지도를 숨기거나 보이게 하는 바깥 화면 상태(App의 mobile 지도/패널 화면, 6-4). 바뀌면 DOM 반영 뒤 크기 맞춤을 다시 돈다 —
+   * 같은 크기로 숨김 → 보임이 한 프레임 안에 끝나면 ResizeObserver가 알리지 않으므로 이 신호로 미룬 정보창을 처리한다
+   */
+  layoutKey?: string
 }
 
 /** 인천 중심 초기 화면 (인천광역시청 부근) */
@@ -203,6 +208,7 @@ export function MapView({
   compare = null,
   storeContext,
   onSdkState,
+  layoutKey,
 }: MapViewProps) {
   const sectionRef = useRef<HTMLElement>(null)
   const canvasRef = useRef<HTMLDivElement>(null)
@@ -216,6 +222,8 @@ export function MapView({
   // 그래서 미룬 열기가 있으면 크기 맞춤 뒤 이 값을 올려 현재 선택을 다시 처리한다
   const infoDeferredRef = useRef(false)
   const [infoRetry, setInfoRetry] = useState(0)
+  /** 아래 크기 맞춤 함수(fit). 화면 전환 신호(layoutKey)에서도 같은 흐름을 부른다 */
+  const fitRef = useRef<() => void>(() => {})
 
   // 최신 콜백·상태를 클릭 핸들러가 읽는다 (지도를 다시 만들지 않기 위해)
   const onSelectRef = useRef(onSelect)
@@ -305,12 +313,20 @@ export function MapView({
     }
     const ro = new ResizeObserver(fit)
     ro.observe(el)
+    fitRef.current = fit
     fit()
     return () => {
       ro.disconnect()
+      fitRef.current = () => {}
       setSized(false)
     }
   }, [api, map])
+
+  // 바깥 화면 전환 신호(layoutKey, mobile 지도↔패널): DOM 반영 뒤(layout effect) 같은 크기 맞춤을 한 번 더 돈다.
+  // 크기 알림 없이 지도 화면으로 돌아와도 실제 크기가 양수면 setSize → 미룬 정보창을 현재 선택으로 처리한다(실제 크기 검사 그대로)
+  useLayoutEffect(() => {
+    fitRef.current()
+  }, [layoutKey])
 
   // 선택 지점이 바뀌면 그 위치로 지도를 옮긴다 (좌표 직접 입력·분석 불가 지점 포함). zoom은 사용자가 둔 그대로
   const selectedLat = selected?.lat

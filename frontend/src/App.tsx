@@ -624,6 +624,8 @@ function App() {
         <div className="workspace__map" ref={mapRef}>
           <MapView
             onSdkState={setSdk}
+            // mobile 지도↔패널 전환 신호: 크기 알림 없이 지도 화면으로 돌아와도 크기 맞춤·미룬 정보창 처리 (6-4)
+            layoutKey={mobileScreen}
             selected={location}
             markerTone={markerTone}
             dong={result ? { guCode: result.context.gu_code, dongName: result.context.dong_name } : null}

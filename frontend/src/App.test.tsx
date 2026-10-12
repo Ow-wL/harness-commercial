@@ -46,6 +46,7 @@ vi.mock('./components/MapView.tsx', () => ({
       data-compare-dong={props.compare ? (props.compare.dong ? `${props.compare.dong.guCode} ${props.compare.dong.dongName}` : '') : undefined}
       data-compare-guide={props.compare?.guide ?? undefined}
       data-store-context={props.storeContext}
+      data-layout-key={props.layoutKey}
     >
       <button type="button" onClick={() => props.interactive && props.onSelect({ lat: 37.4894, lng: 126.7246 })}>
         지도 클릭: 부평역
@@ -2210,11 +2211,13 @@ describe('mobile 패널에서 고른 점포 → "지도 보기" (6-4)', () => {
     fireEvent.click(analyzeButton())
     const list = await screen.findByRole('list', { name: 'PC방 점포 목록' })
     expect(app()).toHaveAttribute('data-screen', 'panel')
+    expect(map()).toHaveAttribute('data-layout-key', 'panel')                     // 화면 전환 신호를 MapView에 넘긴다
     fireEvent.click(within(list).getAllByRole('button')[0]!)
     expect(map()).toHaveAttribute('data-active-store', nearbyFixture.stores[0]!.id)   // 숨겨진 지도에 선택만 넘긴다
 
     fireEvent.click(screen.getByRole('button', { name: '지도 보기' }))
     expect(app()).toHaveAttribute('data-screen', 'map')
+    expect(map()).toHaveAttribute('data-layout-key', 'map')
     expect(map()).toHaveAttribute('data-active-store', nearbyFixture.stores[0]!.id)
     expect(map()).toHaveAttribute('data-stores', '12')
     expect(analyzeCalls(fetchMock)).toHaveLength(1)
