@@ -28,7 +28,7 @@ production에서는 FastAPI가 `dist/`를 같은 origin에서 서빙한다(`FRON
 
 ### NAVER Maps 설정
 
-- NAVER Cloud Platform 콘솔 → Maps → Application 등록 → **Dynamic Map** 사용 설정.
+- NAVER Cloud Platform 콘솔 → Maps → Application 등록 → **Dynamic Map**, 주소 기능용 **Geocoding**·**Reverse Geocoding**을 선택한다(선택하지 않으면 주소 호출만 실패하고 지도·분석은 그대로 — 실측 403). 브라우저 호출이라 Geocoding·Reverse Geocoding에 **일·월 사용량 한도와 알림**을 두기를 권한다(값은 운영자가 정함, `docs/ADDRESS_DESIGN.md` §9).
 - **Web 서비스 URL**에 지도를 열 주소를 등록한다(개발: `http://localhost:5173`, 다른 포트를 쓰면 그 주소도). 등록하지 않은 주소에서는 인증 실패 화면이 나온다.
 - `frontend/.env` (commit 금지, `.gitignore`):
   ```

@@ -62,11 +62,14 @@ backend/app/
   errors.py             오류 계약: 422 + error.code / 500 + request_id (D-014)
 frontend/src/
   api/schemas.ts        API 응답 Zod schema (source of truth, 타입은 z.infer). client.ts가 모든 응답을 검증 (D-012)
-  map/naverMaps.ts      NAVER Maps v3 SDK singleton loader (frontend/.env의 Client ID)
+  map/naverMaps.ts      NAVER Maps v3 SDK singleton loader (frontend/.env의 Client ID) + 지도/Geocoder 준비 상태(SdkState, 7차)
+  map/geocoder.ts       Geocoder 서브모듈 adapter: 콜백 → 결과 객체(정방향 검색·역방향 참고 주소), Zod 검증·8초 timeout (D-021)
   map/dongBoundary.ts   data/geo/인천_행정동경계_2026.geojson을 ?url asset으로 참조, context의 (gu_code, dong_name)으로 찾아 강조
   components/           MapView(지도·마커·500m 원·경계, 비교 A/B 표시) · ConditionPanel(위치·업종) · AnalysisResult(결과) · ErrorBlock 등 (DESIGN.md)
                         두 위치 비교(5차, D-020): ComparePanel(B 고르기)·CompareResult(비교 요약·위치별 전체 결과)·CoordinateForm
   lib/                  format(표시 형식) · compare(비교 표시 규칙) · compareState(B 상태 타입) · warnings(주의할 점 문장) · useNearbyRequest(점포 조회 1벌)
+                        주소(7차, D-021): addressCache(좌표 키 캐시) · useReferenceAddress · addressSearch · keepFocusInView · useSearchFocusRecovery
+                        components: AddressSearch(주소로 찾기) · ReferenceAddress(참고 주소 한 줄)
   `npm run check` = tsc + ESLint + Vitest (29개 golden JSON schema 검증 포함), scripts/check가 자동 실행
 ```
 
@@ -77,6 +80,8 @@ frontend/src/
 ```
 Frontend (React+TS, NAVER Maps)  지도 클릭/좌표 입력 → lat,lng. 업종 select. 응답은 Zod 검증, 오류는 error.code로 분기
   │                              dev: vite proxy가 /businesses·/analyze·/nearby-stores를 backend로 (backend에 CORS 없음)
+  │                              주소(D-021): 브라우저 → NAVER Maps SDK Geocoder(Client ID만) 직접 호출. 검색 결과는 좌표 선택일 뿐이고
+  │                              참고 주소는 표시만 한다 — backend·엔진으로 가는 요청은 여전히 lat,lng(+업종)뿐
   │  GET /businesses (업종 29개·그룹 4개, 엔진 config 그대로)
   │  POST /analyze {lat, lng, biz_code, importance?, user_weights?, user_licenses?}
   │  POST /nearby-stores {lat, lng, biz_code}  분석 성공 뒤 같은 조건으로 — 반경 안 동종 점포(표시용, 엔진 analyze 안 부름)

@@ -5,6 +5,7 @@
 
 ## MVP 기능
 - **지도 위치 선택**: NAVER Maps(Dynamic Map)에서 클릭하거나 좌표를 직접 입력. 마커 + 반경 500m 원 표시
+- **주소로 찾기·참고 주소**(7차, D-021): NAVER 지도 SDK Geocoder로 주소를 검색해 위치를 고르고(단일·비교 B), 고른 좌표의 도로명/지번 주소를 "참고 주소 · … (NAVER 지도)"로 보인다. 주소는 분석에 쓰지 않는다(분석 행정동은 backend 판정). 콘솔에서 Geocoding·Reverse Geocoding을 선택해야 하며, 실패해도 지도·좌표 입력·분석은 그대로다
 - **업종 선택**: `GET /businesses`의 29개 업종·4개 그룹 (엔진 `config` 그대로, frontend 하드코딩 없음)
 - **분석**: `POST /analyze` (FastAPI) → 좌표 → 인천 행정동 판정(`LocationResolver`) → `ContextBuilder` → 엔진 v0.3. 엔진 결과는 바꾸지 않고 그대로 전달
 - **결과 화면**: 종합 점수, 5대 관점, 병목·주의할 점, 데이터 충족률, 세부지표, 데이터 출처 (`DESIGN.md`)
