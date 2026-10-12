@@ -209,6 +209,8 @@ export function MapView({
   const [api, setApi] = useState<NaverMapsApi | null>(null)
   const [map, setMap] = useState<NaverMap | null>(null)
   const [error, setError] = useState<MapLoadErrorKind | null>(null)
+  // 지도가 보이고 유효한 크기를 가졌는지 (mobile 패널 화면에서는 .map이 숨겨져 0×0). 아래 크기 맞춤 흐름이 setSize 뒤에 정한다
+  const [sized, setSized] = useState(false)
 
   // 최신 콜백·상태를 클릭 핸들러가 읽는다 (지도를 다시 만들지 않기 위해)
   const onSelectRef = useRef(onSelect)
@@ -282,17 +284,23 @@ export function MapView({
   }, [])
 
   // 바깥 .map 크기가 바뀌면 지도 크기를 맞춘다 (mobile 화면 전환·tablet 높이 변경·창 크기 변경).
-  // canvas가 아니라 바깥 section을 본다 — SDK가 canvas에 inline px 크기를 넣어서 canvas는 레이아웃을 따라가지 않는다
+  // canvas가 아니라 바깥 section을 본다 — SDK가 canvas에 inline px 크기를 넣어서 canvas는 레이아웃을 따라가지 않는다.
+  // 크기가 0이면(숨김) setSize 하지 않고 `sized=false`만 둔다 — 점포 정보창은 `sized`일 때만 연다(아래, 6-4)
   useEffect(() => {
     const el = sectionRef.current
     if (!api || !map || !el) return
     const fit = () => {
-      if (el.clientWidth > 0 && el.clientHeight > 0) map.setSize(new api.Size(el.clientWidth, el.clientHeight))
+      const visible = el.clientWidth > 0 && el.clientHeight > 0
+      if (visible) map.setSize(new api.Size(el.clientWidth, el.clientHeight))
+      setSized(visible)
     }
-    fit()
     const ro = new ResizeObserver(fit)
     ro.observe(el)
-    return () => ro.disconnect()
+    fit()
+    return () => {
+      ro.disconnect()
+      setSized(false)
+    }
   }, [api, map])
 
   // 선택 지점이 바뀌면 그 위치로 지도를 옮긴다 (좌표 직접 입력·분석 불가 지점 포함). zoom은 사용자가 둔 그대로
@@ -435,6 +443,9 @@ export function MapView({
   }, [api, map, stores])
 
   // 선택한 점포: 마커 강조 + 정보창. 새로 선택했을 때만 그 점포로 지도를 옮긴다 (zoom은 그대로)
+  // 정보창은 지도가 보이고 크기가 맞춰진 뒤(`sized`)에만 연다(6-4): SDK는 open 때 내용 크기를 재는데, mobile 패널 화면처럼
+  // 지도가 숨겨져(0×0) 있으면 폭 0으로 고정돼 지도를 보였을 때 폭 24px로 접힌다. 숨겨지면 닫아 두고(다른 선택의 옛 정보창이
+  // 다시 보이지 않게), 다시 보이면 그때의 선택으로 연다. 이동(panTo)도 같은 시점 — 새로 선택한 점포일 때만
   const infoRef = useRef<NaverInfoWindow | null>(null)
   const pannedStoreRef = useRef<string | null>(null)
   useEffect(() => {
@@ -445,6 +456,12 @@ export function MapView({
     if (!marker || !store) {
       infoRef.current?.close()
       pannedStoreRef.current = null
+      return
+    }
+    // ResizeObserver 알림(`sized`)은 다음 렌더 프레임에 오므로, 열기 직전에 실제 크기도 한 번 더 본다
+    const el = sectionRef.current
+    if (!sized || !el || el.clientWidth === 0 || el.clientHeight === 0) {
+      infoRef.current?.close()
       return
     }
     const content = storeInfoContent(store, () => closeStoreRef.current())
@@ -463,7 +480,7 @@ export function MapView({
       map.panTo(new api.LatLng(store.lat, store.lng))
       pannedStoreRef.current = activeStoreId
     }
-  }, [api, map, stores, activeStoreId])
+  }, [api, map, stores, activeStoreId, sized])
 
   useEffect(
     () => () => {

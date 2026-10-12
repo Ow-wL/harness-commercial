@@ -2194,3 +2194,70 @@ describe('비교 B 주소 검색 (7-B5, docs/ADDRESS_DESIGN.md §5.2 A-4)', () =
     })
   })
 })
+
+describe('mobile 패널에서 고른 점포 → "지도 보기" (6-4)', () => {
+  const ok = (body: unknown) => ({ status: 200, body })
+  const app = () => document.querySelector('.app')!
+  const map = () => screen.getByTestId('map')
+  beforeEach(() => {
+    vi.stubGlobal('matchMedia', (q: string) => ({ matches: q === '(max-width: 639px)', media: q }))
+  })
+
+  it('단일 결과: 패널 목록에서 고른 선택이 지도 화면으로 그대로 넘어가고, 분석·점포를 다시 조회하지 않는다', async () => {
+    const fetchMock = mockApi({ analyze: [ok(fixture)], nearby: [ok(nearbyFixture)] })
+    render(<App />)
+    await selectBupyeongPcBang()
+    fireEvent.click(analyzeButton())
+    const list = await screen.findByRole('list', { name: 'PC방 점포 목록' })
+    expect(app()).toHaveAttribute('data-screen', 'panel')
+    fireEvent.click(within(list).getAllByRole('button')[0]!)
+    expect(map()).toHaveAttribute('data-active-store', nearbyFixture.stores[0]!.id)   // 숨겨진 지도에 선택만 넘긴다
+
+    fireEvent.click(screen.getByRole('button', { name: '지도 보기' }))
+    expect(app()).toHaveAttribute('data-screen', 'map')
+    expect(map()).toHaveAttribute('data-active-store', nearbyFixture.stores[0]!.id)
+    expect(map()).toHaveAttribute('data-stores', '12')
+    expect(analyzeCalls(fetchMock)).toHaveLength(1)
+    expect(nearbyCalls(fetchMock)).toHaveLength(1)
+
+    // 지도 화면에서 고른 선택도 패널로 갔다 와도 유지
+    fireEvent.click(screen.getByRole('button', { name: `지도 점포 마커: ${nearbyFixture.stores[1]!.name}` }))
+    fireEvent.click(screen.getByRole('button', { name: '결과 보기' }))
+    fireEvent.click(screen.getByRole('button', { name: '지도 보기' }))
+    expect(map()).toHaveAttribute('data-active-store', nearbyFixture.stores[1]!.id)
+    expect(nearbyCalls(fetchMock)).toHaveLength(1)
+  })
+
+  it('비교 요약·B 전체 결과: B 목록에서 고른 선택이 지도 화면으로 그대로 넘어가고 다시 조회하지 않는다', async () => {
+    const fetchMock = mockApi({ analyze: [ok(fixture), ok(guwolFixture)], nearby: [ok(nearbyFixture), ok(guwolNearbyFixture)] })
+    render(<App />)
+    await selectBupyeongPcBang()
+    fireEvent.click(analyzeButton())
+    await screen.findByRole('list', { name: 'PC방 점포 목록' })
+    fireEvent.click(screen.getByRole('button', { name: '다른 위치와 비교' }))
+    fireEvent.click(within(document.querySelector<HTMLElement>('.map-sheet')!).getByRole('button', { name: '좌표 직접 입력' }))
+    const bCard = screen.getByRole('region', { name: 'B 비교 위치' })
+    fireEvent.change(within(bCard).getByLabelText('B 위도'), { target: { value: '37.4475' } })
+    fireEvent.change(within(bCard).getByLabelText('B 경도'), { target: { value: '126.7015' } })
+    fireEvent.click(within(bCard).getByRole('button', { name: 'B 위치로 선택' }))
+    fireEvent.click(within(screen.getByRole('region', { name: 'B 비교 위치' })).getByRole('button', { name: 'B 분석하기' }))
+    const bList = await screen.findByRole('list', { name: 'B 남동구 구월3동 PC방 점포 목록' })
+    expect(app()).toHaveAttribute('data-screen', 'panel')
+
+    fireEvent.click(within(bList).getAllByRole('button')[0]!)
+    expect(map()).toHaveAttribute('data-active-store', guwolNearbyFixture.stores[0]!.id)
+    fireEvent.click(screen.getByRole('button', { name: '지도 보기' }))
+    expect(app()).toHaveAttribute('data-screen', 'map')
+    expect(map()).toHaveAttribute('data-active-store', guwolNearbyFixture.stores[0]!.id)
+    expect(map()).toHaveAttribute('data-store-context', 'B 구월3동 주변')
+
+    fireEvent.click(screen.getByRole('button', { name: '비교 화면 보기' }))
+    fireEvent.click(screen.getByRole('button', { name: 'B 전체 결과 보기' }))
+    fireEvent.click(within(screen.getByRole('list', { name: 'B 남동구 구월3동 PC방 점포 목록' })).getAllByRole('button')[1]!)
+    expect(map()).toHaveAttribute('data-active-store', guwolNearbyFixture.stores[1]!.id)
+    fireEvent.click(screen.getByRole('button', { name: '지도 보기' }))
+    expect(map()).toHaveAttribute('data-active-store', guwolNearbyFixture.stores[1]!.id)
+    expect(analyzeCalls(fetchMock)).toHaveLength(2)
+    expect(nearbyCalls(fetchMock)).toHaveLength(2)
+  })
+})

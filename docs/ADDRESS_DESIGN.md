@@ -440,7 +440,7 @@ SDK는 `maps.js` 뒤에 `https://oapi.map.naver.com/openapi/v3/maps-geocoder.js`
 | 경합(가짜 지연: B1 1500ms, B2 200ms, 1280) | B2 선택 첫 렌더 줄 없음 → B2 주소 → 1.5초 뒤 늦은 B1 응답에도 B2 유지, 화면의 주소 줄은 B2 하나 |
 - 인증 실패·조회 실패·주소 없음은 MapView mock(App 테스트)으로 검증했다(실제 장애 모사 호출 없음).
 - **참고(dev 전용, 7-B3와 무관)**: vite dev(StrictMode)에서는 800×600 tablet 배치에서 "A/B 전체 결과 보기" 뒤 결과 제목에 포커스는 가지만 화면이 맨 위(지도)에 남는다. StrictMode가 `CompareDetail`의 "조상 스크롤 맨 위로" layout effect를 App의 포커스 뒤에 한 번 더 실행하기 때문이며, production build에서는 제목이 헤더 아래 보인다(위 표).
-- mobile 정보창 폭 24px 문제(7-B2 발견)는 별도 항목 그대로.
+- mobile 정보창 폭 24px 문제(7-B2 발견)는 별도 항목 그대로. (이후 `docs/COMPARE_DESIGN.md` 13장 "6-4"에서 고쳤다.)
 - 잔여(사용자): 한도 및 알림 설정(§9-5), 운영 URL Geocoder 유효성(§9-4, 배포 전). 다음 7-B4(주소 검색)·배포는 별도 승인 뒤.
 
 ### 7-B4 — 단일 위치 주소 검색 (2026-10-12, 기준 `1318aed`)
