@@ -12,19 +12,22 @@ import { brokenControls, brokenReferences, duplicateIds, expandAll } from './tes
 
 // 지도는 SDK 경계(MapView) 통째로 mock한다 — 실제 NAVER SDK를 부르지 않는다.
 // mock은 실제 MapView와 같은 계약: interactive=false면 클릭을 무시하고, 클릭 좌표를 onSelect로 넘긴다.
-// 7-B2: 참고 주소 — MapView mock이 SDK 상태를 App에 올리고(onSdkState), 역지오코딩 콜백은 테스트가 보낸다
+// 7-B2: 참고 주소 — MapView mock이 SDK 상태를 App에 올리고(onSdkState), 역지오코딩 콜백은 테스트가 보낸다 (7-B4 검색 geocode도 같다)
 const sdkMock = vi.hoisted(() => {
   const reverseCalls: { options: Record<string, unknown>; callback: (status: number, response?: unknown) => void }[] = []
+  const geocodeCalls: { options: Record<string, unknown>; callback: (status: number, response?: unknown) => void }[] = []
   const api = {
     Service: {
       Status: { OK: 200, ERROR: 500 },
-      geocode: () => {},
+      geocode: (options: Record<string, unknown>, callback: (status: number, response?: unknown) => void) => {
+        geocodeCalls.push({ options, callback })
+      },
       reverseGeocode: (options: Record<string, unknown>, callback: (status: number, response?: unknown) => void) => {
         reverseCalls.push({ options, callback })
       },
     },
   }
-  return { reverseCalls, api }
+  return { reverseCalls, geocodeCalls, api }
 })
 
 vi.mock('./components/MapView.tsx', () => ({
@@ -1704,5 +1707,204 @@ describe('비교 A/B 참고 주소 (7-B3, docs/ADDRESS_DESIGN.md §5.2 C·§5.3)
     expect(screen.getByRole('table', { name: /종합·5대 관점 점수 비교/ })).toBeInTheDocument()
     expect(sdkMock.reverseCalls).toHaveLength(2)
     expect(analyzeCalls(fetchMock)).toHaveLength(2)
+  })
+})
+
+describe('단일 위치 주소 검색 (7-B4, docs/ADDRESS_DESIGN.md §5.2 A)', () => {
+  const ok = (body: unknown) => ({ status: 200, body })
+  const conditions = () => screen.getByRole('region', { name: '분석 조건' })
+  const searchToggle = () => within(conditions()).queryByRole('button', { name: '주소로 찾기' })
+  const sdkReady = () => fireEvent.click(screen.getByRole('button', { name: 'SDK 준비' }))
+  const bodyOf = (call: unknown[]) => JSON.parse((call[1] as RequestInit).body as string)
+  const answer = async (calls: typeof sdkMock.geocodeCalls, i: number, status: number, response?: unknown) => {
+    await act(async () => {
+      calls[i]!.callback(status, response)
+      await Promise.resolve()
+    })
+  }
+  /** 정방향 성공 응답 — 실제 fixture(geocoder-forward-bupyeong-daero.json)와 같은 모양 */
+  const forward = (items: { road: string; jibun?: string; sido: string; x: string; y: string }[]) => ({
+    v2: {
+      status: 'OK',
+      meta: { totalCount: items.length, page: 1, count: items.length },
+      addresses: items.map((i) => ({
+        roadAddress: i.road,
+        jibunAddress: i.jibun ?? '',
+        addressElements: [{ types: ['SIDO'], longName: i.sido, shortName: i.sido, code: '' }],
+        x: i.x,
+        y: i.y,
+        distance: 10,
+      })),
+      errorMessage: '',
+    },
+  })
+  const BUPYEONG = { road: '인천광역시 부평구 부평대로 3', jibun: '인천광역시 부평구 부평동 549-39', sido: '인천광역시', x: '126.7227259', y: '37.4918321' }
+  const SEOUL = { road: '서울특별시 중구 세종대로 110', sido: '서울특별시', x: '126.9779692', y: '37.5662952' }
+  /** 고른 좌표로 분석한 응답 — backend는 context에 요청 좌표를 그대로 돌려준다(matchesRequest) */
+  const analyzedAt = (lat: number, lng: number) => ({ ...fixture, context: { ...fixture.context, lat, lng } })
+
+  function searchFor(query: string) {
+    fireEvent.click(searchToggle()!)
+    fireEvent.change(within(conditions()).getByRole('textbox', { name: '주소' }), { target: { value: query } })
+    fireEvent.click(within(conditions()).getByRole('button', { name: '검색' }))
+  }
+
+  async function chooseBusiness() {
+    const select = screen.getByRole('combobox', { name: '업종' })
+    await waitFor(() => expect(select).toBeEnabled())
+    fireEvent.change(select, { target: { value: 'R10406' } })
+  }
+
+  beforeEach(async () => {
+    sdkMock.reverseCalls.length = 0
+    sdkMock.geocodeCalls.length = 0
+    const { resetAddressCacheForTest } = await import('./lib/addressCache.ts')
+    resetAddressCacheForTest()
+    vi.spyOn(console, 'warn').mockImplementation(() => {})
+  })
+
+  it('Geocoder가 준비됐을 때만 "주소로 찾기"가 있다 (SDK 준비 전·Geocoder 없음에는 없음)', () => {
+    mockApi()
+    render(<App />)
+    expect(searchToggle()).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'SDK Geocoder 없음' }))
+    expect(searchToggle()).not.toBeInTheDocument()
+    sdkReady()
+    expect(searchToggle()).toBeInTheDocument()
+    expect(within(conditions()).getByRole('button', { name: '좌표 직접 입력' })).toBeInTheDocument()   // 기존 키보드 대안 그대로
+  })
+
+  it('검색 → 결과 선택: 분석은 시작하지 않고 위치 요약으로 포커스, 참고 주소는 역지오코딩 캐시로, 분석 요청 좌표는 adapter 좌표 그대로', async () => {
+    const lat = 37.4918321
+    const lng = 126.7227259
+    const fetchMock = mockApi({ analyze: [ok(analyzedAt(lat, lng))], nearby: [ok(nearbyFixture)] })
+    render(<App />)
+    sdkReady()
+    searchFor('인천광역시 부평구 부평대로 1')
+    expect(sdkMock.geocodeCalls).toHaveLength(1)
+    await answer(sdkMock.geocodeCalls, 0, 200, forward([BUPYEONG]))
+    expect(duplicateIds()).toEqual([])
+    expect(brokenReferences()).toEqual([])
+
+    const item = within(screen.getByRole('list', { name: /검색 결과 1건/ })).getByRole('button')
+    expect(item).toHaveTextContent('인천광역시 부평구 부평대로 3')
+    fireEvent.click(item)
+    // 위치 요약(tabIndex=-1)으로 포커스, 폼은 접힘, 분석 요청 없음
+    const summary = screen.getByText(`${lat}, ${lng}`, { selector: '.location__value .mono' }).closest<HTMLElement>('.location__value')!
+    expect(document.activeElement).toBe(summary)
+    expect(summary).toHaveAttribute('tabindex', '-1')
+    expect(within(conditions()).queryByRole('textbox', { name: '주소' })).not.toBeInTheDocument()
+    expect(searchToggle()).toHaveAttribute('aria-expanded', 'false')
+    expect(screen.getByTestId('map')).toHaveAttribute('data-selected', `${lat},${lng}`)
+    expect(analyzeCalls(fetchMock)).toHaveLength(0)
+
+    // 참고 주소: 검색 문자열이 아니라 그 좌표의 역지오코딩(기존 캐시 경로)
+    expect(sdkMock.reverseCalls).toHaveLength(1)
+    expect(sdkMock.reverseCalls[0]!.options).toEqual({ coords: `${lng},${lat}`, orders: 'roadaddr,addr' })
+    expect(screen.queryAllByTestId('reference-address')).toHaveLength(0)       // 역지오코딩 응답 전에는 줄 없음
+
+    await chooseBusiness()
+    fireEvent.click(analyzeButton())
+    await screen.findByRole('heading', { level: 1, name: '부평구 부평1동 · PC방 분석' })
+    expect(bodyOf(analyzeCalls(fetchMock)[0]!)).toEqual({ lat, lng, biz_code: 'R10406' })
+    expect(screen.getByRole('group', { name: '분석 조건' })).toHaveTextContent('부평구 부평1동')   // 행정동은 context 그대로
+    expect(screen.getByRole('group', { name: '분석 조건' })).not.toHaveTextContent('부평대로')
+    expect(sdkMock.geocodeCalls).toHaveLength(1)
+  })
+
+  it('인천 밖 결과도 고를 수 있고, 분석하면 backend location_outside를 기존 오류로 보인다(사전 차단 없음)', async () => {
+    const fetchMock = mockApi({ analyze: [{ status: 422, body: { error: { code: 'location_outside', message: 'x' } } }] })
+    render(<App />)
+    sdkReady()
+    searchFor('세종대로 110')
+    await answer(sdkMock.geocodeCalls, 0, 200, forward([SEOUL]))
+    const item = within(screen.getByRole('list', { name: /검색 결과/ })).getByRole('button')
+    expect(item).toHaveTextContent('서울특별시')
+    expect(item).toBeEnabled()
+    fireEvent.click(item)
+    await chooseBusiness()
+    fireEvent.click(analyzeButton())
+    const alert = await screen.findByRole('alert')
+    expect(alert).toHaveTextContent('인천 안의 위치를 선택해 주세요')
+    expect(bodyOf(analyzeCalls(fetchMock)[0]!)).toEqual({ lat: 37.5662952, lng: 126.9779692, biz_code: 'R10406' })
+  })
+
+  it('SDK 인증 실패: 포커스가 있던 검색 폼이 사라지면 "좌표 직접 입력"으로 포커스, 늦은 검색 응답은 버리고 좌표 입력·분석은 그대로', async () => {
+    const fetchMock = mockApi({ analyze: [ok(fixture)], nearby: [ok(nearbyFixture)] })
+    render(<App />)
+    sdkReady()
+    searchFor('부평대로')
+    within(conditions()).getByRole('textbox', { name: '주소' }).focus()
+    fireEvent.click(screen.getByRole('button', { name: 'SDK 인증 실패' }))
+    expect(searchToggle()).not.toBeInTheDocument()
+    expect(within(conditions()).queryByRole('textbox', { name: '주소' })).not.toBeInTheDocument()
+    expect(document.activeElement).toBe(within(conditions()).getByRole('button', { name: '좌표 직접 입력' }))
+    await answer(sdkMock.geocodeCalls, 0, 200, forward([BUPYEONG]))           // 늦은 응답
+    expect(screen.queryByRole('list', { name: /검색 결과/ })).not.toBeInTheDocument()
+    expect(screen.getByTestId('map')).toHaveAttribute('data-selected', '')
+
+    // 기본 위치 선택은 그대로
+    fireEvent.click(within(conditions()).getByRole('button', { name: '좌표 직접 입력' }))
+    fireEvent.change(screen.getByLabelText('위도'), { target: { value: '37.4894' } })
+    fireEvent.change(screen.getByLabelText('경도'), { target: { value: '126.7246' } })
+    fireEvent.click(screen.getByRole('button', { name: '이 좌표로 선택' }))
+    await chooseBusiness()
+    fireEvent.click(analyzeButton())
+    await screen.findByRole('heading', { level: 1, name: '부평구 부평1동 · PC방 분석' })
+    expect(analyzeCalls(fetchMock)).toHaveLength(1)
+    expect(sdkMock.geocodeCalls).toHaveLength(1)
+  })
+
+  it('포커스가 검색 밖에 있으면 SDK 실패로 폼이 사라져도 포커스를 옮기지 않는다', async () => {
+    mockApi()
+    render(<App />)
+    sdkReady()
+    searchFor('부평대로')
+    const select = screen.getByRole('combobox', { name: '업종' })
+    await waitFor(() => expect(select).toBeEnabled())
+    select.focus()
+    fireEvent.click(screen.getByRole('button', { name: 'SDK 인증 실패' }))
+    expect(document.activeElement).toBe(select)
+  })
+
+  it('검색이 지연·실패해도 지도 선택·분석은 동작하고, 지연된 응답이 와도 선택한 위치를 바꾸지 않는다', async () => {
+    const fetchMock = mockApi({ analyze: [ok(fixture)], nearby: [ok(nearbyFixture)] })
+    render(<App />)
+    sdkReady()
+    searchFor('부평대로')                                                      // 응답 대기
+    await selectBupyeongPcBang()
+    fireEvent.click(analyzeButton())
+    await screen.findByRole('heading', { level: 1, name: '부평구 부평1동 · PC방 분석' })
+    await act(async () => {
+      sdkMock.geocodeCalls[0]!.callback(500, undefined)                     // 조건 화면이 내려간 뒤 실패 응답
+      await Promise.resolve()
+    })
+    expect(screen.getByRole('heading', { level: 1, name: '부평구 부평1동 · PC방 분석' })).toBeInTheDocument()
+    expect(screen.getByTestId('map')).toHaveAttribute('data-selected', '37.4894,126.7246')
+    expect(analyzeCalls(fetchMock)).toHaveLength(1)
+
+    // 검색 오류 안내 뒤에도 좌표 선택은 그대로
+    fireEvent.click(screen.getByRole('button', { name: '조건 변경' }))
+    searchFor('부평대로')
+    await answer(sdkMock.geocodeCalls, 1, 500, undefined)
+    expect(conditions()).toHaveTextContent('주소 검색을 지금 쓸 수 없습니다. 지도에서 고르거나 좌표를 입력하세요.')
+    fireEvent.click(screen.getByRole('button', { name: '지도 클릭: 송도' }))
+    expect(screen.getByTestId('map')).toHaveAttribute('data-selected', '37.392512,126.639034')
+  })
+
+  it('분석 중에는 기존 입력 잠금처럼 주소 검색도 잠긴다', async () => {
+    let release!: (r: { status: number; body: unknown }) => void
+    const pendingAnalysis = new Promise<{ status: number; body: unknown }>((r) => (release = r))
+    mockApi({ analyze: [pendingAnalysis], nearby: [ok(nearbyFixture)] })
+    render(<App />)
+    sdkReady()
+    searchFor('부평대로')
+    await answer(sdkMock.geocodeCalls, 0, 200, forward([BUPYEONG]))
+    await selectBupyeongPcBang()
+    fireEvent.click(analyzeButton())
+    expect(searchToggle()).toBeDisabled()
+    expect(within(conditions()).getByRole('button', { name: '좌표 직접 입력' })).toBeDisabled()
+    await act(async () => release(ok(fixture)))
+    await screen.findByRole('heading', { level: 1, name: '부평구 부평1동 · PC방 분석' })
   })
 })

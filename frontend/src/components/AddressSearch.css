@@ -1,0 +1,101 @@
+/* 주소로 찾기 (DESIGN.md §7.4, docs/ADDRESS_DESIGN.md §5.2 A). 좌표 직접 입력(.coords)과 같은 muted 배경 묶음 */
+.address-search {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.address-search__body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-muted);
+  min-width: 0;
+}
+
+/* 입력란 + 검색 버튼 한 줄 (좁으면 버튼이 아래로) */
+.address-search__form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-3);
+}
+
+.address-search__field {
+  flex: 1 1 200px;
+  min-width: 0;
+}
+
+.address-search__submit {
+  flex: none;
+}
+
+.address-search__status {
+  margin: 0;
+  font: var(--text-small);
+  color: var(--color-text-secondary);
+}
+
+.address-search__results {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  overflow: hidden;
+}
+
+.address-search__results li + li {
+  border-top: 1px solid var(--color-border);
+}
+
+/* 결과 항목: 버튼 전체가 터치 목표(최소 44px, §7.4·§15). 긴 주소는 줄바꿈(전역 overflow-wrap) */
+.address-result {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  width: 100%;
+  min-height: var(--control-height-touch);
+  padding: var(--space-2) var(--space-3);
+  border: 0;
+  background: none;
+  font: var(--text-small);
+  text-align: left;
+  color: var(--color-text-primary);
+  cursor: pointer;
+  transition: background-color var(--duration-fast) ease-out;
+}
+
+.address-result:hover {
+  background: var(--color-accent-subtle);
+}
+
+.address-result:focus-visible {
+  outline-offset: -2px;
+}
+
+.address-result:disabled {
+  color: var(--color-text-disabled);
+  cursor: not-allowed;
+}
+
+.address-result__primary {
+  font-weight: 600;
+}
+
+.address-result__secondary {
+  color: var(--color-text-secondary);
+}
+
+.address-result__sido {
+  font: var(--text-caption);
+  letter-spacing: 0.01em;
+  color: var(--color-text-muted);
+}

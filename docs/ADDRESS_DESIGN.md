@@ -198,7 +198,7 @@ src/components/AddressSearch.tsx     주소 검색 폼 + 결과 목록 → onSel
 | 스파이크 ✅ 7-B1 | `frontend/spike/app-geocoder-blocked.html` | 앱 전체를 같은 origin에서 띄우되 SDK가 뒤에 붙이는 `maps-geocoder.js`의 src만 바꿔 "서브모듈 요청만 차단"을 흉내 내는 dev 페이지(§12 검증). 빌드 밖 |
 | 신규 ✅ 7-B1 | `frontend/src/map/geocoder.ts` | adapter(§5.1) + Zod `looseObject` schema(`v2` 중 쓰는 필드만), `normalizeAddress`·`parseCoordinate`, 8초 timeout·첫 콜백만·동기 예외도 결과 객체 |
 | 신규 ✅ 7-B2 | `frontend/src/lib/addressCache.ts`, `frontend/src/lib/useReferenceAddress.ts` | 캐시·hook(§5.3): 좌표 키 그대로, LRU 100, in-flight 공유, ok·none 유지, error 60초 뒤 다음 조회 때만, 현재 키 캐시만 표시 |
-| 신규 ✅ 7-B2(표시) | `frontend/src/components/ReferenceAddress.tsx`(+css) — `AddressSearch.tsx`(+css)는 7-B4 | 표시 UI(검색 UI는 다음) |
+| 신규 ✅ 7-B2(표시)·7-B4(검색) | `frontend/src/components/ReferenceAddress.tsx`(+css), `frontend/src/components/AddressSearch.tsx`(+css) + `frontend/src/lib/addressSearch.ts` | 표시 UI·검색 UI(단일). 비교 B 검색은 7-B5 |
 | 수정 ✅ 7-B1 | `frontend/src/components/MapView.tsx` | `onSdkState?(state)` prop 1개 — 로더 성공(`map-ready` + 현재 Geocoder 상태)·Geocoder 판정·로드 실패·**뒤늦은 인증 실패**를 `reduceSdkState`로 App에 올린다(로더 재호출 없음, 지도 생성 시점·방식 불변). App 연결은 7-B2 |
 | 수정 ✅ 7-B2 | `frontend/src/App.tsx` | `sdk` 상태(`loading/ready/failed`)를 `MapView.onSdkState`로 받아 단일 위치 자리 3곳에 `ReferenceAddress`를 넘긴다(위치 필드·mobile sheet·결과 패널). 말줄임·`max-height` 숨김 규칙은 `ReferenceAddress.css` |
 | 수정 ✅ 7-B2(슬롯) | `frontend/src/components/ConditionPanel.tsx` — `ComparePanel.tsx`는 7-B3·B5 | `address?: ReactNode` 슬롯(+ 7-B4 "주소로 찾기" disclosure 예정) |
@@ -442,3 +442,33 @@ SDK는 `maps.js` 뒤에 `https://oapi.map.naver.com/openapi/v3/maps-geocoder.js`
 - **참고(dev 전용, 7-B3와 무관)**: vite dev(StrictMode)에서는 800×600 tablet 배치에서 "A/B 전체 결과 보기" 뒤 결과 제목에 포커스는 가지만 화면이 맨 위(지도)에 남는다. StrictMode가 `CompareDetail`의 "조상 스크롤 맨 위로" layout effect를 App의 포커스 뒤에 한 번 더 실행하기 때문이며, production build에서는 제목이 헤더 아래 보인다(위 표).
 - mobile 정보창 폭 24px 문제(7-B2 발견)는 별도 항목 그대로.
 - 잔여(사용자): 한도 및 알림 설정(§9-5), 운영 URL Geocoder 유효성(§9-4, 배포 전). 다음 7-B4(주소 검색)·배포는 별도 승인 뒤.
+
+### 7-B4 — 단일 위치 주소 검색 (2026-10-12, 기준 `1318aed`)
+범위: 분석 전 위치 필드(`ConditionPanel` `LocationField`)의 "주소로 찾기"만. 비교 B 검색(7-B5)·배포 없음. 엔진·backend·보호 영역 변경 없음. 지도 정보창 24px·dev 모드 스크롤 문제는 섞지 않았다.
+
+**UI `components/AddressSearch.tsx`(+css)**: ghost small 펼침 버튼 "주소로 찾기"(`aria-expanded`·`aria-controls`) → 폼(`role="search"`, 보이는 라벨 "주소", 입력, secondary "검색") + 항상 있는 `aria-live="polite"` 상태 한 줄 + 결과 `ol`(상태 문구가 목록 이름). App이 `sdk.status === 'ready' && geocoder === 'ready'`일 때만 `searchApi`를 넘기고, 없으면 버튼도 그리지 않는다. "좌표 직접 입력" 위에 둔다(DESIGN §7.4).
+- 호출: 제출(버튼·Enter) 때만 `geocode(api, trim(query), { coordinate: 인천시청 37.4563,126.7052, count: 10 })` 1회. 입력 중 호출 없음, 공백만이면 호출 없이 `aria-invalid` + 안내.
+- 결과: 인천(`sido === '인천광역시'`)을 앞에(받은 순서 유지), 5건 먼저 + "더 보기 (N건)"은 받은 목록을 펼친다(재호출 없음, 포커스는 첫 새 항목). 항목 `<button>`(최소 44px): 도로명 우선·"지번 …" 보조, 인천 밖은 시·도 caption만 — 선택은 막지 않는다.
+- 선택: adapter `lat/lng` 그대로 `onLocationInput`(= App `selectLocation`, 지도 클릭과 같은 경로) → 분석 자동 실행 없음. 폼을 접고(요청 번호 무효화) 위치 요약 `.location__value`(`tabIndex=-1`)로 포커스(§10 Q2). 참고 주소는 그 좌표의 역지오코딩 캐시(7-B2)이며 검색 결과 문자열을 쓰지 않는다. 행정동은 분석 뒤 `context` 그대로.
+- 상태 문구: 검색 중 "주소를 찾는 중…", 결과 "‘{q}’ 검색 결과 N건", 0건 "‘{q}’로 찾은 주소가 없습니다. 도로명·번지까지 적어 보세요.", `invalid` "검색어를 확인해 주세요…", 그 밖의 오류 "주소 검색을 지금 쓸 수 없습니다. 지도에서 고르거나 좌표를 입력하세요." 오류·0건에서 입력값 유지.
+
+**요청 경합**: 컴포넌트마다 요청 번호(`seq` ref). 제출마다 증가, 응답 때 번호가 다르면 버린다. 입력 변경(검색 중이면 상태도 idle로)·재검색·폼 닫기·결과 선택·`api` 변경·언마운트 때 증가 — SDK 콜백은 취소할 수 없으므로 결과 폐기로 대신한다. SDK 실패(`failed`)면 부모가 컴포넌트를 내리므로 언마운트 경로로 무효화된다.
+
+**포커스 복구**: `AddressSearch`의 layout cleanup(언마운트 때 DOM이 아직 붙어 있음)에서 포커스가 안에 있었으면 `onFocusLost` → `LocationField`가 `searchApi`가 사라진 같은 커밋의 layout effect에서 포커스가 body일 때만 "좌표 직접 입력" 버튼으로 옮긴다. 포커스가 밖(예: 업종 select)이면 건드리지 않는다.
+
+**잠금**: 분석 중(`locked`)에는 펼침·입력·검색·결과 버튼이 disabled(기존 좌표 입력과 같은 규칙). 검색이 지연·실패해도 지도 클릭·좌표 입력·분석은 독립(주소 모듈은 분석 상태를 모른다).
+
+**테스트(+21, frontend 392개)**: `AddressSearch.test.tsx` 14 — 펼침·라벨·입력 중 호출 0·제출 1회(trim·기준점·10건)·검색 중 aria-live/aria-busy, 공백 제출 0회·aria-invalid, 실제 fixture로 도로명+지번·adapter 좌표 그대로 onSelect·폼 접힘, 인천 먼저·5건+더 보기(재호출 없음·포커스)·인천 밖 caption·선택 가능, 지번 대체, 0건·오류(unknown)·invalid 문구와 입력 유지, 늦은 응답 폐기 5종(입력 변경·재검색·닫기·언마운트·api 교체), onFocusLost, disabled, id·참조(`duplicateIds`·`brokenReferences`·`brokenControls`). `App.test.tsx` 7 — Geocoder 준비 때만 버튼, 검색→선택→요약 포커스·분석 요청 없음·역지오코딩 1회·`/analyze` 좌표 = adapter 좌표·Context Bar 행정동 그대로, 인천 밖 선택→backend `location_outside` 기존 오류, 인증 실패 시 폼 제거·"좌표 직접 입력" 포커스·늦은 응답 무시·좌표 입력 분석 정상(복구 로직을 지우면 실패함을 확인), 포커스가 밖이면 이동 없음, 검색 지연·실패 중 분석·지도 선택 정상, 분석 중 잠금. `scripts/check` 전체 통과.
+
+**브라우저 검증 (내장 Chromium, 로컬 backend + `vite build`·`vite preview`, 실제 호출: 검색 2·역지오코딩 1)**
+| 조건 | 확인 |
+|---|---|
+| 1280×800 키보드: 펼침 버튼 포커스 → Enter(펼침) → Tab(입력) → "부평대로" 입력 → Enter | 실제 호출 1건, 0건 → "‘부평대로’로 찾은 주소가 없습니다…", 입력값 유지, 포커스 입력란 |
+| → " 1" 덧붙여 Enter | 실제 호출 1건(누적 2) → "‘부평대로 1’ 검색 결과 1건", `인천광역시 부평구 부평대로 3` / `지번 인천광역시 부평구 부평동 549-39`(항목 58px) |
+| → Tab·Tab(결과) → Space | 폼 접힘(`aria-expanded=false`), 포커스 위치 요약 `선택됨 · 37.4918321, 126.7227259`, 역지오코딩 1건 → 참고 주소 `인천광역시 부평구 부평대로 3`, `/analyze` 0건 |
+| → 업종 PC방 → 분석하기 | `/analyze` body `{"lat":37.4918321,"lng":126.7227259,"biz_code":"R10406"}`, 결과 `부평구 부평1동 · PC방 분석`(Context Bar 행정동 그대로), 추가 Geocoder 호출 없음 |
+| 가짜 응답(SDK `geocode`를 페이지에서 교체, 실제 호출 0): 긴 한글 도로명 9건 + 끊을 곳 없는 영문 지번 + 서울 1건 | 1280: 인천 9건 먼저 5건(각 98px), "더 보기 (5건)" → 10건·포커스 6번째, 서울 항목 caption `서울특별시`. 서울 선택 → 분석 → 실제 backend `location_outside` → "인천 안의 위치를 선택해 주세요" 기존 오류 |
+| 800×600 | 폼 670px, 항목 636×78px, 펼침·입력·검색·더 보기 40px(기존 비터치 규칙), 문서·`main` 가로 넘침 0 |
+| 375×812(터치) | 폼 343px, 입력·검색·펼침 버튼 44px, 항목 309×118px(3~4줄 줄바꿈), 가로 넘침 0 |
+- SDK 인증 실패·검색 오류·지연·경합은 App/컴포넌트 테스트의 mock으로 검증했다(실제 장애 모사 호출 없음).
+- 잔여(사용자): 한도 및 알림 설정(§9-5), 운영 URL Geocoder 유효성(§9-4, 배포 전). 다음 7-B5(비교 B 검색)·배포는 별도 승인 뒤.

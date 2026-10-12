@@ -1,6 +1,8 @@
-import { useId, useState, type ReactNode } from 'react'
+import { useId, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import type { ApiFailure } from '../api/client.ts'
 import type { BusinessCatalog } from '../api/schemas.ts'
+import type { NaverMapsApi } from '../map/naverMaps.ts'
+import { AddressSearch } from './AddressSearch.tsx'
 import { CoordinateForm } from './CoordinateForm.tsx'
 import { Icon } from './Icon.tsx'
 import type { LatLng } from './MapView.tsx'
@@ -29,6 +31,7 @@ export function ConditionPanel({
   onRetryBusinesses,
   onAnalyze,
   address,
+  searchApi,
 }: {
   location: LatLng | null
   bizCode: string | null
@@ -44,6 +47,8 @@ export function ConditionPanel({
   onAnalyze: () => void
   /** 선택 좌표의 참고 주소 줄 (7-B2, App이 ReferenceAddress로 넘긴다. 없으면 아무것도 그리지 않는다) */
   address?: ReactNode
+  /** Geocoder가 준비된 SDK (7-B4). 있을 때만 "주소로 찾기"를 그린다 — SDK 미준비·Geocoder 없음·실패면 null */
+  searchApi?: NaverMapsApi | null
 }) {
   const hintId = useId()
   const missing = !location ? '위치를 먼저 선택하세요' : !bizCode ? '업종을 선택하세요' : null
@@ -59,6 +64,7 @@ export function ConditionPanel({
         disabled={locked}
         error={locationError}
         address={address}
+        searchApi={searchApi ?? null}
         onPickOnMap={onPickOnMap}
         onLocationInput={onLocationInput}
       />
@@ -119,13 +125,14 @@ function StepIndicator({ location, business }: { location: boolean; business: bo
 
 /**
  * 위치 필드 (§7.4). 지도에서 고른 좌표를 읽기 전용으로 보여 준다.
- * 키보드 대안(§15): "좌표 직접 입력" — 지도 클릭과 같은 기능.
+ * 키보드 대안(§15): "주소로 찾기"(7-B4, Geocoder 준비 때만)와 "좌표 직접 입력" — 지도 클릭과 같은 기능(`onLocationInput`).
  */
 function LocationField({
   location,
   disabled,
   error,
   address,
+  searchApi,
   onPickOnMap,
   onLocationInput,
 }: {
@@ -134,12 +141,34 @@ function LocationField({
   error?: ReactNode
   /** "선택됨 · 좌표" 아래 참고 주소 줄 (7-B2). 좌표가 없으면 그리지 않는다 */
   address?: ReactNode
+  searchApi: NaverMapsApi | null
   onPickOnMap: () => void
   onLocationInput: (point: LatLng) => void
 }) {
   const labelId = useId()
   const [manualOpen, setManualOpen] = useState(false)
   const manualId = useId()
+  const summaryRef = useRef<HTMLSpanElement>(null)
+  const manualToggleRef = useRef<HTMLButtonElement>(null)
+
+  // 주소 검색 결과를 고르면 위치 요약으로 포커스 (§10 Q2). 고른 좌표가 그려진 뒤에 옮긴다
+  const [focusSummary, setFocusSummary] = useState(0)
+  useLayoutEffect(() => {
+    if (focusSummary) summaryRef.current?.focus()
+  }, [focusSummary])
+  const selectFromSearch = (point: LatLng) => {
+    onLocationInput(point)
+    setFocusSummary((n) => n + 1)
+  }
+
+  // SDK 실패로 "주소로 찾기"가 포커스를 가진 채 사라지면 남은 기본 조작("좌표 직접 입력")으로 포커스를 옮긴다
+  const searchFocusLost = useRef(false)
+  useLayoutEffect(() => {
+    if (searchApi || !searchFocusLost.current) return
+    searchFocusLost.current = false
+    const active = document.activeElement
+    if (!active || active === document.body) manualToggleRef.current?.focus()
+  }, [searchApi])
 
   return (
     <div className="field" role="group" aria-labelledby={labelId}>
@@ -149,7 +178,7 @@ function LocationField({
       {location ? (
         <>
           <div className="location__selected">
-            <span className="location__value">
+            <span ref={summaryRef} className="location__value" tabIndex={-1}>
               <Icon name="map-pin" size={14} />
               선택됨 · <span className="mono">{location.lat}, {location.lng}</span>
             </span>
@@ -168,7 +197,18 @@ function LocationField({
         </div>
       )}
       {error}
+      {searchApi && (
+        <AddressSearch
+          api={searchApi}
+          disabled={disabled}
+          onSelect={selectFromSearch}
+          onFocusLost={() => {
+            searchFocusLost.current = true
+          }}
+        />
+      )}
       <button
+        ref={manualToggleRef}
         type="button"
         className="button-ghost button-ghost--small"
         aria-expanded={manualOpen}

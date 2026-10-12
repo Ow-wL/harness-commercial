@@ -602,6 +602,8 @@ function App() {
                 onRetryBusinesses={reloadBusinesses}
                 onAnalyze={runAnalysis}
                 address={<ReferenceAddress sdk={sdk} point={location} />}
+                // 주소로 찾기(7-B4): Geocoder가 준비됐을 때만. 인증 실패 등으로 failed가 되면 null → 폼이 사라진다
+                searchApi={sdk.status === 'ready' && sdk.geocoder === 'ready' ? sdk.api : null}
               />
               <div className="intro__result">
                 {analysis.status === 'loading' && <AnalysisLoading />}
