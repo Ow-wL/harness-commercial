@@ -37,7 +37,7 @@ production에서는 FastAPI가 `dist/`를 같은 origin에서 서빙한다(`FRON
   Client ID만 쓴다. **Client Secret은 frontend에 넣지 않는다**(브라우저에 그대로 노출된다). 값이 없는 템플릿은 `.env.example`.
 - `.env`를 바꾸면 개발 서버를 다시 시작한다. Client ID가 없거나 SDK 로드·인증이 실패하면 지도 자리에 설정/오류 안내가 나오고, 패널의 "좌표 직접 입력"으로 위치를 고를 수 있다.
 - SDK는 `https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=…&submodules=geocoder&callback=__naverMapsReady`를 singleton으로 한 번만 붙인다(`src/map/naverMaps.ts`). Geocoder 서브모듈(`maps-geocoder.js`)은 SDK가 뒤에 붙이며, 준비 여부는 지도와 따로 본다 — 서브모듈이 실패해도 지도는 그대로 쓴다(7-B1, `docs/ADDRESS_DESIGN.md` §5.1). 주소 기능을 켜려면 콘솔 Application에서 **Geocoding·Reverse Geocoding**을 선택해야 한다(미선택이면 호출이 403/429로 실패하고 지도는 영향 없음).
-- **참고 주소**(7-B2): 선택 좌표의 역지오코딩 결과를 "참고 주소 · {도로명 또는 지번} (NAVER 지도)"로 위치 필드·mobile sheet·결과 패널에 보인다. 분석 행정동(Context Bar·제목)은 backend `context` 그대로이고 주소는 분석에 쓰지 않는다. 좌표마다 1회만 조회(캐시)하며, 조회 실패·주소 없음·Geocoder 미준비에서는 줄이 없고 분석에는 영향이 없다. 비교 A/B 카드·주소 검색은 아직 없다(7-B3·B4).
+- **참고 주소**(7-B2·B3): 선택 좌표의 역지오코딩 결과를 "참고 주소 · {도로명 또는 지번} (NAVER 지도)"로 위치 필드·mobile sheet·결과 패널, 두 위치 비교의 B 카드·비교 요약 A/B 카드·A/B 전체 결과에 보인다(A는 A 좌표, B는 B 좌표). 분석 행정동(Context Bar·제목)은 backend `context` 그대로이고 주소는 분석에 쓰지 않는다. 좌표마다 1회만 조회(캐시)하며, 조회 실패·주소 없음·Geocoder 미준비에서는 줄이 없고 분석에는 영향이 없다. 주소 검색은 아직 없다(7-B4).
 
 ## 구조
 
@@ -52,7 +52,8 @@ src/
   map/geocoder.ts       Geocoder 서브모듈 adapter(콜백 → 결과 객체, 7-B1)
   lib/addressCache.ts   참고 주소 캐시: 좌표 키 그대로, LRU 100, 진행 중 조회 공유, 오류 60초 뒤 다음 조회 때만 재시도 (7-B2)
   lib/useReferenceAddress.ts  좌표 하나의 참고 주소 hook — SDK ready + Geocoder ready일 때만 조회, 현재 좌표의 캐시만 표시
-  components/ReferenceAddress.tsx  "참고 주소 · … (NAVER 지도)" 한 줄 (성공일 때만, 단일 위치: 위치 필드·mobile sheet·결과 패널)
+  components/ReferenceAddress.tsx  "참고 주소 · … (NAVER 지도)" 한 줄 (성공일 때만). 단일: 위치 필드·mobile sheet·결과 패널, 비교: B 카드·A/B 카드·전체 결과
+  lib/keepFocusInView.ts  늦게 생긴 주소 줄이 아래의 포커스 요소를 화면 밖으로 밀었을 때만 밀린 만큼 되돌림 (7-B3)
   map/dongBoundary.ts   분석된 행정동 경계: data/geo 원본을 ?url로 참조(복사하지 않음), context의 (gu_code, dong_name)으로 찾음
   components/MapView    지도 클릭 → 좌표, 마커 + 반경 500m 원, 행정동 경계 강조, 두 위치 비교 A/B 표시(compare prop). SDK는 여기서만 쓴다
   components/ConditionPanel  단계 표시 · 위치(좌표 직접 입력 포함) · 업종 select(그룹) · 분석하기

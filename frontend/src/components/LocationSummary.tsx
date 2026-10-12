@@ -15,7 +15,7 @@ export function LocationSummary({
 }: {
   context: AnalyzeContext
   station: NearestStation | null
-  /** 최근접역 줄 아래 참고 주소 줄 (7-B2). 단일 결과에서만 App이 넘긴다 — 비교 A/B 카드는 7-B3 */
+  /** 최근접역 줄 아래 참고 주소 줄 (단일 결과 7-B2, 비교 A/B 카드·전체 결과 7-B3). App이 이 context 좌표로 만든다 */
   address?: ReactNode
 }) {
   const [open, setOpen] = useState(false)

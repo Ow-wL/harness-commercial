@@ -39,6 +39,7 @@ export function CompareResult({
   onEnd,
   onChangeConditions,
   onShowMap,
+  addresses,
 }: {
   a: AnalyzeResponse
   b: AnalyzeResponse
@@ -49,6 +50,8 @@ export function CompareResult({
   onEnd: () => void
   onChangeConditions: () => void
   onShowMap: () => void
+  /** 위치 카드별 참고 주소 줄 (7-B3). A 카드에는 A context 좌표, B 카드에는 B context 좌표로 App이 만든다 */
+  addresses?: Partial<Record<CompareSide, ReactNode>>
 }) {
   const biz = a.result.meta.업종
 
@@ -61,8 +64,8 @@ export function CompareResult({
         <p className="compare__lead">같은 업종({biz})으로 분석한 두 위치의 점수와 근거를 나란히 봅니다.</p>
       </div>
 
-      <LocationCard side="A" analysis={a} onShowDetail={onShowDetail} />
-      <LocationCard side="B" analysis={b} onShowDetail={onShowDetail} onReselect={onReselect} />
+      <LocationCard side="A" analysis={a} address={addresses?.A} onShowDetail={onShowDetail} />
+      <LocationCard side="B" analysis={b} address={addresses?.B} onShowDetail={onShowDetail} onReselect={onReselect} />
 
       <ScoreComparison a={a} b={b} />
       <NotComputed a={a} b={b} />
@@ -130,6 +133,7 @@ export function CompareDetail({
   side,
   analysis,
   nearby,
+  address,
   onBack,
   onShowMap,
 }: {
@@ -137,6 +141,8 @@ export function CompareDetail({
   analysis: AnalyzeResponse
   /** 그 위치의 점포 목록 (A 전체 → A 점포, B 전체 → B 점포, 5차-B5) */
   nearby?: ReactNode
+  /** 보고 있는 위치의 참고 주소 줄 (7-B3, 그 위치 context 좌표) */
+  address?: ReactNode
   onBack: () => void
   onShowMap: () => void
 }) {
@@ -153,7 +159,7 @@ export function CompareDetail({
       <div className="compare-detail__bar">
         <div>
           <p className="compare-detail__label">두 위치 비교 중 · {SIDE_TITLE[side]} 전체 결과</p>
-          <LocationSummary context={analysis.context} station={nearestStation(analysis.result.지표)} />
+          <LocationSummary context={analysis.context} station={nearestStation(analysis.result.지표)} address={address} />
         </div>
         <span className="conditions-summary__actions">
           <button type="button" className="button-ghost" onClick={onBack}>
@@ -172,11 +178,13 @@ export function CompareDetail({
 function LocationCard({
   side,
   analysis,
+  address,
   onShowDetail,
   onReselect,
 }: {
   side: CompareSide
   analysis: AnalyzeResponse
+  address?: ReactNode
   onShowDetail: (side: CompareSide) => void
   onReselect?: () => void
 }) {
@@ -189,7 +197,7 @@ function LocationCard({
       <p className="compare__place">
         <strong>{locationName(analysis.context)}</strong>
       </p>
-      <LocationSummary context={analysis.context} station={nearestStation(analysis.result.지표)} />
+      <LocationSummary context={analysis.context} station={nearestStation(analysis.result.지표)} address={address} />
       <div className="compare__card-actions">
         <button
           id={side === 'A' ? COMPARE_IDS.detailA : COMPARE_IDS.detailB}

@@ -1,4 +1,4 @@
-import { useId } from 'react'
+import { useId, type ReactNode } from 'react'
 import type { AnalyzeResponse } from '../api/schemas.ts'
 import { COMPARE_IDS, type ActiveCompare } from '../lib/compareState.ts'
 import type { ErrorAction } from '../lib/errorView.ts'
@@ -28,6 +28,7 @@ export function ComparePanel({
   onEnd,
   onChangeConditions,
   onShowMap,
+  bAddress,
 }: {
   a: AnalyzeResponse
   compare: PickingCompare
@@ -38,6 +39,8 @@ export function ComparePanel({
   onEnd: () => void
   onChangeConditions: () => void
   onShowMap: () => void
+  /** 지금 B 좌표의 참고 주소 줄 (7-B3, App이 B 좌표로 만든 ReferenceAddress). B 좌표가 없으면 그리지 않는다 */
+  bAddress?: ReactNode
 }) {
   const aTitleId = useId()
   const formId = useId()
@@ -72,10 +75,14 @@ export function ComparePanel({
         </h2>
 
         {location ? (
-          <p className="compare__place">
-            <Icon name="map-pin" size={14} />
-            선택됨 · <span className="mono">{location.lat}, {location.lng}</span>
-          </p>
+          <>
+            <p className="compare__place">
+              <Icon name="map-pin" size={14} />
+              선택됨 · <span className="mono">{location.lat}, {location.lng}</span>
+            </p>
+            {/* 선택·분석 중·오류 모두 같은 B 좌표 → 같은 캐시 키 (분석 성공 뒤 요약의 B 카드도 같은 키) */}
+            {bAddress}
+          </>
         ) : (
           <p className="compare__hint">지도를 누르거나 아래에 좌표를 입력해 B 위치를 고르세요.</p>
         )}

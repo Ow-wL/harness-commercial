@@ -477,6 +477,15 @@ function App() {
   ) : (
     <ContextBar context={result.context} meta={result.result.meta} station={station} />
   )
+  /**
+   * 응답 위치의 참고 주소 줄 (7-B2 단일 결과, 7-B3 비교 A/B 카드·전체 결과). 분석에 쓴 context 좌표(= 요청 좌표,
+   * matchesRequest가 보장)로 조회한다 — 선택 단계(위치 필드·B 카드)와 같은 키라 화면을 오가도 다시 조회하지 않는다.
+   * A 응답이면 A 좌표, B 응답이면 B 좌표에만 묶인다(캐시 키가 좌표라 늦은 응답이 다른 위치에 붙지 않는다).
+   */
+  const addressOf = (r: AnalyzeResponse) => (
+    <ReferenceAddress sdk={sdk} point={{ lat: r.context.lat, lng: r.context.lng }} />
+  )
+
   const showMapFromCompare = () => {
     setMobileScreen('map')
     focusLater(COMPARE_IDS.sheetAction)
@@ -508,6 +517,7 @@ function App() {
                 onEnd={endCompare}
                 onChangeConditions={cancelAnalysis}
                 onShowMap={showMapFromCompare}
+                addresses={{ A: addressOf(result), B: addressOf(compare.response) }}
               />
             ) : (
               <CompareDetail
@@ -519,6 +529,7 @@ function App() {
                     ? compareStores('A', result, false)
                     : compareStores('B', compare.response, false)
                 }
+                address={addressOf(compareView === 'detail-A' ? result : compare.response)}
                 onBack={() => backToCompareSummary(compareView === 'detail-A' ? 'A' : 'B')}
                 onShowMap={showMapFromCompare}
               />
@@ -533,16 +544,13 @@ function App() {
               onEnd={endCompare}
               onChangeConditions={cancelAnalysis}
               onShowMap={showMapFromCompare}
+              bAddress={<ReferenceAddress sdk={sdk} point={compare.location} />}
             />
           ) : result ? (
             <>
               <div className="conditions-summary">
                 {/* 참고 주소는 분석에 쓴 context 좌표(= 요청 좌표)로 — 분석 전 위치 필드와 같은 키라 다시 조회하지 않는다 */}
-                <LocationSummary
-                  context={result.context}
-                  station={station}
-                  address={<ReferenceAddress sdk={sdk} point={{ lat: result.context.lat, lng: result.context.lng }} />}
-                />
+                <LocationSummary context={result.context} station={station} address={addressOf(result)} />
                 <span className="conditions-summary__actions">
                   <button type="button" className="button-ghost mobile-only" onClick={() => setMobileScreen('map')}>
                     지도 보기
