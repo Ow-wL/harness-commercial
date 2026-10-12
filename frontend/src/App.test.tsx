@@ -1,4 +1,5 @@
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { StrictMode } from 'react'
 import type { Mock } from 'vitest'
 import App from './App.tsx'
 import type { MapViewProps } from './components/MapView.tsx'
@@ -2260,6 +2261,97 @@ describe('mobile 패널에서 고른 점포 → "지도 보기" (6-4)', () => {
     expect(map()).toHaveAttribute('data-active-store', guwolNearbyFixture.stores[1]!.id)
     fireEvent.click(screen.getByRole('button', { name: '지도 보기' }))
     expect(map()).toHaveAttribute('data-active-store', guwolNearbyFixture.stores[1]!.id)
+    expect(analyzeCalls(fetchMock)).toHaveLength(2)
+    expect(nearbyCalls(fetchMock)).toHaveLength(2)
+  })
+})
+
+describe('StrictMode: A/B 전체 결과를 열 때 스크롤 초기화 → 포커스 순서 (6-5, 개발 모드)', () => {
+  const ok = (body: unknown) => ({ status: 200, body })
+  const PANEL = '두 위치 비교 · PC방'
+
+  /** 스크롤 초기화(scrollTop 쓰기)와 포커스 이동을 일어난 순서대로 적는다 */
+  function recordScrollAndFocus() {
+    const log: string[] = []
+    const scrollSet = vi.spyOn(Element.prototype, 'scrollTop', 'set').mockImplementation(function (this: Element, v: number) {
+      log.push(`scroll:${this.tagName.toLowerCase()}${this.className ? '.' + String(this.className).split(' ')[0] : ''}=${v}`)
+    })
+    const focus = HTMLElement.prototype.focus
+    const focusSpy = vi.spyOn(HTMLElement.prototype, 'focus').mockImplementation(function (this: HTMLElement, o?: FocusOptions) {
+      log.push(`focus:${this.id || this.tagName.toLowerCase()}`)
+      focus.call(this, o)
+    })
+    return {
+      log,
+      restore: () => {
+        scrollSet.mockRestore()
+        focusSpy.mockRestore()
+      },
+    }
+  }
+
+  async function compareInStrictMode() {
+    const fetchMock = mockApi({ analyze: [ok(fixture), ok(guwolFixture)], nearby: [ok(nearbyFixture), ok(guwolNearbyFixture)] })
+    render(
+      <StrictMode>
+        <App />
+      </StrictMode>,
+    )
+    await selectBupyeongPcBang()
+    fireEvent.click(analyzeButton())
+    await screen.findByRole('list', { name: 'PC방 점포 목록' })
+    fireEvent.click(screen.getByRole('button', { name: '다른 위치와 비교' }))
+    const bCard = screen.getByRole('region', { name: 'B 비교 위치' })
+    fireEvent.change(within(bCard).getByLabelText('B 위도'), { target: { value: '37.4475' } })
+    fireEvent.change(within(bCard).getByLabelText('B 경도'), { target: { value: '126.7015' } })
+    fireEvent.click(within(bCard).getByRole('button', { name: 'B 위치로 선택' }))
+    fireEvent.click(within(screen.getByRole('region', { name: 'B 비교 위치' })).getByRole('button', { name: 'B 분석하기' }))
+    await screen.findByRole('table', { name: /종합·5대 관점 점수 비교/ })
+    await screen.findByRole('list', { name: 'B 남동구 구월3동 PC방 점포 목록' })
+    return fetchMock
+  }
+
+  it.each(['A', 'B'] as const)('%s 전체 결과: 조상 스크롤을 맨 위로 둔 다음 결과 제목에 포커스하고, 그 뒤에는 스크롤을 다시 바꾸지 않는다', async (side) => {
+    const fetchMock = await compareInStrictMode()
+    const rec = recordScrollAndFocus()
+    try {
+      fireEvent.click(screen.getByRole('button', { name: `${side} 전체 결과 보기` }))
+      const title = screen.getByRole('heading', { level: 1, name: new RegExp(`^${side} · `) })
+      expect(document.activeElement).toBe(title)
+      const focusAt = rec.log.indexOf('focus:result-title')
+      expect(focusAt).toBeGreaterThan(-1)
+      // 문서(html)·desktop 패널(main) 스크롤을 맨 위로 — 포커스 전에
+      expect(rec.log.slice(0, focusAt)).toEqual(expect.arrayContaining(['scroll:html=0', 'scroll:main.workspace__panel=0']))
+      // 포커스 뒤에는 스크롤 초기화가 없다(StrictMode 이중 실행이 포커스로 맞춘 화면을 되돌리지 않는다)
+      expect(rec.log.slice(focusAt + 1).filter((l) => l.startsWith('scroll:'))).toEqual([])
+      expect(rec.log.filter((l) => l === 'focus:result-title')).toHaveLength(1)
+    } finally {
+      rec.restore()
+    }
+
+    // 복귀: 누른 "전체 결과 보기" 버튼으로 포커스, 재요청 없음
+    fireEvent.click(screen.getByRole('button', { name: '비교로 돌아가기' }))
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: `${side} 전체 결과 보기` }))
+    expect(screen.getByRole('heading', { level: 1, name: PANEL })).toBeInTheDocument()
+    expect(analyzeCalls(fetchMock)).toHaveLength(2)
+    expect(nearbyCalls(fetchMock)).toHaveLength(2)
+  })
+
+  it('열기·복귀를 반복해도 매번 같은 순서이고 다시 조회하지 않는다', async () => {
+    const fetchMock = await compareInStrictMode()
+    for (const side of ['A', 'B', 'A', 'B'] as const) {
+      const rec = recordScrollAndFocus()
+      try {
+        fireEvent.click(screen.getByRole('button', { name: `${side} 전체 결과 보기` }))
+        const focusAt = rec.log.indexOf('focus:result-title')
+        expect(focusAt).toBeGreaterThan(-1)
+        expect(rec.log.slice(focusAt + 1).filter((l) => l.startsWith('scroll:'))).toEqual([])
+      } finally {
+        rec.restore()
+      }
+      fireEvent.click(screen.getByRole('button', { name: '비교로 돌아가기' }))
+      expect(document.activeElement).toBe(screen.getByRole('button', { name: `${side} 전체 결과 보기` }))
+    }
     expect(analyzeCalls(fetchMock)).toHaveLength(2)
     expect(nearbyCalls(fetchMock)).toHaveLength(2)
   })

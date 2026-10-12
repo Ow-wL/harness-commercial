@@ -1,4 +1,4 @@
-import { useId, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
+import { useId, useState, type ReactNode } from 'react'
 import { PERSPECTIVE_KEYS, type AnalyzeResponse, type EngineResult } from '../api/schemas.ts'
 import {
   displayScoreDiff,
@@ -146,16 +146,10 @@ export function CompareDetail({
   onBack: () => void
   onShowMap: () => void
 }) {
-  // 요약에서 내려가 있던 스크롤 위치를 이어받지 않게, 열릴 때 맨 위("비교로 돌아가기" 막대)부터 보인다.
-  // 스크롤하는 쪽이 desktop은 패널, tablet·mobile은 문서라 조상을 모두 맨 위로 둔다(sticky 헤더에 막대가 가리지 않게).
-  // 포커스(결과 제목)는 App이 이 뒤에 옮긴다(자식 layout effect가 부모보다 먼저 돈다)
-  const rootRef = useRef<HTMLDivElement>(null)
-  useLayoutEffect(() => {
-    for (let el = rootRef.current?.parentElement; el; el = el.parentElement) el.scrollTop = 0
-  }, [])
-
+  // 열 때 맨 위("비교로 돌아가기" 막대)부터 보이게 하는 스크롤 초기화와 결과 제목 포커스는 App이 한 번에 한다(6-5) —
+  // 여기 마운트 effect에 두면 개발 모드 StrictMode가 App의 포커스 뒤에 다시 실행해 포커스로 맞춘 화면을 되돌린다
   return (
-    <div ref={rootRef} className="compare-detail">
+    <div className="compare-detail">
       <div className="compare-detail__bar">
         <div>
           <p className="compare-detail__label">두 위치 비교 중 · {SIDE_TITLE[side]} 전체 결과</p>

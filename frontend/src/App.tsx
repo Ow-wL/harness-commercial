@@ -81,9 +81,10 @@ function App() {
   // B 선택을 처음부터 다시 할 때마다(pickB) 올린다 → B 카드 주소 검색을 새로 그려 진행 중 검색·결과를 버린다(7-B5 보완).
   // 오류 상태의 "지도에서 다시 선택"은 B 고르기 화면(ComparePanel)을 그대로 둔 채 pickB를 부르므로 언마운트만으로는 초기화되지 않는다
   const [bPickSeq, setBPickSeq] = useState(0)
-  // 비교 화면 전환 뒤 포커스를 옮길 요소 id (렌더 뒤에 옮긴다)
-  const [focusRequest, setFocusRequest] = useState<{ id: string; n: number } | null>(null)
-  const focusLater = (id: string) => setFocusRequest((r) => ({ id, n: (r?.n ?? 0) + 1 }))
+  // 비교 화면 전환 뒤 포커스를 옮길 요소 id (렌더 뒤에 옮긴다). resetScroll: 옮기기 직전에 그 요소의 조상 스크롤을 맨 위로(6-5)
+  const [focusRequest, setFocusRequest] = useState<{ id: string; n: number; resetScroll?: boolean } | null>(null)
+  const focusLater = (id: string, opts: { resetScroll?: boolean } = {}) =>
+    setFocusRequest((r) => ({ id, n: (r?.n ?? 0) + 1, ...opts }))
 
   // GET /businesses — 업종 목록은 API에서만 받는다
   useEffect(() => {
@@ -183,11 +184,14 @@ function App() {
     focusLater(isMobile() ? COMPARE_IDS.sheetAction : COMPARE_IDS.bTitle)
   }
 
-  /** 비교 요약 → 위치별 전체 결과. 응답은 상태에 있는 것을 그대로 쓰고 다시 요청하지 않는다. 포커스는 그 결과 제목 */
+  /**
+   * 비교 요약 → 위치별 전체 결과. 응답은 상태에 있는 것을 그대로 쓰고 다시 요청하지 않는다. 포커스는 그 결과 제목.
+   * 요약에서 내려가 있던 스크롤을 이어받지 않게 맨 위("비교로 돌아가기" 막대)부터 보이도록 스크롤 초기화를 포커스와 한 번에 한다(6-5)
+   */
   const showCompareDetail = (side: CompareSide) => {
     setCompareView(side === 'A' ? 'detail-A' : 'detail-B')
     setActiveStoreId(null)                                 // 점포 기준이 그 위치로 바뀐다 → 선택·정보창 해제
-    focusLater('result-title')
+    focusLater('result-title', { resetScroll: true })
   }
 
   /** 전체 결과 → 비교 요약. 포커스는 눌렀던 "A/B 전체 결과 보기" 버튼으로 돌려준다 */
@@ -355,11 +359,16 @@ function App() {
   }, [analysis.status])
 
   // 비교 화면 전환 뒤 포커스 (렌더가 끝난 뒤라 새로 생긴 요소도 찾는다). 오류 블록은 그 안 첫 버튼(행동)으로.
-  // layout effect: 화면이 그려지기 전에 옮긴다 — 사라진 요소에 포커스가 남은 프레임이 없고, 순서가 늘 같다
+  // layout effect: 화면이 그려지기 전에 옮긴다 — 사라진 요소에 포커스가 남은 프레임이 없고, 순서가 늘 같다.
+  // resetScroll(전체 결과 열기): 스크롤하는 쪽이 desktop은 패널, tablet·mobile은 문서라 대상의 조상을 모두 맨 위로 둔 **다음**
+  // 포커스한다 — 포커스가 제목을 화면에 넣으려고 스크롤한 것을 되돌리는 코드가 뒤에 없다. 이 effect는 App(이미 마운트됨)의
+  // 것이라 StrictMode가 새 화면(CompareDetail) 마운트 때 다시 돌리지 않는다(6-5: 예전에는 CompareDetail 마운트 effect가 초기화해
+  // 개발 모드에서 포커스 뒤에 한 번 더 돌았다)
   useLayoutEffect(() => {
     if (!focusRequest) return
     const el = document.getElementById(focusRequest.id)
     const target = focusRequest.id === COMPARE_IDS.bError ? el?.querySelector<HTMLElement>('button') : el
+    if (focusRequest.resetScroll) for (let p = target?.parentElement; p; p = p.parentElement) p.scrollTop = 0
     syncHeaderOffset(headerRef.current)
     target?.focus()
   }, [focusRequest])

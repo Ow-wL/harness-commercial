@@ -60,6 +60,7 @@
 
 - [x] 6-1 태블릿 정보창 잘림: tablet 결과 지도 200 → 320px(`App.css`). autoPan 방식은 막대 겹침·크기 변경 잘림으로 실패해 되돌림(COMPARE_DESIGN.md 13장 "B6 후속")
 - [x] 6-2 포커스 대상이 sticky 헤더에 가려짐(800×600 B 성공 비교 제목 등): 문서 `scroll-padding-top` = 헤더 실제 높이(`--header-offset`, App이 ResizeObserver + 포커스 직전 측정). 포커스 대상·지도 동작은 그대로(COMPARE_DESIGN.md 13장 "6-2")
+- [x] 6-5 개발 모드(StrictMode)에서 A/B 전체 결과를 열면 화면이 맨 위(지도)에 남음: `CompareDetail` 마운트 effect의 스크롤 초기화가 StrictMode 재실행으로 App 포커스 뒤에 한 번 더 돌았다(실행 순서 기록으로 확인). 초기화를 App 포커스 layout effect(`focusLater(..., { resetScroll: true })`)로 옮겨 "초기화 → 포커스"를 한 곳에서 한 번. 테스트 +3(StrictMode 순서·반복·복귀 포커스), dev·production × 800/375/1280 실측, 늦은 참고 주소 포함(COMPARE_DESIGN.md 13장 "6-5")
 - [x] 6-4 mobile 패널에서 고른 점포 정보창이 "지도 보기" 뒤 폭 24px로 접힘: 숨겨진 지도(0×0)에서 `InfoWindow.open` → SDK가 폭 0으로 고정(실측). `MapView` 크기 맞춤 흐름(ResizeObserver → setSize)이 `sized`도 정하고, 정보창은 `sized` + 열기 직전 실제 크기가 있을 때만 open·panTo(숨기면 닫아 둠, 보이면 그때 선택으로 다시 엶). 선택·막대·이동 규칙·지도 인스턴스 그대로. 테스트 +8(MapView 6, App 2), production build 375×812·360×640·tablet·desktop·단일·비교 요약·A/B 전체 결과 실측(COMPARE_DESIGN.md 13장 "6-4"). 보완: 0×0 알림 전 실제 크기 0으로 미룬 열기가 `sized`가 true 그대로라 다시 처리되지 않던 경로 → 미룸 표시 + 양수 크기 맞춤 뒤 재처리 카운터, 테스트 +4·브라우저 실측(13장 "6-4 보완"). 마지막 보완: 같은 크기로 숨김 → 보임이 한 프레임 안에 끝나 크기 알림이 없는 경우도 App 화면 전환 신호(`layoutKey` = mobileScreen)로 DOM 반영 뒤 크기 맞춤 → 미룬 정보창 처리, 테스트 +4(RO 콜백 없음)·브라우저 실측(창 크기 변경 없음)(13장 "6-4 마지막 보완")
 - [x] 6-3 지도 안 SDK 요소(로고·축척, z-index 100)가 sticky 헤더(10) 위에 그려져 "데이터 출처" 링크를 덮던 문제: `.map { isolation: isolate }` 한 줄로 지도 안 쌓임을 닫음. 헤더 z-index·SDK DOM은 손대지 않음(COMPARE_DESIGN.md 13장 "6-3")
 
