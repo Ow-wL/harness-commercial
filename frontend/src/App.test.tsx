@@ -2111,6 +2111,60 @@ describe('비교 B 주소 검색 (7-B5, docs/ADDRESS_DESIGN.md §5.2 A-4)', () =
     await screen.findByRole('table', { name: /종합·5대 관점 점수 비교/ })
   })
 
+  it('B location_outside 오류 중 검색 → 응답 전 "지도에서 다시 선택"(pickB) → 이전 응답은 버리고 검색을 초기화한다. 새 검색은 정상, A 유지, 포커스 B 카드 제목', async () => {
+    const fetchMock = await startWithA(
+      [{ status: 422, body: { error: { code: 'location_outside', message: 'x' } } }, ok(guwolFixture)],
+      [ok(guwolNearbyFixture)],
+    )
+    searchB('세종대로 110')
+    await answer(0, 200, forward([SEOUL]))
+    fireEvent.click(resultButton('세종대로'))
+    fireEvent.click(within(bCard()).getByRole('button', { name: 'B 분석하기' }))
+    const alert = await within(bCard()).findByRole('alert')
+    expect(alert).toHaveTextContent('인천 안의 위치를 선택해 주세요')
+
+    // 오류 상태(같은 B 고르기 화면)에서 검색 시작 — 응답 전에 "지도에서 다시 선택"
+    searchB('예술로 148')                                                          // 호출 1, 응답 대기
+    expect(within(bCard()).getByRole('search', { name: 'B 주소 검색' })).toBeInTheDocument()
+    fireEvent.click(within(alert).getByRole('button', { name: '지도에서 다시 선택' }))
+    expect(document.activeElement).toBe(screen.getByRole('heading', { level: 2, name: 'B 비교 위치' }))
+    expect(bToggle()).toHaveAttribute('aria-expanded', 'false')                     // 검색 폼·상태 초기화
+    expect(within(bCard()).queryByRole('search')).not.toBeInTheDocument()
+
+    await answer(1, 200, forward([GUWOL]))                                          // 이전 검색의 늦은 응답
+    expect(within(bCard()).queryByRole('list', { name: /검색 결과/ })).not.toBeInTheDocument()
+    expect(bCard()).not.toHaveTextContent('예술로 148')
+    fireEvent.click(bToggle()!)
+    expect(bInput()).toHaveValue('')                                                // 입력값도 새로
+    expect(within(bCard()).queryByRole('list', { name: /검색 결과/ })).not.toBeInTheDocument()
+    expect(bCard()).toHaveTextContent('지도를 누르거나 아래에 좌표를 입력해 B 위치를 고르세요.')
+    expect(screen.getByTestId('map')).toHaveAttribute('data-compare-location', '')
+    expect(aCard()).toHaveTextContent('부평구 부평1동')                                 // A 그대로
+    expect(screen.getByTestId('map')).toHaveAttribute('data-selected', '37.4894,126.7246')
+
+    // 새 검색은 정상
+    searchB('예술로 148')                                                          // 호출 2
+    await answer(2, 200, forward([GUWOL]))
+    fireEvent.click(resultButton('예술로 148'))
+    expect(document.activeElement).toBe(within(bCard()).getByRole('button', { name: 'B 분석하기' }))
+    fireEvent.click(within(bCard()).getByRole('button', { name: 'B 분석하기' }))
+    await screen.findByRole('table', { name: /종합·5대 관점 점수 비교/ })
+    expect(bCard()).toHaveTextContent('남동구 구월3동')
+    expect(aCard()).toHaveTextContent('부평구 부평1동')
+    expect(analyzeCalls(fetchMock)).toHaveLength(3)
+    expect(sdkMock.geocodeCalls).toHaveLength(3)
+  })
+
+  it('지도 클릭으로 B 좌표만 바꾸면 검색어·결과는 그대로다 (pickB 초기화와 구분)', async () => {
+    await startWithA()
+    searchB('예술로 148')
+    await answer(0, 200, forward([GUWOL, SEOUL]))
+    fireEvent.click(screen.getByRole('button', { name: '지도 클릭: 송도' }))
+    expect(bCard()).toHaveTextContent('선택됨 · 37.392512, 126.639034')
+    expect(bInput()).toHaveValue('예술로 148')
+    expect(within(bCard()).getByRole('list', { name: '‘예술로 148’ 검색 결과 2건' })).toBeInTheDocument()
+  })
+
   it('B 검색 결과가 열린 B 카드에서 id가 유일하고 접근성 참조가 이어진다', async () => {
     await startWithA()
     searchB('예술로 148')

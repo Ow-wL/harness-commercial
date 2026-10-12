@@ -164,7 +164,7 @@ src/components/AddressSearch.tsx     주소 검색 폼 + 결과 목록 → onSel
 - **hook `useReferenceAddress(sdk, point | null)`**: `sdk.status === 'ready'`이고 point가 있을 때만 동작. 마운트/키 변경 때 캐시에 있으면 즉시, 없으면 조회를 시작. 콜백에서 `point`나 `sdk`가 바뀌었거나 언마운트됐으면(`generation` ref 비교) `setState`하지 않는다 — SDK 콜백은 abort할 수 없으므로 **결과 폐기로 취소를 대신한다**(캐시 기록은 유지 → 다음에 바로 쓴다).
 - **오류 캐시와 재시도(명시)**: `error` 항목은 `expiresAt = 기록 시각 + 60초`를 가진다. **타이머·자동 반복 호출은 없다.** 만료 전에 같은 좌표를 다시 그리면 호출 없이 "줄 없음"이고, 만료 **뒤에 다음 조회가 일어날 때**(마운트·키 변경·화면 전환) 1회 다시 시도한다. 즉 사용자가 아무것도 하지 않으면 추가 호출은 0건이다. `none`(주소 없음)·`ok`는 세션 동안 유지한다. `timeout`도 `error`와 같이 다룬다.
 - **검색(geocode)**: 폼 인스턴스별 상태 1벌 + 요청 번호(`seq`). 제출마다 `++seq`; 응답이 올 때 `seq`가 다르면 버린다. 입력값 변경·폼 닫힘·언마운트 때 `seq`를 올려 늦은 응답을 무효화한다. 검색 결과는 캐시하지 않는다(같은 질의 재제출은 드물고 신선도가 더 중요).
-- **비교와의 경계**: 단일 위치 필드(`ConditionPanel`)와 B 카드(`ComparePanel`)는 동시에 마운트되지 않는다. 비교 요약의 A·B `LocationSummary`는 서로 다른 좌표 키로 각자 hook을 가진다. `pickB`(다시 고르기)·`endCompare`·`cancelAnalysis`는 해당 컴포넌트를 언마운트시키므로 별도 취소 코드가 필요 없다(검색 폼은 언마운트 시 `seq` 무효화).
+- **비교와의 경계**: 단일 위치 필드(`ConditionPanel`)와 B 카드(`ComparePanel`)는 동시에 마운트되지 않는다. 비교 요약의 A·B `LocationSummary`는 서로 다른 좌표 키로 각자 hook을 가진다. `endCompare`·`cancelAnalysis`는 해당 컴포넌트를 언마운트시키므로 별도 취소 코드가 필요 없다(검색 폼은 언마운트 시 `seq` 무효화). **`pickB`는 항상 언마운트하지 않는다**: 비교 요약의 "B 위치 다시 고르기"는 `CompareResult` → `ComparePanel`로 바뀌어 새로 마운트되지만, B 오류 상태의 "지도에서 다시 선택"(`reselect-location`)은 같은 B 고르기 화면(`ComparePanel`)을 그대로 둔 채 `pickB`를 부른다. 그래서 App이 `pickB`마다 초기화 세대(`bPickSeq`)를 올리고 B 카드 검색의 `key`로 넘겨 새로 그린다(진행 중 검색 무효화·입력·결과 초기화, 7-B5 보완). 지도 클릭·좌표 입력으로 B 좌표만 바꿀 때는 세대를 올리지 않아 검색어·결과가 남는다.
 - **SDK 준비 전·Geocoder 없음·실패**: hook은 `sdk`가 `{status:'ready', geocoder:'ready'}`가 아니면 `idle`로 남고 호출하지 않는다(`window.naver`를 직접 보지 않는다). SDK 상태는 §5.1의 `onSdkState` 계약 하나로만 받는다 — 로더를 두 번 부르지 않고, 두 번째 SDK를 삽입하지 않는다.
 
 ### 5.4 오류 격리
@@ -480,7 +480,7 @@ SDK는 `maps.js` 뒤에 `https://oapi.map.naver.com/openapi/v3/maps-geocoder.js`
 
 **선택**: adapter `lat/lng` 그대로 기존 `submitCompareLocation` → `selectCompareLocation`(B만 `picking`으로, A 좌표·업종·결과 그대로, B 분석 중이면 무시) + 렌더 뒤 "B 분석하기"로 포커스(`focusLater`). 분석은 하지 않는다. A와 같은 좌표는 분석을 눌렀을 때 기존 D2 안내만(`/analyze` 없음). 인천 밖도 고를 수 있고 backend `location_outside`면 B만 오류(A 유지) — 오류 상태에서도 B 검색을 쓸 수 있어 다른 주소를 고르면 다시 `picking`. B 참고 주소는 좌표 캐시(7-B3).
 
-**경합**: 요청 번호 규칙(7-B4) 그대로. 비교 취소·종료·조건 변경·B 다시 고르기는 `ComparePanel`을 내려 언마운트로 무효화되고, 다시 시작하면 새 인스턴스라 이전 검색 응답이 새 화면에 오지 않는다. 검색 응답은 목록만 바꾸고 위치는 사용자가 고를 때만 바뀐다.
+**경합**: 요청 번호 규칙(7-B4) 그대로. 비교 취소·종료·조건 변경은 `ComparePanel`을 내려 언마운트로 무효화되고, 다시 시작하면 새 인스턴스라 이전 검색 응답이 새 화면에 오지 않는다. 검색 응답은 목록만 바꾸고 위치는 사용자가 고를 때만 바뀐다. (정정: 처음 기록에는 "B 다시 고르기도 언마운트로 무효화"라고 적었으나, B 오류 상태의 "지도에서 다시 선택"은 `ComparePanel`을 그대로 둔다 — 아래 "7-B5 보완"에서 고쳤다.)
 
 **포커스 복구 `lib/useSearchFocusRecovery.ts`(새로, 7-B4 로직을 꺼냄)**: `AddressSearch.onFocusLost` + `searchApi`가 사라진 커밋의 layout effect에서 포커스가 body일 때만 fallback으로 옮긴다. 단일: "좌표 직접 입력", B 카드: 사용할 수 있는 첫 입력("B 위도"), 없으면(B 분석 중 disabled) B 카드 제목(`tabIndex=-1`). 검색 밖 포커스는 그대로.
 
@@ -497,3 +497,11 @@ SDK는 `maps.js` 뒤에 `https://oapi.map.naver.com/openapi/v3/maps-geocoder.js`
 | 375×812(터치) | 비교 시작 → 지도 화면 sheet(173px, 검색 없음) → sheet "좌표 직접 입력" → 패널(포커스 B 카드 제목) → B 검색: 펼침·입력·검색 44px, 항목 309×118px, 넘침 0 → 선택 → "B 분석하기"(화면 안) → "지도 보기" → sheet `B 선택됨 · …` + "B 분석하기" |
 - SDK 인증 실패·경합·비교 취소/재시작·D2·인천 밖 실패는 App 테스트의 mock(그리고 실제 backend의 기존 오류 경로)으로 검증했다.
 - 잔여(사용자): 한도 및 알림 설정(§9-5), 운영 URL Geocoder 유효성(§9-4, 배포 전). 다음 7-B6(통합 검증·문서)·배포는 별도 승인 뒤.
+
+### 7-B5 보완 — pickB 때 B 검색 초기화 (2026-10-12, 기준 `cd6fd9f`)
+**재현**: B 분석이 `location_outside`로 실패한 상태(B 고르기 화면, 오류 블록) → "B 주소로 찾기"로 검색 제출(응답 대기) → 오류 블록 "지도에서 다시 선택"(`handleCompareErrorAction('reselect-location')` → `pickB`) → 이전 검색 응답 도착. 수정 전에는 `compare`가 `error → picking`으로만 바뀌어 `ComparePanel`·`AddressSearch`가 그대로 마운트돼 있었고, 요청 번호도 그대로라 **늦은 응답이 초기화된 B 카드에 "‘예술로 148’ 검색 결과 1건" 목록으로 나타났다**(테스트로 확인). 폼도 열린 채였다.
+
+**수정**: App에 B 선택 초기화 세대 `bPickSeq`를 두고 `pickB`에서만 올린다. `ComparePanel`은 이 값을 B 카드 `AddressSearch`의 `key`로 쓴다 → `pickB`마다 검색을 새로 그려 언마운트 cleanup으로 진행 중 요청 번호를 무효화하고, 펼침·입력값·결과·상태 문구를 초기화한다. 지도 클릭·좌표 입력(`selectCompareLocation`)은 세대를 올리지 않아 기존처럼 검색어·결과가 남는다. 포커스는 기존 `pickB` 규칙(desktop B 카드 제목, mobile sheet 버튼) 그대로.
+- `useSearchFocusRecovery`: 초기화 `key`로 다시 그려질 때 포커스가 검색 안에 있었으면 "포커스 잃음" 신호가 켜진 채 남아, 나중의 SDK 실패 때 검색 밖 포커스를 잘못 옮길 수 있었다. 신호를 그 커밋 안에서만 쓰도록 매 커밋 끝에 지운다.
+
+**테스트(+4, frontend 406개)**: `App.test.tsx` +2 — 위 재현 흐름에서 늦은 응답 폐기·폼 접힘·입력값 비움·B 좌표 없음·A 카드와 지도 A 좌표 그대로·포커스 B 카드 제목, 이어서 새 검색 → 선택 → "B 분석하기" 포커스 → B 성공(분석 3·검색 3); 지도 클릭으로 B 좌표만 바꾸면 검색어·결과 유지. `useSearchFocusRecovery.test.tsx` 2(SDK 실패 → fallback, 초기화 key 뒤 SDK 실패 → 이동 없음). 수정을 되돌리면(key 제거·신호 초기화 제거) 각 테스트가 실패함을 확인했다. `scripts/check` 전체 통과. 실제 API 호출 없음.

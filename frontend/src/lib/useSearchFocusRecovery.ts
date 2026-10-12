@@ -20,6 +20,10 @@ export function useSearchFocusRecovery(searchApi: unknown, fallback: () => HTMLE
     const active = document.activeElement
     if (!active || active === document.body) fallbackRef.current()?.focus()
   }, [searchApi])
+  // 신호는 그 커밋 안에서만 쓴다 — SDK 실패가 아닌 이유(초기화 key 변경 등)로 사라진 경우 다음 SDK 실패 때 잘못 옮기지 않게
+  useLayoutEffect(() => {
+    lost.current = false
+  })
   return useCallback(() => {
     lost.current = true
   }, [])

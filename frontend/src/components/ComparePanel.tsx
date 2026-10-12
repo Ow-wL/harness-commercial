@@ -33,6 +33,7 @@ export function ComparePanel({
   onShowMap,
   bAddress,
   searchApi,
+  searchResetKey,
 }: {
   a: AnalyzeResponse
   compare: PickingCompare
@@ -47,6 +48,8 @@ export function ComparePanel({
   bAddress?: ReactNode
   /** Geocoder가 준비된 SDK (7-B5). 있을 때만 B 카드에 "B 주소로 찾기"를 그린다 — 고른 좌표는 `onLocationSubmit`으로 */
   searchApi?: NaverMapsApi | null
+  /** B 선택 초기화 세대(App의 pickB마다 바뀜). 바뀌면 B 주소 검색을 새로 그려 진행 중 검색·입력·결과를 버린다 */
+  searchResetKey?: number
 }) {
   const aTitleId = useId()
   const bCardRef = useRef<HTMLElement>(null)
@@ -114,8 +117,10 @@ export function ComparePanel({
 
         {searchApi && (
           // B 위치 주소 검색: 고르면 좌표 입력 제출과 같은 경로(onLocationSubmit → B만 바뀜, 포커스 "B 분석하기"). 분석은 하지 않는다.
-          // 좌표가 바뀌어도 다시 그리지 않는다(key 없음) — 검색어·결과 상태는 이 B 고르기 화면 동안 유지
+          // key는 B 선택 초기화 세대 — pickB("지도에서 다시 선택" 등)면 새로 그려 진행 중 검색(요청 번호 무효화)·결과를 버린다.
+          // 지도 클릭·좌표 입력으로 B 좌표만 바뀔 때는 그대로 둔다(검색어·결과 유지)
           <AddressSearch
+            key={searchResetKey}
             api={searchApi}
             disabled={loading}
             labelPrefix="B "

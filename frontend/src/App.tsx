@@ -78,6 +78,9 @@ function App() {
   const [compare, setCompare] = useState<CompareState>({ status: 'off' })
   // B 성공 뒤 패널 화면: 비교 요약 / A 전체 결과 / B 전체 결과 (§3.3). 오가도 A·B 응답은 그대로다
   const [compareView, setCompareView] = useState<CompareView>('summary')
+  // B 선택을 처음부터 다시 할 때마다(pickB) 올린다 → B 카드 주소 검색을 새로 그려 진행 중 검색·결과를 버린다(7-B5 보완).
+  // 오류 상태의 "지도에서 다시 선택"은 B 고르기 화면(ComparePanel)을 그대로 둔 채 pickB를 부르므로 언마운트만으로는 초기화되지 않는다
+  const [bPickSeq, setBPickSeq] = useState(0)
   // 비교 화면 전환 뒤 포커스를 옮길 요소 id (렌더 뒤에 옮긴다)
   const [focusRequest, setFocusRequest] = useState<{ id: string; n: number } | null>(null)
   const focusLater = (id: string) => setFocusRequest((r) => ({ id, n: (r?.n ?? 0) + 1 }))
@@ -173,6 +176,7 @@ function App() {
     compareInflight.current = null
     nearbyB.cancel()                                       // B를 다시 고르면 이전 B 점포 요청·목록을 버린다
     setCompare({ status: 'picking', location: null })
+    setBPickSeq((n) => n + 1)                              // 검색 초기화 신호 (지도 클릭으로 B 좌표만 바꿀 때는 올리지 않는다)
     setCompareView('summary')
     setActiveStoreId(null)                                 // 비교 중에는 A 점포 선택·정보창을 닫는다(A 점포 데이터는 그대로)
     setMobileScreen('map')
@@ -549,6 +553,7 @@ function App() {
               onShowMap={showMapFromCompare}
               bAddress={<ReferenceAddress sdk={sdk} point={compare.location} />}
               searchApi={searchApi}
+              searchResetKey={bPickSeq}
             />
           ) : result ? (
             <>
