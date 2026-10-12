@@ -13,9 +13,10 @@ type Phase =
   | { status: 'error'; query: string; kind: GeocoderErrorKind }
 
 /**
- * 주소로 찾기 (단일 위치, 7-B4 — docs/ADDRESS_DESIGN.md §5.2 A, DESIGN.md §7.4).
+ * 주소로 찾기 (단일 위치 7-B4, 비교 B 위치 7-B5 — docs/ADDRESS_DESIGN.md §5.2 A, DESIGN.md §7.4).
  * 펼침 버튼 + 폼(보이는 라벨·입력·검색 버튼) + 상태 문구(aria-live) + 결과 목록. 고른 결과의 adapter lat/lng를 그대로
- * `onSelect`로 넘긴다 — 무엇을 할지(단일 위치 선택)는 부르는 쪽이 정하고, 분석은 시작하지 않는다.
+ * `onSelect`로 넘긴다 — 무엇을 할지(단일 위치 선택 / B 위치 선택)는 부르는 쪽이 정하고, 분석은 시작하지 않는다.
+ * 포커스 이동도 부르는 쪽이 정한다(단일: 위치 요약, B: "B 분석하기").
  *
  * 요청 관리: 제출 때만 1회 부른다(입력 중 호출 없음). 제출마다 요청 번호를 올리고, 응답이 왔을 때 번호가 다르면 버린다.
  * 입력 변경·폼 닫기·`api` 변경·언마운트(= SDK 실패로 부모가 이 컴포넌트를 내림)도 번호를 올린다 — SDK 콜백은 취소할 수
@@ -26,12 +27,15 @@ export function AddressSearch({
   disabled,
   onSelect,
   onFocusLost,
+  labelPrefix = '',
 }: {
   api: NaverMapsApi
   disabled: boolean
   onSelect: (point: LatLngPoint) => void
   /** 포커스가 이 안에 있는 채로 언마운트될 때(예: SDK 인증 실패로 주소 기능이 꺼짐). 부모가 남은 조작으로 포커스를 옮긴다 */
   onFocusLost?: () => void
+  /** 버튼·라벨·검색 영역 이름 앞에 붙는 말 (예: "B " → "B 주소로 찾기", "B 주소", "B 주소 검색") */
+  labelPrefix?: string
 }) {
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
@@ -152,14 +156,14 @@ export function AddressSearch({
         <span className="chevron" data-open={open}>
           <Icon name="chevron-right" />
         </span>
-        주소로 찾기
+        {labelPrefix}주소로 찾기
       </button>
       {open && (
         <div id={formId} className="address-search__body">
-          <form className="address-search__form" role="search" aria-label="주소 검색" onSubmit={submit} noValidate>
+          <form className="address-search__form" role="search" aria-label={`${labelPrefix}주소 검색`} onSubmit={submit} noValidate>
             <div className="field address-search__field">
               <label className="field__label" htmlFor={inputId}>
-                주소
+                {labelPrefix}주소
               </label>
               <input
                 id={inputId}

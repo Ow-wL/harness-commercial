@@ -198,7 +198,7 @@ src/components/AddressSearch.tsx     주소 검색 폼 + 결과 목록 → onSel
 | 스파이크 ✅ 7-B1 | `frontend/spike/app-geocoder-blocked.html` | 앱 전체를 같은 origin에서 띄우되 SDK가 뒤에 붙이는 `maps-geocoder.js`의 src만 바꿔 "서브모듈 요청만 차단"을 흉내 내는 dev 페이지(§12 검증). 빌드 밖 |
 | 신규 ✅ 7-B1 | `frontend/src/map/geocoder.ts` | adapter(§5.1) + Zod `looseObject` schema(`v2` 중 쓰는 필드만), `normalizeAddress`·`parseCoordinate`, 8초 timeout·첫 콜백만·동기 예외도 결과 객체 |
 | 신규 ✅ 7-B2 | `frontend/src/lib/addressCache.ts`, `frontend/src/lib/useReferenceAddress.ts` | 캐시·hook(§5.3): 좌표 키 그대로, LRU 100, in-flight 공유, ok·none 유지, error 60초 뒤 다음 조회 때만, 현재 키 캐시만 표시 |
-| 신규 ✅ 7-B2(표시)·7-B4(검색) | `frontend/src/components/ReferenceAddress.tsx`(+css), `frontend/src/components/AddressSearch.tsx`(+css) + `frontend/src/lib/addressSearch.ts` | 표시 UI·검색 UI(단일). 비교 B 검색은 7-B5 |
+| 신규 ✅ 7-B2(표시)·7-B4(검색) | `frontend/src/components/ReferenceAddress.tsx`(+css), `frontend/src/components/AddressSearch.tsx`(+css) + `frontend/src/lib/addressSearch.ts` | 표시 UI·검색 UI(단일 7-B4, 비교 B 7-B5 — `labelPrefix`), 포커스 복구 `lib/useSearchFocusRecovery.ts`(7-B5) |
 | 수정 ✅ 7-B1 | `frontend/src/components/MapView.tsx` | `onSdkState?(state)` prop 1개 — 로더 성공(`map-ready` + 현재 Geocoder 상태)·Geocoder 판정·로드 실패·**뒤늦은 인증 실패**를 `reduceSdkState`로 App에 올린다(로더 재호출 없음, 지도 생성 시점·방식 불변). App 연결은 7-B2 |
 | 수정 ✅ 7-B2 | `frontend/src/App.tsx` | `sdk` 상태(`loading/ready/failed`)를 `MapView.onSdkState`로 받아 단일 위치 자리 3곳에 `ReferenceAddress`를 넘긴다(위치 필드·mobile sheet·결과 패널). 말줄임·`max-height` 숨김 규칙은 `ReferenceAddress.css` |
 | 수정 ✅ 7-B2(슬롯) | `frontend/src/components/ConditionPanel.tsx` — `ComparePanel.tsx`는 7-B3·B5 | `address?: ReactNode` 슬롯(+ 7-B4 "주소로 찾기" disclosure 예정) |
@@ -472,3 +472,28 @@ SDK는 `maps.js` 뒤에 `https://oapi.map.naver.com/openapi/v3/maps-geocoder.js`
 | 375×812(터치) | 폼 343px, 입력·검색·펼침 버튼 44px, 항목 309×118px(3~4줄 줄바꿈), 가로 넘침 0 |
 - SDK 인증 실패·검색 오류·지연·경합은 App/컴포넌트 테스트의 mock으로 검증했다(실제 장애 모사 호출 없음).
 - 잔여(사용자): 한도 및 알림 설정(§9-5), 운영 URL Geocoder 유효성(§9-4, 배포 전). 다음 7-B5(비교 B 검색)·배포는 별도 승인 뒤.
+
+### 7-B5 — 비교 B 주소 검색 (2026-10-12, 기준 `59eebc6`)
+범위: 비교 B 고르기 화면(`ComparePanel`) B 카드의 주소 검색만. 7-B6 통합 검증·배포 없음. 엔진·backend·보호 영역 변경 없음. 지도 정보창 24px·dev 모드 스크롤 문제는 별도 항목 그대로.
+
+**연결**: 7-B4의 `AddressSearch`·adapter를 그대로 쓰고 `labelPrefix="B "`만 준다 → 펼침 버튼 "B 주소로 찾기", 라벨 "B 주소", 검색 영역 이름 "B 주소 검색"(단일 위치는 접두 없음 — 표시·동작 그대로). 자리는 B 카드 "선택됨 · 좌표"·참고 주소·오류 블록 아래, B 좌표 입력(`CoordinateForm`) 위. App이 단일과 같은 `searchApi`(`ready && geocoder ready`일 때만)를 넘기고, 잠금은 기존 B 입력과 같은 `loading`(B 분석 중). 좌표가 바뀌어도 다시 그리지 않아(key 없음) 검색어·결과는 B 고르기 화면 동안 유지된다. mobile 비교 sheet(`CompareSheet`)에는 넣지 않았다 — sheet "좌표 직접 입력" → 패널 B 카드에서 검색하는 기존 흐름.
+
+**선택**: adapter `lat/lng` 그대로 기존 `submitCompareLocation` → `selectCompareLocation`(B만 `picking`으로, A 좌표·업종·결과 그대로, B 분석 중이면 무시) + 렌더 뒤 "B 분석하기"로 포커스(`focusLater`). 분석은 하지 않는다. A와 같은 좌표는 분석을 눌렀을 때 기존 D2 안내만(`/analyze` 없음). 인천 밖도 고를 수 있고 backend `location_outside`면 B만 오류(A 유지) — 오류 상태에서도 B 검색을 쓸 수 있어 다른 주소를 고르면 다시 `picking`. B 참고 주소는 좌표 캐시(7-B3).
+
+**경합**: 요청 번호 규칙(7-B4) 그대로. 비교 취소·종료·조건 변경·B 다시 고르기는 `ComparePanel`을 내려 언마운트로 무효화되고, 다시 시작하면 새 인스턴스라 이전 검색 응답이 새 화면에 오지 않는다. 검색 응답은 목록만 바꾸고 위치는 사용자가 고를 때만 바뀐다.
+
+**포커스 복구 `lib/useSearchFocusRecovery.ts`(새로, 7-B4 로직을 꺼냄)**: `AddressSearch.onFocusLost` + `searchApi`가 사라진 커밋의 layout effect에서 포커스가 body일 때만 fallback으로 옮긴다. 단일: "좌표 직접 입력", B 카드: 사용할 수 있는 첫 입력("B 위도"), 없으면(B 분석 중 disabled) B 카드 제목(`tabIndex=-1`). 검색 밖 포커스는 그대로.
+
+**테스트(+10, frontend 402개)**: `App.test.tsx` 9 — 검색 → 선택(B 좌표·A 그대로·분석 0·포커스 "B 분석하기"·폼 접힘·B 역지오코딩 1) → B 분석(body = adapter 좌표 + A 업종) → 요약(포커스 비교 제목, Geocoder 1·역지오코딩 2·분석 2), 단일 검색은 비교 화면에 없음; A 같은 좌표 → D2·`/analyze` 0; 인천 밖 → `location_outside`(A·Context Bar 유지) → 다른 주소 → 성공; 비교 취소 → 재시작 → 새 검색 뒤 늦은 이전 응답 폐기, 비교 취소·조건 변경 중 응답이 화면·위치를 바꾸지 않음; SDK 인증 실패 → "B 위도" 포커스·늦은 응답 무시(fallback을 지우면 실패함을 확인); 검색 밖 포커스 유지; B 분석 중 잠금; 중복 id·참조; mobile sheet에 검색 없음 → 패널 검색 → "B 분석하기". `AddressSearch.test.tsx` +1(labelPrefix). 7-B4 단일 테스트는 변경 없이 통과. `scripts/check` 전체 통과.
+
+**브라우저 검증 (내장 Chromium, 로컬 backend + `vite build`·`vite preview`, 실제 호출: 검색 1·역지오코딩 2(A·B))**
+| 조건 | 확인 |
+|---|---|
+| 1280×800: A(37.4894,126.7246) 분석 → 비교 시작 | B 카드에만 "B 주소로 찾기"(단일 "주소로 찾기" 없음), 라벨 "B 주소", 검색 영역 "B 주소 검색" |
+| 키보드: 펼침 버튼 Enter → Tab → "인천 남동구 예술로 148" → Enter | 실제 검색 1건 → `인천광역시 남동구 예술로 148` / `지번 인천광역시 남동구 구월동 1455` |
+| → Tab·Tab → Enter(선택) | B `선택됨 · 37.4470469, 126.7015275`, 참고 주소 `인천광역시 남동구 예술로 148`(역지오코딩 1건), 폼 접힘, 포커스 "B 분석하기", `/analyze` A 1건뿐, A 카드 그대로 |
+| → Enter(B 분석) | body `{"lat":37.4470469,"lng":126.7015275,"biz_code":"R10406"}`, 요약 포커스 비교 제목, Context Bar `A 부평구 부평1동 · B 남동구 구월3동`, A/B 카드 각자 참고 주소, 추가 Geocoder 호출 없음 |
+| 800×600 가짜 응답(긴 한글 9건 + 영문 지번 + 서울, 실제 호출 0) | 항목 636×78px, "더 보기" → 10건·포커스 6번째, Enter 선택 → "B 분석하기"(헤더 아래 화면 안), 가로 넘침 0 |
+| 375×812(터치) | 비교 시작 → 지도 화면 sheet(173px, 검색 없음) → sheet "좌표 직접 입력" → 패널(포커스 B 카드 제목) → B 검색: 펼침·입력·검색 44px, 항목 309×118px, 넘침 0 → 선택 → "B 분석하기"(화면 안) → "지도 보기" → sheet `B 선택됨 · …` + "B 분석하기" |
+- SDK 인증 실패·경합·비교 취소/재시작·D2·인천 밖 실패는 App 테스트의 mock(그리고 실제 backend의 기존 오류 경로)으로 검증했다.
+- 잔여(사용자): 한도 및 알림 설정(§9-5), 운영 URL Geocoder 유효성(§9-4, 배포 전). 다음 7-B6(통합 검증·문서)·배포는 별도 승인 뒤.

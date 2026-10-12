@@ -1908,3 +1908,235 @@ describe('단일 위치 주소 검색 (7-B4, docs/ADDRESS_DESIGN.md §5.2 A)', (
     await screen.findByRole('heading', { level: 1, name: '부평구 부평1동 · PC방 분석' })
   })
 })
+
+describe('비교 B 주소 검색 (7-B5, docs/ADDRESS_DESIGN.md §5.2 A-4)', () => {
+  const PANEL = '두 위치 비교 · PC방'
+  const panel = () => screen.getByRole('region', { name: PANEL })
+  const bCard = () => within(panel()).getByRole('region', { name: 'B 비교 위치' })
+  const aCard = () => within(panel()).getByRole('region', { name: 'A 기준 위치' })
+  const bToggle = () => within(bCard()).queryByRole('button', { name: 'B 주소로 찾기' })
+  const bInput = () => within(bCard()).queryByRole('textbox', { name: 'B 주소' })
+  const ok = (body: unknown) => ({ status: 200, body })
+  const bodyOf = (call: unknown[]) => JSON.parse((call[1] as RequestInit).body as string)
+  const answer = async (i: number, status: number, response?: unknown) => {
+    await act(async () => {
+      sdkMock.geocodeCalls[i]!.callback(status, response)
+      await Promise.resolve()
+    })
+  }
+  const forward = (items: { road: string; sido: string; x: string; y: string }[]) => ({
+    v2: {
+      status: 'OK',
+      meta: { totalCount: items.length, page: 1, count: items.length },
+      addresses: items.map((i) => ({
+        roadAddress: i.road,
+        jibunAddress: '',
+        addressElements: [{ types: ['SIDO'], longName: i.sido, shortName: i.sido, code: '' }],
+        x: i.x,
+        y: i.y,
+        distance: 10,
+      })),
+      errorMessage: '',
+    },
+  })
+  // B 후보: 구월3동 fixture 좌표(context와 같아 matchesRequest 통과), A와 같은 좌표, 인천 밖
+  const GUWOL = { road: '인천광역시 남동구 예술로 148', sido: '인천광역시', x: '126.7015', y: '37.4475' }
+  const SAME_AS_A = { road: '인천광역시 부평구 광장로 16', sido: '인천광역시', x: '126.7246', y: '37.4894' }
+  const SEOUL = { road: '서울특별시 중구 세종대로 110', sido: '서울특별시', x: '126.9779692', y: '37.5662952' }
+
+  beforeEach(async () => {
+    sdkMock.reverseCalls.length = 0
+    sdkMock.geocodeCalls.length = 0
+    const { resetAddressCacheForTest } = await import('./lib/addressCache.ts')
+    resetAddressCacheForTest()
+    vi.spyOn(console, 'warn').mockImplementation(() => {})
+  })
+
+  /** SDK 준비 → A(부평역·PC방) 분석 → 비교 시작 */
+  async function startWithA(bReplies: Reply[] = [], bNearby: Reply[] = []) {
+    const fetchMock = mockApi({ analyze: [ok(fixture), ...bReplies], nearby: [ok(nearbyFixture), ...bNearby] })
+    render(<App />)
+    fireEvent.click(screen.getByRole('button', { name: 'SDK 준비' }))
+    await selectBupyeongPcBang()
+    fireEvent.click(analyzeButton())
+    await screen.findByRole('list', { name: 'PC방 점포 목록' })
+    fireEvent.click(screen.getByRole('button', { name: '다른 위치와 비교' }))
+    return fetchMock
+  }
+
+  function searchB(query: string) {
+    if (bToggle()!.getAttribute('aria-expanded') === 'false') fireEvent.click(bToggle()!)
+    fireEvent.change(bInput()!, { target: { value: query } })
+    fireEvent.submit(within(bCard()).getByRole('search', { name: 'B 주소 검색' }))
+  }
+
+  const resultButton = (text: string) =>
+    within(within(bCard()).getByRole('list', { name: /검색 결과/ })).getByRole('button', { name: new RegExp(text) })
+
+  it('검색 → 선택(B만 바뀜, 분석 없음, 포커스 "B 분석하기") → B 분석 → 요약: 좌표·업종·포커스·호출 횟수', async () => {
+    const fetchMock = await startWithA([ok(guwolFixture)], [ok(guwolNearbyFixture)])
+    // B 카드에만 B 검색이 있다(라벨·검색 영역 이름에 B). 단일 위치 검색은 이 화면에 없다
+    expect(screen.queryByRole('button', { name: '주소로 찾기' })).not.toBeInTheDocument()
+    expect(within(aCard()).queryByRole('button', { name: /주소로 찾기/ })).not.toBeInTheDocument()
+    searchB('예술로 148')
+    expect(sdkMock.geocodeCalls).toHaveLength(1)
+    expect(sdkMock.geocodeCalls[0]!.options).toEqual({ query: '예술로 148', coordinate: '126.7052,37.4563', count: 10 })
+    await answer(0, 200, forward([GUWOL]))
+    fireEvent.click(resultButton('예술로 148'))
+
+    expect(bCard()).toHaveTextContent('선택됨 · 37.4475, 126.7015')
+    expect(document.activeElement).toBe(within(bCard()).getByRole('button', { name: 'B 분석하기' }))
+    expect(bInput()).not.toBeInTheDocument()                                     // 폼 접힘
+    expect(bToggle()).toHaveAttribute('aria-expanded', 'false')
+    expect(analyzeCalls(fetchMock)).toHaveLength(1)                              // 선택만으로 분석하지 않는다
+    expect(aCard()).toHaveTextContent('부평구 부평1동')                             // A 그대로
+    expect(screen.getByTestId('map')).toHaveAttribute('data-selected', '37.4894,126.7246')
+    expect(screen.getByTestId('map')).toHaveAttribute('data-compare-location', '37.4475,126.7015')
+    expect(sdkMock.reverseCalls.map((c) => c.options.coords)).toEqual(['126.7246,37.4894', '126.7015,37.4475'])   // B 참고 주소는 좌표 캐시
+
+    fireEvent.click(within(bCard()).getByRole('button', { name: 'B 분석하기' }))
+    await screen.findByRole('table', { name: /종합·5대 관점 점수 비교/ })
+    expect(bodyOf(analyzeCalls(fetchMock)[1]!)).toEqual({ lat: 37.4475, lng: 126.7015, biz_code: 'R10406' })   // A 업종 그대로
+    expect(document.activeElement).toBe(screen.getByRole('heading', { level: 1, name: PANEL }))
+    expect(bCard()).toHaveTextContent('남동구 구월3동')
+    expect(aCard()).toHaveTextContent('부평구 부평1동')
+    expect(analyzeCalls(fetchMock)).toHaveLength(2)
+    expect(sdkMock.geocodeCalls).toHaveLength(1)
+    expect(sdkMock.reverseCalls).toHaveLength(2)                                  // 요약 A/B 카드는 같은 키 — 추가 조회 없음
+  })
+
+  it('A와 같은 좌표를 고르면 분석을 눌러도 D2 안내만 보이고 /analyze는 보내지 않는다', async () => {
+    const fetchMock = await startWithA()
+    searchB('광장로 16')
+    await answer(0, 200, forward([SAME_AS_A]))
+    fireEvent.click(resultButton('광장로 16'))
+    fireEvent.click(within(bCard()).getByRole('button', { name: 'B 분석하기' }))
+    expect(within(bCard()).getByRole('alert')).toHaveTextContent('A와 같은 위치입니다. 다른 위치를 고르세요.')
+    expect(analyzeCalls(fetchMock)).toHaveLength(1)
+  })
+
+  it('인천 밖 B → backend location_outside(B만 실패, A 그대로) → 다른 주소 검색·선택 → B 성공', async () => {
+    const fetchMock = await startWithA(
+      [{ status: 422, body: { error: { code: 'location_outside', message: 'x' } } }, ok(guwolFixture)],
+      [ok(guwolNearbyFixture)],
+    )
+    searchB('세종대로 110')
+    await answer(0, 200, forward([SEOUL]))
+    expect(resultButton('세종대로')).toHaveTextContent('서울특별시')
+    fireEvent.click(resultButton('세종대로'))
+    fireEvent.click(within(bCard()).getByRole('button', { name: 'B 분석하기' }))
+    const alert = await within(bCard()).findByRole('alert')
+    expect(alert).toHaveTextContent('인천 안의 위치를 선택해 주세요')
+    expect(bodyOf(analyzeCalls(fetchMock)[1]!)).toEqual({ lat: 37.5662952, lng: 126.9779692, biz_code: 'R10406' })
+    expect(aCard()).toHaveTextContent('부평구 부평1동')
+    expect(screen.getByRole('group', { name: '분석 조건' })).toHaveTextContent('부평구 부평1동')
+
+    // 오류 상태에서도 B 검색은 쓸 수 있다 — 고르면 B만 다시 picking, 포커스 "B 분석하기"
+    searchB('예술로 148')
+    await answer(1, 200, forward([GUWOL]))
+    fireEvent.click(resultButton('예술로 148'))
+    expect(document.activeElement).toBe(within(bCard()).getByRole('button', { name: 'B 분석하기' }))
+    fireEvent.click(within(bCard()).getByRole('button', { name: 'B 분석하기' }))
+    await screen.findByRole('table', { name: /종합·5대 관점 점수 비교/ })
+    expect(bCard()).toHaveTextContent('남동구 구월3동')
+    expect(analyzeCalls(fetchMock)).toHaveLength(3)
+  })
+
+  it('비교 취소 → 다시 시작 → 새 검색: 이전 검색의 늦은 응답은 버린다. 조건 변경·비교 종료 뒤 늦은 응답도 위치를 바꾸지 못한다', async () => {
+    await startWithA()
+    searchB('첫 검색')                                                           // 호출 0, 응답 대기
+    fireEvent.click(within(panel()).getByRole('button', { name: '비교 취소' }))
+    fireEvent.click(screen.getByRole('button', { name: '다른 위치와 비교' }))
+    expect(bToggle()).toHaveAttribute('aria-expanded', 'false')                   // 새 B 카드: 이전 폼 상태 없음
+    searchB('두 번째 검색')                                                       // 호출 1
+    await answer(0, 200, forward([SEOUL]))                                       // 늦은 첫 응답
+    expect(within(bCard()).queryByRole('list', { name: /검색 결과/ })).not.toBeInTheDocument()
+    expect(bCard()).not.toHaveTextContent('세종대로')
+    await answer(1, 200, forward([GUWOL]))
+    expect(within(bCard()).getByRole('list', { name: '‘두 번째 검색’ 검색 결과 1건' })).toHaveTextContent('예술로 148')
+
+    // 비교 종료(취소) 중 대기 응답 → 화면·위치 그대로
+    searchB('세 번째 검색')                                                       // 호출 2
+    fireEvent.click(within(panel()).getByRole('button', { name: '비교 취소' }))
+    await answer(2, 200, forward([SEOUL]))
+    expect(screen.getByRole('heading', { level: 1, name: '부평구 부평1동 · PC방 분석' })).toBeInTheDocument()
+    expect(screen.getByTestId('map')).toHaveAttribute('data-selected', '37.4894,126.7246')
+    expect(screen.getByTestId('map')).not.toHaveAttribute('data-compare')
+
+    // 조건 변경 중 대기 응답 → 조건 화면의 위치 그대로, 결과 목록 없음
+    fireEvent.click(screen.getByRole('button', { name: '다른 위치와 비교' }))
+    searchB('네 번째 검색')                                                       // 호출 3
+    fireEvent.click(within(panel()).getByRole('button', { name: '조건 변경' }))
+    await answer(3, 200, forward([SEOUL]))
+    expect(screen.getByRole('region', { name: '분석 조건' })).toHaveTextContent('선택됨 · 37.4894, 126.7246')
+    expect(screen.queryByRole('list', { name: /검색 결과/ })).not.toBeInTheDocument()
+    expect(sdkMock.geocodeCalls).toHaveLength(4)
+  })
+
+  it('SDK 인증 실패: 포커스가 있던 B 검색이 사라지면 "B 위도"로, 검색 밖 포커스는 그대로. 늦은 응답은 버린다', async () => {
+    await startWithA()
+    searchB('예술로 148')
+    bInput()!.focus()
+    fireEvent.click(screen.getByRole('button', { name: 'SDK 인증 실패' }))
+    expect(bToggle()).not.toBeInTheDocument()
+    expect(document.activeElement).toBe(within(bCard()).getByLabelText('B 위도'))
+    await answer(0, 200, forward([GUWOL]))
+    expect(bCard()).not.toHaveTextContent('예술로 148')
+    expect(screen.getByTestId('map')).toHaveAttribute('data-compare-location', '')
+  })
+
+  it('SDK 실패 때 포커스가 검색 밖이면 옮기지 않는다', async () => {
+    await startWithA()
+    searchB('예술로 148')
+    const lng = within(bCard()).getByLabelText('B 경도')
+    lng.focus()
+    fireEvent.click(screen.getByRole('button', { name: 'SDK 인증 실패' }))
+    expect(document.activeElement).toBe(lng)
+  })
+
+  it('B 분석 중에는 B 검색도 잠긴다 (기존 B 입력 잠금 규칙)', async () => {
+    let release!: (r: { status: number; body: unknown }) => void
+    const pendingB = new Promise<{ status: number; body: unknown }>((r) => (release = r))
+    await startWithA([pendingB], [ok(guwolNearbyFixture)])
+    searchB('예술로 148')
+    await answer(0, 200, forward([GUWOL]))
+    fireEvent.click(resultButton('예술로 148'))
+    fireEvent.click(bToggle()!)                                                   // 다시 펼친 채로 분석
+    fireEvent.click(within(bCard()).getByRole('button', { name: 'B 분석하기' }))
+    expect(bToggle()).toBeDisabled()
+    expect(bInput()).toBeDisabled()
+    expect(within(bCard()).getByRole('button', { name: '검색' })).toBeDisabled()
+    expect(within(bCard()).getByLabelText('B 위도')).toBeDisabled()
+    await act(async () => release(ok(guwolFixture)))
+    await screen.findByRole('table', { name: /종합·5대 관점 점수 비교/ })
+  })
+
+  it('B 검색 결과가 열린 B 카드에서 id가 유일하고 접근성 참조가 이어진다', async () => {
+    await startWithA()
+    searchB('예술로 148')
+    await answer(0, 200, forward([GUWOL, SEOUL]))
+    expandAll(document.querySelector('.workspace__panel')!)
+    expect(duplicateIds()).toEqual([])
+    expect(brokenReferences()).toEqual([])
+    expect(brokenControls()).toEqual([])
+  })
+
+  describe('mobile', () => {
+    beforeEach(() => {
+      vi.stubGlobal('matchMedia', (q: string) => ({ matches: q === '(max-width: 639px)', media: q }))
+    })
+    it('비교 sheet에는 검색 폼이 없고, sheet의 "좌표 직접 입력"으로 패널에 가서 B 검색을 쓴다', async () => {
+      await startWithA([ok(guwolFixture)], [ok(guwolNearbyFixture)])
+      const sheet = document.querySelector<HTMLElement>('.map-sheet')!
+      expect(within(sheet).queryByRole('button', { name: /주소로 찾기/ })).not.toBeInTheDocument()
+      expect(within(sheet).queryByRole('search')).not.toBeInTheDocument()
+      fireEvent.click(within(sheet).getByRole('button', { name: '좌표 직접 입력' }))
+      expect(document.querySelector('.app')).toHaveAttribute('data-screen', 'panel')
+      searchB('예술로 148')
+      await answer(0, 200, forward([GUWOL]))
+      fireEvent.click(resultButton('예술로 148'))
+      expect(document.activeElement).toBe(within(bCard()).getByRole('button', { name: 'B 분석하기' }))
+      expect(within(sheet).getByRole('button', { name: 'B 분석하기' })).toBeInTheDocument()   // 지도 화면 sheet에서도 바로 분석 가능
+    })
+  })
+})

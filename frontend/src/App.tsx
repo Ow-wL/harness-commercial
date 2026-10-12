@@ -486,6 +486,9 @@ function App() {
     <ReferenceAddress sdk={sdk} point={{ lat: r.context.lat, lng: r.context.lng }} />
   )
 
+  // 주소로 찾기(7-B4 단일·7-B5 B): Geocoder가 준비됐을 때만. 인증 실패 등으로 failed가 되면 null → 폼이 사라진다
+  const searchApi = sdk.status === 'ready' && sdk.geocoder === 'ready' ? sdk.api : null
+
   const showMapFromCompare = () => {
     setMobileScreen('map')
     focusLater(COMPARE_IDS.sheetAction)
@@ -545,6 +548,7 @@ function App() {
               onChangeConditions={cancelAnalysis}
               onShowMap={showMapFromCompare}
               bAddress={<ReferenceAddress sdk={sdk} point={compare.location} />}
+              searchApi={searchApi}
             />
           ) : result ? (
             <>
@@ -602,8 +606,7 @@ function App() {
                 onRetryBusinesses={reloadBusinesses}
                 onAnalyze={runAnalysis}
                 address={<ReferenceAddress sdk={sdk} point={location} />}
-                // 주소로 찾기(7-B4): Geocoder가 준비됐을 때만. 인증 실패 등으로 failed가 되면 null → 폼이 사라진다
-                searchApi={sdk.status === 'ready' && sdk.geocoder === 'ready' ? sdk.api : null}
+                searchApi={searchApi}
               />
               <div className="intro__result">
                 {analysis.status === 'loading' && <AnalysisLoading />}

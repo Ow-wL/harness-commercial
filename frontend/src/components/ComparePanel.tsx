@@ -1,7 +1,10 @@
-import { useId, type ReactNode } from 'react'
+import { useId, useRef, type ReactNode } from 'react'
 import type { AnalyzeResponse } from '../api/schemas.ts'
 import { COMPARE_IDS, type ActiveCompare } from '../lib/compareState.ts'
 import type { ErrorAction } from '../lib/errorView.ts'
+import { useSearchFocusRecovery } from '../lib/useSearchFocusRecovery.ts'
+import type { NaverMapsApi } from '../map/naverMaps.ts'
+import { AddressSearch } from './AddressSearch.tsx'
 import { formatScore, locationName } from '../lib/format.ts'
 import { CoordinateForm } from './CoordinateForm.tsx'
 import { ErrorBlock } from './ErrorBlock.tsx'
@@ -29,6 +32,7 @@ export function ComparePanel({
   onChangeConditions,
   onShowMap,
   bAddress,
+  searchApi,
 }: {
   a: AnalyzeResponse
   compare: PickingCompare
@@ -41,12 +45,20 @@ export function ComparePanel({
   onShowMap: () => void
   /** 지금 B 좌표의 참고 주소 줄 (7-B3, App이 B 좌표로 만든 ReferenceAddress). B 좌표가 없으면 그리지 않는다 */
   bAddress?: ReactNode
+  /** Geocoder가 준비된 SDK (7-B5). 있을 때만 B 카드에 "B 주소로 찾기"를 그린다 — 고른 좌표는 `onLocationSubmit`으로 */
+  searchApi?: NaverMapsApi | null
 }) {
   const aTitleId = useId()
+  const bCardRef = useRef<HTMLElement>(null)
   const formId = useId()
   const biz = a.result.meta.업종
   const loading = compare.status === 'loading'
   const { location } = compare
+  // SDK 실패로 "B 주소로 찾기"가 포커스를 가진 채 사라지면 B 좌표 입력(쓸 수 있으면), 아니면 B 카드 제목으로
+  const onSearchFocusLost = useSearchFocusRecovery(
+    searchApi,
+    () => bCardRef.current?.querySelector<HTMLElement>('input:not(:disabled)') ?? document.getElementById(COMPARE_IDS.bTitle),
+  )
 
   // 진행 알림은 항상 있는 live region에 넣는다 (내용이 바뀔 때 읽히게)
   const live = loading ? 'B 위치 분석 중…' : ''
@@ -69,7 +81,7 @@ export function ComparePanel({
         </p>
       </section>
 
-      <section className="compare__card" aria-labelledby={COMPARE_IDS.bTitle}>
+      <section ref={bCardRef} className="compare__card" aria-labelledby={COMPARE_IDS.bTitle}>
         <h2 id={COMPARE_IDS.bTitle} className="compare__card-title" tabIndex={-1}>
           B 비교 위치
         </h2>
@@ -100,6 +112,17 @@ export function ComparePanel({
           </div>
         )}
 
+        {searchApi && (
+          // B 위치 주소 검색: 고르면 좌표 입력 제출과 같은 경로(onLocationSubmit → B만 바뀜, 포커스 "B 분석하기"). 분석은 하지 않는다.
+          // 좌표가 바뀌어도 다시 그리지 않는다(key 없음) — 검색어·결과 상태는 이 B 고르기 화면 동안 유지
+          <AddressSearch
+            api={searchApi}
+            disabled={loading}
+            labelPrefix="B "
+            onSelect={onLocationSubmit}
+            onFocusLost={onSearchFocusLost}
+          />
+        )}
         <CoordinateForm
           // 지도에서 고른 좌표로 입력란을 새로 채운다(좌표가 바뀌면 새로 그린다 → 제출 뒤 포커스는 App이 "B 분석하기"로 옮긴다)
           key={location ? `${location.lat},${location.lng}` : 'empty'}

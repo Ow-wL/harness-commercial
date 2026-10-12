@@ -262,6 +262,19 @@ describe('AddressSearch — 주소로 찾기 (7-B4, ADDRESS_DESIGN §5.2 A)', ()
     expect(b.onFocusLost).not.toHaveBeenCalled()
   })
 
+  it('labelPrefix("B ")는 펼침 버튼·라벨·검색 영역 이름에만 붙고 동작은 같다 (7-B5)', async () => {
+    const { api, calls } = fakeApi()
+    const onSelect = vi.fn()
+    render(<AddressSearch api={api} disabled={false} onSelect={onSelect} labelPrefix="B " />)
+    fireEvent.click(screen.getByRole('button', { name: 'B 주소로 찾기' }))
+    fireEvent.change(screen.getByRole('textbox', { name: 'B 주소' }), { target: { value: '부평대로 1' } })
+    fireEvent.submit(screen.getByRole('search', { name: 'B 주소 검색' }))
+    expect(calls).toHaveLength(1)
+    await respond(calls[0], 200, forwardFixture.response)
+    fireEvent.click(within(screen.getByRole('list')).getByRole('button'))
+    expect(onSelect).toHaveBeenCalledWith({ lat: 37.4918321, lng: 126.7227259 })
+  })
+
   it('disabled면 펼침·입력·검색·결과 선택을 모두 막는다', async () => {
     const { calls, rerender, api, onSelect } = setup()
     open()

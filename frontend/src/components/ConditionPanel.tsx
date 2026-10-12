@@ -2,6 +2,7 @@ import { useId, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import type { ApiFailure } from '../api/client.ts'
 import type { BusinessCatalog } from '../api/schemas.ts'
 import type { NaverMapsApi } from '../map/naverMaps.ts'
+import { useSearchFocusRecovery } from '../lib/useSearchFocusRecovery.ts'
 import { AddressSearch } from './AddressSearch.tsx'
 import { CoordinateForm } from './CoordinateForm.tsx'
 import { Icon } from './Icon.tsx'
@@ -162,13 +163,7 @@ function LocationField({
   }
 
   // SDK 실패로 "주소로 찾기"가 포커스를 가진 채 사라지면 남은 기본 조작("좌표 직접 입력")으로 포커스를 옮긴다
-  const searchFocusLost = useRef(false)
-  useLayoutEffect(() => {
-    if (searchApi || !searchFocusLost.current) return
-    searchFocusLost.current = false
-    const active = document.activeElement
-    if (!active || active === document.body) manualToggleRef.current?.focus()
-  }, [searchApi])
+  const onSearchFocusLost = useSearchFocusRecovery(searchApi, () => manualToggleRef.current)
 
   return (
     <div className="field" role="group" aria-labelledby={labelId}>
@@ -202,9 +197,7 @@ function LocationField({
           api={searchApi}
           disabled={disabled}
           onSelect={selectFromSearch}
-          onFocusLost={() => {
-            searchFocusLost.current = true
-          }}
+          onFocusLost={onSearchFocusLost}
         />
       )}
       <button
