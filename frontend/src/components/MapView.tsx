@@ -211,6 +211,11 @@ export function MapView({
   const [error, setError] = useState<MapLoadErrorKind | null>(null)
   // 지도가 보이고 유효한 크기를 가졌는지 (mobile 패널 화면에서는 .map이 숨겨져 0×0). 아래 크기 맞춤 흐름이 setSize 뒤에 정한다
   const [sized, setSized] = useState(false)
+  // 정보창 열기를 숨김(크기 0) 때문에 미뤘는지 + 다시 처리 신호 (6-4 보완). `sized`가 이미 true인 채로 실제 크기가 0이어서
+  // 미뤘다면(ResizeObserver가 0×0을 알리기 전) 다음 양수 크기 알림에서 `sized`는 그대로라 정보창 effect가 다시 돌지 않는다 —
+  // 그래서 미룬 열기가 있으면 크기 맞춤 뒤 이 값을 올려 현재 선택을 다시 처리한다
+  const infoDeferredRef = useRef(false)
+  const [infoRetry, setInfoRetry] = useState(0)
 
   // 최신 콜백·상태를 클릭 핸들러가 읽는다 (지도를 다시 만들지 않기 위해)
   const onSelectRef = useRef(onSelect)
@@ -293,6 +298,10 @@ export function MapView({
       const visible = el.clientWidth > 0 && el.clientHeight > 0
       if (visible) map.setSize(new api.Size(el.clientWidth, el.clientHeight))
       setSized(visible)
+      if (visible && infoDeferredRef.current) {
+        infoDeferredRef.current = false
+        setInfoRetry((n) => n + 1)                         // setSize 뒤에 미룬 정보창을 현재 선택으로 다시 처리
+      }
     }
     const ro = new ResizeObserver(fit)
     ro.observe(el)
@@ -456,14 +465,18 @@ export function MapView({
     if (!marker || !store) {
       infoRef.current?.close()
       pannedStoreRef.current = null
+      infoDeferredRef.current = false                      // 해제·위치 변경: 미룬 열기도 없앤다(옛 정보창 복원 없음)
       return
     }
-    // ResizeObserver 알림(`sized`)은 다음 렌더 프레임에 오므로, 열기 직전에 실제 크기도 한 번 더 본다
+    // ResizeObserver 알림(`sized`)은 다음 렌더 프레임에 오므로, 열기 직전에 실제 크기도 한 번 더 본다.
+    // 미루면 표시만 해 두고, 다음 양수 크기 알림(크기 맞춤 뒤)에서 그때의 선택으로 다시 처리한다
     const el = sectionRef.current
     if (!sized || !el || el.clientWidth === 0 || el.clientHeight === 0) {
       infoRef.current?.close()
+      infoDeferredRef.current = true
       return
     }
+    infoDeferredRef.current = false
     const content = storeInfoContent(store, () => closeStoreRef.current())
     if (infoRef.current) infoRef.current.setContent(content)
     else
@@ -480,7 +493,7 @@ export function MapView({
       map.panTo(new api.LatLng(store.lat, store.lng))
       pannedStoreRef.current = activeStoreId
     }
-  }, [api, map, stores, activeStoreId, sized])
+  }, [api, map, stores, activeStoreId, sized, infoRetry])
 
   useEffect(
     () => () => {

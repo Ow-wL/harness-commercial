@@ -437,6 +437,70 @@ describe('MapView — 숨겨진 지도에서 고른 점포 정보창 (6-4, mobil
     expect(view.map.panTo).toHaveBeenCalledTimes(1)
   })
 
+  describe('0×0 알림 없이 실제 크기 0에서 고른 뒤 양수 크기 알림 (6-4 보완: sized가 계속 true인 경로)', () => {
+    /** 보이는 지도(sized=true) → 같은 프레임에 숨겨짐(알림 없음) */
+    async function hiddenWithoutNotice(initial: Partial<MapViewProps> = {}) {
+      const view = await mount(props({ stores: STORES, ...initial }))
+      layout.set(view.section, { w: 0, h: 0 })
+      return view
+    }
+
+    it('그 사이 고른 점포는 크기 맞춤(setSize) 뒤 한 번 열고 한 번 옮긴다', async () => {
+      const view = await hiddenWithoutNotice()
+      view.rerender(<MapView {...props({ stores: STORES, activeStoreId: 'a' })} />)
+      expect(infos).toHaveLength(0)
+      expect(view.map.panTo).not.toHaveBeenCalled()
+      show(view.section)                                                        // 0×0 알림 없이 바로 양수 크기
+      expect(view.map.setSize).toHaveBeenLastCalledWith(new FakeSize(375, 566))
+      expect(infos).toHaveLength(1)
+      const info = infos[0]!
+      expect(info.open).toHaveBeenCalledTimes(1)
+      expect(info.open).toHaveBeenCalledWith(view.map, storeMarkers()[0])
+      expect(view.map.setSize.mock.invocationCallOrder.at(-1)!).toBeLessThan(info.open.mock.invocationCallOrder[0]!)
+      expect(info.content).toHaveTextContent('라네이즈PC방')
+      expect(view.map.panTo).toHaveBeenCalledTimes(1)
+      expect(view.map.panTo).toHaveBeenLastCalledWith(new FakeLatLng(37.4888, 126.7235))
+
+      show(view.section, 970, 320)                                              // 이후 크기 변경: 다시 열거나 옮기지 않는다
+      expect(info.open).toHaveBeenCalledTimes(1)
+      expect(view.map.panTo).toHaveBeenCalledTimes(1)
+      expect(maps).toHaveLength(1)
+      expect(view.map.setZoom).not.toHaveBeenCalled()
+    })
+
+    it('양수 크기 알림 전에 선택을 지우면 열지 않는다', async () => {
+      const view = await hiddenWithoutNotice()
+      view.rerender(<MapView {...props({ stores: STORES, activeStoreId: 'a' })} />)
+      view.rerender(<MapView {...props({ stores: STORES, activeStoreId: null })} />)
+      show(view.section)
+      expect(infos).toHaveLength(0)
+      expect(view.map.panTo).not.toHaveBeenCalled()
+    })
+
+    it('양수 크기 알림 전에 다른 점포로 바꾸면 그 점포로 연다(이전 점포를 복원하지 않는다)', async () => {
+      const view = await hiddenWithoutNotice()
+      view.rerender(<MapView {...props({ stores: STORES, activeStoreId: 'a' })} />)
+      view.rerender(<MapView {...props({ stores: STORES, activeStoreId: 'b' })} />)
+      show(view.section)
+      expect(infos).toHaveLength(1)
+      expect(infos[0]!.open).toHaveBeenCalledTimes(1)
+      expect(infos[0]!.open).toHaveBeenCalledWith(view.map, storeMarkers()[1])
+      expect(infos[0]!.content).toHaveTextContent('벨류피씨')
+      expect(view.map.panTo).toHaveBeenCalledTimes(1)
+      expect(view.map.panTo).toHaveBeenLastCalledWith(new FakeLatLng(37.49, 126.726))
+    })
+
+    it('양수 크기 알림 전에 위치를 바꿔 점포 목록이 없어지면 열지 않는다', async () => {
+      const view = await hiddenWithoutNotice({ activeStoreId: 'a' })
+      const opens = infos[0]!.open.mock.calls.length                          // 보이는 동안 연 1회
+      view.rerender(<MapView {...props({ stores: STORES, activeStoreId: 'b' })} />)   // 숨김 중 다른 점포(미룸)
+      view.rerender(<MapView {...props({ stores: null, activeStoreId: null, selected: { lat: 37.4475, lng: 126.7015 } })} />)
+      show(view.section)
+      expect(infos[0]!.open.mock.calls.length).toBe(opens)
+      expect(screen.queryByRole('group', { name: '선택한 점포' })).not.toBeInTheDocument()
+    })
+  })
+
   it('보이는 지도에서는 목록 선택·마커 클릭 즉시 연다 (기존 그대로)', async () => {
     const onStoreSelect = vi.fn()
     const view = await mount(props({ stores: STORES, onStoreSelect }))
