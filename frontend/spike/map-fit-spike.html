@@ -1,0 +1,279 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>지도 맞춤 스파이크 (8-B0)</title>
+    <style>
+      html, body { margin: 0; height: 100%; font: 13px/1.5 system-ui, sans-serif; color: #17202b; background: #f5f7fa; }
+      /* 앱 실측(2026-10-13, 결과 화면) 기준의 지도 자리: desktop = 헤더 57 + 왼쪽 패널 480, tablet = 헤더 57 아래 높이 319,
+         mobile 지도 화면 = 헤더 133(Context Bar 줄바꿈) 아래, 하단 sheet 145(4px 겹침) 위. 모양만 흉내 내고 앱 코드는 쓰지 않는다 */
+      #map { position: absolute; overflow: hidden; isolation: isolate; background: #eef1f5; }
+      #panel { position: absolute; left: 0; top: 0; width: 480px; padding: 8px; box-sizing: border-box; overflow: auto; }
+      #panel button { margin: 2px; }
+      #log { white-space: pre-wrap; font: 11px/1.4 ui-monospace, Consolas, monospace; }
+      /* 우리 오버레이 흉내(앱 MapView.css 실측 크기). U 계산은 이 요소들의 getBoundingClientRect를 읽는다 */
+      .ov { position: absolute; z-index: 1; background: #fff; border: 1px solid #dde2e9; border-radius: 6px;
+            box-shadow: 0 1px 2px rgba(23, 32, 43, 0.08); box-sizing: border-box; font-size: 12px; padding: 4px 8px; }
+      .ov--legend { left: 16px; bottom: 16px; width: 136px; height: 94px; }
+      .ov--radius { left: 16px; top: 12px; width: 212px; height: 40px; }
+      [data-layout="mobile"] .ov--legend { bottom: auto; top: 12px; }
+      [data-layout="mobile"] .ov--radius { top: auto; bottom: 12px; left: 50%; transform: translateX(-50%); }
+      #u { position: absolute; z-index: 2; border: 2px dashed #b42318; pointer-events: none; box-sizing: border-box; }
+    </style>
+  </head>
+  <body>
+    <!-- 개발 서버 전용(빌드·타입검사 밖). 앱 코드를 import하지 않는다. Client ID는 .env의 VITE_NAVER_MAP_CLIENT_ID만 쓰고 화면·로그에 쓰지 않는다.
+         조작은 window.__spike의 함수(측정 스크립트가 부른다) 또는 아래 버튼. 결과는 window.__spike.events / 반환값 -->
+    <div id="panel">
+      <b>8-B0 지도 맞춤 스파이크</b> (docs/UX_REDESIGN.md 3장, 재현: docs/spikes/8-B0/README.md)
+      <div>
+        <button type="button" data-r="300">fit 300</button>
+        <button type="button" data-r="500">fit 500</button>
+        <button type="button" data-r="1000">fit 1000</button>
+        <button type="button" id="pan">panTo 구월</button>
+        <button type="button" id="zin">setZoom +1</button>
+      </div>
+      <div id="log" aria-live="polite"></div>
+    </div>
+    <div id="map">
+      <div id="canvas" style="width: 100%; height: 100%"></div>
+      <div class="ov ov--legend" data-overlay="legend">범례(흉내)</div>
+      <div class="ov ov--radius" data-overlay="radius-chip">분석 반경 칩(흉내)</div>
+      <div id="u" hidden></div>
+    </div>
+    <script type="module">
+      const params = new URLSearchParams(location.search)
+      const clientId = import.meta.env.VITE_NAVER_MAP_CLIENT_ID
+      const logEl = document.getElementById('log')
+      const log = (s) => { logEl.textContent = `${s}\n` + logEl.textContent.slice(0, 4000) }
+      const mapEl = document.getElementById('map')
+      const canvas = document.getElementById('canvas')
+      const BUPYEONG = { lat: 37.4894, lng: 126.7246 }
+      const GUWOL = { lat: 37.4492, lng: 126.7050 }
+
+      // 화면 폭별 지도 자리 (앱 실측과 같게)
+      function layout() {
+        const vw = innerWidth, vh = innerHeight
+        const kind = params.get('layout') || (vw >= 1024 ? 'desktop' : vw >= 640 ? 'tablet' : 'mobile')
+        document.body.dataset.layout = kind
+        const box = kind === 'desktop' ? { left: 480, top: 57, w: vw - 480, h: vh - 57 }
+          : kind === 'tablet' ? { left: 0, top: 57, w: vw, h: 319 }
+          : { left: 0, top: 133, w: vw, h: vh - 133 - 145 }
+        Object.assign(mapEl.style, { left: box.left + 'px', top: box.top + 'px', width: box.w + 'px', height: box.h + 'px' })
+        document.getElementById('panel').style.display = kind === 'desktop' ? '' : 'none'
+        return kind
+      }
+      const kind = layout()
+
+      const S = (window.__spike = { kind, events: [], ready: false, error: null })
+      if (!clientId) { S.error = 'no client id'; log(S.error) }
+
+      // 이벤트 기록: 어떤 조작(op) 중에, 호출 안에서 동기로(sync) 왔는지
+      let op = null, inCall = false, t0 = 0
+      const record = (type) => S.events.push({ op, type, sync: inCall, t: Math.round(performance.now() - t0), zoom: S.map?.getZoom() })
+      S.call = (name, fn) => {
+        S.events = S.events.filter((e) => e.op !== name)    // 같은 이름의 이전 기록은 지운다(호출 1회분만 남김)
+        op = name; t0 = performance.now(); inCall = true
+        let ret
+        try { ret = fn() } finally { inCall = false }
+        return ret
+      }
+      // 마지막 이벤트가 idle이면 끝난 것으로 본다(이벤트가 없으면 ms 뒤 false). 늦게 오는 이벤트를 보려고 150ms는 기다린다
+      S.idle = (ms = 1500) => new Promise((resolve) => {
+        const start = performance.now()
+        const tick = () => {
+          const last = S.events.filter((e) => e.op === op).at(-1)
+          if (last?.type === 'idle' && performance.now() - start > 150) return resolve(true)
+          if (performance.now() - start > ms) return resolve(false)
+          setTimeout(tick, 50)
+        }
+        tick()
+      })
+      S.eventsOf = (name) => S.events.filter((e) => e.op === name).map((e) => `${e.type}${e.sync ? '(sync)' : ''}@${e.t}ms z${e.zoom}`)
+
+      // 사용 가능 영역 U: 지도 사각형에서 우리 오버레이 + SDK 컨트롤(z-index 100, 크기 있는 것)을 뺀다.
+      // 장애물마다 "가장 적게 잃는 쪽 변"으로 밀어 넣는다(모서리 장애물을 위/아래 또는 좌/우 중 싼 쪽으로). pad만큼 더 띄운다
+      S.obstacles = () => {
+        const m = mapEl.getBoundingClientRect()
+        const out = []
+        for (const el of mapEl.querySelectorAll('[data-overlay]')) {
+          const b = el.getBoundingClientRect()
+          if (b.width && b.height && getComputedStyle(el).display !== 'none') out.push({ src: el.dataset.overlay, x: b.left - m.left, y: b.top - m.top, w: b.width, h: b.height })
+        }
+        for (const el of canvas.querySelectorAll('*')) {
+          if (getComputedStyle(el).zIndex !== '100') continue
+          const b = el.getBoundingClientRect()
+          if (b.width < 1 || b.height < 1 || b.width >= m.width) continue
+          if (el.parentElement?.closest('[style*="z-index: 100"]') && getComputedStyle(el.parentElement).zIndex === '100') continue
+          out.push({ src: 'sdk', x: b.left - m.left, y: b.top - m.top, w: b.width, h: b.height })
+        }
+        return out
+      }
+      S.usable = (pad = 8) => {
+        const m = mapEl.getBoundingClientRect()
+        const u = { top: 0, right: m.width, bottom: m.height, left: 0 }
+        for (const o of S.obstacles()) {
+          const overlaps = o.x < u.right && o.x + o.w > u.left && o.y < u.bottom && o.y + o.h > u.top
+          if (!overlaps) continue
+          const w = u.right - u.left, h = u.bottom - u.top
+          const options = [
+            { side: 'top', v: o.y + o.h, loss: (o.y + o.h - u.top) * w },
+            { side: 'bottom', v: o.y, loss: (u.bottom - o.y) * w },
+            { side: 'left', v: o.x + o.w, loss: (o.x + o.w - u.left) * h },
+            { side: 'right', v: o.x, loss: (u.right - o.x) * h },
+          ].filter((c) => c.loss >= 0)
+          options.sort((a, b) => a.loss - b.loss)
+          const c = options[0]
+          u[c.side] = c.v
+        }
+        u.top += pad; u.left += pad; u.right -= pad; u.bottom -= pad
+        const margin = { top: Math.round(u.top), right: Math.round(m.width - u.right), bottom: Math.round(m.height - u.bottom), left: Math.round(u.left) }
+        return { map: { w: m.width, h: m.height }, u: { x: u.left, y: u.top, w: u.right - u.left, h: u.bottom - u.top }, margin }
+      }
+      S.showU = () => {
+        const { u } = S.usable()
+        Object.assign(document.getElementById('u').style, { left: u.x + 'px', top: u.y + 'px', width: u.w + 'px', height: u.h + 'px' })
+        document.getElementById('u').hidden = false
+      }
+
+      // 원의 화면 사각형(지도 컨테이너 기준 px). 완료 판정에는 (a)·(b)만 쓴다:
+      //  (a) svg  = 원 SVG 요소(Circle.getElement)의 getBoundingClientRect — 실제로 그려진 위치(판정 기준)
+      //  (b) bounds = map.getBounds()와 원 getBounds()로 계산(경도 선형, 위도 Web Mercator) — (a)와 1~2px 안에서 일치함을 8-B0에서 확인
+      //  (진단) proj = getProjection().fromCoordToOffset — panBy 뒤 갱신되지 않아(24~29px 차이) 판정에 쓰지 않는다
+      const mercY = (lat) => Math.log(Math.tan(Math.PI / 4 + (lat * Math.PI) / 360))
+      S.boundsRect = (circle) => {
+        const mb = S.map.getBounds(), cb = circle.getBounds()
+        const m = mapEl.getBoundingClientRect()
+        const sx = m.width / (mb.getNE().lng() - mb.getSW().lng())
+        const sy = m.height / (mercY(mb.getNE().lat()) - mercY(mb.getSW().lat()))
+        const x = (cb.getSW().lng() - mb.getSW().lng()) * sx, x2 = (cb.getNE().lng() - mb.getSW().lng()) * sx
+        const y = (mercY(mb.getNE().lat()) - mercY(cb.getNE().lat())) * sy, y2 = (mercY(mb.getNE().lat()) - mercY(cb.getSW().lat())) * sy
+        return { x, y, w: x2 - x, h: y2 - y }
+      }
+      S.circleRect = (circle) => {
+        const m = mapEl.getBoundingClientRect()
+        let svg = null
+        const el = circle.getElement?.()
+        if (el) { const r = el.getBoundingClientRect(); if (r.width > 0) svg = { x: r.left - m.left, y: r.top - m.top, w: r.width, h: r.height } }
+        let proj = null
+        const p = S.map.getProjection?.(), b = circle.getBounds?.()
+        if (p && b) { const sw = p.fromCoordToOffset(b.getSW()), ne = p.fromCoordToOffset(b.getNE()); proj = { x: sw.x, y: ne.y, w: ne.x - sw.x, h: sw.y - ne.y } }
+        return { svg, bounds: S.boundsRect(circle), projDiag: proj }
+      }
+      // 완료 조건(docs/UX_REDESIGN.md 2.6): 원 bbox ⊂ U(±1px) 그리고 지름 ≥ 0.5 × min(U.w, U.h)
+      S.check = (rect, u) => {
+        if (!rect) return null
+        const inside = rect.x >= u.x - 1 && rect.y >= u.y - 1 && rect.x + rect.w <= u.x + u.w + 1 && rect.y + rect.h <= u.y + u.h + 1
+        const ratio = Math.min(rect.w, rect.h) / Math.min(u.w, u.h)
+        return { inside, ratio: Math.round(ratio * 100) / 100, ok: inside && ratio >= 0.5 }
+      }
+      // 판정: svg 기준(주). bounds 계산은 교차 확인 — 둘의 판정이 다르면 agree=false로 남긴다
+      S.verdict = (rect, u) => {
+        const svg = S.check(rect.svg, u), bounds = S.check(rect.bounds, u)
+        return { ok: svg ? svg.ok : bounds.ok, basis: svg ? 'svg' : 'bounds', svg, bounds, agree: !svg || svg.ok === bounds.ok }
+      }
+
+      S.circles = {}
+      S.circle = (key, center, radius) => {
+        const api = window.naver.maps
+        S.circles[key]?.setMap(null)
+        S.circles[key] = new api.Circle({ map: S.map, center: new api.LatLng(center.lat, center.lng), radius,
+          fillColor: '#1D5BBF', fillOpacity: 0.08, strokeColor: '#1D5BBF', strokeWeight: 1.5, strokeStyle: 'shortdash', clickable: false })
+        return S.circles[key]
+      }
+      // SDK 방식: fitBounds(원 bounds, U margin)
+      S.fit = async (key, center, radius, opts = {}) => {
+        const circle = S.circle(key, center, radius)
+        const before = S.map.getZoom()
+        const usable = S.usable(opts.pad ?? 8)
+        const bounds = opts.bounds ?? circle.getBounds()
+        S.call(`fit:${key}`, () => S.map.fitBounds(bounds, opts.noMargin ? undefined : usable.margin))
+        const settled = await S.idle()
+        const rect = S.circleRect(circle)
+        return { before, after: S.map.getZoom(), settled, margin: usable.margin, u: usable.u, rect, verdict: S.verdict(rect, usable.u), events: S.eventsOf(`fit:${key}`) }
+      }
+
+      // 직접 계산 방식(단일 원):
+      //   d = 지금 zoom에서 원 지름(px, bounds 계산의 max(w,h))
+      //   z = clamp(지금 zoom + floor(log2(min(U.w, U.h) / d)), minZoom, maxZoom)   — zoom이 1 오르면 지름 2배
+      //   setCenter(원 중심) → setZoom(z, false) → panBy(Point(지도 중심.x − U 중심.x, 지도 중심.y − U 중심.y))
+      //   panBy(+x, +y)는 보이는 영역을 오른쪽·아래로 옮긴다 = 지도 내용(원)이 화면에서 왼쪽·위로 x, y px 움직인다.
+      //   그래서 원 중심(=지도 중심)을 U 중심으로 보내려면 (지도 중심 − U 중심)을 넘긴다.
+      S.fitCustom = async (key, center, radius, opts = {}) => {
+        const api = S.api
+        const circle = S.circle(key, center, radius)
+        const before = S.map.getZoom()
+        const usable = S.usable(opts.pad ?? 8)
+        const r0 = S.boundsRect(circle)
+        const d0 = Math.max(r0.w, r0.h)
+        let z = before + Math.floor(Math.log2(Math.min(usable.u.w, usable.u.h) / d0))
+        const zMax = S.map.getMaxZoom?.() ?? 21, zMin = S.map.getMinZoom?.() ?? 0
+        z = Math.max(zMin, Math.min(zMax, z))
+        const m = usable.map
+        const uCx = usable.u.x + usable.u.w / 2, uCy = usable.u.y + usable.u.h / 2
+        const pan = { x: m.w / 2 - uCx, y: m.h / 2 - uCy }
+        S.call(`custom:${key}`, () => {
+          S.map.setCenter(new api.LatLng(center.lat, center.lng))
+          S.map.setZoom(z, false)
+          S.map.panBy(new api.Point(pan.x, pan.y))
+        })
+        const settled = await S.idle()
+        const rect = S.circleRect(circle)
+        const cx = rect.svg ? rect.svg.x + rect.svg.w / 2 : null, cy = rect.svg ? rect.svg.y + rect.svg.h / 2 : null
+        return { before, after: S.map.getZoom(), target: z, d0: Math.round(d0), pan, centerToU: cx == null ? null : [Math.round(cx - uCx), Math.round(cy - uCy)], settled, u: usable.u, rect, verdict: S.verdict(rect, usable.u), events: S.eventsOf(`custom:${key}`) }
+      }
+
+      function init() {
+        const api = window.naver.maps
+        const style = params.get('zoomStyle')
+        S.map = new api.Map(canvas, {
+          center: new api.LatLng(37.4563, 126.7052), zoom: 11,
+          // 앱(MapView.tsx)과 같은 컨트롤 옵션: 축척 켬, 지도 데이터 저작권 컨트롤(mapDataControl) 끔.
+          // ?mapData=1 이면 SDK 기본(저작권 표기 켬)으로 띄워 그 표기가 U 장애물로 잡히는지 볼 수 있다
+          zoomControl: true,
+          zoomControlOptions: { position: api.Position.TOP_RIGHT, ...(style ? { style: api.ZoomControlStyle[style] } : {}) },
+          scaleControl: true,
+          mapDataControl: params.get('mapData') === '1',
+        })
+        for (const type of ['zoom_changed', 'center_changed', 'bounds_changed', 'dragstart', 'drag', 'dragend', 'idle', 'zooming', 'pinchend', 'mousewheel']) {
+          api.Event.addListener(S.map, type, () => { if (type !== 'drag') record(type) })
+        }
+        api.Event.once(S.map, 'init', () => { S.ready = true; log('map init') })
+        api.Event.addListener(S.map, 'idle', () => { if (!S.ready) S.ready = true })
+        S.api = api
+        S.sdkInfo = {
+          circleGetBounds: typeof api.Circle.prototype.getBounds,
+          circleGetElement: typeof api.Circle.prototype.getElement,
+          mapFitBounds: typeof api.Map.prototype.fitBounds,
+          mapPanToBounds: typeof api.Map.prototype.panToBounds,
+          mapGetBounds: typeof api.Map.prototype.getBounds,
+          mapGetProjection: typeof api.Map.prototype.getProjection,
+          margin: typeof api.Margin,
+          zoomControlStyle: api.ZoomControlStyle ? Object.keys(api.ZoomControlStyle) : null,
+          version: api.VERSION ?? null,
+        }
+      }
+
+      for (const btn of document.querySelectorAll('button[data-r]')) {
+        btn.addEventListener('click', async () => log(JSON.stringify(await S.fit('A', BUPYEONG, Number(btn.dataset.r)))))
+      }
+      document.getElementById('pan').addEventListener('click', () => S.call('pan', () => S.map.panTo(new S.api.LatLng(GUWOL.lat, GUWOL.lng))))
+      document.getElementById('zin').addEventListener('click', () => S.call('zoom', () => S.map.setZoom(S.map.getZoom() + 1)))
+      S.BUPYEONG = BUPYEONG
+      S.GUWOL = GUWOL
+
+      // submodules=geocoder는 앱 로더(map/naverMaps.ts)와 같은 URL을 쓰기 위해서다. 스파이크는 Geocoder를 부르지 않는다.
+      // (스파이크 1차: submodules 없이 callback만 준 URL에서는 naver 전역이 생기지 않았다 — 헤드리스 1회 관찰, 원인 미확인)
+      if (clientId) {
+        window.navermap_authFailure = () => { S.error = 'auth failure'; log('AUTH FAILURE') }
+        window.__spikeMapReady = () => init()
+        const script = document.createElement('script')
+        script.async = true
+        script.src = `https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=${encodeURIComponent(clientId)}&submodules=geocoder&callback=__spikeMapReady`
+        script.addEventListener('error', () => { S.error = 'sdk load error'; log(S.error) })
+        document.head.appendChild(script)
+      }
+    </script>
+  </body>
+</html>
