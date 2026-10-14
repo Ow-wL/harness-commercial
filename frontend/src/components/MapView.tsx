@@ -227,19 +227,19 @@ function mapObstacles(section: HTMLElement, canvas: HTMLElement | null): Rect[] 
 /**
  * 점포 정보창 배치 (D-022, 8-B1 단일): 기본 위치가 U 밖이거나 분석 핀(`.map-marker`)을 덮으면
  * 점포 아래 → 옆(이동이 작은 쪽) 순으로 SDK 공식 옵션을 바꿔 보고, 실제로 잰 사각형이 맞는 첫 위치에 둔다.
- * 맞는 위치가 없으면 기본 위치로 되돌린다. setOptions는 동기로 다시 배치된다(실측)
+ * 맞는 위치가 없으면 기본 위치로 되돌린다. setOptions는 동기로 다시 배치된다(실측). 위치나 지도를 바꿨으면 true
  */
-function placeStoreInfo(api: NaverMapsApi, map: NaverMap, info: NaverInfoWindow, section: HTMLElement, canvas: HTMLElement | null) {
+function placeStoreInfo(api: NaverMapsApi, map: NaverMap, info: NaverInfoWindow, section: HTMLElement, canvas: HTMLElement | null): boolean {
   const content = info.getContentElement?.()
   const store = section.querySelector('.map-store-marker--active')
-  if (!info.setOptions || !content || !store || section.clientWidth === 0) return
+  if (!info.setOptions || !content || !store || section.clientWidth === 0) return false
   const m = section.getBoundingClientRect()
   const rel = (b: DOMRect, grow = 0): Rect => ({ x: b.left - m.left - grow, y: b.top - m.top - grow, w: b.width + 2 * grow, h: b.height + 2 * grow })
   const box = () => rel(content.getBoundingClientRect(), 2)                     // SDK 테두리 포함
   const pins = [...section.querySelectorAll('.map-marker')].map((p) => rel(p.getBoundingClientRect()))
   const u = usableArea({ w: section.clientWidth, h: section.clientHeight }, mapObstacles(section, canvas), FIT_PAD)
   const def = box()
-  if (infoPlacementOk(def, pins, u)) return
+  if (infoPlacementOk(def, pins, u)) return false
   const storeRect = rel(store.getBoundingClientRect())
   // 1차: 지도는 그대로 두고 정보창 위치만 바꾼다. 2차 후보로 쓰려고 핀을 덮지 않는 위치와 U 안으로 넣는 데 필요한 이동을 모은다
   const fallback: { apply: () => void; shift: { x: number; y: number } }[] = []
@@ -264,7 +264,7 @@ function placeStoreInfo(api: NaverMapsApi, map: NaverMap, info: NaverInfoWindow,
         r = box()
       }
     }
-    if (infoPlacementOk(r, pins, u)) return
+    if (infoPlacementOk(r, pins, u)) return true
     if (!pins.some((p) => intersects(r, p)) && r.w <= u.w && r.h <= u.h) fallback.push({ apply: set, shift: shiftInto(r) })
   }
   // 2차: 핀을 덮지 않는 위치 중 지도 이동이 가장 작은 것 — 정보창·핀이 함께 움직이므로 겹침은 그대로 없다(zoom 불변)
@@ -273,9 +273,10 @@ function placeStoreInfo(api: NaverMapsApi, map: NaverMap, info: NaverInfoWindow,
   if (best) {
     best.apply()
     map.panBy(new api.Point(-best.shift.x, -best.shift.y))            // panBy(+x, +y)는 내용을 왼쪽·위로 옮긴다
-    return
+    return true
   }
   resetInfo()
+  return false
 }
 
 /** 지도 오버레이 색은 DESIGN 토큰(§2.6)에서 읽는다 — 컴포넌트에 색 값을 직접 쓰지 않는다 */
@@ -462,24 +463,26 @@ export function MapView({
     }
   }, [api, map])
 
-  // 바깥 화면 전환 신호(layoutKey, mobile 지도↔패널): DOM 반영 뒤(layout effect) 같은 크기 맞춤을 한 번 더 돈다.
-  // 크기 알림 없이 지도 화면으로 돌아와도 실제 크기가 양수면 setSize → 미룬 정보창을 현재 선택으로 처리한다(실제 크기 검사 그대로)
-  useLayoutEffect(() => {
-    fitRef.current()
-  }, [layoutKey])
-
   // 범위 맞춤 (8-B1, D-022 순위 1·2·4): 선택 지점의 분석 반경 원이 사용 영역 U 안에 들고 지름이 U 짧은 변의 절반 이상이 되게
   // setCenter → setZoom(z, false) → panBy. auto(새 위치)는 지금 화면이 이미 조건을 만족하면 움직이지 않는다.
-  // 지도가 숨겨졌거나(크기 0) init 전이면 미뤘다가 보이고 setSize한 뒤·init 뒤 1회 실행한다
+  // 지도가 숨겨졌거나(크기 0) init 전이면 미뤘다가 보이고 setSize한 뒤·init 뒤 1회 실행한다.
+  // 단일 전용(8-B2 전): 비교 중에는 맞추지 않고, 비교를 시작하면 미뤄 둔 단일 맞춤을 버린다.
+  // 아래 layoutKey 크기 맞춤(layout effect)보다 **먼저 선언한 layout effect**에서 최신 선택·비교 상태를 반영한다 —
+  // 비교 시작과 지도 표시가 같은 렌더에 일어나도 옛 상태(단일)로 미룬 맞춤을 실행하지 않게
   const selectedRef = useRef(selected)
   const comparingRef = useRef(compare !== null)
-  useEffect(() => {
+  useLayoutEffect(() => {
     selectedRef.current = selected
     comparingRef.current = compare !== null
+    if (comparingRef.current) pendingFitRef.current = null
     runFitRef.current = (mode) => {
       const point = selectedRef.current
       const el = sectionRef.current
       if (!api || !map || !point || !el) return
+      if (comparingRef.current) {
+        pendingFitRef.current = null
+        return
+      }
       if (!initedRef.current || el.clientWidth === 0 || el.clientHeight === 0) {
         if (mode === 'force' || !pendingFitRef.current) pendingFitRef.current = mode
         return
@@ -498,6 +501,12 @@ export function MapView({
       map.panBy(new api.Point(pan.x, pan.y))
     }
   })
+
+  // 바깥 화면 전환 신호(layoutKey, mobile 지도↔패널): DOM 반영 뒤(layout effect) 같은 크기 맞춤을 한 번 더 돈다.
+  // 크기 알림 없이 지도 화면으로 돌아와도 실제 크기가 양수면 setSize → 미룬 정보창을 현재 선택으로 처리한다(실제 크기 검사 그대로)
+  useLayoutEffect(() => {
+    fitRef.current()
+  }, [layoutKey])
 
   // 선택 지점이 바뀌면(지도 클릭·주소·좌표 입력, 분석 불가 지점 포함) 맞춘다(순위 2, 잠금 해제). 같은 좌표에서 tone·결과만
   // 바뀌면 그대로. 비교 중의 지도 이동은 8-B2 전까지 기존 규칙(panTo, zoom 그대로)
@@ -659,6 +668,8 @@ export function MapView({
   // 지도가 숨겨져(0×0) 있으면 폭 0으로 고정돼 지도를 보였을 때 폭 24px로 접힌다. 숨겨지면 닫아 두고(다른 선택의 옛 정보창이
   // 다시 보이지 않게), 다시 보이면 그때의 선택으로 연다. 이동(panTo)도 같은 시점 — 새로 선택한 점포일 때만
   const infoRef = useRef<NaverInfoWindow | null>(null)
+  /** 단일 정보창 배치로 위치 옵션을 바꿨거나 지도를 옮겼는지 — 비교에서는 기본 위치로만 되돌린다 */
+  const infoAdjustedRef = useRef(false)
   const pannedStoreRef = useRef<string | null>(null)
   useEffect(() => {
     if (!api || !map) return
@@ -692,10 +703,27 @@ export function MapView({
         disableAnchor: false,
       })
     const info = infoRef.current
-    info.setOptions?.({ pixelOffset: new api.Point(0, 0), disableAnchor: false, anchorSkew: false })   // 기본 위치에서 다시 시작
+    const resetInfo = () => {
+      info.setOptions?.({ pixelOffset: new api.Point(0, 0), disableAnchor: false, anchorSkew: false })
+      infoAdjustedRef.current = false
+    }
+    if (comparingRef.current) {
+      // 비교 중(8-B2 전): 기존 정보창 동작 그대로 — 배치 조정·추가 panBy 없음. 단일에서 바꾼 위치가 남아 있으면 기본으로만 되돌린다
+      if (infoAdjustedRef.current) resetInfo()
+      info.open(map, marker)
+      if (pannedStoreRef.current !== activeStoreId) {
+        map.panTo(new api.LatLng(store.lat, store.lng))
+        pannedStoreRef.current = activeStoreId
+      }
+      return
+    }
+    resetInfo()                                                   // 기본 위치에서 다시 시작
     info.open(map, marker)
     // 정보창 배치(D-022, 8-B1 단일): 이동이 끝난 뒤 정보창이 U 밖이거나 분석 핀을 덮으면 후보 위치로 옮긴다
-    const place = () => placeStoreInfo(api, map, info, el, canvasRef.current)
+    const place = () => {
+      if (comparingRef.current) return                            // 기다리는 사이 비교가 시작됐다
+      if (placeStoreInfo(api, map, info, el, canvasRef.current)) infoAdjustedRef.current = true
+    }
     if (pannedStoreRef.current !== activeStoreId) {
       map.panTo(new api.LatLng(store.lat, store.lng))
       pannedStoreRef.current = activeStoreId

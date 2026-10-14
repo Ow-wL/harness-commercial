@@ -88,10 +88,17 @@ class FakeMap {
 const overlay = function () {
   return { setMap: vi.fn(), setPosition: vi.fn(), setIcon: vi.fn(), setCenter: vi.fn() }
 }
-type FakeInfo = { open: Mock; close: Mock; setContent: Mock; content: HTMLElement }
+type FakeInfo = { open: Mock; close: Mock; setContent: Mock; setOptions: Mock; getContentElement: () => HTMLElement; content: HTMLElement }
 let infos: FakeInfo[] = []
 const infoWindow = function (opts: { content: HTMLElement }) {
-  const info: FakeInfo = { open: vi.fn(), close: vi.fn(), setContent: vi.fn(), content: opts.content }
+  const info: FakeInfo = {
+    open: vi.fn(),
+    close: vi.fn(),
+    setContent: vi.fn(),
+    setOptions: vi.fn(),
+    getContentElement: () => info.content,
+    content: opts.content,
+  }
   info.setContent.mockImplementation((c: HTMLElement) => (info.content = c))
   infos.push(info)
   return info
@@ -1031,5 +1038,76 @@ describe('MapView — SDK 상태 보고 onSdkState (7-B1, docs/ADDRESS_DESIGN.md
     render(<MapView {...props({ onSdkState })} />)
     await waitFor(() => expect(onSdkState).toHaveBeenCalledWith({ status: 'failed', kind: 'config' }))
     expect(screen.getByRole('alert')).toBeInTheDocument()
+  })
+})
+
+describe('MapView — 8-B1 맞춤은 단일 전용: 비교 진입·정보창 (Codex 검수 회귀)', () => {
+  const A = { lat: 37.4894, lng: 126.7246 }
+  const PICKING: MapCompare = { location: null, tone: 'selected', dong: null, guide: 'B 위치를 고르세요 · A: 부평구 부평1동' }
+  const STORES: MapStore[] = [{ id: 'a', name: '라네이즈PC방', address: '인천 부평구 1', distance: '직선거리 115m', lat: 37.4888, lng: 126.7235 }]
+  const idleListeners = () => listeners.filter((l) => l.type === 'idle' && l.target === maps[0])
+
+  it('숨김 중 미룬 단일 맞춤: 비교 시작과 지도 표시(layoutKey=map)가 같은 렌더여도 맞추지 않는다', async () => {
+    const view = await mount(props({ selected: A, layoutKey: 'panel' }), null)
+    expect(view.map.setZoom).not.toHaveBeenCalled()                    // 0×0: 단일 auto 맞춤 대기
+    layout.set(view.section, { w: 375, h: 566 })
+    view.rerender(<MapView {...props({ selected: A, layoutKey: 'map', compare: PICKING })} />)
+    resize()
+    expect(view.map.setSize).toHaveBeenLastCalledWith(new FakeSize(375, 566))
+    expect(view.map.setZoom).not.toHaveBeenCalled()
+    expect(view.map.setCenter).not.toHaveBeenCalled()
+    expect(view.map.panBy).not.toHaveBeenCalled()
+  })
+
+  it('비교 상태가 먼저 바뀌고 다른 렌더에서 지도를 보여도 맞추지 않는다', async () => {
+    const view = await mount(props({ selected: A, layoutKey: 'panel' }), null)
+    view.rerender(<MapView {...props({ selected: A, layoutKey: 'panel', compare: PICKING })} />)
+    layout.set(view.section, { w: 375, h: 566 })
+    view.rerender(<MapView {...props({ selected: A, layoutKey: 'map', compare: PICKING })} />)
+    resize()
+    expect(view.map.setZoom).not.toHaveBeenCalled()
+  })
+
+  it('init 대기 중 비교에 들어가면 init 뒤에도 맞추지 않는다', async () => {
+    const view = await mount(props({ selected: A }), { w: 955, h: 365 }, { init: false })
+    view.rerender(<MapView {...props({ selected: A, compare: PICKING })} />)
+    fireMap('init')
+    expect(view.map.getBounds).not.toHaveBeenCalled()
+    expect(view.map.setZoom).not.toHaveBeenCalled()
+  })
+
+  it('비교 종료 뒤: 자동 맞춤은 없고(같은 지점), "범위에 맞추기"와 새 위치 맞춤은 다시 동작한다', async () => {
+    const view = await mount(props({ selected: A, layoutKey: 'panel' }), null)
+    view.rerender(<MapView {...props({ selected: A, layoutKey: 'panel', compare: PICKING })} />)
+    layout.set(view.section, { w: 955, h: 365 })
+    view.rerender(<MapView {...props({ selected: A, layoutKey: 'map', compare: PICKING })} />)
+    view.rerender(<MapView {...props({ selected: A, layoutKey: 'map' })} />)            // 비교 종료
+    resize()
+    expect(view.map.setZoom).not.toHaveBeenCalled()                    // 버려진 대기 맞춤이 되살아나지 않는다
+    expect(view.map.panTo).toHaveBeenLastCalledWith(new FakeLatLng(A.lat, A.lng))   // 비교 종료는 기존 panTo
+    fireEvent.click(screen.getByRole('button', { name: '범위에 맞추기' }))
+    expect(view.map.setZoom).toHaveBeenCalledTimes(1)
+    view.rerender(<MapView {...props({ selected: { lat: 37.4482, lng: 126.7035 }, layoutKey: 'map' })} />)
+    expect(view.map.setZoom).toHaveBeenCalledTimes(2)
+  })
+
+  it('비교 중 점포 선택은 새 정보창 배치를 쓰지 않는다(setOptions·idle 대기·panBy 없음, 기존 panTo만)', async () => {
+    const view = await mount(props({ selected: A, compare: PICKING, stores: STORES }))
+    const before = { idle: idleListeners().length, panBy: view.map.panBy.mock.calls.length }
+    view.rerender(<MapView {...props({ selected: A, compare: PICKING, stores: STORES, activeStoreId: 'a' })} />)
+    expect(infos[0]!.open).toHaveBeenCalledTimes(1)
+    expect(infos[0]!.setOptions).not.toHaveBeenCalled()
+    expect(idleListeners()).toHaveLength(before.idle)
+    expect(view.map.panTo).toHaveBeenLastCalledWith(new FakeLatLng(37.4888, 126.7235))
+    await new Promise((r) => setTimeout(r, 1600))                       // 배치 대기 시간이 지나도
+    expect(view.map.panBy.mock.calls.length).toBe(before.panBy)
+  })
+
+  it('단일 점포 선택은 기본 위치로 다시 열고 이동이 끝난 뒤(idle) 배치를 잰다', async () => {
+    const view = await mount(props({ selected: A, stores: STORES }))
+    const idle = idleListeners().length
+    view.rerender(<MapView {...props({ selected: A, stores: STORES, activeStoreId: 'a' })} />)
+    expect(infos[0]!.setOptions).toHaveBeenCalledWith({ pixelOffset: new FakePoint(0, 0), disableAnchor: false, anchorSkew: false })
+    expect(idleListeners()).toHaveLength(idle + 1)
   })
 })
