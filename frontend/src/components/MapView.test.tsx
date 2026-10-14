@@ -2,6 +2,7 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-libra
 import type { Mock } from 'vitest'
 import { NAVER_SCRIPT_ID, resetNaverMapsLoaderForTest, type NaverMapsApi } from '../map/naverMaps.ts'
 import { findDongRings } from '../map/dongBoundary.ts'
+import { boxToRect, circleBox, satisfiesSingle, usableArea } from '../map/mapFit.ts'
 import { MapView, type MapCompare, type MapStore, type MapViewProps } from './MapView.tsx'
 
 // 행정동 경계 파일(약 600KB) 대신 동마다 작은 사각형 하나 — 어떤 동을 요청했는지와 polygon 생성·제거만 본다
@@ -33,14 +34,53 @@ class FakeSize {
   ) {}
 }
 
+class FakePoint {
+  constructor(
+    readonly x: number,
+    readonly y: number,
+  ) {}
+}
+
+// 래스터 Web Mercator 축척 모델(타일 256px): 범위 맞춤이 getBounds·setCenter·setZoom·panBy로 계산한 결과를 실제로 확인할 수 있게 한다
+const worldPx = (z: number) => 256 * 2 ** z
+const toPx = (lat: number, lng: number, z: number) => {
+  const s = Math.sin((lat * Math.PI) / 180)
+  return { x: ((lng + 180) / 360) * worldPx(z), y: (0.5 - Math.log((1 + s) / (1 - s)) / (4 * Math.PI)) * worldPx(z) }
+}
+const fromPx = (x: number, y: number, z: number) => {
+  const n = Math.PI - (2 * Math.PI * y) / worldPx(z)
+  return new FakeLatLng((180 / Math.PI) * Math.atan(Math.sinh(n)), (x / worldPx(z)) * 360 - 180)
+}
+
 let maps: FakeMap[] = []
 class FakeMap {
-  setSize = vi.fn()
+  zoom = 11
+  center = new FakeLatLng(37.4563, 126.7052)
+  size = { w: 955, h: 365 }
+  renderMode = 1
+  setSize = vi.fn((s: FakeSize) => (this.size = { w: s.width, h: s.height }))
   panTo = vi.fn()
-  setZoom = vi.fn()
-  getZoom = vi.fn(() => 11)
+  setZoom = vi.fn((...[z]: [zoom: number, effect?: boolean]) => (this.zoom = z))
+  getZoom = vi.fn(() => this.zoom)
+  setCenter = vi.fn((c: FakeLatLng) => (this.center = c))
+  /** panBy(+x, +y): 보이는 영역을 오른쪽·아래로 → 중심 px가 그만큼 이동 */
+  panBy = vi.fn((p: FakePoint) => {
+    const c = toPx(this.center.lat(), this.center.lng(), this.zoom)
+    this.center = fromPx(c.x + p.x, c.y + p.y, this.zoom)
+  })
+  getBounds = vi.fn(() => {
+    const c = toPx(this.center.lat(), this.center.lng(), this.zoom)
+    const sw = fromPx(c.x - this.size.w / 2, c.y + this.size.h / 2, this.zoom)
+    const ne = fromPx(c.x + this.size.w / 2, c.y - this.size.h / 2, this.zoom)
+    return { getSW: () => sw, getNE: () => ne }
+  })
+  get = vi.fn((key: string) => (key === 'renderMode' ? this.renderMode : undefined))
+  getMinZoom = () => 0
+  getMaxZoom = () => 21
   destroy = vi.fn()
-  constructor() {
+  options: Record<string, unknown>
+  constructor(_el: unknown, options: Record<string, unknown>) {
+    this.options = options
     maps.push(this)
   }
 }
@@ -62,13 +102,14 @@ let listeners: { target: unknown; type: string; handler: () => void }[] = []
 const fakeSdk = {
   Map: FakeMap,
   LatLng: FakeLatLng,
-  Point: class {},
+  Point: FakePoint,
   Size: FakeSize,
   Marker: vi.fn(overlay),
   Circle: vi.fn(overlay),
   Polygon: vi.fn(overlay),
   InfoWindow: vi.fn(infoWindow),
   Position: { TOP_RIGHT: 'TOP_RIGHT' },
+  ZoomControlStyle: { SMALL: 'SMALL', LARGE: 'LARGE' },
   Event: {
     addListener: vi.fn((target: unknown, type: string, handler: () => void) => {
       const l = { target, type, handler }
@@ -128,13 +169,20 @@ const props = (over: Partial<MapViewProps> = {}): MapViewProps => ({
   ...over,
 })
 
-/** 보이는 지도(기본 955×365)로 마운트. `size: null`이면 숨겨진 지도(0×0, mobile 패널 화면) */
-async function mount(p: MapViewProps, size: { w: number; h: number } | null = { w: 955, h: 365 }) {
+/** SDK 지도 이벤트를 낸다 (init·zooming·dragstart) */
+const fireMap = (type: string) => act(() => listeners.filter((l) => l.type === type && l.target === maps[0]).forEach((l) => l.handler()))
+
+/**
+ * 보이는 지도(기본 955×365)로 마운트. `size: null`이면 숨겨진 지도(0×0, mobile 패널 화면).
+ * `init: false`면 SDK init 이벤트를 아직 내지 않는다(범위 맞춤은 init 뒤에만)
+ */
+async function mount(p: MapViewProps, size: { w: number; h: number } | null = { w: 955, h: 365 }, opts: { init?: boolean } = {}) {
   const view = render(<MapView {...p} />)
   const section = view.container.querySelector('section.map')!
   if (size) layout.set(section, size)
   // SDK 로드는 비동기 — 지도가 만들어지고 effect가 걸린 뒤(ResizeObserver 관찰 시작)부터 본다
   await waitFor(() => expect(observed).toHaveLength(1))
+  if (opts.init !== false) fireMap('init')
   return { ...view, map: maps[0]!, section }
 }
 
@@ -197,30 +245,139 @@ describe('MapView — 지도 크기 (B2)', () => {
   })
 })
 
-describe('MapView — 선택 위치로 이동 (B1)', () => {
-  it('selected가 바뀌면 그 좌표로 panTo 하고 zoom은 바꾸지 않는다', async () => {
+describe('MapView — 범위 맞춤 단일 (8-B1, D-022)', () => {
+  const BUPYEONG = { lat: 37.4894, lng: 126.7246 }
+  const GUWOL = { lat: 37.4482, lng: 126.7035 }
+  /** 지금 지도에서 반경 원의 화면 사각형과 사용 영역 U(jsdom: 오버레이 크기 0 → SDK 컨트롤 대체 사각형만) */
+  const circleState = (map: FakeMap, point: { lat: number; lng: number }) => {
+    const b = map.getBounds()
+    const bounds = { s: b.getSW().lat(), n: b.getNE().lat(), w: b.getSW().lng(), e: b.getNE().lng() }
+    const rect = boxToRect(circleBox(point.lat, point.lng, 500), { bounds, w: map.size.w, h: map.size.h })
+    const u = usableArea(map.size, [
+      { x: map.size.w - 60, y: 10, w: 50, h: 79 },
+      { x: map.size.w - 168, y: map.size.h - 27, w: 158, h: 17 },
+    ])
+    return { rect, u, ok: satisfiesSingle(rect, u) }
+  }
+
+  it('새 위치를 고르면 setCenter → setZoom(z, false) → panBy로 맞춰, 원이 U 안에 들고 지름이 U 짧은 변의 절반 이상이 된다 (panTo 아님)', async () => {
     const view = await mount(props())
+    expect(circleState(view.map, BUPYEONG).ok).toBe(false)              // z11: 원이 점처럼 작다(P1)
+    view.rerender(<MapView {...props({ selected: BUPYEONG })} />)
+
+    expect(view.map.setCenter).toHaveBeenCalledWith(new FakeLatLng(BUPYEONG.lat, BUPYEONG.lng))
+    expect(view.map.setZoom).toHaveBeenCalledTimes(1)
+    expect(view.map.setZoom.mock.calls[0]![1]).toBe(false)              // 즉시 이동
+    const order = [view.map.setCenter, view.map.setZoom, view.map.panBy].map((f) => f.mock.invocationCallOrder[0]!)
+    expect(order).toEqual([...order].sort((a, b) => a - b))
     expect(view.map.panTo).not.toHaveBeenCalled()
+    const { rect, u, ok } = circleState(view.map, BUPYEONG)
+    expect(ok).toBe(true)
+    // 원 중심 = U 중심(±1px)
+    expect(Math.abs(rect.x + rect.w / 2 - (u.x + u.w / 2))).toBeLessThan(1)
+    expect(Math.abs(rect.y + rect.h / 2 - (u.y + u.h / 2))).toBeLessThan(1)
+  })
 
-    view.rerender(<MapView {...props({ selected: { lat: 37.4894, lng: 126.7246 } })} />)
-    expect(view.map.panTo).toHaveBeenLastCalledWith(new FakeLatLng(37.4894, 126.7246))
+  it('지금 화면이 이미 조건을 만족하는 새 위치는 움직이지 않고, 아니면 다시 맞춘다 (순위 2)', async () => {
+    const view = await mount(props({ selected: BUPYEONG }))
+    expect(view.map.setZoom).toHaveBeenCalledTimes(1)
+    const near = { lat: BUPYEONG.lat + 0.0003, lng: BUPYEONG.lng + 0.0003 } // 약 40m 옆: 원이 여전히 U 안
+    view.rerender(<MapView {...props({ selected: near })} />)
+    expect(view.map.setZoom).toHaveBeenCalledTimes(1)
+    expect(view.map.setCenter).toHaveBeenCalledTimes(1)
 
-    // 좌표 직접 입력으로 다른 위치 → 다시 이동
-    view.rerender(<MapView {...props({ selected: { lat: 37.4482, lng: 126.7035 } })} />)
-    expect(view.map.panTo).toHaveBeenLastCalledWith(new FakeLatLng(37.4482, 126.7035))
-    expect(view.map.panTo).toHaveBeenCalledTimes(2)
+    view.rerender(<MapView {...props({ selected: GUWOL })} />)           // 4.8km 떨어진 곳: 화면 밖
+    expect(view.map.setCenter).toHaveBeenLastCalledWith(new FakeLatLng(GUWOL.lat, GUWOL.lng))
+    expect(circleState(view.map, GUWOL).ok).toBe(true)
+  })
+
+  it('분석 불가 지점도 고를 때 맞추고, 같은 좌표에서 tone·결과만 바뀌면 다시 맞추지 않는다', async () => {
+    const outside = { lat: 37.5663, lng: 126.9779 }
+    const view = await mount(props({ selected: outside }))
+    expect(view.map.setCenter).toHaveBeenCalledTimes(1)
+    view.rerender(<MapView {...props({ selected: { ...outside }, markerTone: 'invalid' })} />)
+    expect(view.map.setCenter).toHaveBeenCalledTimes(1)
+    expect(view.map.setZoom).toHaveBeenCalledTimes(1)
+  })
+
+  it('init 전에는 맞추지 않고(GL은 init 전 bounds 오류), init 뒤 1회 맞춘다', async () => {
+    const view = await mount(props({ selected: BUPYEONG }), { w: 955, h: 365 }, { init: false })
+    expect(view.map.getBounds).not.toHaveBeenCalled()
+    expect(view.map.setZoom).not.toHaveBeenCalled()
+    fireMap('init')
+    expect(view.map.setZoom).toHaveBeenCalledTimes(1)
+    fireMap('init')                                                     // 두 번째 init은 무시
+    expect(view.map.setZoom).toHaveBeenCalledTimes(1)
+  })
+
+  it('숨겨진 지도(0×0)에서 고르면 미뤘다가, 보이고 setSize한 뒤 그 크기로 1회 맞춘다 (순위 4)', async () => {
+    const view = await mount(props({ selected: BUPYEONG }), null)
+    expect(view.map.setZoom).not.toHaveBeenCalled()
+    layout.set(view.section, { w: 375, h: 566 })
+    resize()
+    expect(view.map.setZoom).toHaveBeenCalledTimes(1)
+    expect(view.map.setSize.mock.invocationCallOrder.at(-1)!).toBeLessThan(view.map.setCenter.mock.invocationCallOrder[0]!)
+    expect(circleState(view.map, BUPYEONG).ok).toBe(true)
+    layout.set(view.section, { w: 970, h: 320 })                         // 그 뒤 크기만 바뀌면 zoom 그대로(순위 8)
+    resize()
+    expect(view.map.setZoom).toHaveBeenCalledTimes(1)
+  })
+
+  it('창 크기 변경·점포 선택·분석 완료(행정동)는 zoom을 바꾸지 않는다 (순위 8)', async () => {
+    const STORES: MapStore[] = [{ id: 'a', name: '라네이즈PC방', address: '주소', distance: '직선거리 115m', lat: 37.4888, lng: 126.7235 }]
+    const view = await mount(props({ selected: BUPYEONG }))
+    const zooms = view.map.setZoom.mock.calls.length
+    for (let i = 0; i < 20; i++) {
+      layout.set(view.section, { w: 955 - (i % 2) * 300, h: 365 + (i % 2) * 200 })
+      resize()
+    }
+    view.rerender(<MapView {...props({ selected: BUPYEONG, dong: { guCode: '28237', dongName: '부평1동' }, stores: STORES })} />)
+    view.rerender(<MapView {...props({ selected: BUPYEONG, dong: { guCode: '28237', dongName: '부평1동' }, stores: STORES, activeStoreId: 'a' })} />)
+    expect(view.map.setZoom.mock.calls.length).toBe(zooms)
+    expect(view.map.panTo).toHaveBeenLastCalledWith(new FakeLatLng(37.4888, 126.7235))   // 점포 선택은 기존 panTo
+  })
+
+  it('"범위에 맞추기"는 이미 조건을 만족해도 다시 맞추고 키보드로 누를 수 있다 (순위 1). 사용자 조정(zooming·dragstart) 뒤에도 무조건 맞춘다', async () => {
+    const view = await mount(props({ selected: BUPYEONG }))
+    const button = screen.getByRole('button', { name: '범위에 맞추기' })
+    expect(button).toHaveAttribute('type', 'button')
+    expect(screen.getByRole('list', { name: '지도 범례' }).contains(button)).toBe(true)
+    fireEvent.click(button)
+    expect(view.map.setZoom).toHaveBeenCalledTimes(2)                   // 조건 만족 상태에서도
+
+    fireMap('zooming')                                                  // 사용자가 휠로 확대 → 잠금
+    view.map.setZoom(18)
+    fireMap('dragstart')
+    fireEvent.click(button)
+    expect(view.map.setZoom).toHaveBeenCalledTimes(4)                   // 사용자 setZoom(18) 1회 + 맞춤 1회
+    expect(circleState(view.map, BUPYEONG).ok).toBe(true)
+  })
+
+  it('잠금 중 숨김 복귀는 미뤘던 자동 맞춤을 하지 않는다(사용자가 직접 둔 화면 유지)', async () => {
+    const view = await mount(props())
+    layout.set(view.section, { w: 0, h: 0 })
+    resize()
+    view.rerender(<MapView {...props({ selected: BUPYEONG })} />)        // 숨김 중 선택 → 미룸
+    fireMap('zooming')                                                  // (잠금이 켜진 경우)
+    layout.set(view.section, { w: 375, h: 566 })
+    resize()
     expect(view.map.setZoom).not.toHaveBeenCalled()
   })
 
-  it('분석 불가 지점(invalid)도 이동하고, 같은 좌표에서 tone·결과만 바뀌면 다시 이동하지 않는다', async () => {
-    const outside = { lat: 37.5663, lng: 126.9779 }
-    const view = await mount(props({ selected: outside }))
-    expect(view.map.panTo).toHaveBeenCalledTimes(1)
-    expect(view.map.panTo).toHaveBeenLastCalledWith(new FakeLatLng(outside.lat, outside.lng))
+  it('"범위에 맞추기"는 단일·유효 지점에서만 보인다 (위치 없음·분석 불가·비교 중에는 없음)', async () => {
+    const view = await mount(props())
+    expect(screen.queryByRole('button', { name: '범위에 맞추기' })).not.toBeInTheDocument()
+    view.rerender(<MapView {...props({ selected: BUPYEONG, markerTone: 'invalid' })} />)
+    expect(screen.queryByRole('button', { name: '범위에 맞추기' })).not.toBeInTheDocument()
+    view.rerender(<MapView {...props({ selected: BUPYEONG, compare: { location: null, tone: 'selected', dong: null, guide: null } })} />)
+    expect(screen.queryByRole('button', { name: '범위에 맞추기' })).not.toBeInTheDocument()
+  })
 
-    // 사용자가 지도를 옮겨 둔 뒤 오류 응답(회색 마커)이 와도 같은 지점이면 끌어당기지 않는다
-    view.rerender(<MapView {...props({ selected: { ...outside }, markerTone: 'invalid' })} />)
-    expect(view.map.panTo).toHaveBeenCalledTimes(1)
+  it('확대 컨트롤은 SDK SMALL, 실제 그리기 방식(renderMode)을 section에 남긴다', async () => {
+    const view = await mount(props())
+    expect(view.map.options.zoomControlOptions).toEqual({ position: 'TOP_RIGHT', style: 'SMALL' })
+    expect(view.map.options.gl).toBeUndefined()                         // GL은 VITE_NAVER_MAP_GL=1일 때만
+    expect(view.section).toHaveAttribute('data-render-mode', '1')
   })
 })
 

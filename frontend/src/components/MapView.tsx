@@ -1,6 +1,18 @@
 import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent } from 'react'
 import { findDongRings } from '../map/dongBoundary.ts'
 import {
+  boxToRect,
+  circleBox,
+  fitZoom,
+  infoPlacementOk,
+  infoPlacements,
+  intersects,
+  panToUsable,
+  satisfiesSingle,
+  usableArea,
+  type Rect,
+} from '../map/mapFit.ts'
+import {
   getGeocoderAvailability,
   loadNaverMaps,
   MapLoadError,
@@ -79,6 +91,19 @@ const INCHEON_CENTER: LatLng = { lat: 37.4563, lng: 126.7052 }
 const INITIAL_ZOOM = 11
 /** 분석 반경 = 엔진 config.RADIUS_M (meta.분석반경_m) */
 export const RADIUS_M = 500
+/** GL 벡터 지도(검수용 선택, 기본 끔 — `VITE_NAVER_MAP_GL=1`). 커스텀 스타일은 제품에 아직 적용하지 않는다(8-B1) */
+const MAP_GL = import.meta.env.VITE_NAVER_MAP_GL === '1'
+/** 사용 영역 U의 여백 (D-022) */
+const FIT_PAD = 8
+/**
+ * SDK 컨트롤 DOM을 못 찾을 때 대신 쓰는 사각형(8-B0 실측 크기, 지도 생성 직후 1/4회 아직 없었음):
+ * 확대 컨트롤 SMALL 50×79(오른쪽 위), 로고·축척 158×17(오른쪽 아래)
+ */
+const SDK_CONTROL_FALLBACK = (w: number, h: number): Rect[] => [
+  { x: w - 60, y: 10, w: 50, h: 79 },
+  { x: w - 168, y: h - 27, w: 158, h: 17 },
+]
+
 /** 지도 클릭 좌표 자릿수: 소수 6자리 ≈ 0.1m. 이 값이 그대로 요청 body와 화면에 쓰인다 */
 const COORD_DIGITS = 6
 
@@ -172,6 +197,87 @@ function storeInfoContent(store: MapStore, onClose: () => void): HTMLElement {
   return root
 }
 
+/**
+ * 사용 영역 U의 장애물(지도 section 기준 사각형): 우리 오버레이(범례·안내 칩·점포 막대) + SDK 컨트롤.
+ * SDK 컨트롤은 z-index 100인 요소 중 바깥쪽 것만 본다(8-B0 스파이크와 같은 방식). 못 찾으면 실측 크기로 대신한다
+ */
+function mapObstacles(section: HTMLElement, canvas: HTMLElement | null): Rect[] {
+  const m = section.getBoundingClientRect()
+  const rel = (b: DOMRect): Rect => ({ x: b.left - m.left, y: b.top - m.top, w: b.width, h: b.height })
+  const out: Rect[] = []
+  for (const el of section.querySelectorAll<HTMLElement>('.map__legend, .map__guide, .map__store-bar')) {
+    const b = el.getBoundingClientRect()
+    if (b.width > 0 && b.height > 0) out.push(rel(b))
+  }
+  let sdk = 0
+  if (canvas) {
+    for (const el of canvas.querySelectorAll<HTMLElement>('*')) {
+      if (getComputedStyle(el).zIndex !== '100') continue
+      if (el.parentElement && getComputedStyle(el.parentElement).zIndex === '100') continue
+      const b = el.getBoundingClientRect()
+      if (b.width < 1 || b.height < 1 || b.width >= m.width) continue
+      out.push(rel(b))
+      sdk++
+    }
+  }
+  if (sdk === 0) out.push(...SDK_CONTROL_FALLBACK(section.clientWidth, section.clientHeight))
+  return out
+}
+
+/**
+ * 점포 정보창 배치 (D-022, 8-B1 단일): 기본 위치가 U 밖이거나 분석 핀(`.map-marker`)을 덮으면
+ * 점포 아래 → 옆(이동이 작은 쪽) 순으로 SDK 공식 옵션을 바꿔 보고, 실제로 잰 사각형이 맞는 첫 위치에 둔다.
+ * 맞는 위치가 없으면 기본 위치로 되돌린다. setOptions는 동기로 다시 배치된다(실측)
+ */
+function placeStoreInfo(api: NaverMapsApi, map: NaverMap, info: NaverInfoWindow, section: HTMLElement, canvas: HTMLElement | null) {
+  const content = info.getContentElement?.()
+  const store = section.querySelector('.map-store-marker--active')
+  if (!info.setOptions || !content || !store || section.clientWidth === 0) return
+  const m = section.getBoundingClientRect()
+  const rel = (b: DOMRect, grow = 0): Rect => ({ x: b.left - m.left - grow, y: b.top - m.top - grow, w: b.width + 2 * grow, h: b.height + 2 * grow })
+  const box = () => rel(content.getBoundingClientRect(), 2)                     // SDK 테두리 포함
+  const pins = [...section.querySelectorAll('.map-marker')].map((p) => rel(p.getBoundingClientRect()))
+  const u = usableArea({ w: section.clientWidth, h: section.clientHeight }, mapObstacles(section, canvas), FIT_PAD)
+  const def = box()
+  if (infoPlacementOk(def, pins, u)) return
+  const storeRect = rel(store.getBoundingClientRect())
+  // 1차: 지도는 그대로 두고 정보창 위치만 바꾼다. 2차 후보로 쓰려고 핀을 덮지 않는 위치와 U 안으로 넣는 데 필요한 이동을 모은다
+  const fallback: { apply: () => void; shift: { x: number; y: number } }[] = []
+  const shiftInto = (r: Rect) => ({
+    x: r.x < u.x ? u.x - r.x : r.x + r.w > u.x + u.w ? u.x + u.w - (r.x + r.w) : 0,
+    y: r.y < u.y ? u.y - r.y : r.y + r.h > u.y + u.h ? u.y + u.h - (r.y + r.h) : 0,
+  })
+  const resetInfo = () => info.setOptions!({ pixelOffset: new api.Point(0, 0), disableAnchor: false, anchorSkew: false })
+  // 기본 위치가 핀을 덮지 않고 U 밖으로만 조금 나갔으면 그대로 두고 지도만 옮기는 것도 후보다
+  if (!pins.some((p) => intersects(def, p)) && def.w <= u.w && def.h <= u.h) fallback.push({ apply: resetInfo, shift: shiftInto(def) })
+  for (const c of infoPlacements(def, storeRect, pins).slice(1)) {
+    let y = c.offset.y
+    const set = () => info.setOptions!({ pixelOffset: new api.Point(c.offset.x, y), disableAnchor: c.disableAnchor, anchorSkew: c.anchorSkew })
+    set()
+    let r = box()
+    if (c.kind === 'below') {
+      // 꼬리를 끄면 꼬리 높이만큼 더 움직인다 — 한 번 재서 점포 바로 아래로 고친다
+      const want = storeRect.y + storeRect.h + 8
+      if (Math.abs(r.y - want) > 1) {
+        y += want - r.y
+        set()
+        r = box()
+      }
+    }
+    if (infoPlacementOk(r, pins, u)) return
+    if (!pins.some((p) => intersects(r, p)) && r.w <= u.w && r.h <= u.h) fallback.push({ apply: set, shift: shiftInto(r) })
+  }
+  // 2차: 핀을 덮지 않는 위치 중 지도 이동이 가장 작은 것 — 정보창·핀이 함께 움직이므로 겹침은 그대로 없다(zoom 불변)
+  fallback.sort((a, b) => Math.hypot(a.shift.x, a.shift.y) - Math.hypot(b.shift.x, b.shift.y))
+  const best = fallback[0]
+  if (best) {
+    best.apply()
+    map.panBy(new api.Point(-best.shift.x, -best.shift.y))            // panBy(+x, +y)는 내용을 왼쪽·위로 옮긴다
+    return
+  }
+  resetInfo()
+}
+
 /** 지도 오버레이 색은 DESIGN 토큰(§2.6)에서 읽는다 — 컴포넌트에 색 값을 직접 쓰지 않는다 */
 function token(name: string): string {
   return getComputedStyle(document.documentElement).getPropertyValue(name).trim()
@@ -224,6 +330,13 @@ export function MapView({
   const [infoRetry, setInfoRetry] = useState(0)
   /** 아래 크기 맞춤 함수(fit). 화면 전환 신호(layoutKey)에서도 같은 흐름을 부른다 */
   const fitRef = useRef<() => void>(() => {})
+  // 범위 맞춤 (8-B1, D-022). init 이벤트 전에는 지도 bounds를 믿을 수 없어(GL은 오류) 맞춤을 미룬다.
+  // 잠금: 사용자가 휠·드래그·± 컨트롤로 직접 바꾸면 켠다(SDK `zooming`·`dragstart` — 우리 호출은 내지 않는다, 8-B0)
+  const initedRef = useRef(false)
+  const lockedRef = useRef(false)
+  /** 숨김·init 전이라 미룬 맞춤: auto = 이미 조건을 만족하면 이동 없음(순위 2), force = 무조건(순위 1) */
+  const pendingFitRef = useRef<'auto' | 'force' | null>(null)
+  const runFitRef = useRef<(mode: 'auto' | 'force') => void>(() => {})
 
   // 최신 콜백·상태를 클릭 핸들러가 읽는다 (지도를 다시 만들지 않기 위해)
   const onSelectRef = useRef(onSelect)
@@ -257,22 +370,40 @@ export function MapView({
       report({ type: 'auth-failed' })
     })
 
-    loadNaverMaps(import.meta.env.VITE_NAVER_MAP_CLIENT_ID)
+    let mapListeners: unknown[] = []
+    loadNaverMaps(import.meta.env.VITE_NAVER_MAP_CLIENT_ID, { gl: MAP_GL })
       .then((loaded) => {
         if (cancelled || !canvasRef.current) return
         maps = loaded
         created = new loaded.Map(canvasRef.current, {
           center: new loaded.LatLng(INCHEON_CENTER.lat, INCHEON_CENTER.lng),
-          zoom: INITIAL_ZOOM,
+          // GL은 같은 축척에서 zoom이 1 작다(래스터 11 = GL 10)
+          zoom: MAP_GL ? INITIAL_ZOOM - 1 : INITIAL_ZOOM,
+          ...(MAP_GL ? { gl: true } : {}),
           zoomControl: true,
-          zoomControlOptions: { position: loaded.Position.TOP_RIGHT },
+          zoomControlOptions: { position: loaded.Position.TOP_RIGHT, style: loaded.ZoomControlStyle?.SMALL },
           scaleControl: true,
           mapDataControl: false,
         })
+        const map = created
         clickListener = loaded.Event.addListener(created, 'click', (e) => {
           if (!interactiveRef.current) return
           onSelectRef.current({ lat: round(e.coord.lat()), lng: round(e.coord.lng()) })
         })
+        mapListeners = [
+          loaded.Event.addListener(created, 'init', () => {
+            if (initedRef.current) return
+            initedRef.current = true
+            // 실제 그리기 방식(1 래스터 / 2 GL)을 남긴다 — GL을 요청해도 지원 안 되면 1. 검수·측정용
+            const mode = map.get?.('renderMode')
+            if (sectionRef.current && mode != null) sectionRef.current.dataset.renderMode = String(mode)
+            const pending = pendingFitRef.current
+            pendingFitRef.current = null
+            if (pending) runFitRef.current(pending)
+          }),
+          loaded.Event.addListener(created, 'zooming', () => (lockedRef.current = true)),
+          loaded.Event.addListener(created, 'dragstart', () => (lockedRef.current = true)),
+        ]
         setApi(loaded)
         setMap(created)
         // 지도는 준비됐다. Geocoder는 지금 상태를 올리고, 뒤에 정해지면(ready/unavailable) 다시 올린다
@@ -291,6 +422,9 @@ export function MapView({
       unsubscribe()
       unsubscribeGeocoder?.()
       if (maps && clickListener) maps.Event.removeListener(clickListener)
+      if (maps) for (const l of mapListeners) maps.Event.removeListener(l)
+      initedRef.current = false
+      pendingFitRef.current = null
       created?.destroy?.()
       setMap(null)
     }
@@ -306,6 +440,12 @@ export function MapView({
       const visible = el.clientWidth > 0 && el.clientHeight > 0
       if (visible) map.setSize(new api.Size(el.clientWidth, el.clientHeight))
       setSized(visible)
+      // 숨김 복귀(순위 4): 미뤄 둔 맞춤만 실제 크기로 1회. 크기만 바뀐 것은 zoom을 바꾸지 않는다(순위 8)
+      if (visible && pendingFitRef.current) {
+        const pending = pendingFitRef.current
+        pendingFitRef.current = null
+        runFitRef.current(pending)
+      }
       if (visible && infoDeferredRef.current) {
         infoDeferredRef.current = false
         setInfoRetry((n) => n + 1)                         // setSize 뒤에 미룬 정보창을 현재 선택으로 다시 처리
@@ -328,13 +468,60 @@ export function MapView({
     fitRef.current()
   }, [layoutKey])
 
-  // 선택 지점이 바뀌면 그 위치로 지도를 옮긴다 (좌표 직접 입력·분석 불가 지점 포함). zoom은 사용자가 둔 그대로
+  // 범위 맞춤 (8-B1, D-022 순위 1·2·4): 선택 지점의 분석 반경 원이 사용 영역 U 안에 들고 지름이 U 짧은 변의 절반 이상이 되게
+  // setCenter → setZoom(z, false) → panBy. auto(새 위치)는 지금 화면이 이미 조건을 만족하면 움직이지 않는다.
+  // 지도가 숨겨졌거나(크기 0) init 전이면 미뤘다가 보이고 setSize한 뒤·init 뒤 1회 실행한다
+  const selectedRef = useRef(selected)
+  const comparingRef = useRef(compare !== null)
+  useEffect(() => {
+    selectedRef.current = selected
+    comparingRef.current = compare !== null
+    runFitRef.current = (mode) => {
+      const point = selectedRef.current
+      const el = sectionRef.current
+      if (!api || !map || !point || !el) return
+      if (!initedRef.current || el.clientWidth === 0 || el.clientHeight === 0) {
+        if (mode === 'force' || !pendingFitRef.current) pendingFitRef.current = mode
+        return
+      }
+      if (mode === 'auto' && lockedRef.current) return              // 미뤄 둔 사이 사용자가 직접 조정했다
+      const size = { w: el.clientWidth, h: el.clientHeight }
+      const b = map.getBounds()
+      const bounds = { s: b.getSW().lat(), n: b.getNE().lat(), w: b.getSW().lng(), e: b.getNE().lng() }
+      const rect = boxToRect(circleBox(point.lat, point.lng, RADIUS_M), { bounds, w: size.w, h: size.h })
+      const u = usableArea(size, mapObstacles(el, canvasRef.current), FIT_PAD)
+      if (mode === 'auto' && satisfiesSingle(rect, u)) return
+      const z = fitZoom(map.getZoom(), rect, u, { min: map.getMinZoom?.() ?? 0, max: map.getMaxZoom?.() ?? 21 })
+      const pan = panToUsable(size, u)
+      map.setCenter(new api.LatLng(point.lat, point.lng))
+      map.setZoom(z, false)
+      map.panBy(new api.Point(pan.x, pan.y))
+    }
+  })
+
+  // 선택 지점이 바뀌면(지도 클릭·주소·좌표 입력, 분석 불가 지점 포함) 맞춘다(순위 2, 잠금 해제). 같은 좌표에서 tone·결과만
+  // 바뀌면 그대로. 비교 중의 지도 이동은 8-B2 전까지 기존 규칙(panTo, zoom 그대로)
   const selectedLat = selected?.lat
   const selectedLng = selected?.lng
   useEffect(() => {
-    if (!api || !map || selectedLat === undefined || selectedLng === undefined) return
-    map.panTo(new api.LatLng(selectedLat, selectedLng))
+    if (!api || !map || selectedLat === undefined || selectedLng === undefined) {
+      pendingFitRef.current = null
+      return
+    }
+    if (comparingRef.current) {
+      map.panTo(new api.LatLng(selectedLat, selectedLng))
+      return
+    }
+    lockedRef.current = false
+    pendingFitRef.current = null
+    runFitRef.current('auto')
   }, [api, map, selectedLat, selectedLng])
+
+  /** "범위에 맞추기"(순위 1): 무조건 맞추고 잠금을 푼다 */
+  const fitToRange = () => {
+    lockedRef.current = false
+    runFitRef.current('force')
+  }
 
   // 선택 지점(A) 마커 + 반경 원. 다시 클릭하면 같은 오버레이를 옮긴다. 비교 중이면 글자 "A" 마커(B를 아직 안 골라도)
   const comparing = compare !== null
@@ -504,11 +691,32 @@ export function MapView({
         anchorSize: new api.Size(10, 8),
         disableAnchor: false,
       })
-    infoRef.current.open(map, marker)
+    const info = infoRef.current
+    info.setOptions?.({ pixelOffset: new api.Point(0, 0), disableAnchor: false, anchorSkew: false })   // 기본 위치에서 다시 시작
+    info.open(map, marker)
+    // 정보창 배치(D-022, 8-B1 단일): 이동이 끝난 뒤 정보창이 U 밖이거나 분석 핀을 덮으면 후보 위치로 옮긴다
+    const place = () => placeStoreInfo(api, map, info, el, canvasRef.current)
     if (pannedStoreRef.current !== activeStoreId) {
       map.panTo(new api.LatLng(store.lat, store.lng))
       pannedStoreRef.current = activeStoreId
+      // panTo는 약 1초 애니메이션 — idle 뒤에 잰다. idle이 오지 않으면(그리기가 멈춘 창) 1.5초 뒤 한 번
+      let done = false
+      const once = () => {
+        if (done) return
+        done = true
+        api.Event.removeListener(idle)
+        clearTimeout(timer)
+        place()
+      }
+      const idle = api.Event.addListener(map, 'idle', once)
+      const timer = setTimeout(once, 1500)
+      return () => {
+        done = true
+        api.Event.removeListener(idle)
+        clearTimeout(timer)
+      }
     }
+    place()
   }, [api, map, stores, activeStoreId, sized, infoRetry])
 
   useEffect(
@@ -602,6 +810,14 @@ export function MapView({
             <li>
               <span className="map__legend-store" aria-hidden="true" />
               같은 업종 점포
+            </li>
+          )}
+          {/* 범위에 맞추기(D-022 순위 1, 단일만 — 비교의 "두 위치 모두 보기"는 8-B2). 분석 불가 지점은 반경 원이 없어 두지 않는다 */}
+          {!compare && selected && markerTone === 'selected' && (
+            <li className="map__legend-action">
+              <button type="button" className="button-ghost button-ghost--small map__fit" onClick={fitToRange}>
+                범위에 맞추기
+              </button>
             </li>
           )}
         </ul>

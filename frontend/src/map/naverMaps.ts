@@ -25,11 +25,25 @@ export interface NaverMapEvent {
   coord: NaverLatLng
 }
 
+/** 지도 영역 (getBounds). GL 모드에서는 init 이벤트 전에 부르면 오류다 */
+export interface NaverBounds {
+  getSW(): NaverLatLng
+  getNE(): NaverLatLng
+}
+
 export interface NaverMap {
   setSize(size: unknown): void
   panTo(latlng: NaverLatLng): void
   getZoom(): number
   setZoom(zoom: number, effect?: boolean): void
+  /** 범위 맞춤(8-B1): setCenter → setZoom(z, false) → panBy. 세 호출 모두 동기로 끝난다(8-B0) */
+  setCenter(latlng: NaverLatLng): void
+  panBy(offset: unknown): void
+  getBounds(): NaverBounds
+  /** 지도 옵션 읽기. 'renderMode' = 1 래스터 / 2 GL (GL을 요청해도 지원 안 되면 1) */
+  get?(key: string): unknown
+  getMinZoom?(): number
+  getMaxZoom?(): number
   destroy?(): void
 }
 
@@ -53,6 +67,9 @@ export interface NaverInfoWindow {
   open(map: NaverMap, anchor: NaverMarker): void
   close(): void
   setContent(content: HTMLElement): void
+  /** 연 상태에서 위치 옵션(pixelOffset·disableAnchor·anchorSkew)을 바꾼다 — 동기로 다시 배치된다(2026-10-14 실측) */
+  setOptions?(options: Record<string, unknown>): void
+  getContentElement?(): HTMLElement
 }
 
 /** SDK 콜백: status는 naver.maps.Service.Status(OK 200 / ERROR 500), response는 성공일 때만 온다(실패면 undefined) */
@@ -75,6 +92,8 @@ export interface NaverMapsApi {
   Polygon: new (options: Record<string, unknown>) => NaverPolygon
   InfoWindow: new (options: Record<string, unknown>) => NaverInfoWindow
   Position: Record<string, unknown>
+  /** 확대 컨트롤 모양 (SMALL = +/−만, 8-B1) */
+  ZoomControlStyle?: Record<string, unknown>
   Event: {
     addListener(target: unknown, type: string, handler: (e: NaverMapEvent) => void): unknown   // marker click은 e를 쓰지 않는다
     removeListener(listener: unknown): void
@@ -190,7 +209,12 @@ export function onNaverAuthFailure(listener: () => void): () => void {
   return () => authListeners.delete(listener)
 }
 
-export function loadNaverMaps(clientId: string | undefined): Promise<NaverMapsApi> {
+/**
+ * options.gl: GL 서브모듈(`submodules=geocoder,gl`)도 불러온다(8-B1, 검수용 선택 — 기본 끔). GL은 서브모듈 script가 준비된 뒤에
+ * 지도를 만들어야 하므로 load 이벤트가 아니라 callback으로만 준비를 알린다. callback이 load 뒤 10초 안에 오지 않으면 그대로
+ * 준비로 넘긴다 — 지도는 래스터로 그려지고(renderMode 1) MapView가 실제 모드를 읽는다.
+ */
+export function loadNaverMaps(clientId: string | undefined, options: { gl?: boolean } = {}): Promise<NaverMapsApi> {
   if (window.naver?.maps) {
     // 이미 로드된 SDK(HMR 등): Service가 있으면 Geocoder도 준비, 없으면 callback·타임아웃을 기다린다
     if (isGeocoderAvailable(window.naver.maps)) settleGeocoder('ready')
@@ -224,12 +248,14 @@ export function loadNaverMaps(clientId: string | undefined): Promise<NaverMapsAp
       script = document.createElement('script')
       script.id = NAVER_SCRIPT_ID
       script.async = true
-      script.src = `${SDK_URL}?ncpKeyId=${encodeURIComponent(clientId)}&submodules=geocoder&callback=${NAVER_READY_CALLBACK}`
+      script.src = `${SDK_URL}?ncpKeyId=${encodeURIComponent(clientId)}&submodules=geocoder${options.gl ? ',gl' : ''}&callback=${NAVER_READY_CALLBACK}`
       document.head.appendChild(script)
     }
     script.addEventListener('load', () => {
       if (window.naver?.maps) {
-        resolve(window.naver.maps)
+        const maps = window.naver.maps
+        if (options.gl) setTimeout(() => resolve(maps), GEOCODER_TIMEOUT_MS)   // GL: callback을 기다리되 끝없이는 아니다
+        else resolve(maps)
         armGeocoderTimeout()                               // 지도는 준비됐다 — callback은 10초까지만 기다린다
       } else {
         reject(new MapLoadError('load', 'NAVER Maps SDK를 초기화하지 못했습니다.'))
