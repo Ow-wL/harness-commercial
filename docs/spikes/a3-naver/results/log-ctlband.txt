@@ -1,0 +1,17 @@
+# 저작권 줄 배경 띠 (2026-10-14, 375x667, 캡처 1:1 375x74 잘라내기, region 0,300–375,374)
+SDK 공식 옵션 확인(maps.js): logoControlOptions·scaleControlOptions·mapDataControlOptions 모두 {position}만. 배경·색 옵션 없음.
+  SDK 내장: 축척 글자 흰 text-shadow, 로고는 mapType.darktheme이면 -dark.png로 교체. 저작권(.map_copyright) 글자 rgb(68,68,68) 11px, 배경·그림자 없음.
+DOM: #map > [타일·오버레이 층 z0, 왼쪽 아래 컨트롤 층 z100(0..230 x 17), 기타]. 띠는 #map 형제(#mapwrap 안) z50 → 타일 위·컨트롤 아래. pointer-events:none.
+## 관측(진행 막지 않음): dev 서버 재시작 직후 새 탭이 숨김
+  log: 463 page:hidden · 22859 visibilitychange→visible(캡처 시점) · 23191 map-created … → 이 구간 캡처(빈 화면)는 무효, 준비 확인 후 해당 항목만 재시도
+  같은 회차에 창 폭 변경으로 375 에뮬레이션 해제(resize 이벤트 29172~32549) → 재설정 후 진행
+## 수정 전 (BEFORE)
+27 r375 단일 / 28 gl375 단일 (지난 회차) — 지명 라벨이 © 글자와 겹침
+30 r375 송도(버튼): pre t1521 = post t1559 z14 · 31 gl375 송도: pre t3196 = post t3237 z13 — 역 이름이 © ·축척 글자와 겹침
+## 1차 수정(실패, 3x): 띠를 저작권 묶음 기준으로 재서 폭 159 → 축척(152–218)을 못 덮음. pre t1647 = post t1694
+## 2차 수정(AFTER): 기준을 #map 바로 아래 컨트롤 층으로 → 띠 0..239 x 354..374, 흰색 .86(글자색이 어두워서)
+32 r375: pre t1348 = post t1383 rm1 z14 · 33 gl375: pre t2808 = post t2841 rm2 z13
+34 r375 송도: pre t1115 = post t1155 · 35 gl375 송도: pre t2851 = post t2893
+요소 위치(4회 동일): 로고 12–57 x 357–367 · © 72–150 x 358–370 · 축척 글자 152–218 x 354–365 · 버튼 245–363 x 326–362
+겹침: 없음(로고·©·축척·버튼 상호). 띠↔버튼 겹침 없음(간격 6px). 띠는 컨트롤 전체(오른쪽 끝 218) 덮음.
+측정 메모: 1차 측정의 'logo×copy'는 .map_copyright 안 0크기 숨은 요소를 포함한 오탐 → 크기 0 제외 후 겹침 0.

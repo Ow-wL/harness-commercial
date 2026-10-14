@@ -1,0 +1,44 @@
+# 다크 GL 실제 검수 (2026-10-14, 발행 스타일 harness-a3-blue-dark, ID는 기록하지 않음)
+dev 서버 재시작(frontend/.env의 VITE_NAVER_MAP_STYLE_ID 읽음, 값 36자) → 내장 Browser(GPU RTX 3060), 보이는 창
+D01 830x913(창 실제, 캡처 800x880 ≈0.96배): visible, rAF 53/s, status ready, renderMode 2, tone dark
+스타일 로드(resource timing): /v3/styler/props 200 · /styler/api/v1/style/<ID>/deployed/20261014233522/style.json 200 · sprite json/png 200 · NotoSansCJKkr 글꼴 pbf 200
+  (기본 스타일 basic/terrain/satellite.json 항목도 status 0·1~2ms로 보임 — 캐시/미사용 추정, 판단 근거 아님)
+D02 1440x900 에뮬(캡처 800x500 ≈0.375배 — 배치 확인용): pre t2710 = post t2748, rm2 tone dark style 200, GL z15(래스터 16) 원 528px
+  띠 0–226 x 880–900(흰 .86 — SDK 저작권 글자 rgb(68,68,68) 그대로, 로고 new-naver-logo-normal.png), © 72–150, 축척 152–205, ± 버튼 956–1000 x 776–872, 패널 1020–1420 → 겹침 없음
+D03 375x667(CSS 1:1, 에뮬 DPR 2): pre t2842 = post t2875, rm2 dark style 200, GL z13(래스터 14) 원 132px, 띠 오른쪽 239
+D04 375 ?z=15(GL, 래스터 16 축척) 지도 영역 1:1 잘라내기: pre t3346 = post t3394
+  픽셀 대비(점포 중심 vs 반경 9~11px 배경 중앙값): 8.42 · 4.46 · 7.47 · 3.53(밝은 도로 위) → 최소 3.53 / 핀 5.29 / 육지 실측 ≈ rgb(32,43,61)(반경 원 채움 10% 포함)
+  관찰: 음식점(포크 아이콘)·상점(다이소·올리브영 등) 주황 POI가 켜져 있음 — 사양 §19.4는 끔. Style Editor 설정 차이
+D05 375 다크 정보창(벨류피씨, store 1): 네이비 바탕·흰 글자, 선택 점포 14px + 밝은 링. pre t4131 = post t4180
+D06 ?gl=1&style=<잘못된 ID>: /v3/styler/props 400 → SDK가 "인증 실패" 무늬만 그리고 init 없음 → 스파이크는 init-timeout 실패로 표시(다크로 오판 없음). 자동 밝은 대체 없음
+D07 래스터(밝은 대체) 375 + 정보창: rm1 tone light, styleRequest 없음, 밝은 팔레트·흰 정보창·진한 선택 링, 띠 흰 .86. pre t2943 = post t2960
+
+# 2026-10-15 보완: 스타일 실패 자동 복구 · 저작권 띠 · 재발행 확인
+## 자동 복구(스파이크 build/cleanupAttempt, 지도 세대 gen)
+D08 ?gl=1&style=<잘못된 ID>, 창 811x913(캡처 800x900 ≈0.99배): 106 page · 268 map-created g1 · 337 attempt g1 style-failed:400 · 337 style-fallback · 345 map-created g2(gl:false, 스타일 없음) · 381 attempt g2 init · 382 init g2 rm1 · 484 ready-state g2
+  → status ready, rm1, tone light(밝은 지도 init 뒤 적용), 원 맞춤 z14 d264, 이전 GL canvas 0개, 띠 흰 .86. pre t2182 = post t2245
+D09 ?…&failFallback=1(검수 전용, 대체 지도 init 대기 1ms): g1 style-failed:400 → g2 init-timeout → status fallback-failed, 오류 표시, map-created 2회(반복 없음)
+D15 ?gl=1&failStyledInit=1(검수 전용, 스타일 지도 init 대기 1ms): 174 map-created g1 · 177 g1 init-timeout · 177 style-fallback · 189 map-created g2 · 216 init g2 rm1 · 304 ready-state
+  → g1의 styler/props 200(171ms 시작)과 늦은 init이 와도 g2 상태(light) 유지, g1 init 기록 없음(리스너 제거·세대 확인)
+재확인(변경 영향): 정상 스타일 ?gl=1 → attempts 1(g1 init, styler 200), rm2 dark, 띠 회청색
+## 재발행 스타일
+배포 버전 20261014233522 → 20261014235704 로드(styler/props·style.json 200). 두 버전 style.json 비교: 바뀐 레이어 5개 = 단지/농공시설(일반·bg)·단지/상업시설(일반·상세·bg) filter → false(면 레이어 끔)
+POI 기호 레이어 58개 중 숨김 0(두 버전 동일) → 화면의 음식점·상점 아이콘 그대로(D10, 1:1). 해당 레이어: 다크모드/POI/쇼핑편의_CI(다이소·올리브영 등 브랜드), 다크모드/POI/일반POI통합(음식점 등), 필요 시 다크모드/POI/편의시설
+## 저작권 띠(다크 지도에서만 회청색, 밝은 지도는 흰 띠 유지) — 375 1:1 잘라내기, 글자·로고 픽셀 대비
+  D11 회청 1안 rgba(200,210,226,.9): 배경 (180,189,204) 글자 5.28 · 로고 1.33  → 로고 가독성 떨어짐, 채택 안 함
+  D13 회청 2안 rgba(222,229,240,.94) 여백 오른쪽 4·위 2: 배경 (208,215,223) 글자 6.65 · 로고 2.02 → 채택
+  D12 기존 흰 띠 rgba(255,255,255,.86) 여백 8·3: 배경 (218,219,223) 글자 6.94 · 로고 1.90
+  D14 1440(≈0.375배): 띠 0–222 x 881–900, 로고 12–57 · © 72–150 · 축척 152–205 · ± 956–1000 · 패널 1020~ → 겹침 0, 띠가 컨트롤 전체 덮음
+
+# 2026-10-15 재발행 2차 확인 — D16(375 ?gl=1&z=15, 지도 영역 1:1), pre t3482 = post t3544
+배포 버전 20261014235704 → 20261015001123 로드(style.json 200), attempts 1(g1 init, styler 200), rm2 dark
+style.json 비교: 바뀐 레이어 3개 = 다크모드/POI/쇼핑편의_CI · 다크모드/POI/일반POI통합(둘 다 filter → false) · 다크모드/건물/건물 | AOI
+화면: 이전 D10의 불타는주역다짐(음식점)·올리브영·다이소·에코파인 아이콘 사라짐. 남은 POI: 지하철역·출구번호, 하나은행(은행_CI, 켜짐), 아파트·건물 아이콘(더웰레뷰·한라비발디 등)
+
+# 2026-10-15 init 대기 수정 검증(Codex 코드 검수 반영) — 숨김은 document.visibilityState 재정의 + visibilitychange 발생으로 흉내
+수정: 대기 중 hidden이면 타이머 취소, visible이면 INIT_TIMEOUT_MS를 새로 시작. visibilitychange 리스너는 지도 세대(domListeners)에 묶어 init 완료·실패·정리 때 제거
+조건 ?gl=1&holdInit=1&initTimeout=6000(검수 전용: 스타일 지도 init 무시, 대기 6초)
+A) 0 map-created g1 · 151 init-wait-paused · 557 init-held · (7초 숨김: 시간 초과 없음) · 7163 init-wait-resumed · 13169 g1 init-timeout(= 7163 + 6006) · 13196 map-created g2 · 13211 g2 init · 13266 ready-state
+   복구 뒤 숨김/보임 다시 발생 → 새 이벤트 0(이전 세대 리스너 제거), g2 ready·light 유지, 이전 GL canvas 0
+B) 3152 paused · 5157 resumed(8초·6초 전에 다시 보임) · 9667 아직 대기(원래 6초 시점에 조기 시간 초과 없음) · 11162 g1 init-timeout(= 5157 + 6005) → g2 ready
+회귀: 정상 스타일(attempt 1, dark, init-wait 이벤트 0) · 잘못된 ID(400 → 밝은 지도) · failFallback(2회 생성 후 fallback-failed) · 래스터(light) 모두 이전과 같음

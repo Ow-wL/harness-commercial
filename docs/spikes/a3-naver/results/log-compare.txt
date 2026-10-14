@@ -1,0 +1,10 @@
+# 비교 맞춤 (1440x900, 캡처는 0.7 스케일 스크린샷 560x350 → 페이지 1440px가 377px, 약 0.26배)
+기준: 합집합 맞춤 zoom(래스터 기준) ≥ 13 → union, 아니면 B만 + '두 위치 모두 보기'
+C1 bupyeong1b raster: union z16 (U 928x720, box@z15 301x340) · pre t1108 = post t1128 (z16 c[37.491211,126.72895]) 사이 이벤트 없음 · 유효 · 10
+C2 guwol raster:      union z13 (box@z15 802x1494) · pre t1065 = post t1113 (z13 c[37.472537,126.75425]) · 유효 · 11
+C3 songdo raster:     B-only z16 (union 12 < 13), 버튼 [20,128,138,164], U y=176(버튼 아래) · pre t1075 = post t1123 · 유효 · 12
+   op:click-both → union-by-user z12 c[37.456765,126.764218] · pre t2208 = post t2256 · 유효 · 13
+C4 ganghwa raster:    B-only z16 (union 11) · pre t1083 = post t1131 · 유효 · 14
+   op:click-both → union-by-user z11 c[37.649539,126.770985] · pre t2216 = post t2263 · 유효 · 15
+GC2 guwol GL:  union GL z12 = raster-eq 13 (box@GL z15 1604x2988 = raster 2배) · pre t2846 = post t2893 · 유효 · 16 (래스터 C2와 같은 화면)
+GC3 songdo GL: B-only GL z15 = raster-eq 16 (union GL 11 = raster 12) · pre t2545 = post t2593 · 유효 · 17

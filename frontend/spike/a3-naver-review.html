@@ -1,0 +1,442 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>A3 패널 + 실제 NAVER 지도 (검수용 스파이크)</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<style>
+/* A3 NAVER 검수 스파이크 — 개발 서버 전용(빌드·타입검사 밖). 앱 코드를 import하지 않는다. 검수 기록용으로 커밋했다(2026-10-15).
+   실행법·결과·한계: docs/spikes/a3-naver/README.md. 다크 스타일·스타일 실패 복구는 이 페이지에서만 검증했다(제품 미적용, DESIGN.md §19.3.1).
+   지도는 실제 NAVER Maps JS v3, 지도 이미지에 필터를 씌우지 않는다(공식 옵션만). 패널은 A3 블루안 색.
+   쿼리: gl=1(GL 요청) · style=<My Style ID>(GL 전용, 없으면 VITE_NAVER_MAP_STYLE_ID) · b=bupyeong1b|guwol|songdo|ganghwa(비교) · z=<zoom>(검수용 zoom 고정, 맞춤 중심 유지) · band=white(다크 지도에서도 이전 흰 띠, 비교용) · bandBg=<CSS 색>(다크 띠 색 시험) · hidden=measure(숨김 수치 측정, ready 아님)
+   검수 전용: failFallback=1(밝은 대체 지도 실패) · failStyledInit=1(스타일 지도 init 시간 초과) · holdInit=1(스타일 지도 init 무시) · initTimeout=<ms>(init 대기 시간) */
+:root{--bg:#0A1226;--panel:#0F1A33;--panel-2:#15223F;--panel-3:#1D2D52;--line:rgba(140,165,220,.11);--text:#EEF2FA;--text-2:#C7D1E4;--muted:#95A3BD;--accent:#7AA2FF;--cta:#3B6EF0;--second:#45D3B0;--second-soft:rgba(69,211,176,.12);--second-text:#BFF2E4;--warn:#FF6F91;--warn-soft:rgba(255,111,145,.13);--warn-text:#FFC6D3;--bar:#8B9DBB;--b:#B7A2FF;
+  --edge:var(--line);--lift:0 20px 50px rgba(0,0,0,.35);--sheet:44vh}
+/* 밝은 대체 지도(GL 실패·스타일 미적용) 위: 어두운 패널을 유지하되 경계·그림자를 키워 지도와 분리한다 */
+[data-tone=light]{--edge:rgba(10,18,38,.42);--lift:0 10px 28px rgba(10,18,38,.34),0 2px 6px rgba(10,18,38,.22)}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:'Pretendard Variable',Pretendard,system-ui,sans-serif;font-size:14px;line-height:1.5;word-break:keep-all}
+#mapwrap{position:fixed;inset:0}
+/* NAVER SDK가 컨테이너에 inline position:relative를 넣으므로 inset이 아니라 크기로 채운다(앱 MapView.css와 같은 이유) */
+#map{width:100%;height:100%}
+.panel{position:fixed;top:20px;right:20px;bottom:20px;width:400px;z-index:10;display:flex;flex-direction:column;background:var(--panel);border:1px solid var(--edge);border-top:2px solid rgba(122,162,255,.14);border-radius:18px;box-shadow:var(--lift);overflow:auto;padding:22px 24px}
+.eyebrow{font-size:12px;font-weight:600;color:var(--accent)}
+h1{margin:6px 0 0;font-size:22px;letter-spacing:-.02em}
+.sub{font-size:13px;color:var(--muted)}
+.score{display:flex;align-items:flex-end;gap:12px;margin-top:16px}
+.score b{font-size:64px;line-height:.86;font-weight:600;letter-spacing:-.045em}
+.score span{padding-bottom:4px;color:var(--muted)}
+.headline{margin:14px 0 0;color:var(--text-2)}
+.headline b{color:var(--accent)}
+.notice{margin-top:12px;padding:9px 12px;border-radius:10px;background:var(--second-soft);color:var(--second-text);font-size:13px;box-shadow:inset 3px 0 0 var(--second)}
+.rows{margin-top:16px}
+.row{display:grid;grid-template-columns:64px minmax(0,1fr) 46px;align-items:center;column-gap:12px;padding:8px 0;border-bottom:1px solid var(--line)}
+.row .l{font-weight:600}
+.row .v{text-align:right;font-weight:600;font-size:18px}
+.row .t{grid-column:2/4;font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.track{position:relative;height:6px;border-radius:3px;background:rgba(255,255,255,.08)}
+.track i{position:absolute;left:0;top:0;bottom:0;border-radius:3px;background:var(--bar)}
+.track u{position:absolute;left:50%;top:-3px;width:1.5px;height:12px;background:var(--panel)}
+.pd{display:inline-block;width:7px;height:7px;border-radius:2px;margin-right:7px;vertical-align:2px}
+.cond{position:fixed;left:20px;top:20px;z-index:10;display:flex;align-items:center;gap:10px;height:44px;padding:0 14px;background:var(--panel);border:1px solid var(--edge);box-shadow:var(--lift);border-radius:12px;font-weight:600}
+.cond span{font-weight:400;color:var(--text-2)}
+.cond .bb{color:var(--b)}
+.btns{position:fixed;right:440px;bottom:28px;z-index:10;display:flex;flex-direction:column;gap:8px}
+.btns button,.both{border:1px solid var(--edge);border-radius:12px;background:var(--panel);color:var(--text);box-shadow:var(--lift);cursor:pointer;font:inherit}
+.btns button{width:44px;height:44px;font-size:18px}
+.both{position:fixed;left:20px;top:128px;z-index:10;height:36px;padding:0 14px;font-size:13px;font-weight:600}
+.both[hidden]{display:none}
+.mode{position:fixed;left:20px;top:72px;z-index:10;padding:8px 12px;border-radius:10px;background:var(--panel);border:1px solid var(--edge);box-shadow:var(--lift);font-size:12px;color:var(--text-2);max-width:560px}
+.mode b{color:var(--text)}
+.mode a{color:var(--accent)}
+.mode .bad{color:var(--warn-text)}
+/* 저작권·축척 줄 배경 띠: SDK 컨트롤(z-index 100)과 지도 타일·오버레이(z-index 0) 사이. SDK 요소는 건드리지 않는다.
+   NAVER 공식 옵션은 컨트롤 위치(position)만 바꿀 수 있어 대비는 띠로 확보한다. 색은 SDK 글자색에 맞춰 JS가 정한다. */
+.ctlband{position:absolute;left:0;bottom:0;z-index:50;pointer-events:none;border-radius:0 8px 0 0}
+.ctlband[hidden]{display:none}
+.err{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:20;max-width:420px;padding:16px 18px;border-radius:14px;background:var(--panel);border:1px solid rgba(255,111,145,.45);box-shadow:var(--lift);color:var(--warn-text)}
+.err[hidden]{display:none}
+/* 모바일: 지도 영역은 시트 위에서 끝난다(로고·축척이 시트에 가리지 않게) */
+@media (max-width:720px){
+  #mapwrap{bottom:var(--sheet)}
+  .panel{top:auto;left:0;right:0;bottom:0;width:auto;height:var(--sheet);border-radius:18px 18px 0 0;padding:16px 18px}
+  .score b{font-size:48px}
+  .cond{left:12px;right:12px;top:12px;height:40px;font-size:13px}
+  .mode{left:12px;right:12px;top:58px;max-width:none;font-size:11px;padding:6px 10px}
+  .both{left:auto;right:12px;top:auto;bottom:calc(var(--sheet) + 12px)}
+  .btns{display:none}
+}
+</style>
+</head>
+<body>
+<div id="mapwrap"><div id="map" role="img" aria-label="실제 NAVER 지도: 부평구 부평1동 선택 지점, 반경 500m, 같은 업종 점포"></div><div class="ctlband" id="ctlband" hidden></div></div>
+<div class="cond" id="cond">부평구 부평1동 <span>PC방 · 반경 500m</span></div>
+<div class="mode" id="mode">지도 준비 중…</div>
+<button type="button" class="both" id="both" hidden>두 위치 모두 보기</button>
+<div class="btns"><button type="button" id="zin" aria-label="지도 확대">+</button><button type="button" id="zout" aria-label="지도 축소">−</button></div>
+<div class="err" id="err" role="alert" hidden></div>
+<aside class="panel" aria-label="분석 결과"><div class="eyebrow">분석 결과 · 반경 500m</div><h1 id="title"></h1><div class="sub">부평역까지 직선거리 85m · 참고 주소 광장로 16 (NAVER 지도)</div>
+<div class="score"><b id="total"></b><span>/ 100 · 다섯 관점 가중평균 · 순위 아님</span></div>
+<p class="headline"><b>고객성</b>이 가장 높고, 경쟁성이 가장 낮습니다.</p>
+<div class="notice">학교 주변 규제 업종 · 300m 안 초·중·고 0곳</div>
+<div class="rows" id="rows"></div></aside>
+<script type="module">
+import A from '../src/fixtures/bupyeong-pcbang.json'
+import N from '../src/fixtures/bupyeong-pcbang-nearby.json'
+import B1 from '../src/fixtures/compare-bupyeong1b-pcbang.json'
+import B2 from '../src/fixtures/compare-guwol-pcbang.json'
+import B2N from '../src/fixtures/compare-guwol-pcbang-nearby.json'
+import B3 from '../src/fixtures/compare-songdo-pcbang.json'
+import B4 from '../src/fixtures/compare-ganghwa-pcbang.json'
+import boundaryUrl from '../../data/geo/인천_행정동경계_2026.geojson?url'
+const clientId = import.meta.env.VITE_NAVER_MAP_CLIENT_ID
+const params = new URLSearchParams(location.search)
+const useGl = params.get('gl') === '1'
+const styleId = params.get('style') || import.meta.env.VITE_NAVER_MAP_STYLE_ID || ''
+const BS = { bupyeong1b: [B1, null], guwol: [B2, B2N], songdo: [B3, null], ganghwa: [B4, null] }
+const bKey = params.get('b'), Bx = BS[bKey] || null
+const INIT_TIMEOUT_MS = +params.get('initTimeout') || 8000   // initTimeout=<ms>: 검수 전용(대기 경로를 빨리 확인)
+const RADIUS = 500
+// 비교에서 합집합 맞춤을 허용하는 최소 zoom(D-022 초안). 래스터 zoom 단위로 정의하고, GL은 환산해서 비교한다.
+const UNION_MIN_RASTER_ZOOM = 13
+// status: loading → waiting-visible → sdk → init → ready | init-timeout | style-failed | auth-failure | sdk-load-error | no-client-id | error
+//   스타일 실패(styler 요청 200 아님·init 시간 초과) → fallback-init → ready(밝은 지도) | fallback-failed(다시 시도하지 않음)
+const S = (window.__review = { status: 'loading', ready: false, requested: { gl: useGl, style: !!styleId, b: bKey || null }, error: null })
+const $ = (id) => document.getElementById(id)
+// 검수 계측: 기록만 한다(원인 판정은 하지 않음). t = performance.now() ms
+S.log = []
+const rec = (type, extra) => S.log.push(Object.assign({ t: Math.round(performance.now()), type, vis: document.visibilityState }, extra || {}))
+rec('page', { href: location.pathname + location.search, vw: [innerWidth, innerHeight], dpr: devicePixelRatio })
+document.addEventListener('visibilitychange', () => rec('visibilitychange'))
+addEventListener('focus', () => rec('focus'))
+addEventListener('blur', () => rec('blur'))
+addEventListener('resize', () => { const m = $('map').getBoundingClientRect(); rec('resize', { vw: [innerWidth, innerHeight], map: [Math.round(m.width), Math.round(m.height)] }) })
+S.moving = false
+// 현재 상태 스냅샷(캡처 전후 비교용)
+S.snap = () => {
+  const m = $('map').getBoundingClientRect(), mp = S.map, c = mp && S.ready ? mp.getCenter() : null
+  return { t: Math.round(performance.now()), vis: document.visibilityState, focus: document.hasFocus(), vw: [innerWidth, innerHeight], dpr: devicePixelRatio, map: [Math.round(m.width), Math.round(m.height)], status: S.status, ready: S.ready, renderMode: S.renderMode, zoom: mp && S.ready ? +mp.getZoom().toFixed(3) : null, center: c ? [+c.lat().toFixed(6), +c.lng().toFixed(6)] : null, moving: S.moving }
+}
+// 조작·캡처 표시(검수 도구가 호출)
+S.mark = (label) => { const s = S.snap(); rec('mark', { label, snap: s }); return s }
+const fail = (status, msg) => {
+  S.status = status; S.ready = false; S.error = msg
+  rec('fail', { status, msg })
+  $('err').hidden = false
+  $('err').textContent = '지도를 준비하지 못했습니다 (' + status + '). ' + msg + ' — 이 상태는 검수 통과로 세지 않습니다.'
+  renderMode()
+}
+// 패널 (fixture 값 그대로)
+const r = A.result, C = A.context
+$('title').textContent = C.label
+$('total').textContent = r['종합']['점수'].toFixed(1)
+const DOT = { market: '#7FA6FF', customer: '#4FD1B0', competition: '#B7A2FF', location: '#9AD46F', stability: '#E6CB7A' }  // 관점 식별색(두 안 공통)
+const EV = { market: '부평구 하루 유입 679,748명', customer: '가장 높음 · 타겟 5,290명', competition: '가장 낮음 · 반경 500m 안 PC방 12곳', location: '부평역까지 직선거리 85m', stability: '3년 생존율 52.3%' }
+$('rows').innerHTML = r['지표'].map((i) => '<div class="row"><span class="l"><i class="pd" style="background:' + DOT[i.key] + '"></i>' + i.label + '</span><span class="track"><i style="width:' + i.score + '%"></i><u></u></span><span class="v">' + i.score.toFixed(1) + '</span><span class="t">' + EV[i.key] + '</span></div>').join('')
+if (Bx) $('cond').innerHTML = 'A ' + C.label + ' <span>vs</span> <span class="bb">B ' + Bx[0].context.label + '</span>'
+
+// 오버레이 팔레트: 지도 톤(실제 렌더 결과)에 따라 고른다. 다크는 GL + 커스텀 스타일이 실제로 적용됐을 때만.
+const OV = {
+  dark: { a: '#7AA2FF', aFill: '#7AA2FF', aW: 2, b: '#B7A2FF', bFill: '#B7A2FF', ring: '#0A1226', halo: 'rgba(122,162,255,.32)', bHalo: 'rgba(183,162,255,.30)', store: '#45D3B0', storeEdge: '#0A1226', storeOut: 'rgba(69,211,176,.35)', storeRing: '#EEF2FA', dong: 'rgba(175,192,218,.55)', dongW: 1.5, fillA: .10 },
+  light: { a: '#2F5BDB', aFill: '#3B6EF0', aW: 2.5, b: '#6B4FD8', bFill: '#6B4FD8', ring: '#FFFFFF', halo: 'rgba(47,91,219,.30)', bHalo: 'rgba(107,79,216,.28)', store: '#066B54', storeEdge: '#FFFFFF', storeOut: 'rgba(10,18,38,.45)', storeRing: '#0A1226', dong: '#4A5A7A', dongW: 1.5, fillA: .10 },
+}
+const pinHtml = (c, ring, halo) => '<span style="display:block;width:18px;height:18px;border-radius:50%;background:' + c + ';box-shadow:0 0 0 3px ' + ring + ',0 0 0 9px ' + halo + '"></span>'
+// 점포 점. 선택(정보창 열림)은 제품 MapView.css .map-store-marker--active와 같은 규칙: 14px, 테두리 2px, 바깥 링 2px
+const storeHtml = (o, active) => active
+  ? '<span style="display:block;width:14px;height:14px;border-radius:50%;background:' + o.store + ';border:2px solid ' + o.storeEdge + ';box-shadow:0 0 0 2px ' + o.storeRing + '"></span>'
+  : '<span style="display:block;width:10px;height:10px;border-radius:50%;background:' + o.store + ';border:1.5px solid ' + o.storeEdge + ';box-shadow:0 0 0 1px ' + o.storeOut + '"></span>'
+
+function renderMode() {
+  const rm = S.renderMode, ok = S.status === 'ready'
+  const actual = rm === 2 ? 'GL 벡터' : rm === 1 ? '래스터' : '—'
+  const styleTxt = S.fallback ? '<span class="bad">스타일 실패(' + S.fallback.reason + ') → 밝은 지도로 복구</span>' : !styleId ? '커스텀 스타일 없음' : rm !== 2 ? '<span class="bad">스타일 ID 있음 · GL이 아니라 미적용</span>' : S.styleRequest ? ('스타일 요청 ' + (S.styleRequest.status || '상태 미확인')) : '<span class="bad">스타일 요청 미관측</span>'
+  const fb = useGl && rm === 1 ? ' · <span class="bad">GL 요청 → 래스터로 대체됨</span>' : ''
+  const z = S.zoom != null ? ' · zoom ' + S.zoom + ' (래스터 기준 ' + S.zoomRaster + ')' : ''
+  const q = new URLSearchParams(params); if (useGl) q.delete('gl'); else q.set('gl', '1')
+  const sw = '<a href="?' + q + '">' + (useGl ? '래스터로 보기' : 'GL로 보기') + '</a>'
+  $('mode').innerHTML = (ok ? '<b>실제 NAVER 지도</b>' : '<b class="bad">' + S.status + '</b>') + ' · 요청 ' + (useGl ? 'GL' : '래스터') + ' → 실제 ' + actual + fb + ' · ' + styleTxt + ' · 지도 톤 ' + (S.tone === 'dark' ? '다크' : '밝음') + z + ' · ' + sw
+}
+
+// 저작권 줄 배경 띠: 왼쪽 아래 컨트롤 묶음(로고·저작권·축척)의 실제 크기에 맞춘다. 축척 길이가 zoom마다 바뀌므로 idle·resize마다 다시 잰다.
+function syncBand() {
+  const mapEl = $('map'), band = $('ctlband'), copy = mapEl.querySelector('.map_copyright')
+  if (!copy) { band.hidden = true; return }
+  let g = copy
+  while (g.parentElement && g.parentElement !== mapEl) g = g.parentElement  // #map 바로 아래의 왼쪽 아래 컨트롤 층(로고·저작권·축척 묶음)
+  const gr = g.getBoundingClientRect(), mr = mapEl.getBoundingClientRect()
+  const [r, gg, b] = getComputedStyle(copy).color.match(/\d+/g).map(Number)
+  const darkText = (0.2126 * r + 0.7152 * gg + 0.0722 * b) / 255 < 0.5
+  // SDK 글자가 어두우면 밝은 띠. 다크 지도 위에서는 흰색 대신 덜 튀는 옅은 회청색(?band=white면 이전 흰 띠 — 비교용)
+  const soft = S.tone === 'dark' && params.get('band') !== 'white'
+  band.style.background = darkText ? (soft ? (params.get('bandBg') || 'rgba(222,229,240,.94)') : 'rgba(255,255,255,.86)') : 'rgba(10,18,38,.82)'
+  // 여백 최소화: 오른쪽 4px, 위 2px(이전 8px·3px)
+  const pad = soft ? { r: 4, t: 2 } : { r: 8, t: 3 }
+  band.style.width = Math.ceil(gr.right - mr.left + pad.r) + 'px'
+  band.style.height = Math.ceil(mr.bottom - gr.top + pad.t) + 'px'
+  band.hidden = false
+  rec('band', { w: band.style.width, h: band.style.height, text: getComputedStyle(copy).color })
+}
+
+// 지도 화면에서 오버레이를 뺀 사용 영역 U (지도 컨테이너 좌표). DOM에서 직접 잰다.
+function usable(mapRect) {
+  const mobile = innerWidth <= 720
+  const both = $('both').hidden ? null : $('both').getBoundingClientRect()
+  // 데스크톱은 버튼이 상단(조건·모드 아래), 모바일은 시트 바로 위
+  const top = Math.max($('cond').getBoundingClientRect().bottom, $('mode').getBoundingClientRect().bottom, both && !mobile ? both.bottom : 0) + 12
+  const right = mobile ? mapRect.right - 12 : Math.min(document.querySelector('.panel').getBoundingClientRect().left, document.querySelector('.btns').getBoundingClientRect().left) - 12
+  const bottom = Math.min(mapRect.bottom - (mobile ? 40 : 60), both && mobile ? both.top - 8 : Infinity)  // 하단 왼쪽 로고·축척·저작권 줄
+  const left = mapRect.left + (mobile ? 12 : 16)
+  return { x: left - mapRect.left, y: top - mapRect.top, w: Math.max(120, right - left), h: Math.max(120, bottom - top) }
+}
+const circleBox = (lat, lng) => { const dLat = RADIUS / 111320, dLng = RADIUS / (111320 * Math.cos(lat * Math.PI / 180)); return { s: lat - dLat, n: lat + dLat, w: lng - dLng, e: lng + dLng } }
+const unionBox = (a, b) => ({ s: Math.min(a.s, b.s), n: Math.max(a.n, b.n), w: Math.min(a.w, b.w), e: Math.max(a.e, b.e) })
+const mercY = (lat) => Math.log(Math.tan(Math.PI / 4 + lat * Math.PI / 360))
+
+// 직접 계산 맞춤(8-B0 → D-022 초안). GL에서는 Circle.getBounds()가 오류이므로 원 범위를 위경도로 직접 계산한다.
+// 지도 현재 bounds로 px/도를 재므로 GL·래스터의 zoom 단위 차이와 무관하게 같은 화면 크기가 나온다(결과 zoom 값만 단위가 다르다).
+function plan(api, map, box) {
+  const el = $('map').getBoundingClientRect(), U = usable(el), mb = map.getBounds()
+  const pxPerLng = el.width / (mb.getNE().lng() - mb.getSW().lng())
+  const pxPerMerc = el.height / (mercY(mb.getNE().lat()) - mercY(mb.getSW().lat()))
+  const wPx = (box.e - box.w) * pxPerLng, hPx = (mercY(box.n) - mercY(box.s)) * pxPerMerc
+  const zMin = S.renderMode === 2 ? 5 : 0, zMax = S.renderMode === 2 ? 20 : 21
+  const z = Math.max(zMin, Math.min(zMax, Math.round(map.getZoom()) + Math.floor(Math.log2(Math.min(U.w / wPx, U.h / hPx)))))
+  return { el, U, z, zRaster: z + S.zOff, wPx: Math.round(wPx), hPx: Math.round(hPx), center: [(box.s + box.n) / 2, (box.w + box.e) / 2] }
+}
+function apply(api, map, p) {
+  map.setCenter(new api.LatLng(p.center[0], p.center[1])); map.setZoom(p.z, false)
+  map.panBy(new api.Point(p.el.width / 2 - (p.U.x + p.U.w / 2), p.el.height / 2 - (p.U.y + p.U.h / 2)))
+}
+// 원 지름(px)을 실제 화면에서 다시 잰다(맞춤 결과 확인용)
+function measure(map) {
+  const el = $('map').getBoundingClientRect(), mb = map.getBounds()
+  const pxPerLng = el.width / (mb.getNE().lng() - mb.getSW().lng())
+  return Math.round(2 * RADIUS / (111320 * Math.cos(C.lat * Math.PI / 180)) * pxPerLng)
+}
+
+// 지도 세대(attempt): 지도 하나와 그 지도에 붙인 리스너·오버레이·정보창·타이머. 스타일 실패로 다시 만들면 이전 세대를 모두 정리하고,
+// 이전 지도에서 늦게 도착한 이벤트·타이머·스타일 요청 결과는 세대 번호가 달라 버린다(복구된 지도 상태를 덮지 않게).
+let gen = 0
+let attempt = null
+S.attempts = []
+function on(a, target, type, fn) {
+  a.listeners.push(window.naver.maps.Event.addListener(target, type, (...x) => { if (a.gen === gen) fn(...x) }))
+}
+function later(a, fn, ms) {
+  const t = setTimeout(() => { if (a.gen === gen) fn() }, ms)
+  a.timers.push(t)
+  return t
+}
+function cleanupAttempt(a) {
+  const api = window.naver.maps
+  a.listeners.forEach((l) => api.Event.removeListener(l)); a.listeners = []
+  a.timers.forEach(clearTimeout); a.timers = []
+  a.domListeners.forEach(([type, fn]) => document.removeEventListener(type, fn)); a.domListeners = []
+  if (a.styleObserver) a.styleObserver.disconnect()
+  if (a.info) a.info.close()
+  a.overlays.forEach((o) => o.setMap(null)); a.overlays = []
+  try { a.map.destroy() } catch (e) { rec('destroy-error', { msg: String(e && e.message || e) }) }
+  // SDK가 컨테이너에 남긴 inline 스타일·자식까지 없애려고 같은 속성의 새 요소로 바꾼다
+  const old = $('map'), fresh = document.createElement('div')
+  fresh.id = 'map'; fresh.setAttribute('role', 'img'); fresh.setAttribute('aria-label', old.getAttribute('aria-label') || '')
+  old.replaceWith(fresh)
+  $('both').hidden = true; $('both').onclick = null; $('ctlband').hidden = true
+  Object.assign(S, { map: null, ready: false, renderMode: null, tone: null, styleRequest: null, zOff: 0, plan: null, compare: null, info: null, openStore: null, storeCount: null, refit: null, zoom: null, zoomRaster: null, d: null, moving: false })
+  delete document.documentElement.dataset.tone
+}
+
+// 스타일 요청(/v3/styler/props) 결과를 이 세대가 시작된 뒤의 것만 본다. 200이 아니면 실패로 알린다
+function watchStyle(a, onFail) {
+  const check = (e) => {
+    if (!/\/v3\/styler\/props/.test(e.name) || e.startTime < a.t0) return
+    a.styleStatus = e.responseStatus || null
+    if (a.styleStatus && a.styleStatus !== 200) onFail(a.styleStatus)
+  }
+  performance.getEntriesByType('resource').forEach(check)
+  try {
+    a.styleObserver = new PerformanceObserver((list) => { if (a.gen === gen) list.getEntries().forEach(check) })
+    a.styleObserver.observe({ type: 'resource', buffered: false })
+  } catch (e) { rec('style-observer-error', { msg: String(e && e.message || e) }) }
+}
+
+// mode: { gl, styleId, fallback } — fallback = 스타일 실패 뒤 한 번만 만드는 밝은 지도(gl:false, customStyleId 없음)
+async function build(api, mode) {
+  const a = { gen: ++gen, mode, t0: performance.now(), listeners: [], domListeners: [], overlays: [], timers: [], info: null, map: null, styleStatus: null }
+  attempt = a
+  const opts = {
+    center: new api.LatLng(C.lat, C.lng), zoom: 15, gl: mode.gl,
+    zoomControl: false, scaleControl: true, mapDataControl: true,
+    logoControlOptions: { position: api.Position.BOTTOM_LEFT },
+    scaleControlOptions: { position: api.Position.BOTTOM_LEFT },
+    mapDataControlOptions: { position: api.Position.BOTTOM_LEFT },
+  }
+  if (mode.gl && mode.styleId) opts.customStyleId = mode.styleId
+  const map = new api.Map('map', opts)
+  a.map = map
+  S.map = map; S.status = mode.fallback ? 'fallback-init' : 'init'; renderMode()
+  rec('map-created', { gen: a.gen, gl: mode.gl, style: !!mode.styleId, fallback: !!mode.fallback })
+  on(a, map, 'zoom_changed', (z) => { S.moving = true; rec('zoom_changed', { zoom: +(+z).toFixed(3) }) })
+  on(a, map, 'center_changed', () => { S.moving = true })
+  on(a, map, 'idle', () => { S.moving = false; const c = map.getCenter(); rec('idle', { zoom: +map.getZoom().toFixed(3), center: [+c.lat().toFixed(6), +c.lng().toFixed(6)] }) })
+
+  // init을 기다린다. 시간 초과는 준비 완료가 아니라 실패다. 스타일을 쓰면 스타일 요청 실패도 같이 본다(먼저 오는 쪽)
+  const outcome = await new Promise((res) => {
+    // 시간 초과는 **보이는 동안만** 센다: 숨겨지면 타이머를 멈추고, 다시 보이면 처음부터(INIT_TIMEOUT_MS) 센다.
+    // 숨김 탭에서는 GL이 그려지지 않아 init이 늦는 것이 정상이다. visibilitychange 리스너는 이 세대에 묶어
+    // init 완료·실패·지도 정리 때 지운다(이전 세대 리스너가 복구된 지도 상태를 바꾸지 않게)
+    // 검수 전용: failFallback=1(밝은 대체 지도 대기 1ms), failStyledInit=1(스타일 지도 대기 1ms), initTimeout=<ms>(대기 시간), holdInit=1(스타일 지도의 init 무시)
+    const testFirst = (mode.fallback && params.get('failFallback') === '1') || (!mode.fallback && mode.styleId && params.get('failStyledInit') === '1') ? 1 : null
+    let firstMs = testFirst ?? INIT_TIMEOUT_MS
+    let timer = null, settled = false
+    const arm = () => { clearTimeout(timer); timer = later(a, () => finish('init-timeout'), firstMs); firstMs = INIT_TIMEOUT_MS }
+    const onVis = () => {
+      if (a.gen !== gen || settled) return
+      if (document.visibilityState === 'hidden') { clearTimeout(timer); timer = null; rec('init-wait-paused', { gen: a.gen }) }
+      else { rec('init-wait-resumed', { gen: a.gen }); arm() }
+    }
+    const stopWait = () => { clearTimeout(timer); timer = null; document.removeEventListener('visibilitychange', onVis); a.domListeners = a.domListeners.filter((d) => d[1] !== onVis) }
+    const finish = (r) => { if (settled) return; settled = true; stopWait(); res(r) }
+    document.addEventListener('visibilitychange', onVis)
+    a.domListeners.push(['visibilitychange', onVis])
+    if (document.visibilityState === 'hidden') rec('init-wait-paused', { gen: a.gen }); else arm()
+    const holdInit = !mode.fallback && mode.styleId && params.get('holdInit') === '1'
+    on(a, map, 'init', () => { if (holdInit) rec('init-held', { gen: a.gen }); else finish('init') })
+    if (mode.gl && mode.styleId) watchStyle(a, (status) => finish('style-failed:' + status))
+  })
+  if (a.gen !== gen) return                                        // 그 사이 다른 세대가 시작됐다
+  let result = outcome
+  if (outcome === 'init' && mode.gl && mode.styleId && map.get('renderMode') === 2 && a.styleStatus !== 200) {
+    result = 'style-failed:' + (a.styleStatus || 'none')           // init은 왔지만 스타일이 적용되지 않았다
+  }
+  S.attempts.push({ gen: a.gen, gl: mode.gl, style: !!mode.styleId, fallback: !!mode.fallback, result, styleStatus: a.styleStatus })
+  rec('attempt', S.attempts[S.attempts.length - 1])
+  if (result !== 'init') {
+    const hidden = document.visibilityState === 'hidden' ? ' (탭이 숨겨진 상태)' : ''
+    if (mode.gl && mode.styleId && !mode.fallback) {
+      // 스타일 실패 → 실패한 지도를 정리하고 밝은 지도를 한 번만 다시 만든다(선택 위치·반경은 C·RADIUS 그대로)
+      S.fallback = { reason: result + hidden, from: a.gen }
+      rec('style-fallback', S.fallback)
+      cleanupAttempt(a)
+      return build(api, { gl: false, styleId: '', fallback: true })
+    }
+    if (mode.fallback) return fail('fallback-failed', '밝은 대체 지도도 준비되지 않았습니다(' + result + ')' + hidden + '. 다시 시도하지 않습니다')
+    return fail(result === 'init-timeout' ? 'init-timeout' : 'style-failed', result + hidden)
+  }
+
+  S.renderMode = map.get('renderMode')
+  rec('init', { gen: a.gen, renderMode: S.renderMode })
+  // GL 1 zoom = 래스터 zoom − 1과 같은 축척(2026-10-14 실측)
+  S.zOff = S.renderMode === 2 ? 1 : 0
+  S.styleRequest = a.styleStatus ? { status: a.styleStatus } : null
+  // 다크는 실제 GL + 이 세대의 스타일 요청 200일 때만. 밝은 대체 지도는 그 지도의 init 뒤에 밝은 팔레트를 쓴다
+  S.tone = S.renderMode === 2 && mode.styleId && a.styleStatus === 200 ? 'dark' : 'light'
+  document.documentElement.dataset.tone = S.tone
+  const o = OV[S.tone]
+  { const el = $('map').getBoundingClientRect(), mb = map.getBounds(); S.mPerPxAtInit = { zoom: map.getZoom(), m: +((mb.getNE().lng() - mb.getSW().lng()) * 111320 * Math.cos(C.lat * Math.PI / 180) / el.width).toFixed(3) } }
+
+  const geo = await (await fetch(boundaryUrl)).json()
+  if (a.gen !== gen) return
+  const dongs = [[C.gu_name, C.dong_name]].concat(Bx ? [[Bx[0].context.gu_name, Bx[0].context.dong_name]] : [])
+  dongs.forEach(([gu, dong]) => {
+    const f = geo.features.find((x) => x.properties['행정동명'] === dong && x.properties['시군구명'] === gu)
+    if (!f) return
+    const polys = f.geometry.type === 'Polygon' ? [f.geometry.coordinates] : f.geometry.coordinates
+    polys.forEach((poly) => a.overlays.push(new api.Polygon({ map, paths: poly.map((ring) => ring.map(([x, y]) => new api.LatLng(y, x))), fillOpacity: 0, strokeColor: o.dong, strokeOpacity: S.tone === 'dark' ? 1 : .8, strokeWeight: o.dongW, strokeStyle: 'shortdash', clickable: false })))
+  })
+  // 점포 정보창: 패널·조건 바·로고 줄에 가리지 않게, 열린 뒤 실제 크기를 재서 사용 영역 U 안으로 옮긴다
+  const markers = []
+  const info = new api.InfoWindow({ content: '', borderWidth: 0, backgroundColor: 'transparent', anchorSize: new api.Size(12, 8), anchorColor: S.tone === 'dark' ? '#15223F' : '#FFFFFF', pixelOffset: new api.Point(0, -4) })
+  a.info = info
+  let activeMarker = null
+  const setActive = (m) => {
+    if (activeMarker) { activeMarker.setIcon({ content: storeHtml(OV[S.tone]), anchor: new api.Point(6, 6) }); activeMarker.setZIndex(0) }
+    activeMarker = m
+    if (m) { m.setIcon({ content: storeHtml(OV[S.tone], true), anchor: new api.Point(9, 9) }); m.setZIndex(900) }
+  }
+  const openInfo = (m, s) => {
+    setActive(m)
+    const dark = S.tone === 'dark'
+    info.setContent('<div style="padding:9px 12px;border-radius:10px;font:13px/1.45 \'Pretendard Variable\',Pretendard,system-ui,sans-serif;white-space:nowrap;' + (dark ? 'background:#15223F;color:#EEF2FA;border:1px solid rgba(140,165,220,.25)' : 'background:#FFFFFF;color:#0A1226;border:1px solid rgba(10,18,38,.25)') + ';box-shadow:0 8px 20px rgba(0,0,0,.3)"><b>' + s.name + '</b><br><span style="color:' + (dark ? '#95A3BD' : '#4A5A7A') + '">선택 지점에서 ' + s.distance_m + 'm · ' + (s.road_address || s.jibun_address || '') + '</span></div>')
+    info.open(map, m)
+    later(a, () => {  // rAF는 숨김 탭에서 멈추므로 timeout
+      const el = info.getContentElement && info.getContentElement()
+      if (!el) return
+      const b = el.getBoundingClientRect(), mr = $('map').getBoundingClientRect(), U = usable(mr)
+      const ux = mr.left + U.x, uy = mr.top + U.y
+      const dx = b.left < ux ? ux - b.left : b.right > ux + U.w ? ux + U.w - b.right : 0
+      const dy = b.top < uy ? uy - b.top : b.bottom > uy + U.h ? uy + U.h - b.bottom : 0
+      S.info = { name: s.name, rect: [b.left, b.top, b.right, b.bottom].map(Math.round), U: [ux, uy, ux + U.w, uy + U.h].map(Math.round), pan: [Math.round(dx), Math.round(dy)] }
+      if (dx || dy) map.panBy(new api.Point(-dx, -dy))
+    }, 30)
+  }
+  S.openStore = (i) => { const [m, s] = markers[i]; openInfo(m, s) }
+  S.storeCount = () => markers.length
+  const site = (ctx, stores, c, fill, halo, z) => {
+    a.overlays.push(new api.Circle({ map, center: new api.LatLng(ctx.lat, ctx.lng), radius: RADIUS, strokeColor: c, strokeWeight: o.aW, fillColor: fill, fillOpacity: o.fillA, clickable: false }))
+    ;(stores || []).forEach((s) => {
+      const m = new api.Marker({ map, position: new api.LatLng(s.lat, s.lng), title: s.name, icon: { content: storeHtml(o), anchor: new api.Point(6, 6) } })
+      on(a, m, 'click', () => openInfo(m, s))
+      markers.push([m, s]); a.overlays.push(m)
+    })
+    a.overlays.push(new api.Marker({ map, position: new api.LatLng(ctx.lat, ctx.lng), zIndex: z, icon: { content: pinHtml(c, o.ring, halo), anchor: new api.Point(9, 9) } }))
+  }
+  site(C, N.stores, o.a, o.aFill, o.halo, 1000)
+  if (Bx) site(Bx[0].context, Bx[1] && Bx[1].stores, o.b, o.bFill, o.bHalo, 1001)
+
+  const boxA = circleBox(C.lat, C.lng)
+  let p
+  if (Bx) {
+    const boxB = circleBox(Bx[0].context.lat, Bx[0].context.lng)
+    const pu = plan(api, map, unionBox(boxA, boxB))
+    // 합집합 맞춤 기준은 래스터 zoom 단위. GL에서는 zoomRaster(= GL zoom + 1)로 비교한다.
+    S.compare = { unionZoom: pu.z, unionZoomRaster: pu.zRaster, threshold: UNION_MIN_RASTER_ZOOM }
+    if (pu.zRaster >= UNION_MIN_RASTER_ZOOM) { p = pu; S.compare.fit = 'union' } else {
+      // 버튼을 먼저 보이게 해야 U가 버튼 아래에서 시작한다
+      $('both').hidden = false
+      p = plan(api, map, boxB); S.compare.fit = 'B-only'
+      // 사용자 요청 시 합집합 맞춤(기준 zoom 미만 허용). 버튼이 보이는 상태의 U로 다시 계산한다.
+      $('both').onclick = () => { const q = plan(api, map, unionBox(boxA, boxB)); apply(api, map, q); S.compare.fit = 'union-by-user'; S.compare.userZoomRaster = q.zRaster }
+    }
+  } else p = plan(api, map, boxA)
+  // 검수용 zoom 지정(z=): 맞춤 대상 중심(사용 영역 U 가운데)은 그대로 두고 zoom만 고정한다. 마커 대비 1:1 부분 캡처용.
+  const zq = params.get('z')
+  if (zq !== null && zq !== '' && !Number.isNaN(+zq)) { S.zFit = p.z; p.z = +zq; p.zRaster = p.z + S.zOff; rec('z-override', { zFit: S.zFit, z: p.z }) }
+  apply(api, map, p); S.refit = () => { info.close(); setActive(null); apply(api, map, p) }
+  S.plan = { U: p.U, z: p.z, zRaster: p.zRaster, wPx: p.wPx, hPx: p.hPx }
+  const sync = () => { S.zoom = +map.getZoom().toFixed(2); S.zoomRaster = +(map.getZoom() + S.zOff).toFixed(2); S.d = measure(map); renderMode() }
+  $('zin').onclick = () => map.setZoom(Math.round(map.getZoom()) + 1)
+  $('zout').onclick = () => map.setZoom(Math.round(map.getZoom()) - 1)
+  on(a, map, 'idle', sync)
+  // hidden=measure: 숨김 탭 수치 확인 전용. 화면 검증이 아니므로 ready로 세지 않는다.
+  S.visibleAtReady = document.visibilityState === 'visible'
+  syncBand(); on(a, map, 'idle', syncBand)
+  S.status = S.visibleAtReady ? 'ready' : 'measured-hidden'; S.ready = S.visibleAtReady; sync()
+  rec('ready-state', { gen: a.gen, status: S.status, renderMode: S.renderMode, zoom: map.getZoom(), fallback: !!mode.fallback })
+}
+
+async function start() {
+  S.status = 'sdk'; renderMode()
+  window.navermap_authFailure = () => fail('auth-failure', 'NAVER 인증 실패(Client ID·Web 서비스 URL 확인)')
+  addEventListener('resize', syncBand)
+  window.__reviewReady = async () => {
+    try {
+      await build(window.naver.maps, { gl: useGl, styleId: useGl ? styleId : '', fallback: false })
+    } catch (e) { fail('error', String(e && e.message || e)) }
+  }
+  const script = document.createElement('script')
+  script.src = 'https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=' + encodeURIComponent(clientId) + '&submodules=geocoder' + (useGl ? ',gl' : '') + '&callback=__reviewReady'
+  script.onerror = () => fail('sdk-load-error', 'maps.js를 불러오지 못했습니다')
+  document.head.appendChild(script)
+}
+
+renderMode()
+if (!clientId) fail('no-client-id', 'frontend/.env에 VITE_NAVER_MAP_CLIENT_ID가 없습니다')
+else if (document.visibilityState === 'hidden' && params.get('hidden') !== 'measure') {
+  // 숨겨진 탭에서는 WebGL이 그려지지 않는다. 보일 때까지 지도를 만들지 않는다(D-022 초안: 숨김 중 맞춤 보류).
+  S.status = 'waiting-visible'; renderMode()
+  document.addEventListener('visibilitychange', function once() { if (document.visibilityState === 'visible') { document.removeEventListener('visibilitychange', once); start() } })
+} else start()
+</script>
+</body>
+</html>

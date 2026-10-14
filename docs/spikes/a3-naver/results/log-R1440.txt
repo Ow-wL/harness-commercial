@@ -1,0 +1,15 @@
+# R1440 (raster, 1440x900) — 이전 회차(계측 전)
+01/02/03: 계측 전. 상태값 zoom 16(ready, visible). 02 확대 캡처에서만 원이 한 단계 크게 보임(모드 표시 'zoom 17'로 판독, 저해상도라 단정 불가).
+그 뒤 재로드 회차에서 ready 시점에 hidden 감지(measured-hidden) → 무효.
+# GL1440 (gl=1, 1440x900) — 계측 전, 상태값만
+ready, visible, renderMode 2, mPerPx@z15 = 1.895 (raster 3.791), fit z15 (raster-eq 16), d=528px, 로고·©·축척 가림 없음 → 04
+# R1440-a (계측 후 재현 시도)
+pre  t=869 visible ready rm1 z16 c[37.489911,126.72975] map 1440x900 moving=false
+mid  t=917 (screenshot 05 직후) 동일
+post t=978 (zoom crop 06 직후) 동일; pre~post 사이 비-mark 이벤트 없음
+전체: 55 page · 80 map-created · 89 init · 119 zoom_changed z16 · 124 idle z16 ×2 · 126 ready-state
+판정: 유효. 확대 불일치 미재현(05·06 동일 장면).
+# INFO1440 raster — 12곳 모두 pan 0 (정보창 x 277~724 < U 오른쪽 944, 패널 left 1020) · store 11 캡처 25 · pre t14703 = post t14752 · 유효
+# R1440-b (재현 2회차: 앱 / 970폭 → 1440 에뮬 → 스파이크 로드, 원래 순서와 동일)
+pre t2277 = post t2353 z16 c[37.489911,126.72975], 사이 이벤트 없음; 26(0.5 스크린샷)·26b(확대 자르기) 같은 장면 → 미재현
+log: 59 page(1440x900) · 84 map-created · 93 init · 126 zoom_changed z16 · 129/130 idle · 131 ready-state

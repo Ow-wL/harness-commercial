@@ -1,0 +1,21 @@
+# R375 (raster, 375x667) — 캡처 07 (1:1, 375x667)
+pre  t=846 visible ready rm1 z14 c[37.491443,126.7246] map 375x374 moving=false
+post t=894 동일; 사이 이벤트 없음
+plan U 351x233 → z14, d=132px; mPerPx@z15 3.791
+컨트롤: logo 12-57,y357-367 · © 72-150,y358-370 · 축척 500m 152-218,y354-365 — 가림 없음(패널 top 373.5)
+log: 47 page · 66 map-created · 77 init · 102 zoom_changed · 105/106 idle · 106 ready-state
+판정: 유효
+# G375 (gl=1, 375x667) — 캡처 08 (1:1)
+pre  t=2790 visible ready rm2 z13 c[37.49146,126.7246] map 375x374 moving=false
+post t=2838 동일; 사이 이벤트 없음
+plan z13 (raster-eq 14), d=132px; mPerPx@z15 1.895
+컨트롤 위치 래스터와 동일, 가림 없음
+log: 47 page · 126 map-created · 636 init · 647 idle z15 · 669 zoom_changed z13 · 671 ready-state · 1082 idle z13
+판정: 유효
+# MC3 songdo raster 375 — 20 (1:1)
+B-only z14 (union 11 <13), 버튼 [245,326,363,362] 오른쪽 아래, U 351x217 · pre t1052 = post t1068 · 유효
+op:click-both → z11 c[37.45731,126.681821] · pre t2136 = post t2183 · 유효 · 21
+# INFO375 raster — 12곳 순차(맞춤 복원 후 열기): 0~3 pan 0, 4~11 위로 8~37px 밀어 넣음(U 상단 117 = 모드 상자 아래)
+store 11(곰팅이PC방) pan [0,37] 후 캡처 22 · pre t15750 = post t15782 z14 c[37.493963,126.7246] · 유효
+# INFOG375 GL — store 11 pan [0,37] → 23 · pre t3941 = post t3988 rm2 z13 · 유효 · 1:1 확대 24
+# CTL crops 375 (1:1, region 0,300–375,374): raster 27 (pre t1046 = post t1081), GL 28 (pre t2592 = post t2626) · 유효
