@@ -4,12 +4,19 @@ import {
   boxToRect,
   circleBox,
   fitZoom,
+  boxCenter,
   infoPlacementOk,
   infoPlacements,
+  insideUsable,
   intersects,
   panToUsable,
+  rasterZoom,
+  rectCenteredInMap,
   satisfiesSingle,
+  unionBox,
   usableArea,
+  UNION_MIN_RASTER_ZOOM,
+  type GeoBox,
   type Rect,
 } from '../map/mapFit.ts'
 import {
@@ -49,7 +56,22 @@ export type MapCompare = {
   tone: 'selected' | 'invalid'
   dong: MapDong | null
   guide: string | null
+  /**
+   * 지금 보이는 점포 기준(A/B, B 분석 성공 뒤). A↔B로 바뀌면 그 원으로 옮긴다(D-022 순위 6, 8-B2).
+   * 생략·null이면 기준 없음 — 분석 완료로 처음 생기는 것(null → A/B)은 이동하지 않는다(순위 8)
+   */
+  focus?: 'A' | 'B' | null
 }
+
+/**
+ * 범위 맞춤 동작 (D-022). single: 단일 원(auto = 이미 조건이면 이동 없음, force = 무조건) / union: "두 위치 모두 보기" /
+ * b-select: B 선택(순위 5) / focus: A↔B 기준 전환·비교 종료(순위 6)
+ */
+type FitAction =
+  | { t: 'single'; mode: 'auto' | 'force' }
+  | { t: 'union' }
+  | { t: 'b-select' }
+  | { t: 'focus'; side: 'A' | 'B' }
 
 /** 지도에 표시할 동종 점포 (4차). 문구는 표시용으로 만들어 넘긴다(App이 API 응답으로 만든다). */
 export type MapStore = { id: string; name: string; address: string; distance: string; lat: number; lng: number }
@@ -335,9 +357,11 @@ export function MapView({
   // 잠금: 사용자가 휠·드래그·± 컨트롤로 직접 바꾸면 켠다(SDK `zooming`·`dragstart` — 우리 호출은 내지 않는다, 8-B0)
   const initedRef = useRef(false)
   const lockedRef = useRef(false)
-  /** 숨김·init 전이라 미룬 맞춤: auto = 이미 조건을 만족하면 이동 없음(순위 2), force = 무조건(순위 1) */
-  const pendingFitRef = useRef<'auto' | 'force' | null>(null)
-  const runFitRef = useRef<(mode: 'auto' | 'force') => void>(() => {})
+  /** 숨김·init 전이라 미룬 맞춤(동작 단위). 실행할 때 최신 선택·비교 상태로 다시 검증한다 */
+  const pendingFitRef = useRef<FitAction | null>(null)
+  const runFitRef = useRef<(action: FitAction) => void>(() => {})
+  /** 실제 그리기 방식(1 래스터 / 2 GL) — 비교 기준 zoom 13을 래스터 기준으로 환산할 때 쓴다 */
+  const renderModeRef = useRef<number | null>(null)
 
   // 최신 콜백·상태를 클릭 핸들러가 읽는다 (지도를 다시 만들지 않기 위해)
   const onSelectRef = useRef(onSelect)
@@ -397,6 +421,7 @@ export function MapView({
             initedRef.current = true
             // 실제 그리기 방식(1 래스터 / 2 GL)을 남긴다 — GL을 요청해도 지원 안 되면 1. 검수·측정용
             const mode = map.get?.('renderMode')
+            renderModeRef.current = typeof mode === 'number' ? mode : null
             if (sectionRef.current && mode != null) sectionRef.current.dataset.renderMode = String(mode)
             const pending = pendingFitRef.current
             pendingFitRef.current = null
@@ -463,42 +488,96 @@ export function MapView({
     }
   }, [api, map])
 
-  // 범위 맞춤 (8-B1, D-022 순위 1·2·4): 선택 지점의 분석 반경 원이 사용 영역 U 안에 들고 지름이 U 짧은 변의 절반 이상이 되게
-  // setCenter → setZoom(z, false) → panBy. auto(새 위치)는 지금 화면이 이미 조건을 만족하면 움직이지 않는다.
-  // 지도가 숨겨졌거나(크기 0) init 전이면 미뤘다가 보이고 setSize한 뒤·init 뒤 1회 실행한다.
-  // 단일 전용(8-B2 전): 비교 중에는 맞추지 않고, 비교를 시작하면 미뤄 둔 단일 맞춤을 버린다.
-  // 아래 layoutKey 크기 맞춤(layout effect)보다 **먼저 선언한 layout effect**에서 최신 선택·비교 상태를 반영한다 —
-  // 비교 시작과 지도 표시가 같은 렌더에 일어나도 옛 상태(단일)로 미룬 맞춤을 실행하지 않게
+  // 범위 맞춤 (D-022). 단일(8-B1): 선택 지점 원 — 순위 1 "범위에 맞추기"·2 새 위치·4 숨김 복귀.
+  // 비교(8-B2): 순위 1 "두 위치 모두 보기"(A∪B)·5 B 선택·6 A↔B 기준 전환·비교 종료.
+  // 맞춤 = setCenter → setZoom(z, false) → panBy(원·사각형 중심을 U 중심으로). 지도가 숨겨졌거나(크기 0) init 전이면
+  // 동작을 미뤘다가 보이고 setSize한 뒤·init 뒤 1회, 그때의 최신 선택·비교 상태로 다시 검증해 실행한다.
+  // 아래 layoutKey 크기 맞춤(layout effect)보다 **먼저 선언한 layout effect**에서 최신 상태를 반영한다 —
+  // 비교 시작·종료와 지도 표시가 같은 렌더에 일어나도 옛 상태로 미룬 맞춤을 실행하지 않게(8-B1 회귀 수정)
   const selectedRef = useRef(selected)
   const comparingRef = useRef(compare !== null)
+  const bLocationRef = useRef(compare?.location ?? null)
   useLayoutEffect(() => {
     selectedRef.current = selected
     comparingRef.current = compare !== null
-    if (comparingRef.current) pendingFitRef.current = null
-    runFitRef.current = (mode) => {
-      const point = selectedRef.current
+    bLocationRef.current = compare?.location ?? null
+    /** 이 동작이 지금 상태에서 의미가 있는지: 단일은 비교 밖, 비교 동작은 비교 중 + B 있음, A로 이동은 A 있음 */
+    const valid = (action: FitAction) => {
+      if (!selectedRef.current) return false
+      if (action.t === 'single') return !comparingRef.current
+      if (action.t === 'focus' && action.side === 'A') return true
+      return comparingRef.current && bLocationRef.current !== null
+    }
+    // 상태가 바뀌어 더는 맞지 않는 대기 동작은 버린다(비교 시작 → 단일 대기 버림, 비교 종료·B 지움 → 비교 대기 버림)
+    if (pendingFitRef.current && !valid(pendingFitRef.current)) pendingFitRef.current = null
+    runFitRef.current = (action) => {
       const el = sectionRef.current
-      if (!api || !map || !point || !el) return
-      if (comparingRef.current) {
+      if (!api || !map || !el) return
+      if (!valid(action)) {
         pendingFitRef.current = null
         return
       }
       if (!initedRef.current || el.clientWidth === 0 || el.clientHeight === 0) {
-        if (mode === 'force' || !pendingFitRef.current) pendingFitRef.current = mode
+        // 단일 auto는 이미 기다리는 동작을 덮지 않는다(무조건 맞춤·비교 동작이 이긴다)
+        if (!(action.t === 'single' && action.mode === 'auto' && pendingFitRef.current)) pendingFitRef.current = action
         return
       }
-      if (mode === 'auto' && lockedRef.current) return              // 미뤄 둔 사이 사용자가 직접 조정했다
       const size = { w: el.clientWidth, h: el.clientHeight }
       const b = map.getBounds()
-      const bounds = { s: b.getSW().lat(), n: b.getNE().lat(), w: b.getSW().lng(), e: b.getNE().lng() }
-      const rect = boxToRect(circleBox(point.lat, point.lng, RADIUS_M), { bounds, w: size.w, h: size.h })
+      const view = { bounds: { s: b.getSW().lat(), n: b.getNE().lat(), w: b.getSW().lng(), e: b.getNE().lng() }, w: size.w, h: size.h }
       const u = usableArea(size, mapObstacles(el, canvasRef.current), FIT_PAD)
-      if (mode === 'auto' && satisfiesSingle(rect, u)) return
-      const z = fitZoom(map.getZoom(), rect, u, { min: map.getMinZoom?.() ?? 0, max: map.getMaxZoom?.() ?? 21 })
-      const pan = panToUsable(size, u)
-      map.setCenter(new api.LatLng(point.lat, point.lng))
-      map.setZoom(z, false)
-      map.panBy(new api.Point(pan.x, pan.y))
+      const range = { min: map.getMinZoom?.() ?? 0, max: map.getMaxZoom?.() ?? 21 }
+      /** 원 하나는 그 중심(선택 좌표), A∪B는 사각형의 화면 중심에 맞춘다 */
+      const fitBox = (box: GeoBox, rect: Rect, center?: { lat: number; lng: number }) => {
+        const z = fitZoom(map.getZoom(), rect, u, range)
+        const c = center ?? boxCenter(box)
+        const pan = panToUsable(size, u)
+        map.setCenter(new api.LatLng(c.lat, c.lng))
+        map.setZoom(z, false)
+        map.panBy(new api.Point(pan.x, pan.y))
+      }
+      const a = selectedRef.current!
+      const boxA = circleBox(a.lat, a.lng, RADIUS_M)
+      const bLoc = bLocationRef.current
+      const boxB = bLoc ? circleBox(bLoc.lat, bLoc.lng, RADIUS_M) : boxA
+      switch (action.t) {
+        case 'single': {
+          if (action.mode === 'auto' && lockedRef.current) return     // 미뤄 둔 사이 사용자가 직접 조정했다
+          const rect = boxToRect(boxA, view)
+          if (action.mode === 'auto' && satisfiesSingle(rect, u)) return
+          fitBox(boxA, rect, a)
+          return
+        }
+        case 'union': {                                              // 순위 1 "두 위치 모두 보기": 기준 zoom 미만이어도 맞춘다
+          const box = unionBox(boxA, boxB)
+          fitBox(box, boxToRect(box, view))
+          return
+        }
+        case 'b-select': {                                           // 순위 5: 함께 맞춘 zoom(래스터 기준) ≥ 13이면 A∪B, 아니면 B 원
+          const box = unionBox(boxA, boxB)
+          const rect = boxToRect(box, view)
+          const z = fitZoom(map.getZoom(), rect, u, range)
+          if (rasterZoom(z, renderModeRef.current) >= UNION_MIN_RASTER_ZOOM) {
+            // 이미 두 원이 U 안이고 맞춰도 zoom이 그대로면 움직이지 않는다. 더 넓게 보는 중(작은 두 원)은 맞춘다 —
+            // mobile에서 숨긴 채 A를 고르고 바로 비교하면 A 단일 맞춤 없이 기본 zoom에서 B를 고르게 된다
+            if (map.getZoom() >= z && insideUsable(boxToRect(boxA, view), u) && insideUsable(boxToRect(boxB, view), u)) return
+            fitBox(box, rect)
+            return
+          }
+          const rB = boxToRect(boxB, view)
+          if (satisfiesSingle(rB, u)) return
+          fitBox(boxB, rB, bLoc ?? a)
+          return
+        }
+        case 'focus': {                                              // 순위 6: 지금 zoom에서 panTo 뒤 조건을 만족하면 panTo, 아니면 맞춤
+          const box = action.side === 'B' ? boxB : boxA
+          const c = action.side === 'B' && bLoc ? bLoc : a
+          const rect = boxToRect(box, view)
+          if (lockedRef.current || satisfiesSingle(rectCenteredInMap(size, rect), u)) map.panTo(new api.LatLng(c.lat, c.lng))
+          else fitBox(box, rect, c)
+          return
+        }
+      }
     }
   })
 
@@ -509,7 +588,7 @@ export function MapView({
   }, [layoutKey])
 
   // 선택 지점이 바뀌면(지도 클릭·주소·좌표 입력, 분석 불가 지점 포함) 맞춘다(순위 2, 잠금 해제). 같은 좌표에서 tone·결과만
-  // 바뀌면 그대로. 비교 중의 지도 이동은 8-B2 전까지 기존 규칙(panTo, zoom 그대로)
+  // 바뀌면 그대로. 비교 중에는 A가 고정이라 A 좌표가 바뀌지 않는다(바뀌면 지금처럼 panTo)
   const selectedLat = selected?.lat
   const selectedLng = selected?.lng
   useEffect(() => {
@@ -523,13 +602,13 @@ export function MapView({
     }
     lockedRef.current = false
     pendingFitRef.current = null
-    runFitRef.current('auto')
+    runFitRef.current({ t: 'single', mode: 'auto' })
   }, [api, map, selectedLat, selectedLng])
 
-  /** "범위에 맞추기"(순위 1): 무조건 맞추고 잠금을 푼다 */
+  /** "범위에 맞추기"(단일)·"두 위치 모두 보기"(비교) — 순위 1: 무조건 맞추고 잠금을 푼다 */
   const fitToRange = () => {
     lockedRef.current = false
-    runFitRef.current('force')
+    runFitRef.current(comparingRef.current ? { t: 'union' } : { t: 'single', mode: 'force' })
   }
 
   // 선택 지점(A) 마커 + 반경 원. 다시 클릭하면 같은 오버레이를 옮긴다. 비교 중이면 글자 "A" 마커(B를 아직 안 골라도)
@@ -595,17 +674,30 @@ export function MapView({
     }
   }, [api, map, bLat, bLng, bTone])
 
-  // B를 고르면 B로 옮긴다(zoom 그대로). B를 지울 때(다시 고르기)는 옮기지 않는다
+  // B를 고르면(순위 5, 잠금 해제) 두 원이 함께 들어가는 zoom이 래스터 기준 13 이상이면 A∪B, 아니면 B 원을 맞춘다.
+  // B를 지울 때(다시 고르기)는 옮기지 않는다
   useEffect(() => {
     if (!api || !map || bLat === undefined || bLng === undefined) return
-    map.panTo(new api.LatLng(bLat, bLng))
+    lockedRef.current = false
+    runFitRef.current({ t: 'b-select' })
   }, [api, map, bLat, bLng])
 
-  // 비교가 끝나면 A로 옮긴다(zoom 그대로). 자동 확대·fitBounds는 하지 않는다(D3)
+  // 점포 기준 A↔B 전환(순위 6): 그 원이 지금 zoom에서 조건을 만족하면 panTo, 아니면 맞춤. 잠금 중이면 panTo만.
+  // 분석 완료로 기준이 처음 생기는 것(null → A/B)은 움직이지 않는다(순위 8)
+  const focus = compare?.focus ?? null
+  const focusRef = useRef(focus)
+  useEffect(() => {
+    const prev = focusRef.current
+    focusRef.current = focus
+    if (!api || !map || !focus || !prev || prev === focus) return
+    runFitRef.current({ t: 'focus', side: focus })
+  }, [api, map, focus])
+
+  // 비교가 끝나면 A로(순위 6): 조건을 만족하면 panTo, 아니면 맞춤. 잠금 중이면 panTo만
   const wasComparingRef = useRef(comparing)
   useEffect(() => {
     if (wasComparingRef.current && !comparing && api && map && selectedLat !== undefined && selectedLng !== undefined) {
-      map.panTo(new api.LatLng(selectedLat, selectedLng))
+      runFitRef.current({ t: 'focus', side: 'A' })
     }
     wasComparingRef.current = comparing
   }, [api, map, comparing, selectedLat, selectedLng])
@@ -707,21 +799,10 @@ export function MapView({
       info.setOptions?.({ pixelOffset: new api.Point(0, 0), disableAnchor: false, anchorSkew: false })
       infoAdjustedRef.current = false
     }
-    if (comparingRef.current) {
-      // 비교 중(8-B2 전): 기존 정보창 동작 그대로 — 배치 조정·추가 panBy 없음. 단일에서 바꾼 위치가 남아 있으면 기본으로만 되돌린다
-      if (infoAdjustedRef.current) resetInfo()
-      info.open(map, marker)
-      if (pannedStoreRef.current !== activeStoreId) {
-        map.panTo(new api.LatLng(store.lat, store.lng))
-        pannedStoreRef.current = activeStoreId
-      }
-      return
-    }
     resetInfo()                                                   // 기본 위치에서 다시 시작
     info.open(map, marker)
-    // 정보창 배치(D-022, 8-B1 단일): 이동이 끝난 뒤 정보창이 U 밖이거나 분석 핀을 덮으면 후보 위치로 옮긴다
+    // 정보창 배치(D-022): 이동이 끝난 뒤 정보창이 U 밖이거나 분석 핀(단일 핀, 비교면 A·B 핀 — 8-B2)을 덮으면 후보 위치로 옮긴다
     const place = () => {
-      if (comparingRef.current) return                            // 기다리는 사이 비교가 시작됐다
       if (placeStoreInfo(api, map, info, el, canvasRef.current)) infoAdjustedRef.current = true
     }
     if (pannedStoreRef.current !== activeStoreId) {
@@ -840,11 +921,11 @@ export function MapView({
               같은 업종 점포
             </li>
           )}
-          {/* 범위에 맞추기(D-022 순위 1, 단일만 — 비교의 "두 위치 모두 보기"는 8-B2). 분석 불가 지점은 반경 원이 없어 두지 않는다 */}
-          {!compare && selected && markerTone === 'selected' && (
+          {/* D-022 순위 1: 단일 "범위에 맞추기"(분석 불가 지점은 반경 원이 없어 두지 않는다), 비교 "두 위치 모두 보기"(B를 고른 뒤) */}
+          {(compare ? compare.location !== null && selected !== null : selected !== null && markerTone === 'selected') && (
             <li className="map__legend-action">
               <button type="button" className="button-ghost button-ghost--small map__fit" onClick={fitToRange}>
-                범위에 맞추기
+                {compare ? '두 위치 모두 보기' : '범위에 맞추기'}
               </button>
             </li>
           )}

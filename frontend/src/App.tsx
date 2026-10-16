@@ -478,6 +478,8 @@ function App() {
                   : compare.location
                     ? 'B 위치를 골랐습니다 · "B 분석하기"로 분석합니다'
                     : `B 위치를 고르세요 · A: ${locationName(result.context)}`,
+          // 지금 보이는 점포 기준(B 성공 뒤 A/B) — 바뀌면 지도가 그 원으로 옮긴다(D-022 순위 6, 8-B2)
+          focus: visibleSide,
         }
       : null
 

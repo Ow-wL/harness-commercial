@@ -124,3 +124,27 @@ export function infoPlacementOk(rect: Rect, pins: readonly Rect[], u: Rect): boo
   const inside = rect.x >= u.x - 1 && rect.y >= u.y - 1 && rect.x + rect.w <= u.x + u.w + 1 && rect.y + rect.h <= u.y + u.h + 1
   return inside && !pins.some((p) => intersects(rect, p))
 }
+
+/** 비교 맞춤 기준 zoom(래스터 기준, D-022 순위 5): A∪B 맞춤 zoom이 이 값 이상이면 두 원을 함께 맞춘다 */
+export const UNION_MIN_RASTER_ZOOM = 13
+
+/** 두 위경도 사각형을 감싸는 사각형 (A∪B) */
+export function unionBox(a: GeoBox, b: GeoBox): GeoBox {
+  return { s: Math.min(a.s, b.s), n: Math.max(a.n, b.n), w: Math.min(a.w, b.w), e: Math.max(a.e, b.e) }
+}
+
+/** 사각형의 화면 중심이 되는 위경도(위도는 Web Mercator 중점) — setCenter에 넣는다 */
+export function boxCenter(box: GeoBox): { lat: number; lng: number } {
+  const y = (mercY(box.s) + mercY(box.n)) / 2
+  return { lat: (Math.atan(Math.sinh(y)) * 180) / Math.PI, lng: (box.w + box.e) / 2 }
+}
+
+/** 사각형이 U 안에 있는지(±1px) — 비교(가까움) 완료 조건은 두 원 모두 ⊂ U */
+export function insideUsable(rect: Rect, u: Rect): boolean {
+  return rect.x >= u.x - 1 && rect.y >= u.y - 1 && rect.x + rect.w <= u.x + u.w + 1 && rect.y + rect.h <= u.y + u.h + 1
+}
+
+/** 지금 zoom 그대로 원을 지도 중심으로 옮겼을 때(panTo)의 화면 사각형 — 순위 6 "panTo 뒤 조건" 미리 판정 */
+export function rectCenteredInMap(size: { w: number; h: number }, rect: Rect): Rect {
+  return { x: size.w / 2 - rect.w / 2, y: size.h / 2 - rect.h / 2, w: rect.w, h: rect.h }
+}

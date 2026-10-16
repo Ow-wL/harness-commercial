@@ -2,7 +2,7 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-libra
 import type { Mock } from 'vitest'
 import { NAVER_SCRIPT_ID, resetNaverMapsLoaderForTest, type NaverMapsApi } from '../map/naverMaps.ts'
 import { findDongRings } from '../map/dongBoundary.ts'
-import { boxToRect, circleBox, satisfiesSingle, usableArea } from '../map/mapFit.ts'
+import { boxToRect, circleBox, insideUsable, satisfiesSingle, usableArea } from '../map/mapFit.ts'
 import { MapView, type MapCompare, type MapStore, type MapViewProps } from './MapView.tsx'
 
 // 행정동 경계 파일(약 600KB) 대신 동마다 작은 사각형 하나 — 어떤 동을 요청했는지와 polygon 생성·제거만 본다
@@ -59,7 +59,7 @@ class FakeMap {
   size = { w: 955, h: 365 }
   renderMode = 1
   setSize = vi.fn((s: FakeSize) => (this.size = { w: s.width, h: s.height }))
-  panTo = vi.fn()
+  panTo = vi.fn((c: FakeLatLng) => (this.center = c))
   setZoom = vi.fn((...[z]: [zoom: number, effect?: boolean]) => (this.zoom = z))
   getZoom = vi.fn(() => this.zoom)
   setCenter = vi.fn((c: FakeLatLng) => (this.center = c))
@@ -175,6 +175,31 @@ const props = (over: Partial<MapViewProps> = {}): MapViewProps => ({
   onSelect: () => {},
   ...over,
 })
+
+/** 지금 지도에서 원(중심·500m)의 화면 사각형과 U(jsdom: 오버레이 크기 0 → SDK 컨트롤 대체 사각형만) */
+function viewOf(map: FakeMap) {
+  const b = map.getBounds()
+  const bounds = { s: b.getSW().lat(), n: b.getNE().lat(), w: b.getSW().lng(), e: b.getNE().lng() }
+  const rectOf = (p: { lat: number; lng: number }) => boxToRect(circleBox(p.lat, p.lng, 500), { bounds, w: map.size.w, h: map.size.h })
+  const u = usableArea(map.size, [
+    { x: map.size.w - 60, y: 10, w: 50, h: 79 },
+    { x: map.size.w - 168, y: map.size.h - 27, w: 158, h: 17 },
+  ])
+  return { rectOf, u }
+}
+/** 단일 완료 조건(원 ⊂ U, 지름 ≥ U 짧은 변 절반) */
+const singleDone = (map: FakeMap, p: { lat: number; lng: number }) => {
+  const v = viewOf(map)
+  return satisfiesSingle(v.rectOf(p), v.u)
+}
+/** 비교 완료 조건: 'union' = 두 원 ⊂ U 그리고 래스터 기준 zoom ≥ 13, 'B' = B 원 단일 조건, 아니면 false */
+const compareDone = (map: FakeMap, a: { lat: number; lng: number }, b: { lat: number; lng: number }) => {
+  const v = viewOf(map)
+  const zRaster = map.renderMode === 2 ? map.zoom + 1 : map.zoom
+  if (zRaster >= 13 && insideUsable(v.rectOf(a), v.u) && insideUsable(v.rectOf(b), v.u)) return 'union'
+  if (satisfiesSingle(v.rectOf(b), v.u)) return 'B'
+  return false
+}
 
 /** SDK 지도 이벤트를 낸다 (init·zooming·dragstart) */
 const fireMap = (type: string) => act(() => listeners.filter((l) => l.type === type && l.target === maps[0]).forEach((l) => l.handler()))
@@ -821,7 +846,7 @@ describe('MapView — 두 위치 비교 A/B 표시 (5차-B4, COMPARE_DESIGN.md 4
     expect(maps).toHaveLength(1)
   })
 
-  it('B를 고르면 흰 채움 "B" 마커와 점선 반경 500m를 만들고 B로 옮긴다. 다시 고르면 같은 오버레이를 옮긴다 (확대 수준 그대로)', async () => {
+  it('B를 고르면 흰 채움 "B" 마커와 점선 반경 500m를 만들고 B 쪽을 맞춘다(8-B2 순위 5). 다시 고르면 같은 오버레이를 옮긴다', async () => {
     const view = await mountA(cmp())
     view.show(cmp({ location: B1 }))
 
@@ -833,15 +858,15 @@ describe('MapView — 두 위치 비교 A/B 표시 (5차-B4, COMPARE_DESIGN.md 4
       ['shortdash', 500],                                              // A
       ['dot', 500],                                                    // B — 선 모양으로 구분
     ])
-    expect(view.map.panTo).toHaveBeenLastCalledWith(new FakeLatLng(B1.lat, B1.lng))
+    expect(compareDone(view.map, A, B1)).not.toBe(false)                // 두 원 ⊂ U(래스터 ≥ 13) 또는 B 원 단일 조건
 
     view.show(cmp({ location: B2 }))
     expect(markerOpts()).toHaveLength(2)                               // 새로 만들지 않는다
     expect(circleOpts()).toHaveLength(2)
     expect(markerObjs()[1]!.setPosition).toHaveBeenLastCalledWith(new FakeLatLng(B2.lat, B2.lng))
     expect(circleObjs()[1]!.setCenter).toHaveBeenLastCalledWith(new FakeLatLng(B2.lat, B2.lng))
-    expect(view.map.panTo).toHaveBeenLastCalledWith(new FakeLatLng(B2.lat, B2.lng))
-    expect(view.map.setZoom).not.toHaveBeenCalled()
+    expect(compareDone(view.map, A, B2)).toBe('B')                     // 송도(약 12km): B 원만
+    expect(view.map.setCenter).toHaveBeenLastCalledWith(new FakeLatLng(B2.lat, B2.lng))
     expect(maps).toHaveLength(1)
   })
 
@@ -875,7 +900,7 @@ describe('MapView — 두 위치 비교 A/B 표시 (5차-B4, COMPARE_DESIGN.md 4
     expect(currentIcon(0)).toContain('map-marker--a')                  // A 글자 마커는 그대로
   })
 
-  it('비교를 끝내면 B를 지우고 A는 단일 분석 마커로 돌아가며 A로 옮긴다 (지도·확대 수준 그대로)', async () => {
+  it('비교를 끝내면 B를 지우고 A는 단일 분석 마커로 돌아가며 A로 옮긴다(순위 6: 조건을 만족하면 panTo, 아니면 맞춤)', async () => {
     const view = await mountA(cmp({ location: B1, dong: { guCode: '28200', dongName: '구월3동' } }))
     await waitFor(() => expect(polygonObjs()).toHaveLength(2))
     view.show(null)
@@ -885,10 +910,9 @@ describe('MapView — 두 위치 비교 A/B 표시 (5차-B4, COMPARE_DESIGN.md 4
     expect(polygonObjs()[1]!.setMap).toHaveBeenLastCalledWith(null)    // B 경계
     expect(polygonObjs()[0]!.setMap).not.toHaveBeenCalledWith(null)    // A 경계는 그대로
     expect(currentIcon(0)).toBe('<div class="map-marker map-marker--selected"></div>')
-    expect(view.map.panTo).toHaveBeenLastCalledWith(new FakeLatLng(A.lat, A.lng))
+    expect(singleDone(view.map, A)).toBe(true)                          // A 원이 다시 단일 완료 조건
     expect(screen.getByRole('list', { name: '지도 범례' })).toHaveTextContent('선택 지점')
     expect(screen.queryByText(GUIDE)).not.toBeInTheDocument()
-    expect(view.map.setZoom).not.toHaveBeenCalled()
     expect(maps).toHaveLength(1)
   })
 
@@ -1076,31 +1100,30 @@ describe('MapView — 8-B1 맞춤은 단일 전용: 비교 진입·정보창 (Co
     expect(view.map.setZoom).not.toHaveBeenCalled()
   })
 
-  it('비교 종료 뒤: 자동 맞춤은 없고(같은 지점), "범위에 맞추기"와 새 위치 맞춤은 다시 동작한다', async () => {
+  it('비교 종료 뒤: 버려진 단일 대기 맞춤은 되살아나지 않고, 비교 종료(순위 6)로 A를 한 번만 맞춘다. "범위에 맞추기"·새 위치는 다시 동작', async () => {
     const view = await mount(props({ selected: A, layoutKey: 'panel' }), null)
     view.rerender(<MapView {...props({ selected: A, layoutKey: 'panel', compare: PICKING })} />)
     layout.set(view.section, { w: 955, h: 365 })
     view.rerender(<MapView {...props({ selected: A, layoutKey: 'map', compare: PICKING })} />)
-    view.rerender(<MapView {...props({ selected: A, layoutKey: 'map' })} />)            // 비교 종료
+    expect(view.map.setZoom).not.toHaveBeenCalled()                    // 비교 진입으로 단일 맞춤이 실행되지 않는다
+    view.rerender(<MapView {...props({ selected: A, layoutKey: 'map' })} />)            // 비교 종료 → A
     resize()
-    expect(view.map.setZoom).not.toHaveBeenCalled()                    // 버려진 대기 맞춤이 되살아나지 않는다
-    expect(view.map.panTo).toHaveBeenLastCalledWith(new FakeLatLng(A.lat, A.lng))   // 비교 종료는 기존 panTo
+    expect(view.map.setZoom).toHaveBeenCalledTimes(1)                  // z11에서는 A 원이 작아 panTo로는 조건 미달 → 맞춤 1회
+    expect(singleDone(view.map, A)).toBe(true)
     fireEvent.click(screen.getByRole('button', { name: '범위에 맞추기' }))
-    expect(view.map.setZoom).toHaveBeenCalledTimes(1)
-    view.rerender(<MapView {...props({ selected: { lat: 37.4482, lng: 126.7035 }, layoutKey: 'map' })} />)
     expect(view.map.setZoom).toHaveBeenCalledTimes(2)
+    view.rerender(<MapView {...props({ selected: { lat: 37.4482, lng: 126.7035 }, layoutKey: 'map' })} />)
+    expect(view.map.setZoom).toHaveBeenCalledTimes(3)
   })
 
-  it('비교 중 점포 선택은 새 정보창 배치를 쓰지 않는다(setOptions·idle 대기·panBy 없음, 기존 panTo만)', async () => {
+  it('비교 중 점포 선택도 정보창 배치를 쓴다(8-B2: A·B 핀 기준) — 기본 위치로 다시 열고 이동이 끝난 뒤(idle) 잰다', async () => {
     const view = await mount(props({ selected: A, compare: PICKING, stores: STORES }))
-    const before = { idle: idleListeners().length, panBy: view.map.panBy.mock.calls.length }
+    const idle = idleListeners().length
     view.rerender(<MapView {...props({ selected: A, compare: PICKING, stores: STORES, activeStoreId: 'a' })} />)
     expect(infos[0]!.open).toHaveBeenCalledTimes(1)
-    expect(infos[0]!.setOptions).not.toHaveBeenCalled()
-    expect(idleListeners()).toHaveLength(before.idle)
+    expect(infos[0]!.setOptions).toHaveBeenCalledWith({ pixelOffset: new FakePoint(0, 0), disableAnchor: false, anchorSkew: false })
+    expect(idleListeners()).toHaveLength(idle + 1)
     expect(view.map.panTo).toHaveBeenLastCalledWith(new FakeLatLng(37.4888, 126.7235))
-    await new Promise((r) => setTimeout(r, 1600))                       // 배치 대기 시간이 지나도
-    expect(view.map.panBy.mock.calls.length).toBe(before.panBy)
   })
 
   it('단일 점포 선택은 기본 위치로 다시 열고 이동이 끝난 뒤(idle) 배치를 잰다', async () => {
@@ -1109,5 +1132,143 @@ describe('MapView — 8-B1 맞춤은 단일 전용: 비교 진입·정보창 (Co
     view.rerender(<MapView {...props({ selected: A, stores: STORES, activeStoreId: 'a' })} />)
     expect(infos[0]!.setOptions).toHaveBeenCalledWith({ pixelOffset: new FakePoint(0, 0), disableAnchor: false, anchorSkew: false })
     expect(idleListeners()).toHaveLength(idle + 1)
+  })
+})
+
+describe('MapView — 비교 지도 맞춤 (8-B2, D-022 순위 1·5·6·7·8)', () => {
+  const A = { lat: 37.4894, lng: 126.7246 }
+  const B1 = { lat: 37.4475, lng: 126.7015 }
+  const B2 = { lat: 37.392512, lng: 126.639034 }
+  const GUIDE = 'B 위치를 고르세요 · A: 부평구 부평1동'
+  const cmp = (over: Partial<MapCompare> = {}): MapCompare => ({ location: null, tone: 'selected', dong: null, guide: GUIDE, ...over })
+  const STORES: MapStore[] = [{ id: 'a', name: '라네이즈PC방', address: '인천 부평구 1', distance: '직선거리 115m', lat: 37.4888, lng: 126.7235 }]
+  const NEAR = { lat: A.lat - 0.012, lng: A.lng + 0.008 }           // 약 1.6km
+  const FAR_WEST = { lat: A.lat, lng: A.lng - 0.2 }                  // 약 17.7km 서쪽: 함께 맞춘 zoom이 12
+  /** 실제 흐름처럼 단일 A를 맞춘 뒤(순위 2) 비교를 시작한다 */
+  const start = async (renderMode?: number) => {
+    const view = await mount(props({ selected: A }), undefined, { init: false })
+    if (renderMode) view.map.renderMode = renderMode
+    fireMap('init')
+    view.rerender(<MapView {...props({ selected: A })} />)
+    expect(singleDone(view.map, A)).toBe(true)
+    view.map.setZoom.mockClear()
+    view.map.setCenter.mockClear()
+    view.map.panTo.mockClear()
+    view.rerender(<MapView {...props({ selected: A, compare: cmp() })} />)
+    return view
+  }
+  const show = (view: Awaited<ReturnType<typeof mount>>, compare: MapCompare | null, over: Partial<MapViewProps> = {}) =>
+    view.rerender(<MapView {...props({ selected: A, compare, ...over })} />)
+
+  it('가까운 B는 A∪B를 맞추고, 버튼 "두 위치 모두 보기"가 보인다', async () => {
+    const view = await start()
+    expect(screen.queryByRole('button', { name: '두 위치 모두 보기' })).not.toBeInTheDocument()   // B 전에는 없다
+    show(view, cmp({ location: NEAR }))
+    expect(compareDone(view.map, A, NEAR)).toBe('union')
+    expect(screen.getByRole('button', { name: '두 위치 모두 보기' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '범위에 맞추기' })).not.toBeInTheDocument()
+  })
+
+  it('A 단일 맞춤 없이(mobile: 숨긴 채 A 선택 → 바로 비교) 넓은 기본 zoom에서 고른 가까운 B도 A∪B로 맞춘다(작은 두 원 ⊂ U는 완료가 아님)', async () => {
+    const view = await mount(props({ selected: A, layoutKey: 'panel' }), null)
+    view.rerender(<MapView {...props({ selected: A, layoutKey: 'panel', compare: cmp() })} />)
+    view.rerender(<MapView {...props({ selected: A, layoutKey: 'panel', compare: cmp({ location: NEAR }) })} />)
+    expect(view.map.setZoom).not.toHaveBeenCalled()
+    layout.set(view.section, { w: 375, h: 566 })
+    view.rerender(<MapView {...props({ selected: A, layoutKey: 'map', compare: cmp({ location: NEAR }) })} />)
+    resize()
+    expect(view.map.setZoom).toHaveBeenCalledTimes(1)
+    expect(view.map.zoom).toBeGreaterThan(11)
+    expect(compareDone(view.map, A, NEAR)).toBe('union')
+  })
+
+  it('먼 B는 B 원만 맞추고, "두 위치 모두 보기"를 누르면 기준 zoom 미만이어도 두 원을 모두 넣는다(순위 1)', async () => {
+    const view = await start()
+    show(view, cmp({ location: B2 }))
+    expect(compareDone(view.map, A, B2)).toBe('B')
+    fireMap('zooming')                                                  // 잠가도 버튼은 맞춘다
+    fireEvent.click(screen.getByRole('button', { name: '두 위치 모두 보기' }))
+    const v = viewOf(view.map)
+    expect(insideUsable(v.rectOf(A), v.u) && insideUsable(v.rectOf(B2), v.u)).toBe(true)
+  })
+
+  it('기준 zoom 13은 래스터 기준: 래스터 z12에서 함께 들어가는 B는 B만 맞춘다', async () => {
+    const raster = await start()
+    show(raster, cmp({ location: FAR_WEST }))
+    expect(compareDone(raster.map, A, FAR_WEST)).toBe('B')
+  })
+
+  it('GL(renderMode 2)은 같은 축척에서 zoom이 1 낮으므로 같은 B를 A∪B로 맞춘다(z12 → 래스터 13)', async () => {
+    const gl = await start(2)
+    show(gl, cmp({ location: FAR_WEST }))
+    expect(gl.map.zoom).toBe(12)
+    expect(compareDone(gl.map, A, FAR_WEST)).toBe('union')
+  })
+
+  it('점포 기준 A↔B 전환(순위 6): 조건을 만족하면 panTo, 아니면 맞춤, 잠금 중이면 panTo만. 처음 생기는 기준(null→A)은 움직이지 않는다', async () => {
+    const view = await start()
+    show(view, cmp({ location: B2 }))                                   // 먼 B: B 원 맞춤(단일 조건 만족 zoom)
+    const zooms = view.map.setZoom.mock.calls.length
+    const pans = view.map.panTo.mock.calls.length
+    show(view, cmp({ location: B2, focus: 'B' }))                       // null → B: 이동 없음
+    expect(view.map.setZoom.mock.calls.length).toBe(zooms)
+    expect(view.map.panTo.mock.calls.length).toBe(pans)
+
+    show(view, cmp({ location: B2, focus: 'A' }))                       // 같은 zoom에서 A도 조건 만족 → panTo
+    expect(view.map.setZoom.mock.calls.length).toBe(zooms)
+    expect(view.map.panTo).toHaveBeenLastCalledWith(new FakeLatLng(A.lat, A.lng))
+    expect(singleDone(view.map, A)).toBe(true)
+
+    fireEvent.click(screen.getByRole('button', { name: '두 위치 모두 보기' }))   // 작게 만든 뒤
+    const small = view.map.setZoom.mock.calls.length
+    show(view, cmp({ location: B2, focus: 'B' }))                       // 조건 미달 → 맞춤
+    expect(view.map.setZoom.mock.calls.length).toBe(small + 1)
+    expect(singleDone(view.map, B2)).toBe(true)
+
+    fireMap('dragstart')                                                // 사용자가 직접 조정 → 잠금
+    fireEvent.click(screen.getByRole('button', { name: '두 위치 모두 보기' }))
+    fireMap('zooming')
+    const locked = view.map.setZoom.mock.calls.length
+    show(view, cmp({ location: B2, focus: 'A' }))
+    expect(view.map.setZoom.mock.calls.length).toBe(locked)            // panTo만
+    expect(view.map.panTo).toHaveBeenLastCalledWith(new FakeLatLng(A.lat, A.lng))
+  })
+
+  it('숨김 중 B 선택은 미뤘다가 돌아오면 한 번만 맞추고, 숨김 중 비교를 끝내면 B 맞춤은 버리고 A만 맞춘다', async () => {
+    const view = await start()
+    layout.set(view.section, { w: 0, h: 0 })
+    resize()
+    show(view, cmp({ location: NEAR }))
+    expect(view.map.setZoom).not.toHaveBeenCalled()
+    layout.set(view.section, { w: 375, h: 566 })
+    resize()
+    expect(view.map.setZoom).toHaveBeenCalledTimes(1)
+    expect(compareDone(view.map, A, NEAR)).toBe('union')
+    resize()
+    expect(view.map.setZoom).toHaveBeenCalledTimes(1)                  // 다시 돌지 않는다
+
+    layout.set(view.section, { w: 0, h: 0 })
+    resize()
+    show(view, cmp({ location: B2 }))                                   // 대기: b-select
+    show(view, null)                                                    // 숨김 중 비교 종료 → 대기는 A로
+    const centers = view.map.setCenter.mock.calls.length
+    layout.set(view.section, { w: 375, h: 566 })
+    resize()
+    expect(view.map.setCenter.mock.calls.slice(centers).every(([c]) => (c as FakeLatLng).lat() === A.lat)).toBe(true)
+    expect(singleDone(view.map, A)).toBe(true)
+  })
+
+  it('비교 중 크기 변경·점포 선택 20번 반복에도 zoom은 그대로(순위 8)', async () => {
+    const view = await start()
+    show(view, cmp({ location: B1 }), { stores: STORES })
+    const zooms = view.map.setZoom.mock.calls.length
+    const z = view.map.zoom
+    for (let i = 0; i < 20; i++) {
+      layout.set(view.section, i % 2 ? { w: 955, h: 365 } : { w: 800, h: 600 })
+      resize()
+      show(view, cmp({ location: B1 }), { stores: STORES, activeStoreId: i % 2 ? 'a' : null })
+    }
+    expect(view.map.setZoom.mock.calls.length).toBe(zooms)
+    expect(view.map.zoom).toBe(z)
   })
 })
