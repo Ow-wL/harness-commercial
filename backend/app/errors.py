@@ -26,6 +26,7 @@ LOCATION_OUTSIDE = "location_outside"
 NO_DATA_NEARBY = "no_data_nearby"
 INVALID_BUSINESS = "invalid_business"
 INVALID_ANALYSIS_OPTIONS = "invalid_analysis_options"
+INVALID_RADIUS = "invalid_radius"                   # 8-D2: 엔진이 받지 않는 분석 반경 (D-024)
 INTERNAL_ERROR = "internal_error"
 
 MESSAGES = {
@@ -35,6 +36,7 @@ MESSAGES = {
     NO_DATA_NEARBY: "주변 500m 내 상가 데이터가 없어 분석할 수 없습니다.",
     INVALID_BUSINESS: "지원하지 않는 업종 코드입니다.",
     INVALID_ANALYSIS_OPTIONS: "분석 옵션(중요도·가중치)이 올바르지 않습니다.",
+    INVALID_RADIUS: "지원하지 않는 분석 반경입니다.",
     INTERNAL_ERROR: "서버 내부 오류가 발생했습니다.",
 }
 

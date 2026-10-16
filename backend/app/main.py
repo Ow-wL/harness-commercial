@@ -15,6 +15,9 @@ FastAPI backend (TASKS 3-1, docs/DECISIONS.md D-012).
 엔드포인트: GET /health (3-1), GET /businesses (3-2, 엔진 config.BIZ_GROUP 그대로),
             POST /analyze (3-3, ContextBuilder → AnalysisService, 엔진 결과는 변형 없이 result 에),
             POST /nearby-stores (4차, 반경 안 동종 점포 목록 — /analyze 와 같은 좌표 검증·엔진 반경·업종 기준, D-019)
+분석 반경(8-D2, D-024): /analyze·/nearby-stores 의 선택 필드 radius_m(생략 = config.RADIUS_M 500). 엔진이 받는 값
+          (scoring_engine.RADIUS_OPTIONS_M — v0.3 은 500 하나, v0.4 는 300·500·1,000)만, 그 밖은 422 invalid_radius.
+          GET /health 의 engine.radius_options 로 광고한다(프런트는 2개 이상일 때만 반경 선택을 보인다).
 frontend: frontend_dist(또는 환경변수 FRONTEND_DIST)를 주면 Vite build 를 같은 origin 에서 서빙한다 — API route 다음에
           붙어서 API 가 항상 우선, 나머지 GET 은 SPA fallback (backend/app/frontend.py, D-018). 주지 않으면 API 만.
 오류 계약: backend/app/errors.py (3-5) — 사용자 입력·분석 불가 422, 내부 오류 500 + request_id
@@ -31,12 +34,12 @@ from typing import Annotated, Any, Iterable, Literal, Optional
 from fastapi import FastAPI
 from pydantic import BaseModel, Field, StrictFloat, StrictInt, StrictStr
 
-from scoring_engine import config as C, scoring
+from scoring_engine import ENGINE_VERSION, RADIUS_OPTIONS_M, config as C, scoring
 from scoring_engine.location import ContextBuilder, InvalidCoordinate, LocationOutside, NoDataNearby
 from scoring_engine.nearby import SHOPS_AS_OF, NearbyStoreFinder
 
 from .errors import (ERROR_RESPONSES, INVALID_ANALYSIS_OPTIONS, INVALID_BUSINESS, INVALID_COORDINATE,
-                     LOCATION_OUTSIDE, NO_DATA_NEARBY, ApiError, install_error_handlers)
+                     INVALID_RADIUS, LOCATION_OUTSIDE, NO_DATA_NEARBY, ApiError, install_error_handlers)
 from .frontend import mount_frontend
 from scoring_engine.service import AnalysisService
 
@@ -66,6 +69,7 @@ Latitude = Annotated[StrictFloat, Field(ge=-90, le=90, allow_inf_nan=False)]
 Longitude = Annotated[StrictFloat, Field(ge=-180, le=180, allow_inf_nan=False)]
 ImportanceLevel = Annotated[StrictInt, Field(ge=1, le=5)]                       # 엔진: "1~5 정수"
 Weight = Annotated[StrictFloat, Field(ge=0, allow_inf_nan=False)]               # 엔진: "0 이상의 숫자"
+RadiusM = StrictInt                                                             # 값 검사는 엔드포인트(invalid_radius)
 
 
 class AnalyzeRequest(BaseModel):
@@ -75,6 +79,7 @@ class AnalyzeRequest(BaseModel):
     importance: Optional[dict[Perspective, ImportanceLevel]] = None
     user_weights: Optional[dict[Perspective, Weight]] = None
     user_licenses: Optional[list[StrictStr]] = None
+    radius_m: Optional[RadiusM] = None                    # 8-D2: 생략·null = config.RADIUS_M
 
 
 class AnalyzeContext(BaseModel):
@@ -97,6 +102,7 @@ class NearbyStoresRequest(BaseModel):
     lat: Latitude
     lng: Longitude
     biz_code: StrictStr
+    radius_m: Optional[RadiusM] = None                    # 8-D2: /analyze 와 같은 규칙
 
 
 class NearbyStore(BaseModel):
@@ -113,10 +119,27 @@ class NearbyStoresResponse(BaseModel):
     lat: float                       # 판정에 쓴 좌표 = 요청 좌표 (ContextBuilder 검증 후)
     lng: float
     biz_code: str
-    radius_m: int                    # 엔진 config.RADIUS_M
+    radius_m: int                    # 쓴 분석 반경 (요청 radius_m, 생략이면 config.RADIUS_M)
     as_of: str                       # 상가(상권)정보 기준일
     count: int                       # == len(stores) == 같은 조건 /analyze 의 경쟁성.raw.동종점포수
     stores: list[NearbyStore]        # 가까운 순
+
+
+def resolve_radius(radius_m: Optional[int]) -> int:
+    """요청 반경 → 쓸 반경. 엔진이 받지 않는 값은 사용자 오류(422 invalid_radius)."""
+    radius = C.RADIUS_M if radius_m is None else radius_m
+    if radius not in RADIUS_OPTIONS_M:
+        raise ApiError(INVALID_RADIUS, f"지원하지 않는 분석 반경입니다(가능: {', '.join(f'{r}m' for r in RADIUS_OPTIONS_M)}).")
+    return radius
+
+
+def warm_tasks(biz_codes: list[str]) -> list[tuple[str, Optional[int]]]:
+    """background warm 단위. 반경이 하나(v0.3)면 업종 단위 그대로(반경 None), 여럿(v0.4)이면 (업종, 반경) 단위로
+    기본 반경(500)을 먼저 모두 끝낸 뒤 나머지 반경 — 종료 신호 뒤 남은 계산이 build 1개를 넘지 않게 한다."""
+    if len(RADIUS_OPTIONS_M) == 1:
+        return [(biz, None) for biz in biz_codes]
+    radii = [C.RADIUS_M] + [r for r in RADIUS_OPTIONS_M if r != C.RADIUS_M]
+    return [(biz, r) for r in radii for biz in biz_codes]
 
 
 def business_catalog() -> BusinessCatalog:
@@ -134,6 +157,7 @@ class WarmProgress:
 
     def __init__(self, biz_codes: Iterable[str]):
         self.biz_codes = list(biz_codes)
+        self.tasks = warm_tasks(self.biz_codes)
         self._lock = threading.Lock()
         self.completed = 0
         self.failed = False
@@ -143,7 +167,7 @@ class WarmProgress:
 
     @property
     def total(self) -> int:
-        return len(self.biz_codes)
+        return len(self.tasks)
 
     def snapshot(self) -> dict:
         with self._lock:
@@ -151,17 +175,21 @@ class WarmProgress:
                     "done": self.completed == self.total, "failed": self.failed, "error": self.error}
 
     def run(self, cache) -> None:
-        for biz in self.biz_codes:
+        for biz, radius in self.tasks:
             if self.stop.is_set():
                 logger.info("warm 중지 (%d/%d)", self.completed, self.total)
                 return
+            label = biz if radius is None else f"{biz}@{radius}m"
             try:
-                cache.warm([biz])
+                if radius is None:
+                    cache.warm([biz])
+                else:
+                    cache.warm([biz], radii=[radius])
             except Exception as e:                       # noqa: BLE001 — 실패를 기록하고 멈춘다
-                logger.exception("reference warm 실패: %s", biz)
+                logger.exception("reference warm 실패: %s", label)
                 with self._lock:
                     self.failed = True
-                    self.error = f"{biz}: {type(e).__name__}"
+                    self.error = f"{label}: {type(e).__name__}"
                 return
             with self._lock:
                 self.completed += 1
@@ -241,6 +269,9 @@ def create_app(service: Optional[AnalysisService] = None, warm_biz: Optional[Ite
         warm = app.state.warm
         return {"status": "ok",
                 "service_ready": app.state.service is not None,
+                # 8-D2: 이 서버 엔진이 받는 분석 반경. 프런트는 radius_options 가 2개 이상일 때만 반경 선택을 보인다
+                "engine": {"version": ENGINE_VERSION, "radius_options": list(RADIUS_OPTIONS_M),
+                           "default_radius_m": C.RADIUS_M},
                 "warm": warm.snapshot() if warm is not None else
                 {"completed": 0, "total": len(biz_codes), "done": False, "failed": False, "error": None}}
 
@@ -258,10 +289,12 @@ def create_app(service: Optional[AnalysisService] = None, warm_biz: Optional[Ite
             scoring.resolve_weights(C.group_of(req.biz_code), req.user_weights, req.importance)
         except ValueError as e:
             raise ApiError(INVALID_ANALYSIS_OPTIONS, str(e)) from e
+        radius = resolve_radius(req.radius_m)
         ctx = resolve_context(req.lat, req.lng)
         # 이후 예외(ContextDataError 포함, analyze 안의 ValueError 도)는 내부 오류 → 500 (errors.install_error_handlers)
         result = app.state.service.analyze(ctx, req.biz_code, user_weights=req.user_weights,
-                                           importance=req.importance, user_licenses=req.user_licenses)
+                                           importance=req.importance, user_licenses=req.user_licenses,
+                                           radius_m=radius)
         return AnalyzeResponse(
             context=AnalyzeContext(lat=ctx.lat, lng=ctx.lng, gu_code=ctx.gu_code, gu_name=ctx.gu_name,
                                    dong_name=ctx.dong_name, label=ctx.label, rent_area=ctx.rent_area),
@@ -269,13 +302,14 @@ def create_app(service: Optional[AnalysisService] = None, warm_biz: Optional[Ite
 
     @app.post("/nearby-stores", response_model=NearbyStoresResponse, responses=ERROR_RESPONSES)
     def nearby_stores(req: NearbyStoresRequest) -> NearbyStoresResponse:
-        """반경 config.RADIUS_M 안 같은 업종 점포 (표시용). 엔진 경쟁성과 같은 거리·반경·업종 기준 (scoring_engine/nearby.py).
-        /analyze 와 같은 순서로 검증한다: 업종 → 좌표(ContextBuilder). 엔진 analyze 는 부르지 않는다."""
+        """반경(요청 radius_m, 생략이면 config.RADIUS_M) 안 같은 업종 점포 (표시용). 엔진 경쟁성과 같은 거리·반경·업종 기준 (scoring_engine/nearby.py).
+        /analyze 와 같은 순서로 검증한다: 업종 → 반경 → 좌표(ContextBuilder). 엔진 analyze 는 부르지 않는다."""
         if req.biz_code not in C.CODE_NAME:
             raise ApiError(INVALID_BUSINESS)
+        radius = resolve_radius(req.radius_m)
         ctx = resolve_context(req.lat, req.lng)
-        stores = nearby_finder().find(ctx.lat, ctx.lng, req.biz_code)
-        return NearbyStoresResponse(lat=ctx.lat, lng=ctx.lng, biz_code=req.biz_code, radius_m=C.RADIUS_M,
+        stores = nearby_finder().find(ctx.lat, ctx.lng, req.biz_code, radius_m=radius)
+        return NearbyStoresResponse(lat=ctx.lat, lng=ctx.lng, biz_code=req.biz_code, radius_m=radius,
                                     as_of=SHOPS_AS_OF, count=len(stores),
                                     stores=[NearbyStore(**vars(s)) for s in stores])
 

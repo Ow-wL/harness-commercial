@@ -173,6 +173,6 @@ def test_openapi_exposes_analyze_schemas(client):
     s = spec["components"]["schemas"]
     assert set(s["AnalyzeRequest"]["required"]) == {"lat", "lng", "biz_code"}
     assert set(s["AnalyzeRequest"]["properties"]) == {"lat", "lng", "biz_code", "importance", "user_weights",
-                                                      "user_licenses"}
+                                                      "user_licenses", "radius_m"}       # radius_m: 8-D2 선택 필드
     assert set(s["AnalyzeResponse"]["properties"]) == {"context", "result"}
     assert set(s["AnalyzeContext"]["properties"]) == set(BUPYEONG_CONTEXT)

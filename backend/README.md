@@ -21,8 +21,11 @@ python -m uvicorn backend.app.main:app --reload
 `GET /health`
 ```json
 {"status": "ok", "service_ready": true,
+ "engine": {"version": "mvp-0.3", "radius_options": [500], "default_radius_m": 500},
  "warm": {"completed": 7, "total": 29, "done": false, "failed": false, "error": null}}
 ```
+- `engine`(8-D2, D-024): 이 서버 엔진이 받는 분석 반경. v0.4(`SCORING_ENGINE_VERSION=v0_4`)는 `"mvp-0.4"`, `[300, 500, 1000]`. 프런트는 `radius_options`가 2개 이상일 때만 반경 선택을 보인다(8-D3).
+- warm 단위: 반경이 하나(v0.3)면 업종 29개, 여럿(v0.4)이면 (업종, 반경) 87개 — 500m를 모두 먼저, 그다음 300·1,000m. 실패 표시는 `"업종코드@반경m: 예외이름"`.
 
 `GET /businesses` (3-2) — 엔진 `config.BIZ_GROUP` 그대로 (그룹·업종 순서 = 정의 순서, 업종 목록을 backend에 따로 두지 않는다). service·warm과 무관하게 즉시 응답.
 ```json
@@ -34,7 +37,8 @@ python -m uvicorn backend.app.main:app --reload
 `POST /analyze` (3-3) — 좌표 → `ContextBuilder` → `AnalysisService.analyze`. `ContextBuilder`는 첫 `/analyze` 때 1회 만들어 앱 수명 동안 재사용한다(lock으로 동시 첫 요청에서도 1개).
 ```json
 요청  {"lat": 37.4894, "lng": 126.7246, "biz_code": "R10406",
-       "importance": {"market": 5}, "user_weights": null, "user_licenses": []}      // 뒤 세 개는 선택
+       "importance": {"market": 5}, "user_weights": null, "user_licenses": [],
+       "radius_m": 500}                                                              // 뒤 네 개는 선택
 응답  {"context": {"lat": 37.4894, "lng": 126.7246, "gu_code": "28237", "gu_name": "부평구",
                    "dong_name": "부평1동", "label": "부평구 부평1동", "rent_area": null},
        "result": { …AnalysisService.analyze 반환 dict 그대로 (meta·종합·지표·초보자_접근성·경고·면책)… }}
@@ -43,8 +47,9 @@ python -m uvicorn backend.app.main:app --reload
 - 일반 좌표의 `rent_area`는 항상 `null`(MVP 정책, D-015: 임대료 상권을 일반 좌표에 연결하지 않음). 부평역 좌표도 `BUPYEONG_STATION`을 쓰지 않으므로 안정성·종합 점수가 legacy golden과 다를 수 있다(의도된 동작).
 - `importance`·`user_weights`·`user_licenses`는 요청 검증을 통과한 값 그대로 엔진에 넘긴다.
 - warm되지 않은 업종도 바로 계산한다(업종당 약 2.5s, `ReferenceCache` on-demand).
+- `radius_m`(8-D2): JSON 정수만, 생략·`null` = 500. 엔진이 받는 값(`/health`의 `engine.radius_options`)이 아니면 422 `invalid_radius`. 검증 순서: 업종 → 분석 옵션 → 반경 → 좌표. 분석 가능 지점 판정(`no_data_nearby`)은 반경과 무관하게 500m 기준(D-024).
 
-`POST /nearby-stores` (4차, D-019) — 반경 500m 안 같은 업종 점포 목록(표시용). `/analyze` 계약은 바꾸지 않고 별도 경로로 둔다. 검증 순서·오류 코드는 `/analyze`와 같다(업종 → 좌표 `ContextBuilder`). 엔진 `analyze`는 부르지 않는다.
+`POST /nearby-stores` (4차, D-019) — 분석 반경(`radius_m`, 생략 500) 안 같은 업종 점포 목록(표시용). `/analyze` 계약은 바꾸지 않고 별도 경로로 둔다. 검증 순서·오류 코드는 `/analyze`와 같다(업종 → 반경 → 좌표 `ContextBuilder`). 응답 `radius_m`은 쓴 반경, `count`는 같은 반경 `/analyze`의 경쟁성 `동종점포수`와 같다. 엔진 `analyze`는 부르지 않는다.
 ```json
 요청  {"lat": 37.4894, "lng": 126.7246, "biz_code": "R10406"}
 응답  {"lat": 37.4894, "lng": 126.7246, "biz_code": "R10406", "radius_m": 500, "as_of": "2026-06-30", "count": 12,
