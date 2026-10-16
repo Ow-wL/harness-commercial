@@ -1154,6 +1154,7 @@ describe('MapView — 비교 지도 맞춤 (8-B2, D-022 순위 1·5·6·7·8)', 
     view.map.setZoom.mockClear()
     view.map.setCenter.mockClear()
     view.map.panTo.mockClear()
+    view.map.panBy.mockClear()
     view.rerender(<MapView {...props({ selected: A, compare: cmp() })} />)
     return view
   }
@@ -1256,6 +1257,48 @@ describe('MapView — 비교 지도 맞춤 (8-B2, D-022 순위 1·5·6·7·8)', 
     resize()
     expect(view.map.setCenter.mock.calls.slice(centers).every(([c]) => (c as FakeLatLng).lat() === A.lat)).toBe(true)
     expect(singleDone(view.map, A)).toBe(true)
+  })
+
+  it('숨김 중 미룬 B 맞춤은 그 사이 사용자가 잠그면(zooming) 지도 복귀 때 실행하지 않는다(순위 4, 검수 회귀)', async () => {
+    const view = await start()
+    layout.set(view.section, { w: 0, h: 0 })
+    resize()
+    show(view, cmp({ location: NEAR }))                                 // 대기: b-select
+    fireMap('zooming')                                                  // 사용자 조작 → 잠금
+    layout.set(view.section, { w: 375, h: 566 })
+    resize()
+    expect(view.map.setZoom).not.toHaveBeenCalled()
+    expect(view.map.setCenter).not.toHaveBeenCalled()
+    expect(view.map.panBy).not.toHaveBeenCalled()
+  })
+
+  it('숨김 중 기준 B→A 전환 뒤 B를 다시 고르면(B 지움) 미룬 A 이동을 버린다(검수 회귀)', async () => {
+    const view = await start()
+    show(view, cmp({ location: B2 }))
+    show(view, cmp({ location: B2, focus: 'B' }))                       // 분석 완료: 기준 생김(이동 없음)
+    layout.set(view.section, { w: 0, h: 0 })
+    resize()
+    show(view, cmp({ location: B2, focus: 'A' }))                       // 대기: focus A
+    show(view, cmp({ location: null, focus: null }))                    // B 다시 고르기
+    const calls = [view.map.setZoom, view.map.setCenter, view.map.panTo, view.map.panBy].map((f) => f.mock.calls.length)
+    layout.set(view.section, { w: 375, h: 566 })
+    resize()
+    expect([view.map.setZoom, view.map.setCenter, view.map.panTo, view.map.panBy].map((f) => f.mock.calls.length)).toEqual(calls)
+  })
+
+  it('숨김 중 기준 전환 대기는 기준이 다시 바뀌면 새 기준으로만 실행한다(B→A→B: A 이동 없음)', async () => {
+    const view = await start()
+    show(view, cmp({ location: B2 }))
+    show(view, cmp({ location: B2, focus: 'B' }))
+    layout.set(view.section, { w: 0, h: 0 })
+    resize()
+    show(view, cmp({ location: B2, focus: 'A' }))
+    show(view, cmp({ location: B2, focus: 'B' }))
+    layout.set(view.section, { w: 375, h: 566 })
+    resize()
+    const targets = [...view.map.setCenter.mock.calls, ...view.map.panTo.mock.calls].map(([c]) => (c as FakeLatLng).lat())
+    expect(targets).not.toContain(A.lat)
+    expect(singleDone(view.map, B2)).toBe(true)
   })
 
   it('비교 중 크기 변경·점포 선택 20번 반복에도 zoom은 그대로(순위 8)', async () => {

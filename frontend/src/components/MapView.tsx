@@ -65,13 +65,13 @@ export type MapCompare = {
 
 /**
  * 범위 맞춤 동작 (D-022). single: 단일 원(auto = 이미 조건이면 이동 없음, force = 무조건) / union: "두 위치 모두 보기" /
- * b-select: B 선택(순위 5) / focus: A↔B 기준 전환·비교 종료(순위 6)
+ * b-select: B 선택(순위 5) / focus: A↔B 기준 전환(비교 중) · 비교 종료(end, → A)(순위 6)
  */
 type FitAction =
   | { t: 'single'; mode: 'auto' | 'force' }
   | { t: 'union' }
   | { t: 'b-select' }
-  | { t: 'focus'; side: 'A' | 'B' }
+  | { t: 'focus'; side: 'A' | 'B'; end?: boolean }
 
 /** 지도에 표시할 동종 점포 (4차). 문구는 표시용으로 만들어 넘긴다(App이 API 응답으로 만든다). */
 export type MapStore = { id: string; name: string; address: string; distance: string; lat: number; lng: number }
@@ -497,16 +497,21 @@ export function MapView({
   const selectedRef = useRef(selected)
   const comparingRef = useRef(compare !== null)
   const bLocationRef = useRef(compare?.location ?? null)
+  const focusNowRef = useRef(compare?.focus ?? null)
   useLayoutEffect(() => {
     selectedRef.current = selected
     comparingRef.current = compare !== null
     bLocationRef.current = compare?.location ?? null
-    /** 이 동작이 지금 상태에서 의미가 있는지: 단일은 비교 밖, 비교 동작은 비교 중 + B 있음, A로 이동은 A 있음 */
+    focusNowRef.current = compare?.focus ?? null
+    /**
+     * 이 동작이 지금 상태에서 의미가 있는지: 단일·비교 종료(→A)는 비교 밖, 비교 동작은 비교 중 + B 있음,
+     * 기준 전환은 그 기준이 아직 지금 기준일 때만(B를 지우거나 기준이 다시 바뀌면 버린다)
+     */
     const valid = (action: FitAction) => {
       if (!selectedRef.current) return false
-      if (action.t === 'single') return !comparingRef.current
-      if (action.t === 'focus' && action.side === 'A') return true
-      return comparingRef.current && bLocationRef.current !== null
+      if (action.t === 'single' || (action.t === 'focus' && action.end)) return !comparingRef.current
+      if (!comparingRef.current || bLocationRef.current === null) return false
+      return action.t !== 'focus' || focusNowRef.current === action.side
     }
     // 상태가 바뀌어 더는 맞지 않는 대기 동작은 버린다(비교 시작 → 단일 대기 버림, 비교 종료·B 지움 → 비교 대기 버림)
     if (pendingFitRef.current && !valid(pendingFitRef.current)) pendingFitRef.current = null
@@ -522,6 +527,9 @@ export function MapView({
         if (!(action.t === 'single' && action.mode === 'auto' && pendingFitRef.current)) pendingFitRef.current = action
         return
       }
+      // 사용자가 직접 확대·이동했으면(잠금) 맞추지 않는다 — 바로 실행하는 요청은 호출 전에 잠금을 풀고 오므로 여기서
+      // 걸리는 것은 미뤄 둔 사이 잠긴 경우다(순위 4). 기준 전환·비교 종료는 잠금 중 panTo만(순위 6, 아래)
+      if (lockedRef.current && action.t !== 'focus') return
       const size = { w: el.clientWidth, h: el.clientHeight }
       const b = map.getBounds()
       const view = { bounds: { s: b.getSW().lat(), n: b.getNE().lat(), w: b.getSW().lng(), e: b.getNE().lng() }, w: size.w, h: size.h }
@@ -542,7 +550,6 @@ export function MapView({
       const boxB = bLoc ? circleBox(bLoc.lat, bLoc.lng, RADIUS_M) : boxA
       switch (action.t) {
         case 'single': {
-          if (action.mode === 'auto' && lockedRef.current) return     // 미뤄 둔 사이 사용자가 직접 조정했다
           const rect = boxToRect(boxA, view)
           if (action.mode === 'auto' && satisfiesSingle(rect, u)) return
           fitBox(boxA, rect, a)
@@ -697,7 +704,7 @@ export function MapView({
   const wasComparingRef = useRef(comparing)
   useEffect(() => {
     if (wasComparingRef.current && !comparing && api && map && selectedLat !== undefined && selectedLng !== undefined) {
-      runFitRef.current({ t: 'focus', side: 'A' })
+      runFitRef.current({ t: 'focus', side: 'A', end: true })
     }
     wasComparingRef.current = comparing
   }, [api, map, comparing, selectedLat, selectedLng])
