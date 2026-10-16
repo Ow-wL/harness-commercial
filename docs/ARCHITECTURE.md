@@ -173,4 +173,4 @@ B 성공 뒤             POST /nearby-stores {B}  → nearbyB                 �
   - `activeStoreId`
 - 보이는 점포 기준 `visibleSide`는 계산한다: 비교 아님 → A, B 고르기·분석 중·실패 → 없음, 요약 → `storeSide`, 전체 결과 → 그 위치. 지도 마커·목록·점포 막대 문구는 모두 이 값으로 만든다.
 - 늦은 응답 폐기: 요청 종류마다 AbortController와 요청 번호를 따로 둔다(A 분석·A 점포·B 분석·B 점포). 조건 변경·새 A 분석·비교 종료·B 다시 고르기·새 B 분석 때 해당 요청을 abort하고 상태를 비운다. 응답 처리 첫 줄에서 요청 번호가 다르면 버린다. 응답 조건(좌표·업종)이 요청과 다르면 계약 오류로 다룬다.
-- 화면: `AnalysisResult`는 한 번에 하나만 마운트한다(고정 id). 비교 요약은 `CompareResult`가 `lib/compare.ts`·`lib/warnings.ts`로 그린다. 지도는 `MapView`의 `compare` prop으로 A/B 마커·반경·B 행정동 경계를 그린다. 지도 인스턴스는 다시 만들지 않고, 비교 중 이동은 `panTo`만 쓴다(8-B2에서 D-022 비교 맞춤으로 바뀔 예정). 단일 위치는 8-B1 범위 맞춤(`setCenter`→`setZoom`→`panBy`, D-022).
+- 화면: `AnalysisResult`는 한 번에 하나만 마운트한다(고정 id). 비교 요약은 `CompareResult`가 `lib/compare.ts`·`lib/warnings.ts`로 그린다. 지도는 `MapView`의 `compare` prop으로 A/B 마커·반경·B 행정동 경계를 그린다. 지도 인스턴스는 다시 만들지 않는다. 지도 맞춤은 D-022: 단일 위치는 8-B1 범위 맞춤(`setCenter`→`setZoom`→`panBy`), 비교는 8-B2(B 선택 → A∪B 또는 B 원, "두 위치 모두 보기", 점포 기준 A↔B 전환·비교 종료 → `panTo` 또는 맞춤). `App`은 점포 기준(`focus`)을 `compare` prop으로 넘긴다.
