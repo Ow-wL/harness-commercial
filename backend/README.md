@@ -14,7 +14,7 @@ python -m uvicorn backend.app.main:app --reload
 
 수명 주기 (3-1)
 - import 시점에는 데이터를 읽지 않는다. FastAPI lifespan 시작에서 `AnalysisService`를 1회 만든다(`RuntimeData` 로드 약 4s). 이후 요청을 받는다.
-- `ReferenceCache` warm은 **background thread**에서 업종 하나씩 진행한다(29개 약 60s). 서버 시작은 warm을 기다리지 않는다. warm되지 않은 업종은 요청 때 `ReferenceCache`가 계산한다(기존 lock·cache 그대로).
+- `ReferenceCache` warm은 **background thread**에서 업종 하나씩 진행한다(29개 약 60s). 서버 시작은 warm을 기다리지 않는다. warm되지 않은 업종은 요청 때 `ReferenceCache`가 계산한다. 이미 계산된 키는 warm 중에도 잠금을 기다리지 않고, 요청이 기다리면 warm이 다음 계산을 미룬다(8-D2a, `docs/spikes/8-D2a/`).
 - 종료 시 warm thread에 중지 신호를 보낸다. 진행 중인 업종 1개가 끝나면 멈추고, 최대 5s만 기다린다(daemon thread).
 - warm 실패: server log에 traceback, `/health`에는 `failed`와 `"업종코드: 예외이름"`만 보인다.
 

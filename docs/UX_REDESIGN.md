@@ -408,7 +408,7 @@ SDK = `fitBounds(원 bounds, U margin)`, 직접 = 2.6 구현 수단(단일 원).
 - 참고 실측(겹침 보장 없는 1차 실험): 87개 (업종, 반경) 순차 build 176.0s(건당 1.93~2.37s). warm 중 cache hit 대기 11.8s, warm 중 cold 2.12s — **참고값**. 재측정은 `build_reference`를 감싸 "build 시작" `Event` + `Barrier(2)`로 동시 출발을 보장하고 "요청 시각 − 직전 build 시작 시각"을 함께 기록한다.
 - lock 방식별로 구조상 없어지는 대기와 남는 대기: (A) hit 경로 lock 없음 → hit가 **lock을 기다리는 일은 없어진다**. 그래도 warm 스레드의 계산(pandas)과 GIL·CPU를 나눠 쓰므로 hit 응답 시간의 상한을 구조만으로 보장하지는 못한다 — 50ms는 측정으로 확인할 **목표 기준**이다. (B) miss 전역 lock → cold 대기 **상한 없음**(warm이 lock을 연속 재획득). (C) miss 키별 lock → cold ≤ 자기 키 build 1회 × 경합 계수(측정 필요). (D) warm 양보 → "진행 중 build + 자기 build".
 - 검증 조건: (A) warm 중 hit ≤ 50ms를 측정으로 확인(가짜 느린 build 2s + Barrier — 가짜 build는 GIL을 쥐는 실제 계산이 아니므로, 실제 `build_reference` warm 중 p95도 따로 기록하고 그 값이 50ms를 넘으면 기준을 다시 정한다). (B) 유지 시 상한을 주장하지 않고 p95만 기록. (C) 채택 시 cold ≤ 2 × 단독 build(계수는 실측 뒤 조정), warm 전체 +20% 이내. 공통: golden 29/29·`test_cached_recomputation_is_identical`.
-- 8-D2a(공용 캐시 hit 경로 수정, 골든 중립)는 **이번 범위 밖**이다. 운영 첫 `/analyze` 약 4.5초(D-018, 원인 미확정)와는 연결하지 않는다.
+- 8-D2a(공용 캐시 hit 경로 수정, 골든 중립) — **구현 · 검수 수정 반영 · 캐시 동시성·기능 재검수 통과(2026-10-17)**, 성능은 hit 비차단만 확인(warm 증가 원인 미확인 → 8-D2b, v0.4 운영 전환 전 필수): (A) hit 잠금 없음 + miss build 실행권 하나(한 번에 하나, 같은 키 1회) + (D) warm 양보(대기 확인·예약을 단일 `Condition`으로). (C) 키별 동시 build는 공유 DataFrame 동시 계산을 피하려고 채택하지 않았다. **기준을 나눈다(검수 합의안)**: 캐시 hit 비차단은 구조와 회귀 테스트(다른 build를 `Event`로 멈춘 상태에서 hit 완료)로 검증하고, 위 "warm 중 hit ≤ 50ms"는 API 응답 기준으로 달성했다고 하지 않는다 — API 중앙값·p95·최대는 기록만. warm 비용은 요청 없는 교차 반복, 부하 비교는 같은 요청 수·도착 일정. 결과·한계: `docs/spikes/8-D2a/README.md`. 운영 첫 `/analyze` 약 4.5초(D-018, 원인 미확정)와는 연결하지 않는다.
 
 ---
 

@@ -143,7 +143,7 @@ production: Cloud Run 서비스 1개 — FastAPI(uvicorn 1 process)가 API와 Vi
 위험 요소:
 - **콜드 스타트 60초+.** `build_reference`를 요청 경로에서 처음 계산하면 첫 요청이 최대 1분 걸린다. → backend는 `RuntimeData` 로드 후 바로 서비스하고 29개 warm은 background에서 진행, 아직 warm되지 않은 업종은 on-demand 계산 (TASKS 3-1, D-012). 디스크 캐시는 현재 미도입(D-016) — 멀티 워커·잦은 재시작으로 콜드가 문제될 때 다시 연다.
 - `build_reference`는 호출마다 `dong_total`·중심점을 다시 groupby하고, 158개 중심점마다 13.5만 점포 전체에 haversine을 돈다. 수요(분모) 부분은 업종과 무관한데 업종마다 반복된다. (최적화는 golden으로 동일성 검증한 뒤에만)
-- `ReferenceCache`는 계산 중 전역 lock을 잡는다 → 콜드 상태 동시 요청과 background warm은 직렬화된다 (요청당 대기 ≤ 업종 1개 계산, 약 2s).
+- `ReferenceCache` 잠금(8-D2a, D-024): 이미 계산된 키(hit)는 잠금 없이 읽어 다른 키의 build를 기다리지 않는다. miss 계산은 build 실행권 하나로 한 번에 하나씩(같은 키 1회, 실패 시 미저장), background warm은 요청이 실행권을 기다리면 실행권을 얻지 않는다(대기 확인·예약은 `Condition` 하나 안에서 한 번에). → cold 요청 대기는 "진행 중(또는 이미 예약된) build 1개 + 다른 대기 요청들의 build + 자기 build"이며 대기 요청 사이 순서는 보장하지 않는다(측정: `docs/spikes/8-D2a/`). 이전에는 hit도 전역 lock을 기다려 warm 중 응답이 수 초였다.
 - 멀티 워커(uvicorn workers N)면 워커마다 데이터·캐시를 따로 가진다 → 메모리 N배, 콜드 N번. 디스크 캐시가 필요해지는 지점.
 
 캐시 경계 (무효화 키):
