@@ -8,7 +8,8 @@ FastAPI backend (TASKS 3-1, docs/DECISIONS.md D-012).
   lifespan 시작: AnalysisService 1회 생성(RuntimeData 로드, 약 4s) → 요청 수신 시작
                  → ReferenceCache warm 을 background thread 에서 업종 하나씩 진행 (29개 약 60s)
   lifespan 종료: warm thread 에 중지 신호 → 진행 중인 업종 1개가 끝나면 멈춘다 (최대 WARM_JOIN_TIMEOUT_S 대기)
-  warm 되지 않은 업종은 ReferenceCache 가 요청 시 계산한다 (기존 lock·caching 그대로).
+  warm 되지 않은 업종은 ReferenceCache 가 요청 시 계산한다. 이미 계산된 키는 warm 중에도 잠금을 기다리지 않고,
+  요청이 build 를 기다리면 warm 이 다음 build 를 미룬다 (8-D2a, scoring_engine/reference.py).
 
 테스트: create_app(service=공유 서비스, warm_biz=[...]) — RuntimeData 를 다시 읽지 않고 지정 업종만 warm.
 

@@ -1,0 +1,97 @@
+{
+ "engine": "mvp-0.3",
+ "radius_options": [
+  500
+ ],
+ "a": "93b7031",
+ "b": "working",
+ "load_runtime_s": 4.27,
+ "conditions": {
+  "python": "3.10.11",
+  "platform": "Windows-10-10.0.26200-SP0",
+  "cpu_count": 16,
+  "requests": "없음",
+  "order": "쌍마다 교차 (a b, b a, …)"
+ },
+ "a_stats": {
+  "n": 3,
+  "mean_s": 72.71,
+  "min_s": 70.1,
+  "max_s": 76.72,
+  "stdev_s": 3.53
+ },
+ "b_stats": {
+  "n": 3,
+  "mean_s": 81.64,
+  "min_s": 75.9,
+  "max_s": 89.43,
+  "stdev_s": 6.99
+ },
+ "pair_diff_b_minus_a_s": [
+  4.59,
+  19.33,
+  2.87
+ ],
+ "runs": [
+  {
+   "pair": 0,
+   "impl": "a",
+   "rev": "93b7031",
+   "s": 71.31,
+   "stats": {
+    "competition_entries": 29,
+    "location_entries": 14
+   }
+  },
+  {
+   "pair": 0,
+   "impl": "b",
+   "rev": "working",
+   "s": 75.9,
+   "stats": {
+    "competition_entries": 29,
+    "location_entries": 14
+   }
+  },
+  {
+   "pair": 1,
+   "impl": "b",
+   "rev": "working",
+   "s": 89.43,
+   "stats": {
+    "competition_entries": 29,
+    "location_entries": 14
+   }
+  },
+  {
+   "pair": 1,
+   "impl": "a",
+   "rev": "93b7031",
+   "s": 70.1,
+   "stats": {
+    "competition_entries": 29,
+    "location_entries": 14
+   }
+  },
+  {
+   "pair": 2,
+   "impl": "a",
+   "rev": "93b7031",
+   "s": 76.72,
+   "stats": {
+    "competition_entries": 29,
+    "location_entries": 14
+   }
+  },
+  {
+   "pair": 2,
+   "impl": "b",
+   "rev": "working",
+   "s": 79.59,
+   "stats": {
+    "competition_entries": 29,
+    "location_entries": 14
+   }
+  }
+ ]
+}

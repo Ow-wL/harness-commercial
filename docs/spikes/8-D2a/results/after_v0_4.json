@@ -1,0 +1,99 @@
+{
+  "engine": "mvp-0.4",
+  "radius_options": [
+    300,
+    500,
+    1000
+  ],
+  "conditions": {
+    "python": "3.10.11",
+    "platform": "Windows-10-10.0.26200-SP0",
+    "cpu_count": 16,
+    "probe_interval_s": 0.2,
+    "client": "fastapi.testclient (in-process, uvicorn 없음)",
+    "hit_key": [
+      "R10406",
+      500
+    ]
+  },
+  "load_runtime_s": 6.77,
+  "cold_build_s": {
+    "300": 2.838,
+    "500": 2.745,
+    "1000": 2.774
+  },
+  "warm": {
+    "total_s": 311.4,
+    "final_state": {
+      "completed": 87,
+      "total": 87,
+      "done": true,
+      "failed": false,
+      "error": null
+    },
+    "builds": 87,
+    "cache_stats": {
+      "competition_entries": 87,
+      "location_entries": 14
+    }
+  },
+  "cache_hit_direct": {
+    "n": 1022,
+    "median_ms": 0.01,
+    "p95_ms": 0.01,
+    "max_ms": 0.29,
+    "min_ms": 0.0
+  },
+  "cache_hit_direct_during_build": {
+    "n": 997,
+    "median_ms": 0.01,
+    "p95_ms": 0.01,
+    "max_ms": 0.29,
+    "min_ms": 0.0
+  },
+  "api_hit": {
+    "n": 1022,
+    "median_ms": 78.93,
+    "p95_ms": 106.34,
+    "max_ms": 191.11,
+    "min_ms": 64.08
+  },
+  "api_hit_during_build": {
+    "n": 997,
+    "median_ms": 78.89,
+    "p95_ms": 105.8,
+    "max_ms": 151.08,
+    "min_ms": 64.12
+  },
+  "api_hit_idle_after_warm": {
+    "n": 30,
+    "median_ms": 52.63,
+    "p95_ms": 57.06,
+    "max_ms": 57.99,
+    "min_ms": 47.93
+  },
+  "probes_during_build": "997/1022",
+  "cold_api_during_warm": [
+    {
+      "biz": "I20401",
+      "radius_m": 1000,
+      "s": 6.024,
+      "status": 200,
+      "warm_completed": 17
+    },
+    {
+      "biz": "I20301",
+      "radius_m": 1000,
+      "s": 5.381,
+      "status": 200,
+      "warm_completed": 34
+    },
+    {
+      "biz": "I20201",
+      "radius_m": 1000,
+      "s": 5.675,
+      "status": 200,
+      "warm_completed": 51
+    }
+  ]
+}
