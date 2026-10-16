@@ -87,6 +87,7 @@ Frontend (React+TS, NAVER Maps)  지도 클릭/좌표 입력 → lat,lng. 업종
   │  GET /businesses (업종 29개·그룹 4개, 엔진 config 그대로)
   │  POST /analyze {lat, lng, biz_code, importance?, user_weights?, user_licenses?}
   │  POST /nearby-stores {lat, lng, biz_code}  분석 성공 뒤 같은 조건으로 — 반경 안 동종 점포(표시용, 엔진 analyze 안 부름)
+  │  (8-D2, D-024: 두 요청 모두 선택 필드 radius_m — 엔진이 받는 값만. GET /health 의 engine.radius_options 로 광고. 프런트는 8-D3 전까지 보내지 않는다)
   ▼
 Backend API (FastAPI)            입력 검증, 오류 응답, 응답 스키마. 엔진 결과를 바꾸지 않는다 (pass-through)
                                  입력·분석 불가 → 422 + error.code, 내부 오류 → 500 + request_id (D-014)

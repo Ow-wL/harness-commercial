@@ -99,8 +99,8 @@
 - [ ] UI 개편 단위(A3 레이아웃·블루안·결과 탭·헤드라인·주의 띠·근거 줄, 다크 지도 스타일 적용, 저작권 표기, 면책 표시 P1 — `DESIGN.md` §19.6 확정 2026-10-16) — 8-B2 뒤
 - 엔진 트랙 8-D(반경 300·500·1,000m) — 보류 해제(사용자 지시 2026-10-16), 단위별 검수:
   - [x] 8-D1 엔진 v0.4(`mvp-0.4`)·로딩 격리·reference (업종, 반경) 키·golden v0.4·검증 3종(V-legacy·V-radius·V-web500)·check 단계 — **구현 완료(2026-10-16) · 검수 통과(2026-10-17, 추가 결함 없음)** (D-024). API·화면 변화 없음, 운영 기본은 v0.3. 검증(2026-10-17): Codex 재검수 — 지도 관련 82건(MapView 68 포함)·v0.3 287건·v0.4 42건·원본 무결성·backend 107·frontend 464·타입 검사·린트·production build 통과. Codex의 전체 check는 샌드박스 대기로 중단, 남은 backend·frontend 단계는 일반 환경에서 단계별로 통과(단일 전체 check 통과 아님). Claude 로컬 전체 check는 1회 통과(직전 1회는 `ScoreGuide.test.tsx` 5초 시간 초과로 frontend FAIL — 재검수에서 재현되지 않았으나 원인 미확인)
-  - [ ] 8-D2 API: `/analyze`·`/nearby-stores`의 `radius_m`, `/health` 반경 광고, warm 87개·성능 기준(`docs/UX_REDESIGN.md` 4.6·4.7)
-  - [ ] 8-D3 프런트: 반경 chip(광고가 있을 때만), 결과 캐시·상태표 S1~S15, 응답 반경 대조(S5), 엔진버전 enum, 지도 원·맞춤(D-022 순위 3)
+  - [x] 8-D2 API — **구현 완료·검수 통과(2026-10-17)** (D-024): `/analyze`·`/nearby-stores`의 `radius_m`(생략 500, 그 밖 422 `invalid_radius`), `/health` `engine` 광고, warm (업종, 반경) 87개(500m 먼저). 성능 측정: v0.4 warm 264.5s(v0.3 90.4s), warm 중 hit 지연은 v0.3과 같은 수준 — 느린 구간이 약 3배 길어짐(→ 8-D2a). 프런트 변화 없음, 운영 미배포. 검수(2026-10-17): Codex 검수 통과(API 기능, 추가 코드 결함 없음) — Codex 직접 검증: backend 133건 + v0.4 API 19건(152건) 통과, 실제 v0.4 uvicorn에서 `/health` 광고·부평역 PC방 반경별 점포 6·12·17곳 확인. Codex는 전체 check 9단계를 재실행하지 않았고 성능 수치도 재측정하지 않았다 — 전체 check 통과(9단계)와 성능 수치는 Claude 로컬 1회 실행 결과다.
+  - [ ] 8-D3 프런트: 반경 chip(`/health` `engine.radius_options` 2개 이상일 때만 — 구버전 서버(필드 없음)·새 v0.3(`[500]`)은 숨김), 결과 캐시·상태표 S1~S15, 응답 반경 대조(S5), 엔진버전 enum, 지도 원·맞춤(D-022 순위 3), **복구 경로 R1(500m 응답 → S5)·R2(422 `invalid_radius`) → `/health` 재조회 → 500 복귀·반경 ≠ 500 캐시 폐기·재분석 1회(비교 중이면 A·B 모두 500)** 구현·테스트(`docs/UX_REDESIGN.md` 4.4 (f)(g)·4.6)
   - 8-D2a 공용 캐시 hit 경로 수정은 범위 밖
 
 ## 보류 (이번 범위 아님)
