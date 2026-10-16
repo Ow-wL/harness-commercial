@@ -1,10 +1,11 @@
 # 우리동네 상권분석 매니저 — 웹 개발 저장소
 
 인천 지도에서 위치와 업종을 고르면 v0.3 스코어링 엔진(`mvp-0.3`)으로 상권을 분석하는 웹 애플리케이션.
-현재 상태: **MVP 구현 완료** — closeout(QA·배포 준비) 단계. 다음 작업은 `docs/TASKS.md` 5장.
+현재 상태: MVP 운영 배포 완료 후 **8차 UI/UX 개선** 진행 중 — 디자인 방향 A3 지도 탐색형·블루안 확정(`DESIGN.md` §19, D-023), 8-B1 단일 지도 맞춤 저장소 반영(운영 미배포). 다음 작업은 `docs/TASKS.md` 8장(8-B2 비교 맞춤).
 
 ## MVP 기능
 - **지도 위치 선택**: NAVER Maps(Dynamic Map)에서 클릭하거나 좌표를 직접 입력. 마커 + 반경 500m 원 표시
+- **지도 범위 맞춤**(8차 8-B1, D-022, 저장소 반영·운영 미배포): 새 위치를 고르면 반경 원이 지도의 사용 영역(범례·컨트롤을 뺀 곳)에 맞게 보이도록 zoom·중심을 옮긴다. 사용자가 직접 확대·이동하면 미뤄 둔 자동 맞춤을 하지 않고, 범례의 "범위에 맞추기"로 다시 맞춘다. 점포 정보창은 사용 영역 안에서 선택 지점을 가리지 않게 연다. 비교 중 지도 이동은 8-B2 전까지 기존 규칙(`panTo`)
 - **주소로 찾기·참고 주소**(7차, D-021): NAVER 지도 SDK Geocoder로 주소를 검색해 위치를 고르고(단일·비교 B), 고른 좌표의 도로명/지번 주소를 "참고 주소 · … (NAVER 지도)"로 보인다. 주소는 분석에 쓰지 않는다(분석 행정동은 backend 판정). 콘솔에서 Geocoding·Reverse Geocoding을 선택해야 하며, 실패해도 지도·좌표 입력·분석은 그대로다
 - **업종 선택**: `GET /businesses`의 29개 업종·4개 그룹 (엔진 `config` 그대로, frontend 하드코딩 없음)
 - **분석**: `POST /analyze` (FastAPI) → 좌표 → 인천 행정동 판정(`LocationResolver`) → `ContextBuilder` → 엔진 v0.3. 엔진 결과는 바꾸지 않고 그대로 전달
@@ -55,7 +56,7 @@ NAVER 콘솔 Web 서비스 URL에 접속 주소(로컬 `http://localhost:8080`, 
 
 | 파일 | 용도 | 키 |
 |---|---|---|
-| `frontend/.env` | 지도 표시 (필수) | `VITE_NAVER_MAP_CLIENT_ID` — NAVER Maps Client ID만. Client Secret은 넣지 않는다. 선택: `BACKEND_URL` (dev proxy 대상) |
+| `frontend/.env` | 지도 표시 (필수) | `VITE_NAVER_MAP_CLIENT_ID` — NAVER Maps Client ID만. Client Secret은 넣지 않는다. 선택: `BACKEND_URL` (dev proxy 대상), `VITE_NAVER_MAP_GL=1`(제품 지도를 GL로 띄우는 검수용, 기본 끔), `VITE_NAVER_MAP_STYLE_ID`(NAVER Style Editor My Style ID — 지금은 검수 스파이크에서만 읽음) |
 | 루트 `.env` | SGIS 유지보수·검증 스크립트 전용 (`scripts/fetch_sgis_boundary.py`, `scripts/verify_guwol_admin_dong.py`). 앱 실행에는 필요 없다 | `SGIS_CONSUMER_KEY`, `SGIS_CONSUMER_SECRET` |
 
 템플릿은 `frontend/.env.example`, `.env.example` (빈 값). 두 `.env`는 `.gitignore` 대상이다.
@@ -71,6 +72,7 @@ NAVER 콘솔 Web 서비스 URL에 접속 주소(로컬 `http://localhost:8080`, 
 | `data/runtime/` | 엔진 입력 데이터 (원본 `07_가공데이터`와 바이트 동일) |
 | `data/geo/` | 인천 행정동 경계 158개 (2026-07 기준, 구월1·3동 SGIS 교정) |
 | `tests/` | 무결성, 엔진 단위, 데이터 스키마, golden regression, location |
-| `docs/` | 구조·엔진·데이터·작업·결정 (`ARCHITECTURE`, `ENGINE`, `DATA`, `TASKS`, `DECISIONS`), 주간 보고 `reports/` |
+| `docs/` | 구조·엔진·데이터·작업·결정 (`ARCHITECTURE`, `ENGINE`, `DATA`, `TASKS`, `DECISIONS`), 8차 설계 `UX_REDESIGN`, 주간 보고 `reports/` |
+| `frontend/spike/`, `docs/spikes/` | 개발 서버 전용 검수 페이지(빌드 밖)와 재현 기록 — 8-B0 지도 맞춤(`map-fit-spike.html`), A3 NAVER 다크 지도·스타일 실패 복구(`a3-naver-review.html`, `docs/spikes/a3-naver/README.md`) |
 
 작업 규칙은 `CLAUDE.md`, UI 규칙은 `DESIGN.md`.

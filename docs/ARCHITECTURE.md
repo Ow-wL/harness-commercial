@@ -65,7 +65,8 @@ frontend/src/
   map/naverMaps.ts      NAVER Maps v3 SDK singleton loader (frontend/.env의 Client ID) + 지도/Geocoder 준비 상태(SdkState, 7차)
   map/geocoder.ts       Geocoder 서브모듈 adapter: 콜백 → 결과 객체(정방향 검색·역방향 참고 주소), Zod 검증·8초 timeout (D-021)
   map/dongBoundary.ts   data/geo/인천_행정동경계_2026.geojson을 ?url asset으로 참조, context의 (gu_code, dong_name)으로 찾아 강조
-  components/           MapView(지도·마커·500m 원·경계, 비교 A/B 표시) · ConditionPanel(위치·업종) · AnalysisResult(결과) · ErrorBlock 등 (DESIGN.md)
+  map/mapFit.ts         지도 범위 맞춤 순수 계산(8-B1, D-022): 사용 영역 U, 원 사각형(bounds 직접 계산), 맞춤 zoom, panBy 값, GL/래스터 zoom 환산, 점포 정보창 위치 후보
+  components/           MapView(지도·마커·500m 원·경계, 단일 범위 맞춤·정보창 배치, 비교 A/B 표시) · ConditionPanel(위치·업종) · AnalysisResult(결과) · ErrorBlock 등 (DESIGN.md)
                         두 위치 비교(5차, D-020): ComparePanel(B 고르기)·CompareResult(비교 요약·위치별 전체 결과)·CoordinateForm
   lib/                  format(표시 형식) · compare(비교 표시 규칙) · compareState(B 상태 타입) · warnings(주의할 점 문장) · useNearbyRequest(점포 조회 1벌)
                         주소(7차, D-021): addressCache(좌표 키 캐시) · useReferenceAddress · addressSearch · keepFocusInView · useSearchFocusRecovery
@@ -172,4 +173,4 @@ B 성공 뒤             POST /nearby-stores {B}  → nearbyB                 �
   - `activeStoreId`
 - 보이는 점포 기준 `visibleSide`는 계산한다: 비교 아님 → A, B 고르기·분석 중·실패 → 없음, 요약 → `storeSide`, 전체 결과 → 그 위치. 지도 마커·목록·점포 막대 문구는 모두 이 값으로 만든다.
 - 늦은 응답 폐기: 요청 종류마다 AbortController와 요청 번호를 따로 둔다(A 분석·A 점포·B 분석·B 점포). 조건 변경·새 A 분석·비교 종료·B 다시 고르기·새 B 분석 때 해당 요청을 abort하고 상태를 비운다. 응답 처리 첫 줄에서 요청 번호가 다르면 버린다. 응답 조건(좌표·업종)이 요청과 다르면 계약 오류로 다룬다.
-- 화면: `AnalysisResult`는 한 번에 하나만 마운트한다(고정 id). 비교 요약은 `CompareResult`가 `lib/compare.ts`·`lib/warnings.ts`로 그린다. 지도는 `MapView`의 `compare` prop으로 A/B 마커·반경·B 행정동 경계를 그린다. 지도 인스턴스는 다시 만들지 않고, 이동은 `panTo`만 쓴다.
+- 화면: `AnalysisResult`는 한 번에 하나만 마운트한다(고정 id). 비교 요약은 `CompareResult`가 `lib/compare.ts`·`lib/warnings.ts`로 그린다. 지도는 `MapView`의 `compare` prop으로 A/B 마커·반경·B 행정동 경계를 그린다. 지도 인스턴스는 다시 만들지 않고, 비교 중 이동은 `panTo`만 쓴다(8-B2에서 D-022 비교 맞춤으로 바뀔 예정). 단일 위치는 8-B1 범위 맞춤(`setCenter`→`setZoom`→`panBy`, D-022).
