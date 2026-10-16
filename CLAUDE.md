@@ -3,7 +3,7 @@
 ## Project Goal
 인천 지역에서 사용자가 지도상의 위치와 업종을 선택하면 기존 v0.3 scoring engine을 사용하여 상권을 분석하는 웹 애플리케이션이다.
 현재 단계: MVP 운영 배포 완료. 지금은 8차 UI/UX 개선 — 디자인 방향 A3 지도 탐색형·블루안 확정(`DESIGN.md` §19, D-023), 8-B1 단일·8-B2 비교 지도 맞춤 저장소 반영(운영 미배포 — 묶어서 배포 예정).
-다음 작업은 `docs/TASKS.md` 8장 참고(8-B2 검수 → UI 개편 단위). 각 단위는 사용자 검수 뒤 다음으로 넘어간다.
+다음 작업은 `docs/TASKS.md` 8장 참고(8-D2 API → 8-D3 화면 / UI 개편 단위). 각 단위는 사용자 검수 뒤 다음으로 넘어간다.
 
 ## Source of Truth
 - `sources/team_v0.3/`는 팀원이 전달한 원본이며 **절대 수정하지 않는다** (수정·삭제·파일 추가·`__pycache__` 생성 포함).
@@ -11,6 +11,7 @@
   - 원본 폴더에서 Python을 돌릴 때는 `PYTHONDONTWRITEBYTECODE=1` (check 스크립트가 설정한다).
   - **원본 `run_all.py`를 실행하지 않는다** — `05_분석결과`(golden 원본)를 덮어쓴다.
 - 점수 계산의 기준은 엔진 v0.3(`mvp-0.3`). 웹 실행용 사본은 `scoring_engine/v0_3/` (원본과 바이트 동일, 수정 금지).
+- 엔진 v0.4(`mvp-0.4`, D-024)는 v0.3 + 분석 반경(300·500·1,000m) 최소 diff 사본 `scoring_engine/v0_4/`. 허용 diff 밖으로 고치지 않는다(`tests/test_engine_v0_4_diff.py`). 엔진은 프로세스당 하나 — `SCORING_ENGINE_VERSION=v0_3(기본)|v0_4`.
 
 ## Critical Rules
 - 기존 scoring 결과를 임의로 변경하지 않는다.
@@ -38,7 +39,7 @@ Explore → Plan → Implement → Test → Verify → Report
 코드 작성만으로 완료로 판단하지 않는다. 관련 테스트와 전체 check가 성공해야 완료다.
 
 ```powershell
-.\scripts\check.ps1          # Windows (전체, 약 1분 20초)
+.\scripts\check.ps1          # Windows (전체, 약 10분 — engine v0_4 단계 약 5분 포함)
 ```
 ```bash
 scripts/check.sh             # bash

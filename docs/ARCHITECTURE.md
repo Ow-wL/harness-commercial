@@ -45,6 +45,7 @@ sources/team_v0.3/      원본 (읽기 전용, 해시 검증)
 scoring_engine/
   location.py           LocationResolver(좌표 → 2026 인천 행정동, point-in-polygon, 코드로 panel 연결) + ContextBuilder(좌표 → SiteContext, 반경 500m 점포 0개 거부). 한 모듈 (eng review D3, D-011)
   v0_3/                 canonical 엔진 사본 (원본과 바이트 동일)
+  v0_4/                 v0.3 + 분석 반경 300·500·1,000m 최소 diff (D-024, SCORING_ENGINE_VERSION=v0_4)
   runtime.py            RuntimeData — 런타임 데이터 1회 로드
   reference.py          ReferenceCache — 비교 모집단 캐시 (프로세스 메모리)
   context.py            SiteContext — run_all 하드코딩을 명시적 파라미터로. golden fixture BUPYEONG_STATION, 웹 요청은 ContextBuilder가 좌표로 만든다
@@ -145,7 +146,7 @@ production: Cloud Run 서비스 1개 — FastAPI(uvicorn 1 process)가 API와 Vi
 - 멀티 워커(uvicorn workers N)면 워커마다 데이터·캐시를 따로 가진다 → 메모리 N배, 콜드 N번. 디스크 캐시가 필요해지는 지점.
 
 캐시 경계 (무효화 키):
-- 런타임 데이터 + reference: `(엔진 버전, data/runtime 해시, config.RADIUS_M, 업종코드 | 유인시설 집합)`. 데이터나 엔진이 바뀌지 않으면 영구 유효.
+- 런타임 데이터 + reference: `(엔진 버전, data/runtime 해시, 분석 반경(v0.3은 config.RADIUS_M), 업종코드 | 유인시설 집합)` — 경쟁성 reference 키는 (업종, 반경)(D-024). 데이터나 엔진이 바뀌지 않으면 영구 유효.
 - 지점 결과: `(위 키, lat, lng, biz, 사용자 가중치/중요도/면허)`. 필요해지면 그때 도입 (현재 불필요, 20ms).
 - `data/cache/`에 쓸 때는 위 키를 파일명/메타에 넣고, 키가 다르면 버린다. 캐시는 정답이 아니다 — golden이 정답이다.
 

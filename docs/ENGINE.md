@@ -60,6 +60,12 @@ adapter 후처리(시장성 `fallback="gugu"`, `해상도_시군구`)도 golden�
 
 변경이 필요하면: 새 엔진 버전(예: `v0_4/`) + golden 새 버전 디렉터리 + DECISIONS 기록. v0.3 golden은 그대로 둔다.
 
+## v0.4 (`mvp-0.4`, D-024) — 분석 반경 선택
+- `scoring_engine/v0_4/` = v0.3 사본 + 최소 diff: `config.RADIUS_OPTIONS_M = (300, 500, 1000)`, `scoring.analyze(..., radius_m=None)`(기본 500, 다른 값은 `ValueError`) → 경쟁성 raw `반경m`·`meta.분석반경_m`에 기록, `엔진버전 = "mvp-0.4"`.
+- 반경은 경쟁성(과 종합·경고)만 바꾼다. 비교 모집단(`build_reference`)도 반경마다 다르므로 `radius_profile`·`radius_ref`를 같은 반경으로 만들어 넘겨야 한다(`AnalysisService`가 한다).
+- 프로세스당 엔진 하나: `SCORING_ENGINE_VERSION=v0_4`. 기본은 v0.3.
+- 변경 금지: 허용 diff 밖 변경은 `tests/test_engine_v0_4_diff.py`가 막는다. 바꾸려면 새 버전으로.
+
 ## 알아둘 결합 (주의)
 - `AGE_PROFILE`은 실데이터 경로에서 `raw.타겟_정의` 문구에만 쓰인다. 타겟 인구 값은 `패널_통합.csv`의 `타겟_{업종명}` 컬럼(ETL `etl_pop.py`가 계산)에서 온다. 연령 프로파일을 바꾸려면 패널 재생성이 필요하다.
 - 패널 컬럼명이 **업종명**(`타겟_PC방`, `PC방`)이다. `config.CODE_NAME`의 이름을 바꾸면 컬럼을 못 찾는다.
