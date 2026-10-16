@@ -4,7 +4,7 @@
 비교 모집단은 런타임 데이터와 업종(또는 유인시설 집합)에만 의존하고 분석 지점과는 무관하다.
 → 프로세스 안에서 한 번 계산하면 모든 요청이 재사용할 수 있다.
 
-  competition(biz)  158개 행정동 중심점 × radius_profile  (업종마다 다름, 29개)
+  competition(biz, radius_m)  158개 행정동 중심점 × radius_profile  ((업종, 반경)마다 다름, v0.3 은 29개)
   location(biz)     158개 행정동 중심점 × site_profile     (유인시설 집합마다 다름, run_all.py 와 같은 키)
   stability(biz)    시군구별 안정성 분포                    (업종마다 다름, 가벼움)
 
@@ -18,7 +18,7 @@ from typing import Optional
 
 import pandas as pd
 
-from . import config as C, etl_location, radius_demand
+from . import RADIUS_OPTIONS_M, config as C, etl_location, radius_demand
 from .runtime import RuntimeData
 
 LOC_REF_KEYS = ["역세권_강도", "유인시설_근접도", "최근접역_거리m"]
@@ -27,18 +27,19 @@ LOC_REF_KEYS = ["역세권_강도", "유인시설_근접도", "최근접역_거�
 class ReferenceCache:
     def __init__(self, rt: RuntimeData):
         self.rt = rt
-        self._competition: dict[str, tuple[pd.DataFrame, pd.DataFrame]] = {}
+        self._competition: dict[tuple[str, int], tuple[pd.DataFrame, pd.DataFrame]] = {}
         self._location: dict[tuple, dict] = {}
         self._lock = threading.Lock()
 
     # ── 경쟁성 ──────────────────────────────────────────────
-    def competition(self, biz: str) -> tuple[pd.DataFrame, pd.DataFrame]:
-        """(158개 행정동 반경 프로파일 표, 행정동별 전체 점포수)."""
+    def competition(self, biz: str, radius_m: int | None = None) -> tuple[pd.DataFrame, pd.DataFrame]:
+        """(158개 행정동 반경 프로파일 표, 행정동별 전체 점포수). 반경마다 비교 모집단이 다르다(D-024)."""
+        key = (biz, C.RADIUS_M if radius_m is None else radius_m)
         with self._lock:
-            if biz not in self._competition:
-                self._competition[biz] = radius_demand.build_reference(
-                    self.rt.shops, self.rt.panel[["시군구명", "행정동명", "총인구"]], biz, C.RADIUS_M)
-            return self._competition[biz]
+            if key not in self._competition:
+                self._competition[key] = radius_demand.build_reference(
+                    self.rt.shops, self.rt.panel[["시군구명", "행정동명", "총인구"]], biz, key[1])
+            return self._competition[key]
 
     # ── 입지성 ──────────────────────────────────────────────
     @staticmethod
@@ -75,10 +76,11 @@ class ReferenceCache:
         return t.iloc[0], int(t.iloc[0]["표본_3년"])
 
     # ── 관리 ────────────────────────────────────────────────
-    def warm(self, biz_codes=None) -> None:
-        """애플리케이션 시작 시 미리 계산해 둘 때 쓴다."""
+    def warm(self, biz_codes=None, radii=None) -> None:
+        """애플리케이션 시작 시 미리 계산해 둘 때 쓴다. radii 기본 = 엔진이 받는 반경 전부(v0.3 은 500 하나)."""
         for biz in (biz_codes or C.CODE_NAME):
-            self.competition(biz)
+            for r in (radii or RADIUS_OPTIONS_M):
+                self.competition(biz, r)
             self.location(biz)
 
     def stats(self) -> dict:

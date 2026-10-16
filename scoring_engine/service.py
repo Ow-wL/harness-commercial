@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from typing import Optional
 
-from . import config as C, etl_location, radius_demand, scoring
+from . import RADIUS_OPTIONS_M, config as C, etl_location, radius_demand, scoring
 from .context import SiteContext
 from .reference import ReferenceCache
 from .runtime import RuntimeData, load_runtime
@@ -34,9 +34,14 @@ class AnalysisService:
         self._base_panel = self.rt.base_panel()
 
     def analyze(self, ctx: SiteContext, biz: str, *, user_weights: Optional[dict] = None,
-                importance: Optional[dict] = None, user_licenses: Optional[list] = None) -> dict:
+                importance: Optional[dict] = None, user_licenses: Optional[list] = None,
+                radius_m: Optional[int] = None) -> dict:
+        """radius_m: 분석 반경(None = config.RADIUS_M). 엔진이 받는 값(RADIUS_OPTIONS_M)만 — v0.3 은 500 뿐."""
         if biz not in C.CODE_NAME:
             raise ValueError(f"지원하지 않는 업종코드: {biz}")
+        radius = C.RADIUS_M if radius_m is None else radius_m
+        if radius not in RADIUS_OPTIONS_M:
+            raise ValueError(f"지원하지 않는 분석 반경: {radius} (가능: {RADIUS_OPTIONS_M})")
         rt, cache = self.rt, self.cache
         tgt = C.CODE_NAME[biz]
         panel = rt.panel
@@ -52,14 +57,14 @@ class AnalysisService:
         g = g_rows.iloc[0]
 
         # ── 비교 모집단 (캐시) ──────────────────────────────
-        ref, dong_total = cache.competition(biz)
+        ref, dong_total = cache.competition(biz, radius)
         lref = cache.location(biz)
         stab_ref = cache.stability(biz)
         stab_row, stab_n = cache.stability_row(biz, ctx.gu_name) if stab_ref else (None, 0)
 
         # ── 지점 프로파일 (요청마다) ────────────────────────
         rp = radius_demand.radius_profile(ctx.lat, ctx.lng, rt.shops, panel[["시군구명", "행정동명", "총인구"]],
-                                          biz, C.RADIUS_M, dong_total_shops=dong_total)
+                                          biz, radius, dong_total_shops=dong_total)
         lp = etl_location.site_profile(ctx.lat, ctx.lng, rt.stations, rt.anchors, biz)
 
         pn = dict(self._base_panel)
@@ -95,7 +100,9 @@ class AnalysisService:
             radius_ref=ref.loc[ref["반경_동종점포"] > 0, "반경_점포당수요"].dropna().tolist(),
             loc_profile=lp, loc_ref=lref,
             user_weights=user_weights, importance=importance, user_licenses=user_licenses,
-            schools=rt.schools)
+            schools=rt.schools,
+            # v0.3 analyze() 는 radius_m 인자가 없다(500 고정). 반경을 받는 엔진(v0.4)에만 넘긴다
+            **({"radius_m": radius} if len(RADIUS_OPTIONS_M) > 1 else {}))
 
         for i in res["지표"]:
             if i["key"] == "market":

@@ -1,0 +1,17 @@
+{
+  "engine": "mvp-0.4",
+  "dir": "scoring_engine/v0_4",
+  "base": "scoring_engine/v0_3",
+  "note": "v0.3 사본 + 분석 반경 최소 diff (D-024). 바꿀 때는 엔진 버전을 올린다(D-006).",
+  "files": {
+    "access.py": "698c6ff1d5b5d43101badc61d72d4808f9aba2b860ea7d4f09a5ba734d38a455",
+    "config.py": "50a9cae72756523628cb453bb98feb427c2e53cef66251a49be03e3a21f2fe8b",
+    "demo.py": "38ed0d85c6c0eed7d91d0d94ffc7a145d8c7c03114137592163d782accc15be7",
+    "etl_location.py": "7ec4f6d63aaa55c931d2155d79655328cdb0335a51513bd6a6242932dcf83e7f",
+    "etl_rent.py": "f0f25bfb3bfb413b72d2d423cc93aeebbe82e5f4d460ddbbd43e8331adb0eeaa",
+    "radius_demand.py": "0c1d2b79442c1cdd8b0c2ae2ded6ef21ee5822bfbd35013b8dba3f73579ec076",
+    "scoring.py": "2537c00ba423c86d7ad19f6ce66416ec3f44b691746b7791d4bd7fa25c995c39",
+    "test_access.py": "458959003084e053ddaf447396a966e42661e95f0ce3f4890f7118fb0e08c766",
+    "test_weights.py": "aaeaa62c19e637223c119acc51ac6b758fd53b83c47d7cbafa1c0249a0e974d4"
+  }
+}

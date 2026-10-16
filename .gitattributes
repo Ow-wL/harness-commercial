@@ -6,6 +6,7 @@ data/geo/*.csv -text
 # 체크아웃 결과가 core.autocrlf 와 무관하게 매니페스트 바이트와 같아야 한다 — 줄바꿈 변환 금지
 sources/** -text
 scoring_engine/v0_3/** -text
+scoring_engine/v0_4/** -text
 data/runtime/** -text
 tests/golden/** -text
 

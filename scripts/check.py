@@ -18,11 +18,13 @@ PY = sys.executable
 ORIGINAL_ENGINE = os.path.join(ROOT, "sources", "team_v0.3", "04_엔진코드", "engine")
 
 ENV = dict(os.environ, PYTHONIOENCODING="utf-8", PYTHONUTF8="1",
-           PYTHONDONTWRITEBYTECODE="1")   # 원본 폴더에 __pycache__ 를 만들지 않는다
+           PYTHONDONTWRITEBYTECODE="1",   # 원본 폴더에 __pycache__ 를 만들지 않는다
+           SCORING_ENGINE_VERSION="v0_3")  # 기본 단계는 v0.3 으로 고정(셸 환경과 무관). 엔진은 프로세스당 하나(D-024)
+ENV_V04 = dict(ENV, SCORING_ENGINE_VERSION="v0_4")
 
 
-def step(name, cmd, cwd=ROOT, when=True, why_skip=""):
-    return {"name": name, "cmd": cmd, "cwd": cwd, "when": when, "why_skip": why_skip}
+def step(name, cmd, cwd=ROOT, when=True, why_skip="", env=None):
+    return {"name": name, "cmd": cmd, "cwd": cwd, "when": when, "why_skip": why_skip, "env": env or ENV}
 
 
 def steps(fast: bool):
@@ -33,6 +35,9 @@ def steps(fast: bool):
     pytest_args = [PY, "-m", "pytest", "-q"] + (["-m", "not golden"] if fast else [])
     return [
         step("python imports", [PY, "-c", "import scoring_engine, scoring_engine.service; print('ok', scoring_engine.ENGINE_VERSION)"]),
+        step("python imports (engine v0_4)",
+             [PY, "-c", "import scoring_engine, scoring_engine.service; print('ok', scoring_engine.ENGINE_VERSION)"],
+             env=ENV_V04),
         step("source integrity (sources/team_v0.3 unchanged)", [PY, "scripts/manifest.py", "verify"],
              when=has_src, why_skip="sources/team_v0.3 없음"),
         step("original v0.3 tests: test_weights.py", [PY, "test_weights.py"], cwd=ORIGINAL_ENGINE,
@@ -41,6 +46,9 @@ def steps(fast: bool):
              when=has_src, why_skip="sources/team_v0.3 없음"),
         step("pytest: imports, integrity, canonical engine, data schema" + ("" if fast else ", golden regression"),
              pytest_args),
+        # v0.4(분석 반경 300·500·1,000m): golden v0.3 대비 버전만 다름·golden v0.4·v0.3 웹 경로 대조 (약 3~5분)
+        step("pytest: engine v0_4 (radius 300/500/1000)",
+             [PY, "-m", "pytest", "-q", "tests/engine_v0_4"] + (["-m", "not golden"] if fast else []), env=ENV_V04),
         # ── 향후 단계 (폴더가 생기면 자동 실행) ──
         step("backend tests", [PY, "-m", "pytest", "-q", "backend"], when=has_backend,
              why_skip="backend 미구현"),
@@ -60,7 +68,7 @@ def main() -> int:
             continue
         print(f"\n━━ {s['name']}", flush=True)
         t = time.perf_counter()
-        rc = subprocess.call(s["cmd"], cwd=s["cwd"], env=ENV, shell=(os.name == "nt" and s["cmd"][0] == "npm"))
+        rc = subprocess.call(s["cmd"], cwd=s["cwd"], env=s["env"], shell=(os.name == "nt" and s["cmd"][0] == "npm"))
         results.append((s["name"], "PASS" if rc == 0 else "FAIL", f"exit {rc}" if rc else "",
                         time.perf_counter() - t))
     print("\n" + "═" * 72)

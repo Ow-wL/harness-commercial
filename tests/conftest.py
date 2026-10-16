@@ -5,6 +5,13 @@ import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
+# 엔진은 프로세스당 하나(D-024). 기본(v0_3) 실행은 v0.4 폴더를 모으지 않고,
+# v0_4 실행은 루트의 v0.3 테스트(golden v0.3·사본 무결성 등)를 모으지 않는다.
+if os.environ.get("SCORING_ENGINE_VERSION", "v0_3") == "v0_4":
+    collect_ignore_glob = ["test_*.py"]
+else:
+    collect_ignore = ["engine_v0_4"]          # 폴더째 제외(그 conftest 도 읽지 않는다)
+
 
 @pytest.fixture(scope="session")
 def service():

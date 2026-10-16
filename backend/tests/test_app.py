@@ -155,4 +155,4 @@ def test_real_service_scoped_warm(real_service):
         assert app.state.service is real_service
     stats = real_service.cache.stats()
     assert stats["competition_entries"] == max(before, 1) and stats["location_entries"] >= 1
-    assert "R10406" in real_service.cache._competition
+    assert ("R10406", 500) in real_service.cache._competition          # 키 = (업종, 반경), D-024
