@@ -15,8 +15,10 @@ import {
 } from '../lib/compare.ts'
 import { COMPARE_IDS } from '../lib/compareState.ts'
 import { BOTTLENECK_WARN_BELOW, formatRatio, formatScore, locationName, nearestStation } from '../lib/format.ts'
+import { compareBand } from '../lib/attentionBand.ts'
 import { dataLimits, displayWarnings } from '../lib/warnings.ts'
 import { AnalysisResult } from './AnalysisResult.tsx'
+import { AttentionBand } from './AttentionBand.tsx'
 import { DataSources } from './DataSources.tsx'
 import { Icon } from './Icon.tsx'
 import { LocationSummary } from './LocationSummary.tsx'
@@ -63,6 +65,7 @@ export function CompareResult({
         </h1>
         <p className="compare__lead">같은 업종({biz})으로 분석한 두 위치의 점수와 근거를 나란히 봅니다.</p>
       </div>
+      <AttentionBand lines={compareBand(a, b)} moreTarget="compare-warnings" />
 
       <LocationCard side="A" analysis={a} address={addresses?.A} onShowDetail={onShowDetail} />
       <LocationCard side="B" analysis={b} address={addresses?.B} onShowDetail={onShowDetail} onReselect={onReselect} />
@@ -261,7 +264,7 @@ function DiffCell({ a, b, footnoteId }: { a: number | null; b: number | null; fo
 
 /** 점수 비교 표 (§5.2) + 같은 구·동·반경 겹침 안내 (§5.3) + 종합 계산 구성 각주 (§5.4) */
 function ScoreComparison({ a, b }: { a: AnalyzeResponse; b: AnalyzeResponse }) {
-  const titleId = useId()
+  const titleId = COMPARE_IDS.scoreTitle                   // 주의 요약 띠의 › 대상 (8-C1a)
   const footnoteId = useId()
   const radiusM = a.result.meta.분석반경_m
   const shared = sharedPerspectives(a, b)
@@ -361,7 +364,7 @@ function ScoreComparison({ a, b }: { a: AnalyzeResponse; b: AnalyzeResponse }) {
 
 /** 미산출·데이터 차이 (§5.4). 실제 미산출 관점·데이터 충족률에서 만든다. 해당이 없으면 섹션을 두지 않는다 */
 function NotComputed({ a, b }: { a: AnalyzeResponse; b: AnalyzeResponse }) {
-  const titleId = useId()
+  const titleId = COMPARE_IDS.notComputedTitle
   const notices = [...notComputedNotices('A', a), ...notComputedNotices('B', b)]
   const coverageA = a.result.종합.데이터_충족률
   const coverageB = b.result.종합.데이터_충족률
@@ -388,7 +391,7 @@ function NotComputed({ a, b }: { a: AnalyzeResponse; b: AnalyzeResponse }) {
 
 /** 주의할 점 (§5.5): 위치별로 엔진 경고(병목 문장만 표시용) + 데이터 한계. 같은 문장이라도 합치지 않는다 */
 function Warnings({ a, b }: { a: AnalyzeResponse; b: AnalyzeResponse }) {
-  const titleId = useId()
+  const titleId = COMPARE_IDS.warningsTitle
   return (
     <section className="compare__section" aria-labelledby={titleId}>
       <h2 id={titleId} className="compare__section-title">

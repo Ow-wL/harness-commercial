@@ -11,6 +11,7 @@ import {
 import type { AnalyzeResponse, NearbyStoresResponse } from './api/schemas.ts'
 import { AnalysisResult } from './components/AnalysisResult.tsx'
 import { AnalysisEmpty, AnalysisLoading } from './components/AnalysisStatus.tsx'
+import { BandPeek } from './components/AttentionBand.tsx'
 import { ComparePanel, CompareSheet } from './components/ComparePanel.tsx'
 import { CompareDetail, CompareResult, StoreSideSwitch } from './components/CompareResult.tsx'
 import { ConditionPanel, type BusinessesState } from './components/ConditionPanel.tsx'
@@ -26,6 +27,7 @@ import type { CompareSide } from './lib/compare.ts'
 import { COMPARE_IDS, sameCoordinates, type CompareState, type CompareView } from './lib/compareState.ts'
 import { errorView, type ErrorAction } from './lib/errorView.ts'
 import { formatDistance, formatRadius, locationName, nearestStation, storeAddress, storeName } from './lib/format.ts'
+import { singleBand } from './lib/attentionBand.ts'
 import { ResultCache } from './lib/resultCache.ts'
 import { useNearbyRequest, type RadiusProblem } from './lib/useNearbyRequest.ts'
 import './App.css'
@@ -1059,6 +1061,8 @@ function App() {
                   '지도를 눌러 위치를 고르세요'
                 )}
               </p>
+              {/* 주의 요약 띠 첫 줄 (8-C1a) — 지금 선택과 같은 좌표의 결과일 때만 */}
+              {resultIsForSelection && analysis.status === 'success' && <BandPeek lines={singleBand(analysis.response)} />}
               {/* 참고 주소 한 줄(말줄임, 작은 높이에서는 숨김 — ReferenceAddress.css). 좌표 키가 패널·결과와 같아 조회는 1회 */}
               <ReferenceAddress sdk={sdk} point={location} />
               <button

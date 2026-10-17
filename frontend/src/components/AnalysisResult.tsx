@@ -1,6 +1,9 @@
 import type { ReactNode } from 'react'
 import type { AnalyzeResponse } from '../api/schemas.ts'
+import { singleBand } from '../lib/attentionBand.ts'
 import { locationName } from '../lib/format.ts'
+import { headline } from '../lib/headline.ts'
+import { AttentionBand } from './AttentionBand.tsx'
 import { BeginnerAccess } from './BeginnerAccess.tsx'
 import { CoverageMeta } from './CoverageMeta.tsx'
 import { DataSources } from './DataSources.tsx'
@@ -12,7 +15,7 @@ import './AnalysisResult.css'
 
 /**
  * 분석 결과 (DESIGN.md §6 위계, §9 progressive disclosure).
- * 요약(종합·5대 관점·메타) → 주의할 점 → 초보자 접근성 → 반경 안 같은 업종 점포 → 세부 분석(접힘) → 데이터 출처·면책.
+ * 헤드라인·주의 요약 띠(8-C1a) → 요약(종합·5대 관점·메타) → 주의할 점 → 초보자 접근성 → 반경 안 같은 업종 점포 → 세부 분석(접힘) → 데이터 출처·면책.
  * 입력은 AnalyzeResponseSchema로 검증된 값만 받는다. 엔진 값은 그대로 보여 준다.
  */
 export function AnalysisResult({
@@ -33,6 +36,8 @@ export function AnalysisResult({
         {titlePrefix && `${titlePrefix} · `}
         {locationName(context)} · {result.meta.업종} 분석
       </h1>
+      <p className="result__headline">{headline(result)}</p>
+      <AttentionBand lines={singleBand(analysis)} moreTarget="warnings" />
       <div className="result__summary">
         <OverallScore summary={result.종합} indicators={result.지표} />
         <PerspectiveScores summary={result.종합} indicators={result.지표} />

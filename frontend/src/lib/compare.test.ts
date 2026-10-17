@@ -102,6 +102,15 @@ describe('같은 구·동 판정과 안내', () => {
     )
   })
 
+  it('같은 행정동 안내의 경쟁성 반경은 응답의 분석 반경을 쓴다(8-D3 이후 1km 등, 고정 500m 아님)', () => {
+    const at1km = (r: typeof A) => {
+      const c = structuredClone(r)
+      ;(c.result.meta as { 분석반경_m: number }).분석반경_m = 1000
+      return c
+    }
+    expect(sameAreaNotice(at1km(A), at1km(SAME_DONG))).toContain('경쟁성(반경 1km)과 입지성(좌표)')
+  })
+
   it('같은 구·다른 동: 시장성·안정성만 같다고 안내한다', () => {
     const otherDong = withContext(SAME_DONG, { dong_name: '부평2동', label: '부평구 부평2동' })
     expect(sharedPerspectives(A, otherDong).map((s) => s.key)).toEqual(['market', 'stability'])

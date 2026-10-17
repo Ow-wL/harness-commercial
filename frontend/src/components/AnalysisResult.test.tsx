@@ -252,3 +252,38 @@ describe('AnalysisResult — 관점 score=null 인 정상 엔진 결과', () => 
     for (const text of analysis.result.경고.slice(1)) expect(warnings.getByText(text)).toBeInTheDocument()
   })
 })
+
+describe('AnalysisResult — 헤드라인·주의 요약 띠 (8-C1a)', () => {
+  it('제목 바로 아래 헤드라인, 그 아래 띠(부평역 PC방: 학교 0곳 1줄), 그다음 종합 점수', () => {
+    renderResult()
+    const title = screen.getByRole('heading', { level: 1 })
+    const head = screen.getByText('고객성이 가장 높고, 경쟁성이 가장 낮습니다')
+    const band = screen.getByRole('region', { name: '주의 요약' })
+    const overall = screen.getByRole('region', { name: '종합 적합도' })
+    expect(title.compareDocumentPosition(head) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(head.compareDocumentPosition(band) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(band.compareDocumentPosition(overall) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    const links = within(band).getAllByRole('link')
+    expect(links).toHaveLength(1)
+    expect(links[0]).toHaveAccessibleName('안내: 학교 주변 규제 업종 · 300m 안 초·중·고 0곳')
+    expect(links[0]).toHaveAttribute('href', '#access-title')
+  })
+
+  it('띠 줄을 누르면 그 섹션 제목으로 포커스가 옮겨 간다', () => {
+    renderResult()
+    fireEvent.click(within(screen.getByRole('region', { name: '주의 요약' })).getByRole('link'))
+    expect(document.activeElement).toBe(document.getElementById('access-title'))
+  })
+
+  it('부평역 네일숍: 병목 → 미산출 → 기타 3줄, 주의할 점 섹션 문장은 그대로', () => {
+    render(<AnalysisResult analysis={AnalyzeResponseSchema.parse(nailShopFixture)} />)
+    const band = screen.getByRole('region', { name: '주의 요약' })
+    expect(within(band).getAllByRole('link').map((a) => a.getAttribute('aria-label'))).toEqual([
+      '경고: 경쟁성 1.2점 · 병목 기준(25점 미만) — 종합과 별개 위험 요인',
+      '경고: 안정성 미산출 · 종합에서 제외 · 신뢰도 낮음',
+      '경고: 네일숍 제도 진입장벽 높음: 본인 미용사(네일) 면허 필요.',
+    ])
+    const warnings = screen.getByRole('region', { name: '주의할 점' })
+    expect(warnings).toHaveTextContent('계산 불가 지표: 안정성')               // 원문은 섹션에 그대로
+  })
+})

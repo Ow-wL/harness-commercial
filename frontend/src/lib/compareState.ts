@@ -29,6 +29,10 @@ export const COMPARE_IDS = {
   storeSideB: 'compare-store-side-b',
   bError: 'compare-b-error',
   sheetAction: 'compare-sheet-action',
+  // 주의 요약 띠의 › 가 옮겨 가는 비교 섹션 제목 (8-C1a)
+  scoreTitle: 'compare-score-title',
+  notComputedTitle: 'compare-not-computed-title',
+  warningsTitle: 'compare-warnings-title',
 } as const
 
 /** 좌표가 정확히 같은지 (지도 클릭은 소수 6자리로 반올림된 값, 입력은 사용자가 쓴 숫자 그대로) */

@@ -1,0 +1,90 @@
+/* 주의 요약 띠 (8-C1a, docs/UX_REDESIGN.md 2.2). 지금 토큰만 쓴다(새 색 없음). 줄 = 터치 영역 44px */
+.band {
+  margin: 0 0 var(--space-4);
+}
+
+.band__list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.band__item {
+  --tone: var(--color-warning);
+  --tone-subtle: var(--color-warning-subtle);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 44px;
+  padding: 0 var(--space-3);
+  border-left: 3px solid var(--tone);
+  border-radius: var(--radius-md);
+  background: var(--tone-subtle);
+  color: var(--color-text-primary);
+  font: var(--text-small);
+  text-decoration: none;
+}
+
+.band__item--info {
+  --tone: var(--color-info);
+  --tone-subtle: var(--color-info-subtle);
+}
+
+.band__item:hover .band__text {
+  text-decoration: underline;
+}
+
+.band__mark {
+  flex: none;
+  width: 16px;
+  font-weight: 700;
+  text-align: center;
+  color: var(--tone, var(--color-warning));
+}
+
+.band__text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.band__go {
+  flex: none;
+  color: var(--color-text-secondary);
+}
+
+.band__more {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  font: var(--text-label);
+  color: var(--color-accent);
+}
+
+/* 헤드라인 1줄 (2.3) — 제목 바로 아래 */
+.result__headline,
+.compare__headline {
+  margin: 0 0 var(--space-3);
+  font: var(--text-card-title);
+  color: var(--color-text-primary);
+}
+
+/* 모바일 지도 sheet peek: 띠 첫 줄만 */
+.band-peek {
+  --tone: var(--color-warning);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  font: var(--text-small);
+  color: var(--color-text-primary);
+}
+
+.band-peek--info {
+  --tone: var(--color-info);
+}

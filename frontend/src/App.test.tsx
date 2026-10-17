@@ -7,6 +7,7 @@ import fixture from './fixtures/bupyeong-pcbang.json'
 import nearbyFixture from './fixtures/bupyeong-pcbang-nearby.json'
 import guwolFixture from './fixtures/compare-guwol-pcbang.json'
 import guwolNearbyFixture from './fixtures/compare-guwol-pcbang-nearby.json'
+import ganghwaPeekFixture from './fixtures/compare-ganghwa-pcbang.json'
 import songdoFixture from './fixtures/compare-songdo-pcbang.json'
 import songdoNearbyFixture from './fixtures/compare-songdo-pcbang-nearby.json'
 import { brokenControls, brokenReferences, duplicateIds, expandAll } from './test/a11yRefs.ts'
@@ -3022,5 +3023,37 @@ describe('분석 반경 (8-D3, D-024, docs/UX_REDESIGN.md 4.3~4.6)', () => {
       await startCompareAt(V04, [ok(at(fixture, 500)), ok(at(guwolFixture, 500, 'mvp-0.3'))], [ok(nearbyAt(nearbyFixture, 500))])
       expect(await within(bCard()).findByText('분석 결과를 표시할 수 없습니다')).toBeInTheDocument()
     })
+  })
+})
+
+describe('모바일 지도 sheet — 주의 요약 띠 첫 줄 (8-C1a)', () => {
+  const ok = (body: unknown) => ({ status: 200, body })
+
+  it('단일 결과: sheet 에 띠 첫 줄만(지금 선택과 같은 좌표의 결과일 때)', async () => {
+    mockApi({ analyze: [ok(fixture)], nearby: [ok(nearbyFixture)] })
+    render(<App />)
+    await selectBupyeongPcBang()
+    fireEvent.click(analyzeButton())
+    await screen.findByRole('heading', { level: 1, name: '부평구 부평1동 · PC방 분석' })
+    const sheet = document.querySelector<HTMLElement>('.map-sheet')!
+    expect(within(sheet).getByText('학교 주변 규제 업종 · 300m 안 초·중·고 0곳')).toBeInTheDocument()
+    expect(sheet.querySelectorAll('.band-peek')).toHaveLength(1)
+  })
+
+  it('비교 성공: sheet 에 비교 띠 첫 줄(†)', async () => {
+    mockApi({ analyze: [ok(fixture), ok(ganghwaPeekFixture)], nearby: [ok(nearbyFixture)] })
+    render(<App />)
+    await selectBupyeongPcBang()
+    fireEvent.click(analyzeButton())
+    await screen.findByRole('heading', { level: 1, name: '부평구 부평1동 · PC방 분석' })
+    fireEvent.click(screen.getByRole('button', { name: '다른 위치와 비교' }))
+    const bCard = () => within(screen.getByRole('region', { name: '두 위치 비교 · PC방' })).getByRole('region', { name: 'B 비교 위치' })
+    fireEvent.change(within(bCard()).getByLabelText('B 위도'), { target: { value: '37.7466' } })
+    fireEvent.change(within(bCard()).getByLabelText('B 경도'), { target: { value: '126.4878' } })
+    fireEvent.click(within(bCard()).getByRole('button', { name: 'B 위치로 선택' }))
+    fireEvent.click(within(bCard()).getByRole('button', { name: 'B 분석하기' }))
+    await screen.findByRole('table', { name: /종합·5대 관점 점수 비교/ })
+    const sheet = document.querySelector<HTMLElement>('.map-sheet')!
+    expect(within(sheet).getByText('종합 계산 구성이 다릅니다 · A 5개 관점, B 4개(안정성 미산출)')).toBeInTheDocument()
   })
 })

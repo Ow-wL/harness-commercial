@@ -101,6 +101,7 @@ describe('점수 읽는 법 (DESIGN.md §8.9b)', () => {
     const region = screen.getByRole('region', { name: '점수 읽는 법' })
     expect(within(region).getAllByRole('heading').map((h) => h.textContent)).toEqual(READING_TOPICS)
     expect(region).toHaveTextContent('인천 내 순위나 "상위 N%"가 아닙니다')
+    expect(region).toHaveTextContent('이 위치에서 산출한 관점 점수끼리 비교한 표현입니다. 다른 위치와 비교한 순위가 아닙니다.')
     expect(region).toHaveTextContent('검증한 값이 아닙니다(실증 전)')
     expect(region).toHaveTextContent('창업 성공 확률이나 매출·수익을 예측하지 않습니다')
 

@@ -5,7 +5,9 @@ import type { ErrorAction } from '../lib/errorView.ts'
 import { useSearchFocusRecovery } from '../lib/useSearchFocusRecovery.ts'
 import type { NaverMapsApi } from '../map/naverMaps.ts'
 import { AddressSearch } from './AddressSearch.tsx'
+import { compareBand } from '../lib/attentionBand.ts'
 import { formatScore, locationName } from '../lib/format.ts'
+import { BandPeek } from './AttentionBand.tsx'
 import { CoordinateForm } from './CoordinateForm.tsx'
 import { ErrorBlock } from './ErrorBlock.tsx'
 import { Icon } from './Icon.tsx'
@@ -212,6 +214,8 @@ export function CompareSheet({
           </>
         )}
       </p>
+      {/* 비교 요약의 주의 띠 첫 줄 (8-C1a) */}
+      {compare.status === 'success' && <BandPeek lines={compareBand(a, compare.response)} />}
       {compare.status === 'picking' && compare.sameAsA && (
         <p className="map-sheet__sub" role="alert">
           A와 같은 위치입니다. 다른 위치를 고르세요.

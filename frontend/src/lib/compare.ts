@@ -3,7 +3,7 @@
  * 여기서 만드는 값은 모두 표시용이다: 점수 차이·반경 겹침 거리는 점수에 쓰이지 않는다.
  */
 import { PERSPECTIVE_KEYS, type AnalyzeContext, type AnalyzeResponse, type EngineResult } from '../api/schemas.ts'
-import { notComputedText, type Indicator } from './format.ts'
+import { formatRadius, notComputedText, type Indicator } from './format.ts'
 
 type PerspectiveKey = (typeof PERSPECTIVE_KEYS)[number]
 type Summary = EngineResult['종합']
@@ -91,8 +91,11 @@ export function sameAreaNotice(a: AnalyzeResponse, b: AnalyzeResponse): string |
       ? `두 위치가 같은 행정동(${a.context.gu_name} ${a.context.dong_name})에 있습니다.`
       : `두 위치가 같은 구(${a.context.gu_name})에 있습니다.`
   const same = parts ? ` ${parts} 데이터라 두 위치 점수가 같습니다.` : ''
+  // 반경은 응답의 분석 반경(8-D3 이후 300·500·1,000m) — 고정값을 쓰지 않는다
   const differs =
-    relation === 'same-dong' ? ' 이 비교에서 위치 차이는 경쟁성(반경 500m)과 입지성(좌표)에만 나타납니다.' : ''
+    relation === 'same-dong'
+      ? ` 이 비교에서 위치 차이는 경쟁성(반경 ${formatRadius(a.result.meta.분석반경_m)})과 입지성(좌표)에만 나타납니다.`
+      : ''
   return where + same + differs
 }
 
