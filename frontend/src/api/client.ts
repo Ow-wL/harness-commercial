@@ -1,6 +1,6 @@
 /**
  * Backend API 호출 (TASKS 4-4). frontend는 이 경로만 부른다: GET /businesses, POST /analyze,
- * POST /nearby-stores(4차, 분석 성공 뒤 같은 좌표·업종으로 반경 안 동종 점포).
+ * POST /nearby-stores(4차, 분석 성공 뒤 같은 좌표·업종으로 반경 안 동종 점포), GET /health(8-D3, 반경 광고만).
  * 개발 서버에서는 vite proxy가 같은 경로를 FastAPI로 넘긴다(vite.config.ts).
  *
  * 모든 응답은 schemas.ts의 Zod schema로 검증한다. 검증 실패는 조용히 넘기지 않고
@@ -12,10 +12,12 @@ import {
   AnalyzeResponseSchema,
   BusinessCatalogSchema,
   ErrorResponseSchema,
+  HealthSchema,
   NearbyStoresResponseSchema,
   type AnalyzeResponse,
   type BusinessCatalog,
   type ErrorResponse,
+  type Health,
   type NearbyStoresResponse,
 } from './schemas.ts'
 
@@ -26,8 +28,15 @@ export type ApiFailure =
 
 export type ApiResult<T> = { ok: true; data: T } | { ok: false; failure: ApiFailure }
 
-/** POST /analyze 요청 body (backend AnalyzeRequest 중 이 화면이 쓰는 필드). */
-export type AnalyzeRequest = { lat: number; lng: number; biz_code: string }
+/**
+ * POST /analyze 요청 body (backend AnalyzeRequest 중 이 화면이 쓰는 필드).
+ * radius_m(8-D3): 서버가 반경을 2개 이상 광고할 때만 넣는다. 없으면 서버 기본 500m (구버전·새 v0.3 서버에는 보내지 않는다).
+ */
+export type AnalyzeRequest = { lat: number; lng: number; biz_code: string; radius_m?: number }
+
+/** 요청이 기대하는 분석 반경 (radius_m 이 없으면 서버 기본 500m) */
+export const DEFAULT_RADIUS_M = 500
+export const requestRadius = (req: AnalyzeRequest): number => req.radius_m ?? DEFAULT_RADIUS_M
 
 function schemaFailure(endpoint: string, status: number, issues: unknown): ApiResult<never> {
   console.error(`[api] ${endpoint} 응답이 schema와 다릅니다 (status ${status})`, issues)
@@ -59,6 +68,11 @@ async function request<T>(endpoint: string, schema: z.ZodType<T>, init: RequestI
   const err = ErrorResponseSchema.safeParse(body)
   if (err.success) return { ok: false, failure: { kind: 'api', status: res.status, error: err.data.error } }
   return schemaFailure(endpoint, res.status, err.error.issues)
+}
+
+/** GET /health — 반경 광고(engine)만 쓴다 (8-D3). */
+export function fetchHealth(signal?: AbortSignal): Promise<ApiResult<Health>> {
+  return request('/health', HealthSchema, { signal })
 }
 
 export function fetchBusinesses(signal?: AbortSignal): Promise<ApiResult<BusinessCatalog>> {

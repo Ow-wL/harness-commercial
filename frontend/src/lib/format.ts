@@ -83,6 +83,11 @@ export function formatDistance(m: number): string {
   return `${m.toLocaleString('ko-KR')}m`
 }
 
+/** 분석 반경 표기 (8-D3): 1,000m 이상은 km — 300m · 500m · 1km */
+export function formatRadius(m: number): string {
+  return m >= 1000 && m % 1000 === 0 ? `${m / 1000}km` : `${m.toLocaleString('ko-KR')}m`
+}
+
 /** 동종 점포 표시 문구 (DESIGN.md §8.14). 상호·주소가 없으면 없다고 쓴다(지어내지 않는다). */
 export function storeName(store: { name: string | null }): string {
   return store.name ?? '상호 정보 없음'

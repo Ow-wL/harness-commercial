@@ -58,6 +58,7 @@ export interface NaverMarker extends NaverOverlay {
 
 export interface NaverCircle extends NaverOverlay {
   setCenter(latlng: NaverLatLng): void
+  setRadius(radius: number): void
 }
 
 export type NaverPolygon = NaverOverlay

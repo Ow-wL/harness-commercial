@@ -86,7 +86,7 @@ class FakeMap {
 }
 // SDK 오버레이는 `new`로 만든다 — 화살표 함수가 아닌 생성 가능한 함수
 const overlay = function () {
-  return { setMap: vi.fn(), setPosition: vi.fn(), setIcon: vi.fn(), setCenter: vi.fn() }
+  return { setMap: vi.fn(), setPosition: vi.fn(), setIcon: vi.fn(), setCenter: vi.fn(), setRadius: vi.fn() }
 }
 type FakeInfo = { open: Mock; close: Mock; setContent: Mock; setOptions: Mock; getContentElement: () => HTMLElement; content: HTMLElement }
 let infos: FakeInfo[] = []
@@ -1313,5 +1313,64 @@ describe('MapView — 비교 지도 맞춤 (8-B2, D-022 순위 1·5·6·7·8)', 
     }
     expect(view.map.setZoom.mock.calls.length).toBe(zooms)
     expect(view.map.zoom).toBe(z)
+  })
+})
+
+describe('MapView — 분석 반경 (8-D3, D-022 순위 3)', () => {
+  const A = { lat: 37.4894, lng: 126.7246 }
+  const B = { lat: 37.4475, lng: 126.7015 }
+  const circles = () => vi.mocked(fakeSdk.Circle).mock.results.map((r) => r.value as { setRadius: Mock })
+  const circleRadii = () => vi.mocked(fakeSdk.Circle).mock.calls.map(([o]) => (o as { radius: number }).radius)
+  const cmp = (location: { lat: number; lng: number } | null): MapCompare => ({
+    location,
+    tone: 'selected',
+    dong: null,
+    guide: 'B 위치를 고르세요',
+  })
+  /** 원 하나가 단일 완료 조건(원 ⊂ U, 지름 ≥ U 짧은 변 절반)인지 — 반경 r 로 잰다 */
+  const singleDoneAt = (map: FakeMap, p: { lat: number; lng: number }, r: number) => {
+    const b = map.getBounds()
+    const bounds = { s: b.getSW().lat(), n: b.getNE().lat(), w: b.getSW().lng(), e: b.getNE().lng() }
+    const rect = boxToRect(circleBox(p.lat, p.lng, r), { bounds, w: map.size.w, h: map.size.h })
+    const u = usableArea(map.size, [
+      { x: map.size.w - 60, y: 10, w: 50, h: 79 },
+      { x: map.size.w - 168, y: map.size.h - 27, w: 158, h: 17 },
+    ])
+    return satisfiesSingle(rect, u)
+  }
+
+  it('원은 radiusM 으로 만들고(생략하면 500), 범례에 그 반경을 쓴다', async () => {
+    await mount(props({ selected: A, radiusM: 1000 }))
+    expect(circleRadii()).toEqual([1000])
+    expect(screen.getByRole('list', { name: '지도 범례' })).toHaveTextContent('반경 1km')
+  })
+
+  it('반경을 바꾸면 있는 원의 반경을 바로 바꾸고, 잠금을 풀고 새 원에 맞춘다(새 위치와 같은 규칙)', async () => {
+    const view = await mount(props({ selected: A, radiusM: 500 }))
+    expect(singleDoneAt(view.map, A, 500)).toBe(true)
+    fireMap('zooming')                                                  // 사용자 조작 → 잠금
+    view.rerender(<MapView {...props({ selected: A, radiusM: 1000 })} />)
+    expect(circles()[0]!.setRadius).toHaveBeenLastCalledWith(1000)
+    expect(circleRadii()).toHaveLength(1)                               // 새로 만들지 않는다
+    expect(singleDoneAt(view.map, A, 1000)).toBe(true)                  // 잠금이어도 반경 변경은 맞춘다(순위 3 > 7)
+    expect(screen.getByRole('list', { name: '지도 범례' })).toHaveTextContent('반경 1km')
+  })
+
+  it('같은 반경으로 다시 그리면 움직이지 않는다', async () => {
+    const view = await mount(props({ selected: A, radiusM: 300 }))
+    const zooms = view.map.setZoom.mock.calls.length
+    view.rerender(<MapView {...props({ selected: A, radiusM: 300 })} />)
+    expect(view.map.setZoom.mock.calls.length).toBe(zooms)
+    expect(circles()[0]!.setRadius).not.toHaveBeenCalled()
+  })
+
+  it('비교 중이면 A·B 원을 모두 바꾸고 B 선택과 같은 규칙(순위 5)으로 맞춘다', async () => {
+    const view = await mount(props({ selected: A, compare: cmp(B), radiusM: 500 }))
+    view.rerender(<MapView {...props({ selected: A, compare: cmp(B), radiusM: 300 })} />)
+    expect(circles()[0]!.setRadius).toHaveBeenLastCalledWith(300)
+    expect(circles()[1]!.setRadius).toHaveBeenLastCalledWith(300)
+    expect(screen.getByRole('list', { name: '지도 범례' })).toHaveTextContent('A 반경 300m')
+    expect(screen.getByRole('list', { name: '지도 범례' })).toHaveTextContent('B 반경 300m')
+    expect(view.map.setZoom).toHaveBeenCalled()
   })
 })

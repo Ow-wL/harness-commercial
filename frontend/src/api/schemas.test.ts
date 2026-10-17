@@ -7,6 +7,7 @@ import {
   BusinessCatalogSchema,
   EngineResultSchema,
   ErrorResponseSchema,
+  HealthSchema,
   USER_ERROR_CODES,
 } from './schemas.ts'
 
@@ -67,7 +68,7 @@ describe('EngineResultSchema — 계약 파손을 잡는다', () => {
     ['알 수 없는 top-level 필드', (r) => (r.extra = 1)],
     ['알 수 없는 raw 필드', (r) => (r.지표[1].raw.새_지표 = 1)],
     ['알 수 없는 세부지표 필드', (r) => (r.지표[0].breakdown[0].비고 = '')],
-    ['엔진 버전 변경', (r) => (r.meta.엔진버전 = 'mvp-0.4')],
+    ['알 수 없는 엔진 버전 (mvp-0.3·mvp-0.4만 허용, 8-D3)', (r) => (r.meta.엔진버전 = 'mvp-9.9')],
     ['관점 순서 변경', (r) => r.지표.reverse()],
     ['관점 4개', (r) => r.지표.pop()],
     ['점수 범위 밖 (101)', (r) => (r.지표[0].score = 101)],
@@ -211,4 +212,49 @@ describe('BusinessCatalogSchema', () => {
     mutate(c)
     expect(BusinessCatalogSchema.safeParse(c).success).toBe(false)
   })
+})
+
+// ─── 8-D3: 엔진 v0.4 결과·반경 광고·invalid_radius (D-024) ────────────
+describe('엔진 v0.4 golden (반경 300·1,000m) — 프런트 계약을 통과한다', () => {
+  for (const r of [300, 1000]) {
+    const dir = fileURLToPath(new URL(`../../../tests/golden/v0.4/r${r}/json/`, import.meta.url))
+    const files = readdirSync(dir).filter((f) => f.endsWith('.json')).sort()
+    it(`r${r}: 29개 모두 EngineResultSchema 통과, meta.분석반경_m = ${r}, 엔진버전 mvp-0.4`, () => {
+      expect(files).toHaveLength(GOLDEN_COUNT)
+      for (const f of files) {
+        const data = JSON.parse(readFileSync(join(dir, f), 'utf-8'))
+        const parsed = EngineResultSchema.safeParse(data)
+        expect(parsed.success, `${f}: ${JSON.stringify(parsed.error?.issues.slice(0, 2))}`).toBe(true)
+        expect(data.meta.분석반경_m).toBe(r)
+        expect(data.meta.엔진버전).toBe('mvp-0.4')
+      }
+    })
+  }
+})
+
+describe('HealthSchema — 서버 세 종류 (docs/UX_REDESIGN.md 4.6)', () => {
+  const base = { status: 'ok', service_ready: true, warm: { completed: 0, total: 29, done: false, failed: false, error: null } }
+  it.each([
+    ['구버전 서버(engine 없음)', base, undefined],
+    ['새 v0.3 서버', { ...base, engine: { version: 'mvp-0.3', radius_options: [500], default_radius_m: 500 } }, [500]],
+    ['v0.4 서버', { ...base, engine: { version: 'mvp-0.4', radius_options: [300, 500, 1000], default_radius_m: 500 } }, [300, 500, 1000]],
+  ])('%s를 받는다', (_, body, options) => {
+    const parsed = HealthSchema.parse(body)
+    expect(parsed.engine?.radius_options).toEqual(options)
+  })
+
+  it.each([
+    ['radius_options 가 숫자 배열이 아님', { engine: { version: 'mvp-0.4', radius_options: ['300'], default_radius_m: 500 } }],
+    ['engine 에 모르는 필드', { engine: { version: 'mvp-0.4', radius_options: [500], default_radius_m: 500, extra: 1 } }],
+    ['default_radius_m 없음', { engine: { version: 'mvp-0.4', radius_options: [500] } }],
+  ])('계약과 다른 engine(%s)은 거절한다', (_, body) => {
+    expect(HealthSchema.safeParse(body).success).toBe(false)
+  })
+})
+
+it('422 invalid_radius 를 오류 계약으로 받는다 (8-D2)', () => {
+  expect(USER_ERROR_CODES).toContain('invalid_radius')
+  expect(
+    ErrorResponseSchema.safeParse({ error: { code: 'invalid_radius', message: '지원하지 않는 분석 반경입니다(가능: 500m).' } }).success,
+  ).toBe(true)
 })

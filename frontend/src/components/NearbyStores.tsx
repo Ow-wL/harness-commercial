@@ -1,7 +1,7 @@
 import { useId, useState, type KeyboardEvent, type ReactNode } from 'react'
 import type { ApiFailure } from '../api/client.ts'
 import type { NearbyStoresResponse } from '../api/schemas.ts'
-import { formatDistance, storeAddress, storeName } from '../lib/format.ts'
+import { formatDistance, formatRadius, storeAddress, storeName } from '../lib/format.ts'
 import { Icon } from './Icon.tsx'
 import './NearbyStores.css'
 
@@ -71,7 +71,7 @@ export function NearbyStores({
     <section className="result-section" aria-labelledby="nearby-title" onKeyDown={onKeyDown}>
       <div className="result-section__head">
         <h2 id="nearby-title" className="result-section__title">
-          반경 {radiusM}m 안 같은 업종 점포
+          반경 {formatRadius(radiusM)} 안 같은 업종 점포
           {/* 구분자는 span 밖 텍스트로 — span 안 앞 공백은 접근 가능한 이름에서 사라진다 */}
           {place && (
             <>
@@ -120,7 +120,7 @@ export function NearbyStores({
             </p>
           )}
           {state.data.count === 0 ? (
-            <p className="result-section__empty">반경 {radiusM}m 안에 같은 업종 점포가 없습니다.</p>
+            <p className="result-section__empty">반경 {formatRadius(radiusM)} 안에 같은 업종 점포가 없습니다.</p>
           ) : (
             <>
               <ol id={listId} className="nearby__list" aria-label={`${place ? `${place} ` : ''}${bizName} 점포 목록`}>

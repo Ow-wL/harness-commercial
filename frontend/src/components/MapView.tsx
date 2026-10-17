@@ -36,6 +36,7 @@ import {
   type NaverMarker,
   type NaverPolygon,
 } from '../map/naverMaps.ts'
+import { formatRadius } from '../lib/format.ts'
 import { Icon } from './Icon.tsx'
 import './MapView.css'
 
@@ -79,6 +80,11 @@ export type MapStore = { id: string; name: string; address: string; distance: st
 export type MapViewProps = {
   /** 선택 지점. null이면 마커·반경 없음 */
   selected: LatLng | null
+  /**
+   * 분석 반경(m, 8-D3). A·B 원 반경·맞춤·범례에 쓴다. 생략하면 500. 바뀌면 원을 바로 바꾸고 새 원에 맞춘다
+   * (D-022 순위 3 — 새 위치와 같은 규칙, 잠금 해제. 비교 중 B가 있으면 B 선택과 같은 규칙)
+   */
+  radiusM?: number
   /** 'invalid' = 분석 불가 지점(회색 마커, 반경 원 없음, DESIGN.md §8.11) */
   markerTone: 'selected' | 'invalid'
   /** 분석이 끝난 행정동 (backend context). 경계를 강조한다 */
@@ -111,7 +117,7 @@ export type MapViewProps = {
 /** 인천 중심 초기 화면 (인천광역시청 부근) */
 const INCHEON_CENTER: LatLng = { lat: 37.4563, lng: 126.7052 }
 const INITIAL_ZOOM = 11
-/** 분석 반경 = 엔진 config.RADIUS_M (meta.분석반경_m) */
+/** 기본 분석 반경 = 엔진 config.RADIUS_M (meta.분석반경_m). 반경 선택(8-D3)이 있으면 radiusM prop */
 export const RADIUS_M = 500
 /** GL 벡터 지도(검수용 선택, 기본 끔 — `VITE_NAVER_MAP_GL=1`). 커스텀 스타일은 제품에 아직 적용하지 않는다(8-B1) */
 const MAP_GL = import.meta.env.VITE_NAVER_MAP_GL === '1'
@@ -145,12 +151,12 @@ function pointIcon(api: NaverMapsApi, kind: 'single' | 'A' | 'B', tone: 'selecte
 /** 반경 원 선 모양: A 짧은 대시, B 점 — 같은 반경을 선 모양으로 구분한다 (COMPARE_DESIGN.md 4.2) */
 const RADIUS_STROKE = { A: 'shortdash', B: 'dot' } as const
 
-/** 반경 500m 원 (§8.11) */
-function radiusCircle(api: NaverMapsApi, map: NaverMap, center: unknown, which: 'A' | 'B'): NaverCircle {
+/** 분석 반경 원 (§8.11, 기본 500m) */
+function radiusCircle(api: NaverMapsApi, map: NaverMap, center: unknown, which: 'A' | 'B', radius: number): NaverCircle {
   return new api.Circle({
     map,
     center,
-    radius: RADIUS_M,
+    radius,
     fillColor: token('--color-map-radius-fill'),
     fillOpacity: 1,
     strokeColor: token('--color-map-radius-stroke'),
@@ -327,6 +333,7 @@ const MESSAGES: Record<MapLoadErrorKind, { title: string; body: string }> = {
  */
 export function MapView({
   selected,
+  radiusM = RADIUS_M,
   markerTone,
   dong,
   interactive,
@@ -497,9 +504,11 @@ export function MapView({
   const selectedRef = useRef(selected)
   const comparingRef = useRef(compare !== null)
   const bLocationRef = useRef(compare?.location ?? null)
+  const radiusRef = useRef(radiusM)
   const focusNowRef = useRef(compare?.focus ?? null)
   useLayoutEffect(() => {
     selectedRef.current = selected
+    radiusRef.current = radiusM
     comparingRef.current = compare !== null
     bLocationRef.current = compare?.location ?? null
     focusNowRef.current = compare?.focus ?? null
@@ -545,9 +554,9 @@ export function MapView({
         map.panBy(new api.Point(pan.x, pan.y))
       }
       const a = selectedRef.current!
-      const boxA = circleBox(a.lat, a.lng, RADIUS_M)
+      const boxA = circleBox(a.lat, a.lng, radiusRef.current)
       const bLoc = bLocationRef.current
-      const boxB = bLoc ? circleBox(bLoc.lat, bLoc.lng, RADIUS_M) : boxA
+      const boxB = bLoc ? circleBox(bLoc.lat, bLoc.lng, radiusRef.current) : boxA
       switch (action.t) {
         case 'single': {
           const rect = boxToRect(boxA, view)
@@ -645,7 +654,7 @@ export function MapView({
       circleRef.current.setCenter(position)
       circleRef.current.setMap(map)
     } else {
-      circleRef.current = radiusCircle(api, map, position, 'A')
+      circleRef.current = radiusCircle(api, map, position, 'A', radiusRef.current)
     }
   }, [api, map, selected, markerTone, comparing])
 
@@ -677,9 +686,22 @@ export function MapView({
       bCircleRef.current.setCenter(position)
       bCircleRef.current.setMap(map)
     } else {
-      bCircleRef.current = radiusCircle(api, map, position, 'B')
+      bCircleRef.current = radiusCircle(api, map, position, 'B', radiusRef.current)
     }
   }, [api, map, bLat, bLng, bTone])
+
+  // 반경 변경(순위 3, 8-D3): 있는 원의 반경을 바로 바꾸고, 잠금을 풀어 새 원에 맞춘다 — 단일은 새 위치(순위 2)와 같은 규칙,
+  // 비교 중 B가 있으면 B 선택(순위 5)과 같은 규칙. 처음 렌더(값이 바뀌지 않음)에는 움직이지 않는다
+  const lastRadiusRef = useRef(radiusM)
+  useEffect(() => {
+    if (lastRadiusRef.current === radiusM) return
+    lastRadiusRef.current = radiusM
+    circleRef.current?.setRadius(radiusM)
+    bCircleRef.current?.setRadius(radiusM)
+    if (!api || !map) return
+    lockedRef.current = false
+    runFitRef.current(comparingRef.current && bLocationRef.current ? { t: 'b-select' } : { t: 'single', mode: 'auto' })
+  }, [api, map, radiusM])
 
   // B를 고르면(순위 5, 잠금 해제) 두 원이 함께 들어가는 zoom이 래스터 기준 13 이상이면 A∪B, 아니면 B 원을 맞춘다.
   // B를 지울 때(다시 고르기)는 옮기지 않는다
@@ -900,10 +922,10 @@ export function MapView({
                 <span className="map__legend-marker map__legend-marker--b" aria-hidden="true" />B 비교 위치
               </li>
               <li>
-                <span className="map__legend-radius" aria-hidden="true" />A 반경 {RADIUS_M}m
+                <span className="map__legend-radius" aria-hidden="true" />A 반경 {formatRadius(radiusM)}
               </li>
               <li>
-                <span className="map__legend-radius map__legend-radius--b" aria-hidden="true" />B 반경 {RADIUS_M}m
+                <span className="map__legend-radius map__legend-radius--b" aria-hidden="true" />B 반경 {formatRadius(radiusM)}
               </li>
             </>
           ) : (
@@ -914,7 +936,7 @@ export function MapView({
               </li>
               <li>
                 <span className="map__legend-radius" aria-hidden="true" />
-                반경 {RADIUS_M}m
+                반경 {formatRadius(radiusM)}
               </li>
             </>
           )}

@@ -15,6 +15,7 @@ export default defineConfig(({ mode }) => {
         '/businesses': backend,
         '/analyze': backend,
         '/nearby-stores': backend,
+        '/health': backend,                                // 8-D3: 반경 광고(engine.radius_options)
       },
       fs: {
         // 행정동 경계는 data/geo 원본을 그대로 읽는다 (frontend로 복사하지 않는다, DECISIONS D-009)

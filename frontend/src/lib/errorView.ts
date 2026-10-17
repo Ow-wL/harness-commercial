@@ -86,6 +86,16 @@ export function errorView(failure: ApiFailure): ErrorView {
         body: '바다·산·공터처럼 점포가 없는 곳은 분석하지 않습니다. 근처 상가 쪽으로 옮겨 보세요.',
         action: { kind: 'reselect-location', label: '위치 다시 선택' },
       }
+    case 'invalid_radius':
+      // 8-D3: 서버가 그 반경을 받지 않는다. 서버가 바뀐 경우는 App이 /health 를 다시 보고 500m로 복구한다(4.6 R2) —
+      // 이 화면은 복구하지 않는 경우(다시 봐도 그 반경을 광고) 남는다
+      return {
+        tone: 'warning',
+        placement: 'result',
+        title: '선택한 분석 반경을 지금 분석할 수 없습니다',
+        body: '잠시 후 다시 시도하거나 다른 반경을 골라 주세요.',
+        action: { kind: 'retry', label: '다시 시도', primary: true },
+      }
     case 'internal_error':
       return {
         tone: 'danger',

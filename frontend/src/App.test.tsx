@@ -36,6 +36,7 @@ vi.mock('./components/MapView.tsx', () => ({
     <div
       data-testid="map"
       data-selected={props.selected ? `${props.selected.lat},${props.selected.lng}` : ''}
+      data-radius={props.radiusM ?? ''}
       data-tone={props.markerTone}
       data-dong={props.dong ? `${props.dong.guCode} ${props.dong.dongName}` : ''}
       data-stores={props.stores ? String(props.stores.length) : ''}
@@ -101,16 +102,33 @@ const json = (status: number, body: unknown) =>
     headers: { 'Content-Type': typeof body === 'string' ? 'text/plain' : 'application/json' },
   })
 
-/** fetch mock: /businesses는 CATALOG, /analyze·/nearby-stores는 각자 차례대로 replies (분석 뒤 /nearby-stores가 없으면 네트워크 실패로 끝난다) */
+/** 구버전 서버(8-D2 이전, 현재 운영)의 GET /health — engine 필드가 없다 → 반경 선택 없음 (8-D3) */
+const OLD_HEALTH = { status: 'ok', service_ready: true, warm: { completed: 29, total: 29, done: true, failed: false, error: null } }
+
+/**
+ * fetch mock: /businesses는 CATALOG, /health는 health(기본 구버전 서버), /analyze·/nearby-stores는 각자 차례대로 replies
+ * (분석 뒤 /nearby-stores가 없으면 네트워크 실패로 끝난다). health 를 배열로 주면 차례대로(마지막 값을 계속) 쓴다
+ */
 function mockApi({
   businesses = { status: 200, body: CATALOG } as Reply,
   analyze = [] as Reply[],
   nearby = [] as Reply[],
+  health = { status: 200, body: OLD_HEALTH } as Reply | Reply[],
 } = {}) {
   const queue = [...analyze]
   const nearbyQueue = [...nearby]
+  const healthQueue = Array.isArray(health) ? [...health] : [health]
   const fetchMock = vi.fn(async (url: string) => {
-    const reply = url === '/businesses' ? businesses : url === '/nearby-stores' ? nearbyQueue.shift() : queue.shift()
+    const reply =
+      url === '/businesses'
+        ? businesses
+        : url === '/health'
+          ? healthQueue.length > 1
+            ? healthQueue.shift()
+            : healthQueue[0]
+          : url === '/nearby-stores'
+            ? nearbyQueue.shift()
+            : queue.shift()
     if (reply === undefined) throw new Error(`예상하지 못한 요청: ${url}`)
     if (reply === 'network-error') throw new TypeError('Failed to fetch')
     const { status, body } = await reply
@@ -2354,5 +2372,655 @@ describe('StrictMode: A/B 전체 결과를 열 때 스크롤 초기화 → 포�
     }
     expect(analyzeCalls(fetchMock)).toHaveLength(2)
     expect(nearbyCalls(fetchMock)).toHaveLength(2)
+  })
+})
+
+describe('분석 반경 (8-D3, D-024, docs/UX_REDESIGN.md 4.3~4.6)', () => {
+  const ok = (body: unknown) => ({ status: 200, body })
+  const engine = (version: string, radius_options: number[]) => ({
+    status: 200,
+    body: { ...OLD_HEALTH, engine: { version, radius_options, default_radius_m: 500 } },
+  })
+  const V04 = engine('mvp-0.4', [300, 500, 1000])
+  const NEW_V03 = engine('mvp-0.3', [500])
+  const OLD = { status: 200, body: OLD_HEALTH }
+  const invalidRadius = {
+    status: 422,
+    body: { error: { code: 'invalid_radius', message: '지원하지 않는 분석 반경입니다(가능: 500m).' } },
+  }
+
+  /** fixture 를 반경 r·엔진 버전으로 바꾼 사본 (점수는 그대로 — 화면 흐름만 본다) */
+  function at<T>(fx: T, r: number, version = 'mvp-0.4'): T {
+    const c = structuredClone(fx) as { result: { meta: Record<string, unknown>; 지표: { raw: Record<string, unknown> }[] } }
+    c.result.meta.분석반경_m = r
+    c.result.meta.엔진버전 = version
+    c.result.지표[2]!.raw.반경m = r
+    return c as T
+  }
+  function nearbyAt<T>(fx: T, r: number): T {
+    return { ...(structuredClone(fx) as object), radius_m: r } as T
+  }
+  const bodyOf = (call: unknown[]) => JSON.parse((call[1] as RequestInit).body as string)
+  const radiusGroup = () => screen.queryByRole('group', { name: '분석 반경' })
+  const chip = (label: string) => within(screen.getByRole('group', { name: '분석 반경' })).getByRole('button', { name: label })
+  const healthCalls = (f: Mock) => f.mock.calls.filter(([url]) => url === '/health')
+  const RESULT = { level: 1, name: '부평구 부평1동 · PC방 분석' } as const
+  const storesHeading = (r: string) => screen.findByRole('heading', { name: new RegExp(`반경 ${r} 안 같은 업종 점포`) })
+
+  async function analyzeAt(health: Reply | Reply[], analyzeReplies: Reply[], nearbyReplies: Reply[] = []) {
+    const fetchMock = mockApi({ health, analyze: analyzeReplies, nearby: nearbyReplies })
+    render(<App />)
+    await selectBupyeongPcBang()
+    await waitFor(() => expect(healthCalls(fetchMock).length).toBeGreaterThan(0))
+    return fetchMock
+  }
+
+  describe('서버 세 종류의 광고 (4.6 표, 테스트 (g))', () => {
+    it.each([
+      ['구버전 서버(engine 없음)', OLD],
+      ['새 v0.3 서버(radius_options [500])', NEW_V03],
+    ])('%s: 반경 선택을 숨기고 요청 body 에 radius_m 을 넣지 않는다', async (_, health) => {
+      const fetchMock = await analyzeAt(health, [ok(fixture)], [ok(nearbyFixture)])
+      fireEvent.click(analyzeButton())
+      expect(await screen.findByRole('heading', RESULT)).toBeInTheDocument()
+      expect(radiusGroup()).not.toBeInTheDocument()
+      expect(bodyOf(analyzeCalls(fetchMock)[0]!)).toEqual({ lat: 37.4894, lng: 126.7246, biz_code: 'R10406' })
+      await waitFor(() => expect(nearbyCalls(fetchMock)).toHaveLength(1))
+      expect(bodyOf(nearbyCalls(fetchMock)[0]!)).toEqual({ lat: 37.4894, lng: 126.7246, biz_code: 'R10406' })
+      expect(screen.getByTestId('map')).toHaveAttribute('data-radius', '500')
+    })
+
+    it('v0.4 서버(300·500·1,000): 반경 선택을 보이고 기본 500, 요청 body 에 radius_m 을 넣는다', async () => {
+      const fetchMock = await analyzeAt(V04, [ok(at(fixture, 500))], [ok(nearbyAt(nearbyFixture, 500))])
+      await waitFor(() => expect(radiusGroup()).toBeInTheDocument())
+      expect(within(radiusGroup()!).getAllByRole('button').map((b) => b.textContent)).toEqual(['300m', '500m', '1km'])
+      expect(chip('500m')).toHaveAttribute('aria-pressed', 'true')
+      fireEvent.click(analyzeButton())
+      expect(await screen.findByRole('heading', RESULT)).toBeInTheDocument()
+      expect(bodyOf(analyzeCalls(fetchMock)[0]!)).toEqual({ lat: 37.4894, lng: 126.7246, biz_code: 'R10406', radius_m: 500 })
+      await waitFor(() => expect(nearbyCalls(fetchMock)).toHaveLength(1))
+      expect(bodyOf(nearbyCalls(fetchMock)[0]!)).toMatchObject({ radius_m: 500 })
+    })
+
+    it('/health 실패는 광고 없음과 같다(반경 선택 없음, 지금과 같은 body)', async () => {
+      const fetchMock = await analyzeAt('network-error', [ok(fixture)], [ok(nearbyFixture)])
+      fireEvent.click(analyzeButton())
+      expect(await screen.findByRole('heading', RESULT)).toBeInTheDocument()
+      expect(radiusGroup()).not.toBeInTheDocument()
+      expect(bodyOf(analyzeCalls(fetchMock)[0]!)).toEqual({ lat: 37.4894, lng: 126.7246, biz_code: 'R10406' })
+    })
+  })
+
+  describe('반경 전환 상태표 (4.4)', () => {
+    it('S1 분석 전 변경: 요청 없이 지도 원만 바꾸고, 분석하면 그 반경으로 요청한다', async () => {
+      const fetchMock = await analyzeAt(V04, [ok(at(fixture, 1000))], [ok(nearbyAt(nearbyFixture, 1000))])
+      await waitFor(() => expect(radiusGroup()).toBeInTheDocument())
+      fireEvent.click(chip('1km'))
+      expect(chip('1km')).toHaveAttribute('aria-pressed', 'true')
+      expect(screen.getByTestId('map')).toHaveAttribute('data-radius', '1000')
+      expect(analyzeCalls(fetchMock)).toHaveLength(0)
+      fireEvent.click(analyzeButton())
+      expect(await screen.findByRole('heading', RESULT)).toBeInTheDocument()
+      expect(bodyOf(analyzeCalls(fetchMock)[0]!)).toMatchObject({ radius_m: 1000 })
+      expect(await storesHeading('1km')).toBeInTheDocument()
+    })
+
+    it('S3 결과에서 변경(미적중): 같은 조건을 새 반경으로 다시 분석하고, S2 이전 반경으로 돌아오면 요청 0', async () => {
+      const fetchMock = await analyzeAt(
+        V04,
+        [ok(at(fixture, 500)), ok(at(fixture, 1000))],
+        [ok(nearbyAt(nearbyFixture, 500)), ok(nearbyAt(nearbyFixture, 1000))],
+      )
+      await waitFor(() => expect(radiusGroup()).toBeInTheDocument())
+      fireEvent.click(analyzeButton())
+      expect(await storesHeading('500m')).toBeInTheDocument()
+
+      fireEvent.click(chip('1km'))
+      expect(screen.getByTestId('map')).toHaveAttribute('data-radius', '1000')   // 지도 원은 즉시
+      expect(await storesHeading('1km')).toBeInTheDocument()
+      expect(analyzeCalls(fetchMock).map(bodyOf).map((b) => b.radius_m)).toEqual([500, 1000])
+      expect(nearbyCalls(fetchMock).map(bodyOf).map((b) => b.radius_m)).toEqual([500, 1000])
+
+      fireEvent.click(chip('500m'))                                          // 캐시 적중
+      expect(await storesHeading('500m')).toBeInTheDocument()
+      expect(analyzeCalls(fetchMock)).toHaveLength(2)
+      expect(nearbyCalls(fetchMock)).toHaveLength(2)
+    })
+
+    it('S15 분석 중에는 반경을 누를 수 없다', async () => {
+      let respond!: (r: { status: number; body: unknown }) => void
+      const pendingReply = new Promise<{ status: number; body: unknown }>((r) => (respond = r))
+      await analyzeAt(V04, [pendingReply], [ok(nearbyAt(nearbyFixture, 500))])
+      await waitFor(() => expect(radiusGroup()).toBeInTheDocument())
+      fireEvent.click(analyzeButton())
+      for (const b of within(radiusGroup()!).getAllByRole('button')) expect(b).toBeDisabled()
+      await act(async () => respond(ok(at(fixture, 500))))
+      await screen.findByRole('heading', RESULT)
+      for (const b of within(radiusGroup()!).getAllByRole('button')) expect(b).toBeEnabled()
+    })
+
+    it('부분 캐시: 점포만 실패한 반경으로 돌아오면 분석은 즉시, 점포만 다시 조회한다', async () => {
+      const fetchMock = await analyzeAt(
+        V04,
+        [ok(at(fixture, 500)), ok(at(fixture, 300))],
+        ['network-error', ok(nearbyAt(nearbyFixture, 300)), ok(nearbyAt(nearbyFixture, 500))],
+      )
+      await waitFor(() => expect(radiusGroup()).toBeInTheDocument())
+      fireEvent.click(analyzeButton())
+      await screen.findByRole('heading', RESULT)
+      await waitFor(() => expect(nearbyCalls(fetchMock)).toHaveLength(1))
+      fireEvent.click(chip('300m'))
+      expect(await storesHeading('300m')).toBeInTheDocument()
+      fireEvent.click(chip('500m'))
+      expect(await storesHeading('500m')).toBeInTheDocument()
+      expect(analyzeCalls(fetchMock)).toHaveLength(2)                         // 분석은 캐시
+      expect(nearbyCalls(fetchMock).map(bodyOf).map((b) => b.radius_m)).toEqual([500, 300, 500])
+    })
+
+    it('S5 응답 반경 불일치인데 서버가 그 반경을 여전히 광고하면: 복구하지 않고 오류로 둔다(재분석 없음)', async () => {
+      const fetchMock = await analyzeAt(V04, [ok(at(fixture, 500))])
+      await waitFor(() => expect(radiusGroup()).toBeInTheDocument())
+      fireEvent.click(chip('1km'))
+      fireEvent.click(analyzeButton())
+      expect(await screen.findByText('분석 결과를 표시할 수 없습니다')).toBeInTheDocument()
+      await waitFor(() => expect(healthCalls(fetchMock)).toHaveLength(2))   // /health 재조회
+      expect(analyzeCalls(fetchMock)).toHaveLength(1)
+      expect(screen.queryByText('서버가 바뀌어 반경 500m로 다시 분석합니다')).not.toBeInTheDocument()
+      expect(radiusGroup()).toBeInTheDocument()
+    })
+
+    it('S8 반경 변경 실패: "이전 반경으로"는 캐시라 요청 0', async () => {
+      const fetchMock = await analyzeAt(
+        V04,
+        [ok(at(fixture, 500)), { status: 500, body: internalError }],
+        [ok(nearbyAt(nearbyFixture, 500))],
+      )
+      await waitFor(() => expect(radiusGroup()).toBeInTheDocument())
+      fireEvent.click(analyzeButton())
+      await storesHeading('500m')
+      fireEvent.click(chip('1km'))
+      expect(await screen.findByText('분석 중 문제가 생겼습니다')).toBeInTheDocument()
+      fireEvent.click(screen.getByRole('button', { name: '이전 반경(500m)으로 돌아가기' }))
+      expect(await storesHeading('500m')).toBeInTheDocument()
+      expect(analyzeCalls(fetchMock)).toHaveLength(2)
+      expect(nearbyCalls(fetchMock)).toHaveLength(1)
+    })
+  })
+
+  describe('복구 경로 R1·R2 (4.6, 테스트 (f))', () => {
+    it('R1 구버전 서버로 바뀜: 1km 요청 → 500m 응답 → /health 재조회(광고 없음) → 선택 숨김·500 복귀·재분석 1회(radius_m 없음)', async () => {
+      const fetchMock = await analyzeAt([V04, OLD], [ok(at(fixture, 500, 'mvp-0.3')), ok(fixture)], [ok(nearbyFixture)])
+      await waitFor(() => expect(radiusGroup()).toBeInTheDocument())
+      fireEvent.click(chip('1km'))
+      fireEvent.click(analyzeButton())
+      expect(await screen.findByText('서버가 바뀌어 반경 500m로 다시 분석합니다')).toBeInTheDocument()
+      expect(await screen.findByRole('heading', RESULT)).toBeInTheDocument()
+      expect(radiusGroup()).not.toBeInTheDocument()
+      expect(screen.getByTestId('map')).toHaveAttribute('data-radius', '500')
+      expect(analyzeCalls(fetchMock).map(bodyOf)).toEqual([
+        { lat: 37.4894, lng: 126.7246, biz_code: 'R10406', radius_m: 1000 },
+        { lat: 37.4894, lng: 126.7246, biz_code: 'R10406' },
+      ])
+      await waitFor(() => expect(nearbyCalls(fetchMock)).toHaveLength(1))
+      expect(bodyOf(nearbyCalls(fetchMock)[0]!)).toEqual({ lat: 37.4894, lng: 126.7246, biz_code: 'R10406' })
+    })
+
+    it('R2 새 v0.3 서버로 바뀜: 300m 요청 → 422 invalid_radius → /health 재조회([500]) → 공통 복구, 재분석 1회', async () => {
+      const fetchMock = await analyzeAt([V04, NEW_V03], [invalidRadius, ok(fixture)], [ok(nearbyFixture)])
+      await waitFor(() => expect(radiusGroup()).toBeInTheDocument())
+      fireEvent.click(chip('300m'))
+      fireEvent.click(analyzeButton())
+      expect(await screen.findByText('서버가 바뀌어 반경 500m로 다시 분석합니다')).toBeInTheDocument()
+      expect(await screen.findByRole('heading', RESULT)).toBeInTheDocument()
+      expect(radiusGroup()).not.toBeInTheDocument()
+      expect(analyzeCalls(fetchMock).map(bodyOf).map((b) => b.radius_m)).toEqual([300, undefined])
+    })
+
+    it('R2 재분석이 다시 실패해도 반복하지 않는다(오류로 둔다)', async () => {
+      const fetchMock = await analyzeAt([V04, NEW_V03], [invalidRadius, { status: 500, body: internalError }])
+      await waitFor(() => expect(radiusGroup()).toBeInTheDocument())
+      fireEvent.click(chip('300m'))
+      fireEvent.click(analyzeButton())
+      expect(await screen.findByText('분석 중 문제가 생겼습니다')).toBeInTheDocument()
+      await new Promise((r) => setTimeout(r, 50))
+      expect(analyzeCalls(fetchMock)).toHaveLength(2)
+      expect(healthCalls(fetchMock)).toHaveLength(2)
+    })
+
+    it('R2 인데 서버가 그 반경을 아직 광고하면 복구하지 않고 invalid_radius 오류로 둔다', async () => {
+      const fetchMock = await analyzeAt(V04, [invalidRadius])
+      await waitFor(() => expect(radiusGroup()).toBeInTheDocument())
+      fireEvent.click(chip('300m'))
+      fireEvent.click(analyzeButton())
+      expect(await screen.findByText('선택한 분석 반경을 지금 분석할 수 없습니다')).toBeInTheDocument()
+      await waitFor(() => expect(healthCalls(fetchMock)).toHaveLength(2))
+      expect(analyzeCalls(fetchMock)).toHaveLength(1)
+      expect(radiusGroup()).toBeInTheDocument()
+    })
+
+    it('R2 점포 조회(/nearby-stores)의 invalid_radius 도 같은 복구 — 분석·점포를 500m로 다시', async () => {
+      const fetchMock = await analyzeAt([V04, NEW_V03], [ok(at(fixture, 1000)), ok(fixture)], [invalidRadius, ok(nearbyFixture)])
+      await waitFor(() => expect(radiusGroup()).toBeInTheDocument())
+      fireEvent.click(chip('1km'))
+      fireEvent.click(analyzeButton())
+      expect(await screen.findByText('서버가 바뀌어 반경 500m로 다시 분석합니다')).toBeInTheDocument()
+      expect(await storesHeading('500m')).toBeInTheDocument()
+      expect(analyzeCalls(fetchMock).map(bodyOf).map((b) => b.radius_m)).toEqual([1000, undefined])
+      expect(nearbyCalls(fetchMock).map(bodyOf).map((b) => b.radius_m)).toEqual([1000, undefined])
+    })
+    it('R2 복구 — 서버 엔진이 바뀌면(mvp-0.4 → mvp-0.3) 이전 500m 캐시를 쓰지 않고 새 서버에서 다시 조회한다', async () => {
+      const fetchMock = await analyzeAt(
+        [V04, NEW_V03],
+        [ok(at(fixture, 500)), invalidRadius, ok(fixture)],
+        [ok(nearbyAt(nearbyFixture, 500)), ok(nearbyFixture)],
+      )
+      await waitFor(() => expect(radiusGroup()).toBeInTheDocument())
+      fireEvent.click(analyzeButton())
+      await storesHeading('500m')
+      fireEvent.click(chip('300m'))
+      expect(await screen.findByText('서버가 바뀌어 반경 500m로 다시 분석합니다')).toBeInTheDocument()
+      await waitFor(() => expect(analyzeCalls(fetchMock)).toHaveLength(3))
+      expect(await storesHeading('500m')).toBeInTheDocument()
+      expect(bodyOf(analyzeCalls(fetchMock)[2]!)).toEqual({ lat: 37.4894, lng: 126.7246, biz_code: 'R10406' })
+      await waitFor(() => expect(nearbyCalls(fetchMock)).toHaveLength(2))
+    })
+
+    it('R1 복구 — 버전을 알리지 않는 구버전 서버로 바뀌면 이전 캐시를 쓰지 않고 다시 조회한다', async () => {
+      const fetchMock = await analyzeAt(
+        [V04, OLD],
+        [ok(at(fixture, 500)), ok(at(fixture, 500, 'mvp-0.3')), ok(fixture)],
+        [ok(nearbyAt(nearbyFixture, 500)), ok(nearbyFixture)],
+      )
+      await waitFor(() => expect(radiusGroup()).toBeInTheDocument())
+      fireEvent.click(analyzeButton())
+      await storesHeading('500m')
+      fireEvent.click(chip('1km'))                                           // 구버전 서버가 radius_m 을 무시하고 500m 응답
+      expect(await screen.findByText('서버가 바뀌어 반경 500m로 다시 분석합니다')).toBeInTheDocument()
+      await waitFor(() => expect(analyzeCalls(fetchMock)).toHaveLength(3))
+      expect(analyzeCalls(fetchMock).map(bodyOf).map((b) => b.radius_m)).toEqual([500, 1000, undefined])
+      expect(await storesHeading('500m')).toBeInTheDocument()
+    })
+
+    it('무효가 된 이전 복구가 새 세대의 복구를 막지 않는다 — 이전 /health 응답이 끝난 뒤 새 요청이 /health 를 다시 보고 500m로 복구', async () => {
+      let resolveOldHealth!: (r: { status: number; body: unknown }) => void
+      const pendingOldHealth = new Promise<{ status: number; body: unknown }>((resolve) => (resolveOldHealth = resolve))
+      const fetchMock = await analyzeAt([V04, pendingOldHealth, NEW_V03], [invalidRadius, invalidRadius, ok(fixture)], [ok(nearbyFixture)])
+      await waitFor(() => expect(radiusGroup()).toBeInTheDocument())
+      fireEvent.click(chip('300m'))
+      fireEvent.click(analyzeButton())
+      await screen.findByText('선택한 분석 반경을 지금 분석할 수 없습니다')
+      await waitFor(() => expect(healthCalls(fetchMock)).toHaveLength(2))   // 이전 세대 복구: 응답 보류
+      fireEvent.click(chip('1km'))
+      fireEvent.click(analyzeButton())                                       // 새 세대 — 이것도 invalid_radius
+      await waitFor(() => expect(analyzeCalls(fetchMock)).toHaveLength(2))
+      await waitFor(() => expect(healthCalls(fetchMock)).toHaveLength(3))   // 새 세대 복구가 바로 /health 를 본다
+      await act(async () => resolveOldHealth(NEW_V03))                       // 이전 응답은 무효(아무것도 바꾸지 않음)
+      expect(await screen.findByText('서버가 바뀌어 반경 500m로 다시 분석합니다')).toBeInTheDocument()
+      expect(await screen.findByRole('heading', RESULT)).toBeInTheDocument()
+      expect(screen.getByTestId('map')).toHaveAttribute('data-radius', '500')
+      expect(analyzeCalls(fetchMock).map(bodyOf).map((b) => b.radius_m)).toEqual([300, 1000, undefined])   // 재분석 1회
+    })
+
+    it('늦게 온 복구용 /health 응답은 그사이 새로 성공한 분석을 덮지 않는다(광고·반경·캐시·안내·요청 그대로)', async () => {
+      let resolveHealth!: (r: { status: number; body: unknown }) => void
+      const pendingHealth = new Promise<{ status: number; body: unknown }>((resolve) => (resolveHealth = resolve))
+      const fetchMock = await analyzeAt(
+        [V04, pendingHealth],
+        [invalidRadius, ok(at(fixture, 1000))],
+        [ok(nearbyAt(nearbyFixture, 1000))],
+      )
+      await waitFor(() => expect(radiusGroup()).toBeInTheDocument())
+      fireEvent.click(chip('300m'))
+      fireEvent.click(analyzeButton())
+      await screen.findByText('선택한 분석 반경을 지금 분석할 수 없습니다')
+      await waitFor(() => expect(healthCalls(fetchMock)).toHaveLength(2))   // 복구 시작(응답 보류)
+      fireEvent.click(chip('1km'))
+      fireEvent.click(analyzeButton())
+      expect(await storesHeading('1km')).toBeInTheDocument()
+      await act(async () => resolveHealth(NEW_V03))                         // 이제 도착한 이전 복구 응답
+      await act(async () => new Promise((r) => setTimeout(r, 50)))
+      expect(analyzeCalls(fetchMock)).toHaveLength(2)
+      expect(screen.getByTestId('map')).toHaveAttribute('data-radius', '1000')
+      expect(screen.queryByText('서버가 바뀌어 반경 500m로 다시 분석합니다')).not.toBeInTheDocument()
+      expect(chip('1km')).toHaveAttribute('aria-pressed', 'true')            // 광고(반경 선택)도 그대로
+      expect(await storesHeading('1km')).toBeInTheDocument()
+    })
+
+  })
+
+  describe('비교 (S9·S11, 공통 복구의 A·B)', () => {
+    const PANEL = '두 위치 비교 · PC방'
+    const panel = () => screen.getByRole('region', { name: PANEL })
+    const bCard = () => within(panel()).getByRole('region', { name: 'B 비교 위치' })
+    const summaryTable = () => screen.findByRole('table', { name: /종합·5대 관점 점수 비교/ })
+
+    async function startCompareAt(health: Reply | Reply[], analyzeReplies: Reply[], nearbyReplies: Reply[]) {
+      const fetchMock = await analyzeAt(health, analyzeReplies, nearbyReplies)
+      await waitFor(() => expect(radiusGroup()).toBeInTheDocument())
+      fireEvent.click(analyzeButton())
+      await screen.findByRole('heading', RESULT)
+      fireEvent.click(screen.getByRole('button', { name: '다른 위치와 비교' }))
+      fireEvent.change(within(bCard()).getByLabelText('B 위도'), { target: { value: '37.4475' } })
+      fireEvent.change(within(bCard()).getByLabelText('B 경도'), { target: { value: '126.7015' } })
+      fireEvent.click(within(bCard()).getByRole('button', { name: 'B 위치로 선택' }))
+      fireEvent.click(within(bCard()).getByRole('button', { name: 'B 분석하기' }))
+      return fetchMock
+    }
+
+    it('S9 비교 중 반경 변경: A·B 를 같은 새 반경으로 함께 다시 분석하고, 둘 다 되면 비교 요약을 다시 보인다', async () => {
+      const fetchMock = await startCompareAt(
+        V04,
+        [ok(at(fixture, 500)), ok(at(guwolFixture, 500)), ok(at(fixture, 1000)), ok(at(guwolFixture, 1000))],
+        [ok(nearbyAt(nearbyFixture, 500)), ok(nearbyAt(guwolNearbyFixture, 500)), ok(nearbyAt(guwolNearbyFixture, 1000))],
+      )
+      await summaryTable()
+      fireEvent.click(chip('1km'))
+      expect(screen.getByTestId('map')).toHaveAttribute('data-radius', '1000')
+      await waitFor(() => expect(analyzeCalls(fetchMock)).toHaveLength(4))
+      expect(await summaryTable()).toBeInTheDocument()
+      expect(analyzeCalls(fetchMock).map(bodyOf).slice(2)).toEqual([
+        { lat: 37.4894, lng: 126.7246, biz_code: 'R10406', radius_m: 1000 },
+        { lat: 37.4475, lng: 126.7015, biz_code: 'R10406', radius_m: 1000 },
+      ])
+      expect(screen.getByTestId('map')).toHaveAttribute('data-compare-location', '37.4475,126.7015')
+    })
+
+    it('S11 비교 중 반경 변경에서 A 실패: 비교를 유지하고, 다시 시도는 A·B 를 함께(B 는 캐시) 다시 분석한다', async () => {
+      const fetchMock = await startCompareAt(
+        V04,
+        [
+          ok(at(fixture, 500)),
+          ok(at(guwolFixture, 500)),
+          { status: 500, body: internalError },
+          ok(at(guwolFixture, 300)),
+          ok(at(fixture, 300)),
+        ],
+        [ok(nearbyAt(nearbyFixture, 500)), ok(nearbyAt(guwolNearbyFixture, 500)), ok(nearbyAt(guwolNearbyFixture, 300))],
+      )
+      await summaryTable()
+      fireEvent.click(chip('300m'))
+      expect(await screen.findByText('분석 중 문제가 생겼습니다')).toBeInTheDocument()
+      expect(screen.getByText(/비교 중 A 위치를 다시 분석하지 못했습니다/)).toBeInTheDocument()
+      fireEvent.click(screen.getByRole('button', { name: '다시 시도' }))
+      expect(await summaryTable()).toBeInTheDocument()
+      expect(analyzeCalls(fetchMock).map(bodyOf).slice(2).map((b) => [b.lat, b.radius_m])).toEqual([
+        [37.4894, 300],
+        [37.4475, 300],
+        [37.4894, 300],
+      ])
+    })
+
+    it('비교 중 R2 복구(500m 캐시 없음): A·B 모두 500m(radius_m 없음)로 다시 분석한다', async () => {
+      const fetchMock = mockApi({
+        health: [V04, NEW_V03],
+        analyze: [ok(at(fixture, 300)), ok(at(guwolFixture, 300)), invalidRadius, invalidRadius, ok(fixture), ok(guwolFixture)],
+        nearby: [ok(nearbyAt(nearbyFixture, 300)), ok(nearbyAt(guwolNearbyFixture, 300)), ok(guwolNearbyFixture)],
+      })
+      render(<App />)
+      await selectBupyeongPcBang()
+      await waitFor(() => expect(radiusGroup()).toBeInTheDocument())
+      fireEvent.click(chip('300m'))                                          // 처음부터 300m — 500m 결과가 캐시에 없다
+      fireEvent.click(analyzeButton())
+      await screen.findByRole('heading', RESULT)
+      fireEvent.click(screen.getByRole('button', { name: '다른 위치와 비교' }))
+      fireEvent.change(within(bCard()).getByLabelText('B 위도'), { target: { value: '37.4475' } })
+      fireEvent.change(within(bCard()).getByLabelText('B 경도'), { target: { value: '126.7015' } })
+      fireEvent.click(within(bCard()).getByRole('button', { name: 'B 위치로 선택' }))
+      fireEvent.click(within(bCard()).getByRole('button', { name: 'B 분석하기' }))
+      await summaryTable()
+      fireEvent.click(chip('1km'))
+      expect(await screen.findByText('서버가 바뀌어 반경 500m로 다시 분석합니다')).toBeInTheDocument()
+      await waitFor(() => expect(analyzeCalls(fetchMock)).toHaveLength(6))
+      expect(await summaryTable()).toBeInTheDocument()
+      expect(radiusGroup()).not.toBeInTheDocument()
+      expect(screen.getByTestId('map')).toHaveAttribute('data-radius', '500')
+      expect(analyzeCalls(fetchMock).map(bodyOf)).toEqual([
+        { lat: 37.4894, lng: 126.7246, biz_code: 'R10406', radius_m: 300 },
+        { lat: 37.4475, lng: 126.7015, biz_code: 'R10406', radius_m: 300 },
+        { lat: 37.4894, lng: 126.7246, biz_code: 'R10406', radius_m: 1000 },
+        { lat: 37.4475, lng: 126.7015, biz_code: 'R10406', radius_m: 1000 },
+        { lat: 37.4894, lng: 126.7246, biz_code: 'R10406' },
+        { lat: 37.4475, lng: 126.7015, biz_code: 'R10406' },
+      ])
+    })
+
+    it('S11 A 실패·B 성공으로 요청이 모두 끝나면 반경 선택과 "이전 반경으로"가 가능하고, 누르면 캐시된 A·B 500m 비교로 돌아간다(요청 0)', async () => {
+      const fetchMock = await startCompareAt(
+        V04,
+        [ok(at(fixture, 500)), ok(at(guwolFixture, 500)), { status: 500, body: internalError }, ok(at(guwolFixture, 300))],
+        [ok(nearbyAt(nearbyFixture, 500)), ok(nearbyAt(guwolNearbyFixture, 500)), ok(nearbyAt(guwolNearbyFixture, 300))],
+      )
+      await summaryTable()
+      fireEvent.click(chip('300m'))
+      await screen.findByText('분석 중 문제가 생겼습니다')
+      await waitFor(() => expect(analyzeCalls(fetchMock)).toHaveLength(4))
+      await waitFor(() => expect(nearbyCalls(fetchMock)).toHaveLength(3))
+      expect(screen.queryByRole('table', { name: /종합·5대 관점 점수 비교/ })).not.toBeInTheDocument()   // 표시 보류는 그대로
+      for (const b of within(radiusGroup()!).getAllByRole('button')) expect(b).toBeEnabled()
+      const back = screen.getByRole('button', { name: '이전 반경(500m)으로 돌아가기' })
+      expect(back).toBeEnabled()
+      fireEvent.click(back)
+      expect(await summaryTable()).toBeInTheDocument()
+      expect(screen.getByTestId('map')).toHaveAttribute('data-radius', '500')
+      expect(chip('500m')).toHaveAttribute('aria-pressed', 'true')
+      expect(analyzeCalls(fetchMock)).toHaveLength(4)                         // A·B 500m 모두 캐시
+    })
+
+    it('S11 A 실패·B 요청 중에는 반경 조작을 막고(S15), B 가 끝나면 다시 가능하다', async () => {
+      let resolveB!: (r: { status: number; body: unknown }) => void
+      const pendingB = new Promise<{ status: number; body: unknown }>((resolve) => (resolveB = resolve))
+      const fetchMock = await startCompareAt(
+        V04,
+        [ok(at(fixture, 500)), ok(at(guwolFixture, 500)), { status: 500, body: internalError }, pendingB],
+        [ok(nearbyAt(nearbyFixture, 500)), ok(nearbyAt(guwolNearbyFixture, 500)), ok(nearbyAt(guwolNearbyFixture, 300))],
+      )
+      await summaryTable()
+      fireEvent.click(chip('300m'))
+      await screen.findByText('분석 중 문제가 생겼습니다')                    // A 실패, B 는 아직 요청 중
+      for (const b of within(radiusGroup()!).getAllByRole('button')) expect(b).toBeDisabled()
+      expect(screen.getByRole('button', { name: '이전 반경(500m)으로 돌아가기' })).toBeDisabled()
+      fireEvent.click(chip('1km'))                                           // 눌러도(disabled) 아무 요청 없음
+      expect(analyzeCalls(fetchMock)).toHaveLength(4)
+      await act(async () => resolveB(ok(at(guwolFixture, 300))))
+      await waitFor(() => expect(chip('1km')).toBeEnabled())
+      expect(screen.getByRole('button', { name: '이전 반경(500m)으로 돌아가기' })).toBeEnabled()
+    })
+
+    it('비교 중 R2 복구 — 서버 엔진이 바뀌면(mvp-0.4 → mvp-0.3) 500m 캐시도 버리고 A·B 를 새 서버에서 다시 조회한다. 이어서 새 B 와 정상 비교', async () => {
+      const fetchMock = await startCompareAt(
+        [V04, NEW_V03],
+        [
+          ok(at(fixture, 500)),
+          ok(at(guwolFixture, 500)),
+          invalidRadius,
+          invalidRadius,
+          ok(fixture),
+          ok(guwolFixture),
+          ok(songdoFixture),
+        ],
+        [ok(nearbyAt(nearbyFixture, 500)), ok(nearbyAt(guwolNearbyFixture, 500)), ok(guwolNearbyFixture), ok(songdoNearbyFixture)],
+      )
+      await summaryTable()
+      fireEvent.click(chip('1km'))
+      expect(await screen.findByText('서버가 바뀌어 반경 500m로 다시 분석합니다')).toBeInTheDocument()
+      await waitFor(() => expect(analyzeCalls(fetchMock)).toHaveLength(6))
+      expect(await summaryTable()).toBeInTheDocument()
+      expect(radiusGroup()).not.toBeInTheDocument()
+      expect(analyzeCalls(fetchMock).map(bodyOf).slice(4)).toEqual([
+        { lat: 37.4894, lng: 126.7246, biz_code: 'R10406' },
+        { lat: 37.4475, lng: 126.7015, biz_code: 'R10406' },
+      ])
+      // 복구 뒤 새 B(송도, mvp-0.3)와 정상 비교 — A도 새 서버(mvp-0.3) 결과라 버전이 맞는다
+      fireEvent.click(within(panel()).getByRole('button', { name: 'B 위치 다시 고르기' }))
+      fireEvent.change(within(bCard()).getByLabelText('B 위도'), { target: { value: '37.392512' } })
+      fireEvent.change(within(bCard()).getByLabelText('B 경도'), { target: { value: '126.639034' } })
+      fireEvent.click(within(bCard()).getByRole('button', { name: 'B 위치로 선택' }))
+      fireEvent.click(within(bCard()).getByRole('button', { name: 'B 분석하기' }))
+      expect(await summaryTable()).toBeInTheDocument()
+      expect(bodyOf(analyzeCalls(fetchMock)[6]!)).toEqual({ lat: 37.392512, lng: 126.639034, biz_code: 'R10406' })
+    })
+
+    it('엔진버전 대조는 응답 순서와 무관 — B(mvp-0.3)가 먼저, A(mvp-0.4)가 나중에 와도 비교 요약을 보이지 않고 캐시를 버린다', async () => {
+      let resolveA!: (r: { status: number; body: unknown }) => void
+      const pendingA = new Promise<{ status: number; body: unknown }>((resolve) => (resolveA = resolve))
+      const fetchMock = mockApi({
+        health: V04,
+        analyze: [ok(at(fixture, 300)), ok(at(guwolFixture, 300)), pendingA, ok(guwolFixture), ok(at(fixture, 300))],
+        nearby: [ok(nearbyAt(nearbyFixture, 300)), ok(nearbyAt(guwolNearbyFixture, 300)), ok(guwolNearbyFixture), ok(nearbyAt(nearbyFixture, 500)), ok(nearbyAt(nearbyFixture, 300))],
+      })
+      render(<App />)
+      await selectBupyeongPcBang()
+      await waitFor(() => expect(radiusGroup()).toBeInTheDocument())
+      fireEvent.click(chip('300m'))
+      fireEvent.click(analyzeButton())
+      await screen.findByRole('heading', RESULT)
+      fireEvent.click(screen.getByRole('button', { name: '다른 위치와 비교' }))
+      fireEvent.change(within(bCard()).getByLabelText('B 위도'), { target: { value: '37.4475' } })
+      fireEvent.change(within(bCard()).getByLabelText('B 경도'), { target: { value: '126.7015' } })
+      fireEvent.click(within(bCard()).getByRole('button', { name: 'B 위치로 선택' }))
+      fireEvent.click(within(bCard()).getByRole('button', { name: 'B 분석하기' }))
+      await summaryTable()
+      fireEvent.click(chip('500m'))
+      await waitFor(() => expect(analyzeCalls(fetchMock)).toHaveLength(4))   // A(보류)·B(mvp-0.3, 먼저 도착)
+      await act(async () => new Promise((r) => setTimeout(r, 20)))
+      await act(async () => resolveA(ok(at(fixture, 500))))                  // A(mvp-0.4) 나중
+      expect(await screen.findByText('분석 결과를 표시할 수 없습니다')).toBeInTheDocument()
+      expect(screen.queryByRole('table', { name: /종합·5대 관점 점수 비교/ })).not.toBeInTheDocument()
+      expect(console.error).toHaveBeenCalledWith('[api] A·B 엔진버전이 다릅니다', { a: 'mvp-0.4', b: 'mvp-0.3' })
+      // 캐시를 버렸으므로 이전 300m A 도 다시 요청한다
+      fireEvent.click(within(panel()).getByRole('button', { name: /^비교 (종료|취소)$/ }))
+      fireEvent.click(chip('300m'))
+      await waitFor(() => expect(analyzeCalls(fetchMock)).toHaveLength(5))
+      expect(bodyOf(analyzeCalls(fetchMock)[4]!)).toMatchObject({ lat: 37.4894, radius_m: 300 })
+    })
+
+    it.each([
+      ['A→B', true],
+      ['B→A', false],
+    ])('엔진버전 대조 — A·B 가 같은 React 배치에서 함께 끝나도(%s) 섞인 결과를 비교표에 그리지 않는다', async (_, aFirst) => {
+      let resolveA!: (r: { status: number; body: unknown }) => void
+      let resolveB!: (r: { status: number; body: unknown }) => void
+      const pendingA = new Promise<{ status: number; body: unknown }>((resolve) => (resolveA = resolve))
+      const pendingB = new Promise<{ status: number; body: unknown }>((resolve) => (resolveB = resolve))
+      const fetchMock = mockApi({
+        health: V04,
+        analyze: [ok(at(fixture, 300)), ok(at(guwolFixture, 300)), pendingA, pendingB],
+        nearby: [ok(nearbyAt(nearbyFixture, 300)), ok(nearbyAt(guwolNearbyFixture, 300)), ok(nearbyAt(nearbyFixture, 500)), ok(guwolNearbyFixture)],
+      })
+      render(<App />)
+      await selectBupyeongPcBang()
+      await waitFor(() => expect(radiusGroup()).toBeInTheDocument())
+      fireEvent.click(chip('300m'))
+      fireEvent.click(analyzeButton())
+      await screen.findByRole('heading', RESULT)
+      fireEvent.click(screen.getByRole('button', { name: '다른 위치와 비교' }))
+      fireEvent.change(within(bCard()).getByLabelText('B 위도'), { target: { value: '37.4475' } })
+      fireEvent.change(within(bCard()).getByLabelText('B 경도'), { target: { value: '126.7015' } })
+      fireEvent.click(within(bCard()).getByRole('button', { name: 'B 위치로 선택' }))
+      fireEvent.click(within(bCard()).getByRole('button', { name: 'B 분석하기' }))
+      await summaryTable()
+      fireEvent.click(chip('500m'))
+      await waitFor(() => expect(analyzeCalls(fetchMock)).toHaveLength(4))
+      await act(async () => {
+        if (aFirst) {
+          resolveA(ok(at(fixture, 500)))                                   // A mvp-0.4
+          resolveB(ok(guwolFixture))                                       // B mvp-0.3
+        } else {
+          resolveB(ok(guwolFixture))
+          resolveA(ok(at(fixture, 500)))
+        }
+      })
+      await act(async () => new Promise((r) => setTimeout(r, 30)))
+      expect(screen.queryByRole('table', { name: /종합·5대 관점 점수 비교/ })).not.toBeInTheDocument()
+      expect(await screen.findByText('분석 결과를 표시할 수 없습니다')).toBeInTheDocument()
+      expect(console.error).toHaveBeenCalledWith('[api] A·B 엔진버전이 다릅니다', { a: 'mvp-0.4', b: 'mvp-0.3' })
+    })
+
+    it('엔진버전 대조 — A(mvp-0.4)가 먼저, B(mvp-0.3)가 나중에 와도 같은 오류', async () => {
+      let resolveB!: (r: { status: number; body: unknown }) => void
+      const pendingB = new Promise<{ status: number; body: unknown }>((resolve) => (resolveB = resolve))
+      const fetchMock = await startCompareAt(
+        V04,
+        [ok(at(fixture, 500)), ok(at(guwolFixture, 500)), ok(at(fixture, 300)), pendingB],
+        [ok(nearbyAt(nearbyFixture, 500)), ok(nearbyAt(guwolNearbyFixture, 500)), ok(nearbyAt(nearbyFixture, 300))],
+      )
+      await summaryTable()
+      fireEvent.click(chip('300m'))
+      await waitFor(() => expect(analyzeCalls(fetchMock)).toHaveLength(4))
+      await screen.findByRole('heading', { level: 1, name: PANEL })            // A 300m 먼저 도착, B 는 아직 분석 중
+      await act(async () => resolveB(ok(at(guwolFixture, 300, 'mvp-0.3'))))
+      expect(await within(bCard()).findByText('분석 결과를 표시할 수 없습니다')).toBeInTheDocument()
+      expect(screen.queryByRole('table', { name: /종합·5대 관점 점수 비교/ })).not.toBeInTheDocument()
+    })
+
+    it('비교 점포 다시 시도는 원래 요청의 반경을 유지한다 — B 300m', async () => {
+      const fetchMock = await startCompareAt(
+        V04,
+        [ok(at(fixture, 500)), ok(at(guwolFixture, 500)), ok(at(fixture, 300)), ok(at(guwolFixture, 300))],
+        [
+          ok(nearbyAt(nearbyFixture, 500)),
+          ok(nearbyAt(guwolNearbyFixture, 500)),
+          ok(nearbyAt(nearbyFixture, 300)),
+          'network-error',
+          ok(nearbyAt(guwolNearbyFixture, 300)),
+        ],
+      )
+      await summaryTable()
+      fireEvent.click(chip('300m'))
+      await summaryTable()
+      await screen.findByText('점포 목록을 불러오지 못했습니다. 분석 결과는 그대로입니다.')
+      fireEvent.click(screen.getByRole('button', { name: '다시 시도' }))
+      expect(await screen.findByRole('heading', { name: /반경 300m 안 같은 업종 점포/ })).toBeInTheDocument()
+      expect(bodyOf(nearbyCalls(fetchMock).at(-1)!)).toEqual({ lat: 37.4475, lng: 126.7015, biz_code: 'R10406', radius_m: 300 })
+    })
+
+    it('비교 점포 다시 시도 — A 기준 1km 도 반경을 유지한다', async () => {
+      const fetchMock = await startCompareAt(
+        V04,
+        [ok(at(fixture, 500)), ok(at(guwolFixture, 500)), ok(at(fixture, 1000)), ok(at(guwolFixture, 1000))],
+        [
+          ok(nearbyAt(nearbyFixture, 500)),
+          ok(nearbyAt(guwolNearbyFixture, 500)),
+          'network-error',
+          ok(nearbyAt(guwolNearbyFixture, 1000)),
+          ok(nearbyAt(nearbyFixture, 1000)),
+        ],
+      )
+      await summaryTable()
+      fireEvent.click(chip('1km'))
+      await summaryTable()
+      fireEvent.click(within(screen.getByRole('group', { name: '점포 기준 위치' })).getByRole('button', { name: /^A / }))   // 점포 기준 A
+      await screen.findByText('점포 목록을 불러오지 못했습니다. 분석 결과는 그대로입니다.')
+      fireEvent.click(screen.getByRole('button', { name: '다시 시도' }))
+      expect(await screen.findByRole('heading', { name: /반경 1km 안 같은 업종 점포/ })).toBeInTheDocument()
+      expect(bodyOf(nearbyCalls(fetchMock).at(-1)!)).toEqual({ lat: 37.4894, lng: 126.7246, biz_code: 'R10406', radius_m: 1000 })
+    })
+
+    it('구버전 서버에서는 비교 점포 다시 시도도 기존처럼 반경을 보내지 않는다', async () => {
+      const fetchMock = mockApi({
+        health: OLD,
+        analyze: [ok(fixture), ok(guwolFixture)],
+        nearby: [ok(nearbyFixture), 'network-error', ok(guwolNearbyFixture)],
+      })
+      render(<App />)
+      await selectBupyeongPcBang()
+      fireEvent.click(analyzeButton())
+      await screen.findByRole('heading', RESULT)
+      fireEvent.click(screen.getByRole('button', { name: '다른 위치와 비교' }))
+      fireEvent.change(within(bCard()).getByLabelText('B 위도'), { target: { value: '37.4475' } })
+      fireEvent.change(within(bCard()).getByLabelText('B 경도'), { target: { value: '126.7015' } })
+      fireEvent.click(within(bCard()).getByRole('button', { name: 'B 위치로 선택' }))
+      fireEvent.click(within(bCard()).getByRole('button', { name: 'B 분석하기' }))
+      await summaryTable()
+      await screen.findByText('점포 목록을 불러오지 못했습니다. 분석 결과는 그대로입니다.')
+      fireEvent.click(screen.getByRole('button', { name: '다시 시도' }))
+      await waitFor(() => expect(nearbyCalls(fetchMock)).toHaveLength(3))
+      expect(bodyOf(nearbyCalls(fetchMock).at(-1)!)).toEqual({ lat: 37.4475, lng: 126.7015, biz_code: 'R10406' })
+    })
+
+    it('A·B 엔진버전이 다르면 B 를 계약 오류로 둔다(한 비교에 두 엔진을 섞지 않는다)', async () => {
+      await startCompareAt(V04, [ok(at(fixture, 500)), ok(at(guwolFixture, 500, 'mvp-0.3'))], [ok(nearbyAt(nearbyFixture, 500))])
+      expect(await within(bCard()).findByText('분석 결과를 표시할 수 없습니다')).toBeInTheDocument()
+    })
   })
 })

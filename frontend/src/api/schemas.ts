@@ -57,7 +57,7 @@ const metaSchema = z.strictObject({
   행정동: z.string(),
   분석반경_m: z.number(),
   정규화_기준: z.string(),
-  엔진버전: z.literal('mvp-0.3'),
+  엔진버전: z.enum(['mvp-0.3', 'mvp-0.4']),          // 8-D3: v0.4(분석 반경 300·500·1,000m, D-024)도 받는다. 그 밖은 계약 오류
 })
 
 // ─── 종합 ────────────────────────────────────────────────────────────
@@ -324,6 +324,7 @@ export const USER_ERROR_CODES = [
   'invalid_coordinate',
   'location_outside',
   'no_data_nearby',
+  'invalid_radius',                               // 8-D2: 서버 엔진이 받지 않는 분석 반경 (D-024)
 ] as const
 
 export const ErrorCodeSchema = z.enum([...USER_ERROR_CODES, 'internal_error'])
@@ -342,6 +343,20 @@ export const ErrorResponseSchema = z.strictObject({
     }),
   ]),
 })
+
+// ─── GET /health (8-D2·8-D3, D-024) ──────────────────────────────────
+
+/**
+ * 서버 엔진 광고. 구버전 서버(8-D2 이전, 현재 운영)는 engine 필드가 없다 → 반경 선택 없음.
+ * health 의 나머지 필드(status·warm 등)는 화면이 쓰지 않으므로 검사하지 않는다(이 객체만 strict 아님).
+ */
+export const EngineInfoSchema = z.strictObject({
+  version: z.string(),
+  radius_options: z.array(z.number().int().positive()),
+  default_radius_m: z.number().int().positive(),
+})
+
+export const HealthSchema = z.object({ engine: EngineInfoSchema.optional() })
 
 // ─── GET /businesses ─────────────────────────────────────────────────
 
@@ -389,3 +404,5 @@ export type BusinessGroup = z.infer<typeof BusinessGroupSchema>
 export type BusinessCatalog = z.infer<typeof BusinessCatalogSchema>
 export type NearbyStore = z.infer<typeof NearbyStoreSchema>
 export type NearbyStoresResponse = z.infer<typeof NearbyStoresResponseSchema>
+export type EngineInfo = z.infer<typeof EngineInfoSchema>
+export type Health = z.infer<typeof HealthSchema>

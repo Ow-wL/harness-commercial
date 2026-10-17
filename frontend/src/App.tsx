@@ -1,6 +1,14 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import { analyze, fetchBusinesses, type AnalyzeRequest, type ApiFailure } from './api/client.ts'
-import type { AnalyzeResponse } from './api/schemas.ts'
+import {
+  analyze,
+  DEFAULT_RADIUS_M,
+  fetchBusinesses,
+  fetchHealth,
+  requestRadius,
+  type AnalyzeRequest,
+  type ApiFailure,
+} from './api/client.ts'
+import type { AnalyzeResponse, NearbyStoresResponse } from './api/schemas.ts'
 import { AnalysisResult } from './components/AnalysisResult.tsx'
 import { AnalysisEmpty, AnalysisLoading } from './components/AnalysisStatus.tsx'
 import { ComparePanel, CompareSheet } from './components/ComparePanel.tsx'
@@ -11,13 +19,15 @@ import { ErrorBlock } from './components/ErrorBlock.tsx'
 import { LocationSummary } from './components/LocationSummary.tsx'
 import { MapView, type LatLng, type MapCompare, type MapStore } from './components/MapView.tsx'
 import { NearbyStores } from './components/NearbyStores.tsx'
+import { RadiusControl } from './components/RadiusControl.tsx'
 import { ReferenceAddress } from './components/ReferenceAddress.tsx'
 import type { SdkState } from './map/naverMaps.ts'
 import type { CompareSide } from './lib/compare.ts'
 import { COMPARE_IDS, sameCoordinates, type CompareState, type CompareView } from './lib/compareState.ts'
 import { errorView, type ErrorAction } from './lib/errorView.ts'
-import { formatDistance, locationName, nearestStation, storeAddress, storeName } from './lib/format.ts'
-import { useNearbyRequest } from './lib/useNearbyRequest.ts'
+import { formatDistance, formatRadius, locationName, nearestStation, storeAddress, storeName } from './lib/format.ts'
+import { ResultCache } from './lib/resultCache.ts'
+import { useNearbyRequest, type RadiusProblem } from './lib/useNearbyRequest.ts'
 import './App.css'
 
 /**
@@ -30,11 +40,14 @@ function syncHeaderOffset(header: HTMLElement | null) {
   if (height) document.documentElement.style.setProperty('--header-offset', `${Math.ceil(height)}px`)
 }
 
+/** radius: 반경 변경(또는 반경 복구)으로 시작한 분석 — 결과 화면에서 다시 분석하는 중·그 실패 (8-D3, S3·S8) */
+type AnalysisOrigin = 'radius'
+
 type Analysis =
   | { status: 'idle' }
-  | { status: 'loading'; request: AnalyzeRequest }
+  | { status: 'loading'; request: AnalyzeRequest; origin?: AnalysisOrigin }
   | { status: 'success'; request: AnalyzeRequest; response: AnalyzeResponse }
-  | { status: 'error'; request: AnalyzeRequest; failure: ApiFailure }
+  | { status: 'error'; request: AnalyzeRequest; failure: ApiFailure; origin?: AnalysisOrigin }
 
 /** mobile(<640px)에서 지금 보이는 화면 (DESIGN.md §14). desktop·tablet에서는 무시된다 */
 type MobileScreen = 'map' | 'panel'
@@ -47,35 +60,118 @@ const INVALID_LOCATION_CODES = new Set(['invalid_coordinate', 'location_outside'
 
 /**
  * 응답이 보낸 요청과 같은 조건인지 확인한다. backend는 요청 좌표를 context에 그대로 돌려주고
- * 업종코드를 meta에 둔다. 다르면 다른 조건의 결과를 보여 주는 것이므로 계약 오류로 다룬다.
+ * 업종코드·분석 반경을 meta에 둔다. 다르면 다른 조건의 결과를 보여 주는 것이므로 계약 오류로 다룬다.
+ * 'radius' = 좌표·업종은 같고 반경만 다름 (8-D3 S5 — 구버전 서버가 radius_m 을 무시한 경우일 수 있다, 4.6 R1)
  */
-function matchesRequest(res: AnalyzeResponse, req: AnalyzeRequest): boolean {
-  return res.context.lat === req.lat && res.context.lng === req.lng && res.result.meta.업종코드 === req.biz_code
+function checkResponse(res: AnalyzeResponse, req: AnalyzeRequest): 'ok' | 'condition' | 'radius' {
+  if (res.context.lat !== req.lat || res.context.lng !== req.lng || res.result.meta.업종코드 !== req.biz_code) return 'condition'
+  return res.result.meta.분석반경_m === requestRadius(req) ? 'ok' : 'radius'
 }
+
+/** 분석 요청 body. withRadius(서버가 반경을 2개 이상 광고)일 때만 radius_m 을 넣는다 — 그 밖에는 지금과 같은 body (4.6) */
+function buildRequest(point: LatLng, bizCode: string, radius: number, withRadius: boolean): AnalyzeRequest {
+  return withRadius
+    ? { lat: point.lat, lng: point.lng, biz_code: bizCode, radius_m: radius }
+    : { lat: point.lat, lng: point.lng, biz_code: bizCode }
+}
+
+const isInvalidRadius = (f: ApiFailure) => f.kind === 'api' && f.error.code === 'invalid_radius'
+
+/**
+ * 같은 비교 세대(업종·반경이 같은 A·B 요청)인데 엔진버전이 다른지 (4.5). 반경이 다르면 아직 다른 세대(다시 분석 중)라
+ * 판정하지 않는다 — 그 세대의 다른 쪽 응답이 도착할 때 다시 본다. A·B 어느 쪽이 먼저 와도 나중 쪽에서 검사한다(8-D3 검수).
+ */
+/** A 결과와 B 결과가 한 비교로 함께 보일 수 있는지: 같은 업종·같은 반경 요청이고 엔진버전도 같다 */
+function consistentCompare(a: Analysis, c: Extract<CompareState, { status: 'success' }>): boolean {
+  return (
+    a.status === 'success' &&
+    a.request.biz_code === c.request.biz_code &&
+    requestRadius(a.request) === requestRadius(c.request) &&
+    a.response.result.meta.엔진버전 === c.response.result.meta.엔진버전
+  )
+}
+
+function mixedEngines(aReq: AnalyzeRequest, a: AnalyzeResponse, bReq: AnalyzeRequest, b: AnalyzeResponse): boolean {
+  return (
+    aReq.biz_code === bReq.biz_code &&
+    requestRadius(aReq) === requestRadius(bReq) &&
+    a.result.meta.엔진버전 !== b.result.meta.엔진버전
+  )
+}
+
+/** 서버가 바뀌어 반경 선택을 잃었을 때(4.6 공통 복구) 알리는 문구 */
+const RADIUS_RECOVERY_NOTICE = '서버가 바뀌어 반경 500m로 다시 분석합니다'
 
 function App() {
   const [businesses, setBusinesses] = useState<BusinessesState>({ status: 'loading' })
   const [businessesLoad, setBusinessesLoad] = useState(0)
   const [location, setLocation] = useState<LatLng | null>(null)
   const [bizCode, setBizCode] = useState<string | null>(null)
-  const [analysis, setAnalysis] = useState<Analysis>({ status: 'idle' })
+  const [analysis, setAnalysisState] = useState<Analysis>({ status: 'idle' })
+  // 상태와 ref 를 같은 자리에서 함께 바꾼다 — 같은 React 배치에서 끝나는 A·B 콜백도 서로의 최신 결과를 읽는다(렌더 뒤 동기화를
+  // 기다리지 않는다, 8-D3 재검수). 비동기 처리(엔진버전 대조·반경 복구)는 이 ref 를 읽는다
+  const analysisRef = useRef(analysis)
+  const setAnalysis = useCallback((next: Analysis) => {
+    analysisRef.current = next
+    setAnalysisState(next)
+  }, [])
+  // 분석 반경 (8-D3, D-024, docs/UX_REDESIGN.md 4.3~4.6). radiusOptions = 서버 광고(GET /health engine.radius_options).
+  // 2개 미만(구버전 서버 = engine 없음, 새 v0.3 서버 = [500])이면 반경 선택을 숨기고 radius_m 을 보내지 않는다
+  const [radiusOptions, setRadiusOptions] = useState<number[]>([])
+  const [radius, setRadius] = useState(DEFAULT_RADIUS_M)
+  const [prevRadius, setPrevRadius] = useState<number | null>(null)
+  const [radiusNotice, setRadiusNotice] = useState<string | null>(null)
+  // 비교 중 반경 변경(또는 반경 복구)으로 A·B를 다시 분석하는 동안·A가 실패한 동안의 B 위치 (S9·S11). 비교를 유지한다
+  const [compareReload, setCompareReloadState] = useState<LatLng | null>(null)
+  const compareReloadRef = useRef(compareReload)
+  const setCompareReload = useCallback((next: LatLng | null) => {
+    compareReloadRef.current = next
+    setCompareReloadState(next)
+  }, [])
+  // 조건 키 (lat, lng, biz, radius) → 분석·점포 응답 (4.3). 적중이면 요청하지 않는다
+  const resultCache = useRef(new ResultCache())
+  // 요청 세대: 새 분석·B 요청·반경 변경·조건 변경·비교 시작/종료/다시 고르기 때 올린다. 반경 복구(/health 재조회)는 시작할 때의
+  // 세대가 응답 뒤에도 같을 때만 상태를 바꾼다 — 늦게 온 복구가 더 새 결과를 덮지 않는다(8-D3 검수)
+  const epoch = useRef(0)
+  const radiusEnabled = radiusOptions.length >= 2
+  // 반경 문제(R1 응답 반경 불일치·R2 invalid_radius) 처리기 — 점포 hook 이 먼저 만들어지므로 ref 로 넘긴다
+  const radiusProblemRef = useRef<(request: AnalyzeRequest, problem: RadiusProblem) => void>(() => {})
+  const nearbyOptions = {
+    onSuccess: (request: AnalyzeRequest, data: NearbyStoresResponse) => resultCache.current.putNearby(request, data),
+    onRadiusProblem: (request: AnalyzeRequest, problem: RadiusProblem) => radiusProblemRef.current(request, problem),
+  }
   const [mobileScreen, setMobileScreen] = useState<MobileScreen>('map')
   // NAVER SDK 상태 (7-B2, docs/ADDRESS_DESIGN.md §5.1): MapView가 onSdkState로 올린다. 참고 주소는 ready + geocoder ready일 때만 조회한다.
   // 로더를 여기서 다시 부르거나 SDK를 다시 넣지 않는다
   const [sdk, setSdk] = useState<SdkState>({ status: 'loading' })
   // 반경 안 동종 점포 (4차): 분석 성공 뒤 같은 좌표·업종으로 따로 조회한다. null = 분석 결과 없음
   // 조건이 바뀌면 취소·제거하고, 늦게 온 이전 요청 응답은 버린다 (useNearbyRequest)
-  const nearbyA = useNearbyRequest()
+  const nearbyA = useNearbyRequest(nearbyOptions)
   const nearby = nearbyA.state
   const [showStores, setShowStores] = useState(true)
   const [activeStoreId, setActiveStoreId] = useState<string | null>(null)
   // 비교 중 B 점포 (5차-B5): A와 별도 요청 번호·AbortController. B 분석 성공 뒤 같은 좌표·업종으로 조회한다
-  const nearbyB = useNearbyRequest()
+  const nearbyB = useNearbyRequest(nearbyOptions)
   // 비교 요약의 점포 기준(B 성공 뒤 기본 B)과 비교 중 "지도에 표시". A 단일 결과의 showStores는 건드리지 않는다
   const [storeSide, setStoreSide] = useState<CompareSide>('B')
   const [compareShowStores, setCompareShowStores] = useState(true)
   // 두 위치 비교 (5차, docs/COMPARE_DESIGN.md 3장): A = 위 analysis 그대로, B만 따로 둔다
-  const [compare, setCompare] = useState<CompareState>({ status: 'off' })
+  const [compareRaw, setCompareState] = useState<CompareState>({ status: 'off' })
+  const compareRef = useRef(compareRaw)
+  const setCompare = useCallback((next: CompareState) => {
+    compareRef.current = next
+    setCompareState(next)
+  }, [])
+  // 화면이 보는 비교 상태: B 성공은 A와 같은 세대(업종·반경 같음)이고 엔진버전도 같을 때만 성공으로 보인다. 아니면(A를 다시
+  // 분석 중이거나 버전이 섞임) B를 "분석 중"처럼 다룬다 — 섞인 결과를 비교표에 그리지 않는다(8-D3 재검수, 렌더 보호).
+  // 불일치의 계약 오류·캐시 폐기는 콜백(startA·acceptB)이 따로 한다
+  const compare: CompareState =
+    compareRaw.status === 'success' && !consistentCompare(analysis, compareRaw)
+      ? { status: 'loading', location: compareRaw.location }
+      : compareRaw
+  // 실제로 B 분석 요청이 진행 중인지 — 표시 보류(위 compare 의 loading)와 다르다. 반경 조작 잠금(S15)·지도 클릭·B 선택은
+  // 이것으로 판단한다(A 실패·B 성공처럼 요청이 모두 끝난 상태에서 반경을 다시 고를 수 있게, 8-D3 최종 검수)
+  const bRequesting = compareRaw.status === 'loading'
   // B 성공 뒤 패널 화면: 비교 요약 / A 전체 결과 / B 전체 결과 (§3.3). 오가도 A·B 응답은 그대로다
   const [compareView, setCompareView] = useState<CompareView>('summary')
   // B 선택을 처음부터 다시 할 때마다(pickB) 올린다 → B 카드 주소 검색을 새로 그려 진행 중 검색·결과를 버린다(7-B5 보완).
@@ -95,6 +191,15 @@ function App() {
     return () => ac.abort()
   }, [businessesLoad])
 
+  // GET /health — 반경 광고만 본다(8-D3). 실패·구버전 응답이면 반경 선택 없음(지금과 같은 화면·요청)
+  useEffect(() => {
+    const ac = new AbortController()
+    fetchHealth(ac.signal)
+      .then((r) => setRadiusOptions(r.ok && r.data.engine ? r.data.engine.radius_options : []))
+      .catch(() => {})                                     // 취소된 요청
+    return () => ac.abort()
+  }, [])
+
   const reloadBusinesses = () => {
     setBusinesses({ status: 'loading' })
     setBusinessesLoad((n) => n + 1)
@@ -104,7 +209,7 @@ function App() {
   const inflight = useRef<{ seq: number; controller: AbortController } | null>(null)
   const seq = useRef(0)
 
-  const { cancel: cancelNearbyA, load: loadNearbyA } = nearbyA
+  const { cancel: cancelNearbyA, load: loadNearbyA, prime: primeNearbyA } = nearbyA
   const { cancel: cancelNearbyB } = nearbyB
   const cancelNearby = useCallback(() => {
     cancelNearbyA()
@@ -119,53 +224,128 @@ function App() {
     [loadNearbyA],
   )
 
+  /** 캐시 항목의 점포가 있으면 바로 채우고(요청 0), 없으면(부분 캐시) 점포만 다시 조회한다 (4.3) */
+  const showNearbyFromCache = useCallback(
+    (request: AnalyzeRequest, data: NearbyStoresResponse | null) => {
+      if (data) {
+        primeNearbyA(data)
+        setActiveStoreId(null)
+      } else {
+        loadNearby(request)
+      }
+    },
+    [primeNearbyA, loadNearby],
+  )
+
+  /**
+   * 한 비교에 두 엔진(4.5): B를 계약 오류로 두고 캐시를 전부 버린다(어느 쪽이 서버의 지금 엔진인지 모른다).
+   * A·B 어느 쪽이 나중에 와도 같은 처리(startA·acceptB)
+   */
+  const rejectMixedEngines = useCallback(
+    (point: LatLng, a: AnalyzeResponse, b: AnalyzeResponse) => {
+      console.error('[api] A·B 엔진버전이 다릅니다', { a: a.result.meta.엔진버전, b: b.result.meta.엔진버전 })
+      resultCache.current.clear()
+      cancelNearbyB()
+      setCompare({ status: 'error', location: point, failure: { kind: 'schema', endpoint: '/analyze', status: 200 } })
+      focusLater(COMPARE_IDS.bError)
+    },
+    [cancelNearbyB, setCompare],
+  )
+
   // B 분석 요청: A와 다른 AbortController·요청 번호. 취소·종료·조건 변경 뒤 도착한 응답은 seq가 달라 버린다
   const compareInflight = useRef<{ seq: number; controller: AbortController } | null>(null)
   const compareSeq = useRef(0)
 
   const resetCompare = useCallback(() => {
+    epoch.current++
     compareInflight.current?.controller.abort()
     compareInflight.current = null
     cancelNearbyB()                                        // 늦게 온 B 점포 응답도 버린다
     setCompare({ status: 'off' })
     setCompareView('summary')
-  }, [cancelNearbyB])
+  }, [cancelNearbyB, setCompare])
 
   const cancelAnalysis = () => {
+    epoch.current++
     inflight.current?.controller.abort()
     inflight.current = null
     setAnalysis({ status: 'idle' })
     cancelNearby()
     resetCompare()                                         // A가 없으면 비교도 없다
+    setCompareReload(null)
   }
+
+  /**
+   * A 분석 1건. keepCompare: 비교 중 반경 변경·복구(B는 따로 다시 요청하거나 아직 없음) — 비교 상태를 지우지 않는다.
+   * 캐시 적중이면 요청하지 않는다(S2). 저장은 활성 요청의 성공 응답만(늦은 응답은 seq 가 달라 화면·캐시 모두 반영 안 함, S7).
+   */
+  const startA = useCallback(
+    (request: AnalyzeRequest, opts: { keepCompare?: boolean; origin?: AnalysisOrigin } = {}) => {
+      epoch.current++
+      inflight.current?.controller.abort()
+      inflight.current = null
+      cancelNearby()
+      if (!opts.keepCompare) resetCompare()
+      /** A 성공 뒤: 이미 받은 같은 세대 B와 엔진버전이 다르면 B를 계약 오류로(B가 먼저 도착한 경우) */
+      const checkB = (response: AnalyzeResponse) => {
+        const c = compareRef.current
+        if (opts.keepCompare && c.status === 'success' && mixedEngines(request, response, c.request, c.response)) {
+          rejectMixedEngines(c.location, response, c.response)
+        }
+      }
+      const cached = resultCache.current.get(request)
+      if (cached) {
+        seq.current++
+        setAnalysis({ status: 'success', request, response: cached.analyze })
+        setCompareReload(null)
+        setMobileScreen('panel')
+        showNearbyFromCache(request, cached.nearby)
+        checkB(cached.analyze)
+        return
+      }
+      const current = { seq: ++seq.current, controller: new AbortController() }
+      inflight.current = current
+      setAnalysis({ status: 'loading', request, origin: opts.origin })
+
+      analyze(request, current.controller.signal)
+        .then((r) => {
+          if (inflight.current?.seq !== current.seq) return
+          inflight.current = null
+          if (!r.ok) {
+            setAnalysis({ status: 'error', request, failure: r.failure, origin: opts.origin })
+            if (isInvalidRadius(r.failure)) radiusProblemRef.current(request, 'invalid')       // 4.6 R2
+            return
+          }
+          const check = checkResponse(r.data, request)
+          if (check !== 'ok') {
+            console.error('[api] /analyze 응답 조건이 요청과 다릅니다', { request, context: r.data.context, meta: r.data.result.meta })
+            setAnalysis({
+              status: 'error',
+              request,
+              failure: { kind: 'schema', endpoint: '/analyze', status: 200 },
+              origin: opts.origin,
+            })
+            if (check === 'radius') radiusProblemRef.current(request, 'mismatch')            // 4.6 R1 (S5)
+            return
+          }
+          resultCache.current.putAnalyze(request, r.data)
+          setAnalysis({ status: 'success', request, response: r.data })
+          setCompareReload(null)
+          setMobileScreen('panel')
+          loadNearby(request)                              // 실패해도 분석 결과는 그대로 둔다
+          checkB(r.data)
+        })
+        .catch(() => {})                                   // 취소된 요청
+    },
+    [cancelNearby, resetCompare, loadNearby, showNearbyFromCache, rejectMixedEngines, setAnalysis, setCompareReload],
+  )
 
   const runAnalysis = useCallback(() => {
     if (!location || !bizCode) return
-    inflight.current?.controller.abort()
-    const request: AnalyzeRequest = { lat: location.lat, lng: location.lng, biz_code: bizCode }
-    const current = { seq: ++seq.current, controller: new AbortController() }
-    inflight.current = current
-    setAnalysis({ status: 'loading', request })
-    cancelNearby()
-    resetCompare()
-
-    analyze(request, current.controller.signal)
-      .then((r) => {
-        if (inflight.current?.seq !== current.seq) return
-        inflight.current = null
-        if (!r.ok) {
-          setAnalysis({ status: 'error', request, failure: r.failure })
-        } else if (!matchesRequest(r.data, request)) {
-          console.error('[api] /analyze 응답 조건이 요청과 다릅니다', { request, context: r.data.context })
-          setAnalysis({ status: 'error', request, failure: { kind: 'schema', endpoint: '/analyze', status: 200 } })
-        } else {
-          setAnalysis({ status: 'success', request, response: r.data })
-          setMobileScreen('panel')
-          loadNearby(request)                              // 실패해도 분석 결과는 그대로 둔다
-        }
-      })
-      .catch(() => {})                                     // 취소된 요청
-  }, [location, bizCode, loadNearby, cancelNearby, resetCompare])
+    setRadiusNotice(null)
+    setPrevRadius(null)
+    startA(buildRequest(location, bizCode, radius, radiusEnabled))
+  }, [location, bizCode, radius, radiusEnabled, startA])
 
   const analyzing = analysis.status === 'loading'
   const comparing = compare.status !== 'off'
@@ -173,6 +353,7 @@ function App() {
   // ─── 두 위치 비교 (B) ───────────────────────────────────────────
   /** B 위치 고르기로 (시작·다시 고르기). desktop은 B 카드 제목, mobile은 지도 화면 sheet로 포커스 */
   const pickB = () => {
+    epoch.current++
     compareInflight.current?.controller.abort()
     compareInflight.current = null
     nearbyB.cancel()                                       // B를 다시 고르면 이전 B 점포 요청·목록을 버린다
@@ -217,13 +398,15 @@ function App() {
   /** 비교 종료·취소: B만 지우고 A 결과·A 점포 목록으로 돌아간다. 포커스는 "다른 위치와 비교" 버튼 */
   const endCompare = () => {
     resetCompare()
+    setCompareReload(null)
     setMobileScreen('panel')
     focusLater(COMPARE_IDS.start)
   }
 
   /** 비교 중 지도 클릭·좌표 입력 = B 선택. A는 바꾸지 않는다. B 분석 중에는 무시(D9). 받아들였으면 true */
   const selectCompareLocation = (point: LatLng): boolean => {
-    if (compare.status === 'off' || compare.status === 'loading') return false
+    if (compare.status === 'off' || bRequesting) return false
+    epoch.current++
     nearbyB.cancel()
     setCompare({ status: 'picking', location: point })    // 이전 B 결과·오류·점포는 지운다
     return true
@@ -238,16 +421,47 @@ function App() {
     if (selectCompareLocation(point)) focusLater(COMPARE_IDS.bAnalyze)
   }
 
-  const requestCompare = (point: LatLng) => {
-    if (analysis.status !== 'success') return
-    if (sameCoordinates(point, analysis.request)) {
+  /** B 성공(요청 응답 또는 캐시). A 응답과 엔진버전이 다르면 계약 오류 — 한 비교에 두 엔진을 섞지 않는다 (4.5) */
+  const acceptB = (point: LatLng, request: AnalyzeRequest, response: AnalyzeResponse, cachedNearby: NearbyStoresResponse | null) => {
+    const a = analysisRef.current
+    // A가 아직 다시 분석 중이면(같은 세대가 아님) 지금은 판정하지 않는다 — A가 도착할 때 startA가 본다
+    if (a.status === 'success' && mixedEngines(a.request, a.response, request, response)) {
+      rejectMixedEngines(point, a.response, response)
+      return
+    }
+    setCompare({ status: 'success', location: point, request, response })
+    setCompareView('summary')
+    setStoreSide('B')                                      // 점포 기준 기본값 B (D4)
+    setCompareShowStores(true)
+    setActiveStoreId(null)
+    if (cachedNearby) nearbyB.prime(cachedNearby)
+    else nearbyB.load(request)                             // 실패해도 A·B 분석 결과는 그대로 둔다
+    focusLater(COMPARE_IDS.title)
+  }
+
+  /**
+   * B 분석. 업종·반경은 A 요청과 같다(aRequest — 생략하면 지금 A 결과의 요청). 비교 중 반경 변경(S9)·복구는 새 A 요청을
+   * 넘겨 A·B를 동시에 다시 분석한다. 캐시 적중이면 요청하지 않는다.
+   */
+  const requestCompare = (point: LatLng, aRequest?: AnalyzeRequest) => {
+    const aReq = aRequest ?? (analysis.status === 'success' ? analysis.request : null)
+    if (!aReq) return
+    epoch.current++
+    if (sameCoordinates(point, aReq)) {
       setCompare({ status: 'picking', location: point, sameAsA: true })   // 요청하지 않는다 (D2)
       return
     }
     compareInflight.current?.controller.abort()
+    compareInflight.current = null
     nearbyB.cancel()
-    // 업종은 A 요청의 업종으로 고정
-    const request: AnalyzeRequest = { lat: point.lat, lng: point.lng, biz_code: analysis.request.biz_code }
+    const request: AnalyzeRequest = { ...aReq, lat: point.lat, lng: point.lng }
+    const cached = resultCache.current.get(request)
+    if (cached) {
+      compareSeq.current++
+      setMobileScreen('panel')
+      acceptB(point, request, cached.analyze, cached.nearby)
+      return
+    }
     const current = { seq: ++compareSeq.current, controller: new AbortController() }
     compareInflight.current = current
     setCompare({ status: 'loading', location: point })
@@ -260,19 +474,19 @@ function App() {
         if (!r.ok) {
           setCompare({ status: 'error', location: point, failure: r.failure })
           focusLater(COMPARE_IDS.bError)
-        } else if (!matchesRequest(r.data, request)) {
-          console.error('[api] /analyze(B) 응답 조건이 요청과 다릅니다', { request, context: r.data.context })
+          if (isInvalidRadius(r.failure)) radiusProblemRef.current(request, 'invalid')       // 4.6 R2
+          return
+        }
+        const check = checkResponse(r.data, request)
+        if (check !== 'ok') {
+          console.error('[api] /analyze(B) 응답 조건이 요청과 다릅니다', { request, context: r.data.context, meta: r.data.result.meta })
           setCompare({ status: 'error', location: point, failure: { kind: 'schema', endpoint: '/analyze', status: 200 } })
           focusLater(COMPARE_IDS.bError)
-        } else {
-          setCompare({ status: 'success', location: point, response: r.data })
-          setCompareView('summary')
-          setStoreSide('B')                                // 점포 기준 기본값 B (D4)
-          setCompareShowStores(true)
-          setActiveStoreId(null)
-          nearbyB.load(request)                            // 실패해도 A·B 분석 결과는 그대로 둔다
-          focusLater(COMPARE_IDS.title)
+          if (check === 'radius') radiusProblemRef.current(request, 'mismatch')              // 4.6 R1
+          return
         }
+        resultCache.current.putAnalyze(request, r.data)
+        acceptB(point, request, r.data, null)
       })
       .catch(() => {})                                     // 취소된 요청
   }
@@ -295,6 +509,96 @@ function App() {
         handleErrorAction(action)                          // 비교 안에서는 업종을 바꿀 수 없다 → 비교를 끝내고 조건부터
     }
   }
+
+  /**
+   * 분석 반경 변경 (8-D3, 4.4). 분석 전(S1)은 지도 원만 바꾼다. 결과를 보는 중이거나 반경 변경으로 실패한 화면이면
+   * 같은 조건을 새 반경으로 다시 분석한다 — 캐시 적중이면 요청 0(S2), 아니면 로딩(S3). 비교 중이면 A·B 모두(S9).
+   * 분석 중(A·B)에는 누를 수 없다(S15).
+   */
+  const changeRadius = (next: number) => {
+    if (next === radius || analyzing || bRequesting) return
+    epoch.current++
+    setPrevRadius(radius)
+    setRadius(next)
+    setRadiusNotice(null)
+    const base =
+      analysis.status === 'success' || (analysis.status === 'error' && analysis.origin === 'radius')
+        ? analysis.request
+        : null
+    if (!base) return
+    const reqA = buildRequest(base, base.biz_code, next, true)
+    const bLocation =
+      compareReload ?? (compareRaw.status === 'success' || compareRaw.status === 'error' ? compareRaw.location : null)
+    if (bLocation) {
+      setCompareReload(bLocation)
+      startA(reqA, { keepCompare: true, origin: 'radius' })
+      requestCompare(bLocation, reqA)
+    } else {
+      startA(reqA, { keepCompare: compare.status !== 'off', origin: 'radius' })
+    }
+  }
+
+  /**
+   * 반경 복구 (4.6 R1·R2). 반경을 보낸 요청이 500m 응답을 받았거나(R1, 구버전 서버) invalid_radius 를 받으면(R2, 새 v0.3 서버)
+   * /health 를 다시 본다. 요청 반경을 아직 광고하면 복구하지 않고 오류로 둔다(S5·S8). 더 이상 광고하지 않으면
+   * 반경 선택 숨김(광고가 2개 미만이면) · 반경 500 복귀 · 반경 ≠ 500 캐시 폐기 · 안내 · 500m 재분석 1회(비교 중이면 A·B 모두).
+   * 재분석은 반경을 보내지 않거나(광고 없음) 500을 보내므로 같은 경로로 다시 복구하지 않는다(반복 없음).
+   */
+  const recoveryRequests = useRef(new WeakSet<AnalyzeRequest>())
+  // 지금 진행 중인 복구의 세대. 같은 세대의 두 번째 문제(A·B 오류가 함께 옴)는 건너뛰고, 새 세대의 문제는 이전 복구가
+  // 끝나기를 기다리지 않고 새로 복구한다 — 이전 복구는 세대가 달라 응답 뒤 아무것도 바꾸지 않는다(8-D3 재검수)
+  const recoveringEpoch = useRef<number | null>(null)
+  const recoverRadius = async (request: AnalyzeRequest, problem: RadiusProblem) => {
+    if (request.radius_m === undefined || recoveryRequests.current.has(request)) return
+    const startedAt = epoch.current
+    if (recoveringEpoch.current === startedAt) return
+    recoveringEpoch.current = startedAt
+    try {
+      const r = await fetchHealth()
+      // 그사이 새 분석·반경 변경·조건 변경·비교 종료가 있었으면 이 복구는 무효 — 광고·반경·캐시·안내·요청을 바꾸지 않는다
+      if (epoch.current !== startedAt) return
+      const engineInfo = r.ok ? r.data.engine : undefined
+      const options = engineInfo ? engineInfo.radius_options : []
+      setRadiusOptions(options)
+      if (options.length >= 2 && options.includes(request.radius_m)) {
+        console.error(`[api] 반경 ${request.radius_m}m 문제(${problem})지만 서버가 아직 광고합니다 — 복구하지 않습니다`)
+        return
+      }
+      const withRadius = options.length >= 2 && options.includes(DEFAULT_RADIUS_M)
+      setRadius(DEFAULT_RADIUS_M)
+      setPrevRadius(null)
+      // 확인된 엔진이 캐시와 같을 때만 반경 500 항목을 재사용한다. 다른 엔진이거나 버전을 알리지 않는 구버전 서버면
+      // 이전 캐시를 쓸 근거가 없으므로 전부 버리고 새 서버에서 다시 조회한다(8-D3 검수)
+      if (engineInfo && engineInfo.version === resultCache.current.engineVersion) {
+        resultCache.current.dropRadiusOtherThan(DEFAULT_RADIUS_M)
+      } else {
+        resultCache.current.clear()
+      }
+      setRadiusNotice(RADIUS_RECOVERY_NOTICE)
+      const a = analysisRef.current
+      if (a.status === 'idle') return
+      const c = compareRef.current
+      const reqA = buildRequest(a.request, a.request.biz_code, DEFAULT_RADIUS_M, withRadius)
+      recoveryRequests.current.add(reqA)
+      const bLocation =
+        compareReloadRef.current ??
+        (c.status === 'success' || c.status === 'error' || c.status === 'loading' ? c.location : null)
+      if (bLocation) {
+        setCompareReload(bLocation)
+        startA(reqA, { keepCompare: true, origin: 'radius' })
+        requestCompareRef.current(bLocation, reqA)
+      } else {
+        startA(reqA, { keepCompare: c.status !== 'off', origin: 'radius' })
+      }
+    } finally {
+      if (recoveringEpoch.current === startedAt) recoveringEpoch.current = null   // 새 세대 복구의 표시는 건드리지 않는다
+    }
+  }
+  const requestCompareRef = useRef(requestCompare)
+  useLayoutEffect(() => {
+    requestCompareRef.current = requestCompare
+    radiusProblemRef.current = (request, problem) => void recoverRadius(request, problem)
+  })
 
   const selectLocation = (point: LatLng) => {
     if (analyzing) return                                  // 분석 중 새 선택은 무시 (§8.12)
@@ -321,6 +625,16 @@ function App() {
   const handleErrorAction = (action: ErrorAction) => {
     switch (action) {
       case 'retry':
+        // 같은 K 재시도(S14). 비교 중 반경 변경에서 A가 실패했으면 A·B 모두(S11), 반경 변경 실패는 비교를 유지한 채 A만
+        if (analysis.status === 'error' && compareReload) {
+          startA(analysis.request, { keepCompare: true, origin: 'radius' })
+          requestCompare(compareReload, analysis.request)
+          return
+        }
+        if (analysis.status === 'error' && analysis.origin === 'radius') {
+          startA(analysis.request, { keepCompare: compare.status !== 'off', origin: 'radius' })
+          return
+        }
         runAnalysis()
         return
       case 'reselect-location':
@@ -419,7 +733,8 @@ function App() {
   const compareStores = (side: CompareSide, response: AnalyzeResponse, withSwitch: boolean) => {
     const state = side === 'A' ? nearby : nearbyB.state
     if (!state || analysis.status !== 'success' || compare.status !== 'success') return null
-    const request: AnalyzeRequest = { lat: response.context.lat, lng: response.context.lng, biz_code: analysis.request.biz_code }
+    // 다시 시도는 그 목록을 받은 원래 요청 그대로(반경 포함, 반경을 보내지 않는 서버면 없음) — A는 A 분석 요청, B는 B 분석 요청
+    const request: AnalyzeRequest = side === 'A' ? analysis.request : compare.request
     return (
       <NearbyStores
         key={`${side},${response.context.lat},${response.context.lng},${response.result.meta.업종코드}`}
@@ -469,7 +784,7 @@ function App() {
               ? { guCode: compare.response.context.gu_code, dongName: compare.response.context.dong_name }
               : null,
           guide:
-            compare.status === 'loading'
+            bRequesting
               ? 'B 위치 분석 중…'
               : compare.status === 'success'
                 ? '지도를 누르면 B 위치를 다시 고릅니다'
@@ -504,6 +819,36 @@ function App() {
   // 주소로 찾기(7-B4 단일·7-B5 B): Geocoder가 준비됐을 때만. 인증 실패 등으로 failed가 되면 null → 폼이 사라진다
   const searchApi = sdk.status === 'ready' && sdk.geocoder === 'ready' ? sdk.api : null
 
+  // 분석 반경 선택 (8-D3): 서버가 반경을 2개 이상 광고할 때만. 분석 전·결과·비교 화면 위에 같은 컨트롤 하나를 둔다
+  const radiusBusy = analyzing || bRequesting
+  const radiusStatus = !radiusBusy
+    ? null
+    : compareReload
+      ? `두 위치를 반경 ${formatRadius(radius)}로 다시 분석 중`
+      : analysis.status === 'loading' && analysis.origin === 'radius'
+        ? `반경 ${formatRadius(radius)}로 다시 분석 중`
+        : null
+  const wider = radiusOptions.filter((r) => result && r > result.result.meta.분석반경_m)
+  const narrowHint =
+    result && result.result.지표[2].flags.includes('미개척_동종점포_0개') && wider.length > 0
+      ? `${formatRadius(result.result.meta.분석반경_m)} 안에 같은 업종이 없어 경쟁성을 내지 않았습니다. ${wider.map(formatRadius).join('·')}로 넓히면 산출될 수 있습니다.`
+      : null
+  const radiusControl = radiusEnabled ? (
+    <RadiusControl
+      options={radiusOptions}
+      value={radius}
+      disabled={radiusBusy}
+      onChange={changeRadius}
+      status={radiusStatus}
+      narrowHint={narrowHint}
+      back={
+        analysis.status === 'error' && analysis.origin === 'radius' && prevRadius !== null && prevRadius !== radius
+          ? { radius: prevRadius, onBack: () => changeRadius(prevRadius) }
+          : null
+      }
+    />
+  ) : null
+
   const showMapFromCompare = () => {
     setMobileScreen('map')
     focusLater(COMPARE_IDS.sheetAction)
@@ -523,6 +868,12 @@ function App() {
       </header>
       <div className="workspace">
         <main className="workspace__panel">
+          {radiusNotice && (
+            <p className="radius-notice" role="status">
+              {radiusNotice}
+            </p>
+          )}
+          {result && compare.status === 'success' && radiusControl}
           {result && compare.status === 'success' ? (
             // AnalysisResult는 한 번에 하나만 마운트한다(고정 id, COMPARE_DESIGN.md 6장). 점포 목록은 보이는 기준 위치의 것만(5차-B5)
             compareView === 'summary' ? (
@@ -553,6 +904,8 @@ function App() {
               />
             )
           ) : result && compare.status !== 'off' && compare.status !== 'success' ? (
+            <>
+            {radiusControl}
             <ComparePanel
               a={result}
               compare={compare}
@@ -566,6 +919,7 @@ function App() {
               searchApi={searchApi}
               searchResetKey={bPickSeq}
             />
+            </>
           ) : result ? (
             <>
               <div className="conditions-summary">
@@ -583,6 +937,7 @@ function App() {
                   </button>
                 </span>
               </div>
+              {radiusControl}
               <AnalysisResult
                 analysis={result}
                 nearby={
@@ -624,6 +979,15 @@ function App() {
                 address={<ReferenceAddress sdk={sdk} point={location} />}
                 searchApi={searchApi}
               />
+              {radiusControl}
+              {compareReload && analysis.status === 'error' && (
+                <p className="radius-notice">
+                  비교 중 A 위치를 다시 분석하지 못했습니다. &quot;다시 시도&quot;는 A·B를 함께 다시 분석합니다.{' '}
+                  <button type="button" className="button-ghost" onClick={endCompare}>
+                    비교 종료
+                  </button>
+                </p>
+              )}
               <div className="intro__result">
                 {analysis.status === 'loading' && <AnalysisLoading />}
                 {errorAt('result')}
@@ -638,9 +1002,10 @@ function App() {
             // mobile 지도↔패널 전환 신호: 크기 알림 없이 지도 화면으로 돌아와도 크기 맞춤·미룬 정보창 처리 (6-4)
             layoutKey={mobileScreen}
             selected={location}
+            radiusM={radius}
             markerTone={markerTone}
             dong={result ? { guCode: result.context.gu_code, dongName: result.context.dong_name } : null}
-            interactive={!analyzing && compare.status !== 'loading'}
+            interactive={!analyzing && !bRequesting}
             onSelect={selectLocation}
             // 지금 보이는 점포 기준의 마커만 (B 고르기·분석 중·실패에는 없음). A 점포 데이터는 비교 중에도 그대로 둔다
             stores={mapStores}
