@@ -1,0 +1,36 @@
+{
+ "engine": "mvp-0.3",
+ "radius_options": [
+  500
+ ],
+ "conditions": {
+  "python": "3.10.11",
+  "platform": "Windows-10-10.0.26200-SP0",
+  "measure": "Windows psapi GetProcessMemoryInfo (이 프로세스)",
+  "requests": "없음"
+ },
+ "start": {
+  "working_set_mib": 15.2,
+  "peak_working_set_mib": 15.2,
+  "private_mib": 7.8,
+  "peak_private_mib": 7.8
+ },
+ "after_load_runtime": {
+  "working_set_mib": 178.2,
+  "peak_working_set_mib": 197.1,
+  "private_mib": 641.1,
+  "peak_private_mib": 695.8
+ },
+ "after_full_warm": {
+  "working_set_mib": 178.8,
+  "peak_working_set_mib": 197.1,
+  "private_mib": 641.0,
+  "peak_private_mib": 695.8
+ },
+ "load_runtime_s": 4.93,
+ "warm_s": 109.1,
+ "cache_stats": {
+  "competition_entries": 29,
+  "location_entries": 14
+ }
+}

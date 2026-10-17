@@ -1,0 +1,9915 @@
+{
+ "engine": "mvp-0.4",
+ "radius_options": [
+  300,
+  500,
+  1000
+ ],
+ "a": "93b7031",
+ "b": "working",
+ "mode": "thread",
+ "businesses": 29,
+ "load_runtime_s": 5.16,
+ "conditions": {
+  "python": "3.10.11",
+  "platform": "Windows-10-10.0.26200-SP0",
+  "cpu_count": 16,
+  "requests": "없음",
+  "order": "쌍마다 교차 (a b, b a, …)",
+  "same_process_runtime": true
+ },
+ "summary": [
+  {
+   "pair": 0,
+   "impl": "a",
+   "rev": "93b7031",
+   "total_s": 245.58,
+   "process_cpu_s": 242.38,
+   "sum_build_reference_s": 238.01,
+   "sum_build_reference_cpu_s": 234.83,
+   "sum_location_build_s": 7.28,
+   "sum_overhead_s": 0.2863,
+   "max_concurrent_builds": 1,
+   "competition_builds": 87,
+   "location_builds": 14
+  },
+  {
+   "pair": 0,
+   "impl": "b",
+   "rev": "working",
+   "total_s": 245.52,
+   "process_cpu_s": 242.75,
+   "sum_build_reference_s": 238.14,
+   "sum_build_reference_cpu_s": 235.45,
+   "sum_location_build_s": 7.09,
+   "sum_overhead_s": 0.2824,
+   "max_concurrent_builds": 1,
+   "competition_builds": 87,
+   "location_builds": 14
+  },
+  {
+   "pair": 1,
+   "impl": "b",
+   "rev": "working",
+   "total_s": 263.73,
+   "process_cpu_s": 260.05,
+   "sum_build_reference_s": 255.69,
+   "sum_build_reference_cpu_s": 252.12,
+   "sum_location_build_s": 7.73,
+   "sum_overhead_s": 0.302,
+   "max_concurrent_builds": 1,
+   "competition_builds": 87,
+   "location_builds": 14
+  },
+  {
+   "pair": 1,
+   "impl": "a",
+   "rev": "93b7031",
+   "total_s": 265.94,
+   "process_cpu_s": 261.75,
+   "sum_build_reference_s": 258.14,
+   "sum_build_reference_cpu_s": 254.05,
+   "sum_location_build_s": 7.5,
+   "sum_overhead_s": 0.2956,
+   "max_concurrent_builds": 1,
+   "competition_builds": 87,
+   "location_builds": 14
+  }
+ ],
+ "per_key_build_ratio_b_over_a": {
+  "n": 87,
+  "median": 0.9979,
+  "min": 0.7726,
+  "max": 1.2139
+ },
+ "runs": [
+  {
+   "total_s": 245.58,
+   "process_cpu_s": 242.38,
+   "stats": {
+    "competition_entries": 87,
+    "location_entries": 14
+   },
+   "competition_builds": 87,
+   "location_builds": 14,
+   "sum_build_reference_s": 238.01,
+   "sum_build_reference_cpu_s": 234.83,
+   "sum_location_build_s": 7.28,
+   "sum_overhead_s": 0.2863,
+   "max_concurrent_builds": 1,
+   "records": [
+    {
+     "kind": "build_reference",
+     "key": [
+      "G20405",
+      300
+     ],
+     "start": 0.002,
+     "end": 2.6682,
+     "cpu_s": 2.5781,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "G20405",
+      300
+     ],
+     "start": 0.0011,
+     "end": 2.6682,
+     "cpu_s": 2.5781,
+     "build_s": 2.6662,
+     "overhead_s": 0.0009
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "G20405",
+      500
+     ],
+     "start": 2.6686,
+     "end": 5.3261,
+     "cpu_s": 2.6406,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "G20405",
+      500
+     ],
+     "start": 2.6682,
+     "end": 5.3261,
+     "cpu_s": 2.6406,
+     "build_s": 2.6575,
+     "overhead_s": 0.0004
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "G20405",
+      1000
+     ],
+     "start": 5.3265,
+     "end": 8.2027,
+     "cpu_s": 2.8125,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "G20405",
+      1000
+     ],
+     "start": 5.3261,
+     "end": 8.2028,
+     "cpu_s": 2.8125,
+     "build_s": 2.8762,
+     "overhead_s": 0.0004
+    },
+    {
+     "kind": "location",
+     "key": [
+      "G20405",
+      [
+       "오피스",
+       "고등학교",
+       "초등학교"
+      ]
+     ],
+     "start": 8.2028,
+     "end": 8.9735,
+     "cpu_s": 0.7812,
+     "build_s": 0.7529,
+     "overhead_s": 0.0179
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "G20404",
+      300
+     ],
+     "start": 8.9739,
+     "end": 11.5815,
+     "cpu_s": 2.5938,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "G20404",
+      300
+     ],
+     "start": 8.9736,
+     "end": 11.5815,
+     "cpu_s": 2.5938,
+     "build_s": 2.6076,
+     "overhead_s": 0.0004
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "G20404",
+      500
+     ],
+     "start": 11.5818,
+     "end": 14.2225,
+     "cpu_s": 2.5781,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "G20404",
+      500
+     ],
+     "start": 11.5815,
+     "end": 14.2226,
+     "cpu_s": 2.5781,
+     "build_s": 2.6407,
+     "overhead_s": 0.0003
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "G20404",
+      1000
+     ],
+     "start": 14.223,
+     "end": 16.8459,
+     "cpu_s": 2.625,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "G20404",
+      1000
+     ],
+     "start": 14.2226,
+     "end": 16.846,
+     "cpu_s": 2.625,
+     "build_s": 2.6229,
+     "overhead_s": 0.0005
+    },
+    {
+     "kind": "location",
+     "key": [
+      "G20404",
+      [
+       "초등학교",
+       "중학교"
+      ]
+     ],
+     "start": 16.846,
+     "end": 17.21,
+     "cpu_s": 0.3594,
+     "build_s": 0.3505,
+     "overhead_s": 0.0136
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "S20701",
+      300
+     ],
+     "start": 17.2104,
+     "end": 19.7883,
+     "cpu_s": 2.5312,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "S20701",
+      300
+     ],
+     "start": 17.21,
+     "end": 19.7884,
+     "cpu_s": 2.5312,
+     "build_s": 2.5779,
+     "overhead_s": 0.0005
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "S20701",
+      500
+     ],
+     "start": 19.789,
+     "end": 22.3813,
+     "cpu_s": 2.5625,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "S20701",
+      500
+     ],
+     "start": 19.7884,
+     "end": 22.3814,
+     "cpu_s": 2.5625,
+     "build_s": 2.5923,
+     "overhead_s": 0.0007
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "S20701",
+      1000
+     ],
+     "start": 22.3817,
+     "end": 25.3492,
+     "cpu_s": 2.9375,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "S20701",
+      1000
+     ],
+     "start": 22.3814,
+     "end": 25.3492,
+     "cpu_s": 2.9375,
+     "build_s": 2.9675,
+     "overhead_s": 0.0004
+    },
+    {
+     "kind": "location",
+     "key": [
+      "S20701",
+      [
+       "오피스",
+       "초등학교"
+      ]
+     ],
+     "start": 25.3492,
+     "end": 25.8554,
+     "cpu_s": 0.5,
+     "build_s": 0.4907,
+     "overhead_s": 0.0155
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "S20702",
+      300
+     ],
+     "start": 25.8559,
+     "end": 28.3555,
+     "cpu_s": 2.4375,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "S20702",
+      300
+     ],
+     "start": 25.8554,
+     "end": 28.3555,
+     "cpu_s": 2.4375,
+     "build_s": 2.4996,
+     "overhead_s": 0.0005
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "S20702",
+      500
+     ],
+     "start": 28.3558,
+     "end": 30.973,
+     "cpu_s": 2.5781,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "S20702",
+      500
+     ],
+     "start": 28.3555,
+     "end": 30.973,
+     "cpu_s": 2.5781,
+     "build_s": 2.6172,
+     "overhead_s": 0.0003
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "S20702",
+      1000
+     ],
+     "start": 30.9735,
+     "end": 34.1186,
+     "cpu_s": 3.0938,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "S20702",
+      1000
+     ],
+     "start": 30.973,
+     "end": 34.1186,
+     "cpu_s": 3.0938,
+     "build_s": 3.1451,
+     "overhead_s": 0.0005
+    },
+    {
+     "kind": "location",
+     "key": [
+      "S20702",
+      [
+       "오피스"
+      ]
+     ],
+     "start": 34.1187,
+     "end": 34.5367,
+     "cpu_s": 0.4219,
+     "build_s": 0.3937,
+     "overhead_s": 0.0244
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "S20703",
+      300
+     ],
+     "start": 34.5375,
+     "end": 37.2756,
+     "cpu_s": 2.6719,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "S20703",
+      300
+     ],
+     "start": 34.5367,
+     "end": 37.2757,
+     "cpu_s": 2.6719,
+     "build_s": 2.7381,
+     "overhead_s": 0.0009
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "S20703",
+      500
+     ],
+     "start": 37.2761,
+     "end": 40.2476,
+     "cpu_s": 2.9219,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "S20703",
+      500
+     ],
+     "start": 37.2757,
+     "end": 40.2476,
+     "cpu_s": 2.9219,
+     "build_s": 2.9715,
+     "overhead_s": 0.0004
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "S20703",
+      1000
+     ],
+     "start": 40.2481,
+     "end": 43.283,
+     "cpu_s": 3.0,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "S20703",
+      1000
+     ],
+     "start": 40.2477,
+     "end": 43.2831,
+     "cpu_s": 3.0,
+     "build_s": 3.0349,
+     "overhead_s": 0.0005
+    },
+    {
+     "kind": "location",
+     "key": [
+      "S20703",
+      [
+       "오피스"
+      ]
+     ],
+     "start": 43.2831,
+     "end": 43.2831,
+     "cpu_s": 0.0,
+     "build_s": null,
+     "overhead_s": null
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "S20901",
+      300
+     ],
+     "start": 43.2835,
+     "end": 45.9992,
+     "cpu_s": 2.6562,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "S20901",
+      300
+     ],
+     "start": 43.2831,
+     "end": 45.9992,
+     "cpu_s": 2.6562,
+     "build_s": 2.7157,
+     "overhead_s": 0.0004
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "S20901",
+      500
+     ],
+     "start": 45.9996,
+     "end": 48.6811,
+     "cpu_s": 2.6562,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "S20901",
+      500
+     ],
+     "start": 45.9992,
+     "end": 48.6812,
+     "cpu_s": 2.6719,
+     "build_s": 2.6815,
+     "overhead_s": 0.0005
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "S20901",
+      1000
+     ],
+     "start": 48.6815,
+     "end": 51.6675,
+     "cpu_s": 2.9219,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "S20901",
+      1000
+     ],
+     "start": 48.6812,
+     "end": 51.6676,
+     "cpu_s": 2.9219,
+     "build_s": 2.986,
+     "overhead_s": 0.0004
+    },
+    {
+     "kind": "location",
+     "key": [
+      "S20901",
+      [
+       "오피스",
+       "초등학교"
+      ]
+     ],
+     "start": 51.6676,
+     "end": 51.6676,
+     "cpu_s": 0.0,
+     "build_s": null,
+     "overhead_s": null
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "G21501",
+      300
+     ],
+     "start": 51.6683,
+     "end": 54.4779,
+     "cpu_s": 2.7969,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "G21501",
+      300
+     ],
+     "start": 51.6676,
+     "end": 54.478,
+     "cpu_s": 2.7969,
+     "build_s": 2.8096,
+     "overhead_s": 0.0008
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "G21501",
+      500
+     ],
+     "start": 54.4784,
+     "end": 57.1877,
+     "cpu_s": 2.7031,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "G21501",
+      500
+     ],
+     "start": 54.478,
+     "end": 57.1878,
+     "cpu_s": 2.7031,
+     "build_s": 2.7093,
+     "overhead_s": 0.0005
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "G21501",
+      1000
+     ],
+     "start": 57.1881,
+     "end": 59.9202,
+     "cpu_s": 2.6875,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "G21501",
+      1000
+     ],
+     "start": 57.1878,
+     "end": 59.9202,
+     "cpu_s": 2.6875,
+     "build_s": 2.7321,
+     "overhead_s": 0.0003
+    },
+    {
+     "kind": "location",
+     "key": [
+      "G21501",
+      [
+       "병원"
+      ]
+     ],
+     "start": 59.9202,
+     "end": 60.1728,
+     "cpu_s": 0.2344,
+     "build_s": 0.2372,
+     "overhead_s": 0.0154
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I21201",
+      300
+     ],
+     "start": 60.1733,
+     "end": 62.7797,
+     "cpu_s": 2.5469,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I21201",
+      300
+     ],
+     "start": 60.1729,
+     "end": 62.7797,
+     "cpu_s": 2.5469,
+     "build_s": 2.6064,
+     "overhead_s": 0.0004
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I21201",
+      500
+     ],
+     "start": 62.78,
+     "end": 65.4143,
+     "cpu_s": 2.625,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I21201",
+      500
+     ],
+     "start": 62.7797,
+     "end": 65.4144,
+     "cpu_s": 2.625,
+     "build_s": 2.6343,
+     "overhead_s": 0.0003
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I21201",
+      1000
+     ],
+     "start": 65.4148,
+     "end": 68.2182,
+     "cpu_s": 2.7344,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I21201",
+      1000
+     ],
+     "start": 65.4144,
+     "end": 68.2182,
+     "cpu_s": 2.7344,
+     "build_s": 2.8034,
+     "overhead_s": 0.0005
+    },
+    {
+     "kind": "location",
+     "key": [
+      "I21201",
+      [
+       "오피스",
+       "병원",
+       "학원"
+      ]
+     ],
+     "start": 68.2182,
+     "end": 68.9739,
+     "cpu_s": 0.75,
+     "build_s": 0.7388,
+     "overhead_s": 0.0168
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I21001",
+      300
+     ],
+     "start": 68.9742,
+     "end": 71.5535,
+     "cpu_s": 2.5625,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I21001",
+      300
+     ],
+     "start": 68.9739,
+     "end": 71.5536,
+     "cpu_s": 2.5625,
+     "build_s": 2.5793,
+     "overhead_s": 0.0004
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I21001",
+      500
+     ],
+     "start": 71.5541,
+     "end": 74.2346,
+     "cpu_s": 2.6719,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I21001",
+      500
+     ],
+     "start": 71.5536,
+     "end": 74.2347,
+     "cpu_s": 2.6719,
+     "build_s": 2.6805,
+     "overhead_s": 0.0006
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I21001",
+      1000
+     ],
+     "start": 74.2351,
+     "end": 76.9965,
+     "cpu_s": 2.75,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I21001",
+      1000
+     ],
+     "start": 74.2347,
+     "end": 76.9965,
+     "cpu_s": 2.75,
+     "build_s": 2.7614,
+     "overhead_s": 0.0004
+    },
+    {
+     "kind": "location",
+     "key": [
+      "I21001",
+      [
+       "초등학교",
+       "오피스"
+      ]
+     ],
+     "start": 76.9965,
+     "end": 77.4955,
+     "cpu_s": 0.5,
+     "build_s": 0.4809,
+     "overhead_s": 0.018
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I21007",
+      300
+     ],
+     "start": 77.4959,
+     "end": 80.008,
+     "cpu_s": 2.5156,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I21007",
+      300
+     ],
+     "start": 77.4955,
+     "end": 80.0081,
+     "cpu_s": 2.5156,
+     "build_s": 2.5121,
+     "overhead_s": 0.0005
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I21007",
+      500
+     ],
+     "start": 80.0087,
+     "end": 82.6428,
+     "cpu_s": 2.6094,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I21007",
+      500
+     ],
+     "start": 80.0081,
+     "end": 82.6429,
+     "cpu_s": 2.6094,
+     "build_s": 2.6341,
+     "overhead_s": 0.0007
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I21007",
+      1000
+     ],
+     "start": 82.6431,
+     "end": 85.3931,
+     "cpu_s": 2.75,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I21007",
+      1000
+     ],
+     "start": 82.6429,
+     "end": 85.3932,
+     "cpu_s": 2.75,
+     "build_s": 2.75,
+     "overhead_s": 0.0003
+    },
+    {
+     "kind": "location",
+     "key": [
+      "I21007",
+      [
+       "중학교",
+       "고등학교",
+       "학원"
+      ]
+     ],
+     "start": 85.3932,
+     "end": 86.0186,
+     "cpu_s": 0.6094,
+     "build_s": 0.6081,
+     "overhead_s": 0.0173
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I21005",
+      300
+     ],
+     "start": 86.019,
+     "end": 88.5835,
+     "cpu_s": 2.5469,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I21005",
+      300
+     ],
+     "start": 86.0186,
+     "end": 88.5836,
+     "cpu_s": 2.5469,
+     "build_s": 2.5645,
+     "overhead_s": 0.0005
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I21005",
+      500
+     ],
+     "start": 88.5841,
+     "end": 91.1227,
+     "cpu_s": 2.5156,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I21005",
+      500
+     ],
+     "start": 88.5836,
+     "end": 91.1228,
+     "cpu_s": 2.5156,
+     "build_s": 2.5386,
+     "overhead_s": 0.0006
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I21005",
+      1000
+     ],
+     "start": 91.1232,
+     "end": 93.8278,
+     "cpu_s": 2.6719,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I21005",
+      1000
+     ],
+     "start": 91.1228,
+     "end": 93.8279,
+     "cpu_s": 2.6719,
+     "build_s": 2.7046,
+     "overhead_s": 0.0005
+    },
+    {
+     "kind": "location",
+     "key": [
+      "I21005",
+      [
+       "오피스",
+       "고등학교"
+      ]
+     ],
+     "start": 93.8279,
+     "end": 94.31,
+     "cpu_s": 0.4844,
+     "build_s": 0.467,
+     "overhead_s": 0.0152
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I21008",
+      300
+     ],
+     "start": 94.3105,
+     "end": 96.7883,
+     "cpu_s": 2.4219,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I21008",
+      300
+     ],
+     "start": 94.31,
+     "end": 96.7884,
+     "cpu_s": 2.4219,
+     "build_s": 2.4778,
+     "overhead_s": 0.0006
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I21008",
+      500
+     ],
+     "start": 96.7887,
+     "end": 99.3668,
+     "cpu_s": 2.5625,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I21008",
+      500
+     ],
+     "start": 96.7884,
+     "end": 99.3669,
+     "cpu_s": 2.5625,
+     "build_s": 2.5781,
+     "overhead_s": 0.0004
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I21008",
+      1000
+     ],
+     "start": 99.3673,
+     "end": 102.1274,
+     "cpu_s": 2.75,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I21008",
+      1000
+     ],
+     "start": 99.3669,
+     "end": 102.1275,
+     "cpu_s": 2.75,
+     "build_s": 2.7601,
+     "overhead_s": 0.0005
+    },
+    {
+     "kind": "location",
+     "key": [
+      "I21008",
+      [
+       "초등학교",
+       "중학교",
+       "학원"
+      ]
+     ],
+     "start": 102.1275,
+     "end": 102.7023,
+     "cpu_s": 0.5625,
+     "build_s": 0.5594,
+     "overhead_s": 0.0155
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I21004",
+      300
+     ],
+     "start": 102.7027,
+     "end": 105.2284,
+     "cpu_s": 2.4844,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I21004",
+      300
+     ],
+     "start": 102.7024,
+     "end": 105.2285,
+     "cpu_s": 2.5,
+     "build_s": 2.5257,
+     "overhead_s": 0.0004
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I21004",
+      500
+     ],
+     "start": 105.2289,
+     "end": 107.7497,
+     "cpu_s": 2.5,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I21004",
+      500
+     ],
+     "start": 105.2285,
+     "end": 107.7497,
+     "cpu_s": 2.5,
+     "build_s": 2.5208,
+     "overhead_s": 0.0004
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I21004",
+      1000
+     ],
+     "start": 107.7501,
+     "end": 110.4002,
+     "cpu_s": 2.625,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I21004",
+      1000
+     ],
+     "start": 107.7497,
+     "end": 110.4002,
+     "cpu_s": 2.6406,
+     "build_s": 2.6501,
+     "overhead_s": 0.0004
+    },
+    {
+     "kind": "location",
+     "key": [
+      "I21004",
+      [
+       "중학교",
+       "고등학교",
+       "학원"
+      ]
+     ],
+     "start": 110.4002,
+     "end": 110.4002,
+     "cpu_s": 0.0,
+     "build_s": null,
+     "overhead_s": null
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I21006",
+      300
+     ],
+     "start": 110.4005,
+     "end": 112.8868,
+     "cpu_s": 2.4531,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I21006",
+      300
+     ],
+     "start": 110.4002,
+     "end": 112.8869,
+     "cpu_s": 2.4531,
+     "build_s": 2.4863,
+     "overhead_s": 0.0003
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I21006",
+      500
+     ],
+     "start": 112.8876,
+     "end": 115.4833,
+     "cpu_s": 2.5625,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I21006",
+      500
+     ],
+     "start": 112.8869,
+     "end": 115.4833,
+     "cpu_s": 2.5625,
+     "build_s": 2.5957,
+     "overhead_s": 0.0007
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I21006",
+      1000
+     ],
+     "start": 115.4836,
+     "end": 118.2705,
+     "cpu_s": 2.7812,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I21006",
+      1000
+     ],
+     "start": 115.4833,
+     "end": 118.2706,
+     "cpu_s": 2.7812,
+     "build_s": 2.7869,
+     "overhead_s": 0.0003
+    },
+    {
+     "kind": "location",
+     "key": [
+      "I21006",
+      [
+       "초등학교",
+       "중학교"
+      ]
+     ],
+     "start": 118.2706,
+     "end": 118.2706,
+     "cpu_s": 0.0,
+     "build_s": null,
+     "overhead_s": null
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I21003",
+      300
+     ],
+     "start": 118.2711,
+     "end": 121.0254,
+     "cpu_s": 2.625,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I21003",
+      300
+     ],
+     "start": 118.2706,
+     "end": 121.0255,
+     "cpu_s": 2.625,
+     "build_s": 2.7543,
+     "overhead_s": 0.0006
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I21003",
+      500
+     ],
+     "start": 121.0262,
+     "end": 123.8922,
+     "cpu_s": 2.8438,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I21003",
+      500
+     ],
+     "start": 121.0255,
+     "end": 123.8923,
+     "cpu_s": 2.8438,
+     "build_s": 2.866,
+     "overhead_s": 0.0007
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I21003",
+      1000
+     ],
+     "start": 123.8928,
+     "end": 126.7992,
+     "cpu_s": 2.875,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I21003",
+      1000
+     ],
+     "start": 123.8923,
+     "end": 126.7992,
+     "cpu_s": 2.875,
+     "build_s": 2.9064,
+     "overhead_s": 0.0006
+    },
+    {
+     "kind": "location",
+     "key": [
+      "I21003",
+      [
+       "초등학교",
+       "중학교"
+      ]
+     ],
+     "start": 126.7993,
+     "end": 126.7993,
+     "cpu_s": 0.0,
+     "build_s": null,
+     "overhead_s": null
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "R10406",
+      300
+     ],
+     "start": 126.7996,
+     "end": 129.4786,
+     "cpu_s": 2.625,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "R10406",
+      300
+     ],
+     "start": 126.7993,
+     "end": 129.4787,
+     "cpu_s": 2.625,
+     "build_s": 2.679,
+     "overhead_s": 0.0004
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "R10406",
+      500
+     ],
+     "start": 129.4793,
+     "end": 132.2397,
+     "cpu_s": 2.75,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "R10406",
+      500
+     ],
+     "start": 129.4787,
+     "end": 132.2398,
+     "cpu_s": 2.75,
+     "build_s": 2.7604,
+     "overhead_s": 0.0007
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "R10406",
+      1000
+     ],
+     "start": 132.2403,
+     "end": 135.1559,
+     "cpu_s": 2.8906,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "R10406",
+      1000
+     ],
+     "start": 132.2398,
+     "end": 135.156,
+     "cpu_s": 2.8906,
+     "build_s": 2.9156,
+     "overhead_s": 0.0006
+    },
+    {
+     "kind": "location",
+     "key": [
+      "R10406",
+      [
+       "중학교",
+       "고등학교",
+       "학원"
+      ]
+     ],
+     "start": 135.156,
+     "end": 135.156,
+     "cpu_s": 0.0,
+     "build_s": null,
+     "overhead_s": null
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "R10202",
+      300
+     ],
+     "start": 135.1564,
+     "end": 137.8352,
+     "cpu_s": 2.6094,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "R10202",
+      300
+     ],
+     "start": 135.156,
+     "end": 137.8353,
+     "cpu_s": 2.6094,
+     "build_s": 2.6788,
+     "overhead_s": 0.0005
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "R10202",
+      500
+     ],
+     "start": 137.8356,
+     "end": 140.7515,
+     "cpu_s": 2.8281,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "R10202",
+      500
+     ],
+     "start": 137.8353,
+     "end": 140.7515,
+     "cpu_s": 2.8281,
+     "build_s": 2.9159,
+     "overhead_s": 0.0004
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "R10202",
+      1000
+     ],
+     "start": 140.7521,
+     "end": 143.7229,
+     "cpu_s": 2.9375,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "R10202",
+      1000
+     ],
+     "start": 140.7515,
+     "end": 143.723,
+     "cpu_s": 2.9375,
+     "build_s": 2.9708,
+     "overhead_s": 0.0006
+    },
+    {
+     "kind": "location",
+     "key": [
+      "R10202",
+      [
+       "고등학교",
+       "학원"
+      ]
+     ],
+     "start": 143.723,
+     "end": 144.2251,
+     "cpu_s": 0.5,
+     "build_s": 0.4817,
+     "overhead_s": 0.0204
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "P10501",
+      300
+     ],
+     "start": 144.2257,
+     "end": 147.0711,
+     "cpu_s": 2.8125,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "P10501",
+      300
+     ],
+     "start": 144.2251,
+     "end": 147.0711,
+     "cpu_s": 2.8125,
+     "build_s": 2.8454,
+     "overhead_s": 0.0006
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "P10501",
+      500
+     ],
+     "start": 147.0716,
+     "end": 149.8206,
+     "cpu_s": 2.75,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "P10501",
+      500
+     ],
+     "start": 147.0711,
+     "end": 149.8207,
+     "cpu_s": 2.75,
+     "build_s": 2.749,
+     "overhead_s": 0.0005
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "P10501",
+      1000
+     ],
+     "start": 149.8213,
+     "end": 152.7156,
+     "cpu_s": 2.8594,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "P10501",
+      1000
+     ],
+     "start": 149.8207,
+     "end": 152.7157,
+     "cpu_s": 2.8594,
+     "build_s": 2.8943,
+     "overhead_s": 0.0007
+    },
+    {
+     "kind": "location",
+     "key": [
+      "P10501",
+      [
+       "초등학교",
+       "중학교",
+       "고등학교"
+      ]
+     ],
+     "start": 152.7157,
+     "end": 153.3525,
+     "cpu_s": 0.6406,
+     "build_s": 0.6197,
+     "overhead_s": 0.0171
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "P10603",
+      300
+     ],
+     "start": 153.3529,
+     "end": 156.0612,
+     "cpu_s": 2.6562,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "P10603",
+      300
+     ],
+     "start": 153.3525,
+     "end": 156.0613,
+     "cpu_s": 2.6562,
+     "build_s": 2.7083,
+     "overhead_s": 0.0004
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "P10603",
+      500
+     ],
+     "start": 156.0616,
+     "end": 158.7564,
+     "cpu_s": 2.6719,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "P10603",
+      500
+     ],
+     "start": 156.0613,
+     "end": 158.7564,
+     "cpu_s": 2.6719,
+     "build_s": 2.6948,
+     "overhead_s": 0.0004
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "P10603",
+      1000
+     ],
+     "start": 158.757,
+     "end": 161.6405,
+     "cpu_s": 2.8281,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "P10603",
+      1000
+     ],
+     "start": 158.7565,
+     "end": 161.6405,
+     "cpu_s": 2.8281,
+     "build_s": 2.8835,
+     "overhead_s": 0.0006
+    },
+    {
+     "kind": "location",
+     "key": [
+      "P10603",
+      [
+       "오피스",
+       "초등학교"
+      ]
+     ],
+     "start": 161.6405,
+     "end": 161.6405,
+     "cpu_s": 0.0,
+     "build_s": null,
+     "overhead_s": null
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "R10310",
+      300
+     ],
+     "start": 161.6411,
+     "end": 164.2196,
+     "cpu_s": 2.5312,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "R10310",
+      300
+     ],
+     "start": 161.6406,
+     "end": 164.2196,
+     "cpu_s": 2.5469,
+     "build_s": 2.5785,
+     "overhead_s": 0.0006
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "R10310",
+      500
+     ],
+     "start": 164.2202,
+     "end": 166.9702,
+     "cpu_s": 2.75,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "R10310",
+      500
+     ],
+     "start": 164.2196,
+     "end": 166.9703,
+     "cpu_s": 2.75,
+     "build_s": 2.75,
+     "overhead_s": 0.0006
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "R10310",
+      1000
+     ],
+     "start": 166.9706,
+     "end": 169.8792,
+     "cpu_s": 2.875,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "R10310",
+      1000
+     ],
+     "start": 166.9703,
+     "end": 169.8792,
+     "cpu_s": 2.875,
+     "build_s": 2.9086,
+     "overhead_s": 0.0004
+    },
+    {
+     "kind": "location",
+     "key": [
+      "R10310",
+      [
+       "오피스",
+       "학원"
+      ]
+     ],
+     "start": 169.8792,
+     "end": 170.4291,
+     "cpu_s": 0.5469,
+     "build_s": 0.5322,
+     "overhead_s": 0.0176
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "R10407",
+      300
+     ],
+     "start": 170.4295,
+     "end": 173.1239,
+     "cpu_s": 2.6406,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "R10407",
+      300
+     ],
+     "start": 170.4291,
+     "end": 173.124,
+     "cpu_s": 2.6406,
+     "build_s": 2.6944,
+     "overhead_s": 0.0005
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "R10407",
+      500
+     ],
+     "start": 173.1244,
+     "end": 175.8403,
+     "cpu_s": 2.6719,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "R10407",
+      500
+     ],
+     "start": 173.124,
+     "end": 175.8404,
+     "cpu_s": 2.6719,
+     "build_s": 2.7159,
+     "overhead_s": 0.0005
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "R10407",
+      1000
+     ],
+     "start": 175.8408,
+     "end": 178.5334,
+     "cpu_s": 2.6719,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "R10407",
+      1000
+     ],
+     "start": 175.8404,
+     "end": 178.5335,
+     "cpu_s": 2.6719,
+     "build_s": 2.6926,
+     "overhead_s": 0.0005
+    },
+    {
+     "kind": "location",
+     "key": [
+      "R10407",
+      [
+       "오피스",
+       "고등학교"
+      ]
+     ],
+     "start": 178.5335,
+     "end": 178.5335,
+     "cpu_s": 0.0,
+     "build_s": null,
+     "overhead_s": null
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "R10404",
+      300
+     ],
+     "start": 178.5339,
+     "end": 181.1264,
+     "cpu_s": 2.4844,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "R10404",
+      300
+     ],
+     "start": 178.5335,
+     "end": 181.1265,
+     "cpu_s": 2.4844,
+     "build_s": 2.5925,
+     "overhead_s": 0.0005
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "R10404",
+      500
+     ],
+     "start": 181.1268,
+     "end": 183.8167,
+     "cpu_s": 2.6719,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "R10404",
+      500
+     ],
+     "start": 181.1265,
+     "end": 183.8167,
+     "cpu_s": 2.6719,
+     "build_s": 2.6899,
+     "overhead_s": 0.0003
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "R10404",
+      1000
+     ],
+     "start": 183.8172,
+     "end": 186.7652,
+     "cpu_s": 2.9375,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "R10404",
+      1000
+     ],
+     "start": 183.8167,
+     "end": 186.7653,
+     "cpu_s": 2.9375,
+     "build_s": 2.948,
+     "overhead_s": 0.0005
+    },
+    {
+     "kind": "location",
+     "key": [
+      "R10404",
+      [
+       "초등학교",
+       "중학교",
+       "학원"
+      ]
+     ],
+     "start": 186.7653,
+     "end": 186.7653,
+     "cpu_s": 0.0,
+     "build_s": null,
+     "overhead_s": null
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I20101",
+      300
+     ],
+     "start": 186.7657,
+     "end": 189.4952,
+     "cpu_s": 2.7188,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I20101",
+      300
+     ],
+     "start": 186.7653,
+     "end": 189.4952,
+     "cpu_s": 2.7188,
+     "build_s": 2.7295,
+     "overhead_s": 0.0004
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I20101",
+      500
+     ],
+     "start": 189.4956,
+     "end": 192.1322,
+     "cpu_s": 2.5938,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I20101",
+      500
+     ],
+     "start": 189.4952,
+     "end": 192.1322,
+     "cpu_s": 2.5938,
+     "build_s": 2.6366,
+     "overhead_s": 0.0004
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I20101",
+      1000
+     ],
+     "start": 192.1326,
+     "end": 194.9735,
+     "cpu_s": 2.7812,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I20101",
+      1000
+     ],
+     "start": 192.1322,
+     "end": 194.9736,
+     "cpu_s": 2.7812,
+     "build_s": 2.8409,
+     "overhead_s": 0.0005
+    },
+    {
+     "kind": "location",
+     "key": [
+      "I20101",
+      [
+       "오피스",
+       "병원"
+      ]
+     ],
+     "start": 194.9736,
+     "end": 195.5556,
+     "cpu_s": 0.5781,
+     "build_s": 0.5637,
+     "overhead_s": 0.0183
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I21103",
+      300
+     ],
+     "start": 195.5561,
+     "end": 198.266,
+     "cpu_s": 2.7188,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I21103",
+      300
+     ],
+     "start": 195.5556,
+     "end": 198.2661,
+     "cpu_s": 2.7188,
+     "build_s": 2.7099,
+     "overhead_s": 0.0006
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I21103",
+      500
+     ],
+     "start": 198.2666,
+     "end": 201.0434,
+     "cpu_s": 2.75,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I21103",
+      500
+     ],
+     "start": 198.2661,
+     "end": 201.0434,
+     "cpu_s": 2.75,
+     "build_s": 2.7768,
+     "overhead_s": 0.0006
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I21103",
+      1000
+     ],
+     "start": 201.0438,
+     "end": 203.8624,
+     "cpu_s": 2.75,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I21103",
+      1000
+     ],
+     "start": 201.0435,
+     "end": 203.8624,
+     "cpu_s": 2.75,
+     "build_s": 2.8186,
+     "overhead_s": 0.0004
+    },
+    {
+     "kind": "location",
+     "key": [
+      "I21103",
+      [
+       "오피스"
+      ]
+     ],
+     "start": 203.8625,
+     "end": 203.8625,
+     "cpu_s": 0.0,
+     "build_s": null,
+     "overhead_s": null
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I21101",
+      300
+     ],
+     "start": 203.8631,
+     "end": 206.603,
+     "cpu_s": 2.6719,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I21101",
+      300
+     ],
+     "start": 203.8625,
+     "end": 206.6031,
+     "cpu_s": 2.6719,
+     "build_s": 2.7399,
+     "overhead_s": 0.0007
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I21101",
+      500
+     ],
+     "start": 206.6035,
+     "end": 209.2105,
+     "cpu_s": 2.5625,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I21101",
+      500
+     ],
+     "start": 206.6031,
+     "end": 209.2105,
+     "cpu_s": 2.5625,
+     "build_s": 2.607,
+     "overhead_s": 0.0005
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I21101",
+      1000
+     ],
+     "start": 209.2109,
+     "end": 212.0868,
+     "cpu_s": 2.8281,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I21101",
+      1000
+     ],
+     "start": 209.2106,
+     "end": 212.0869,
+     "cpu_s": 2.8281,
+     "build_s": 2.8759,
+     "overhead_s": 0.0005
+    },
+    {
+     "kind": "location",
+     "key": [
+      "I21101",
+      [
+       "오피스"
+      ]
+     ],
+     "start": 212.0869,
+     "end": 212.087,
+     "cpu_s": 0.0,
+     "build_s": null,
+     "overhead_s": null
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I21104",
+      300
+     ],
+     "start": 212.0877,
+     "end": 214.7678,
+     "cpu_s": 2.6562,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I21104",
+      300
+     ],
+     "start": 212.087,
+     "end": 214.7678,
+     "cpu_s": 2.6562,
+     "build_s": 2.6801,
+     "overhead_s": 0.0007
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I21104",
+      500
+     ],
+     "start": 214.7682,
+     "end": 217.3539,
+     "cpu_s": 2.5469,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I21104",
+      500
+     ],
+     "start": 214.7678,
+     "end": 217.354,
+     "cpu_s": 2.5469,
+     "build_s": 2.5857,
+     "overhead_s": 0.0005
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I21104",
+      1000
+     ],
+     "start": 217.3544,
+     "end": 220.1817,
+     "cpu_s": 2.75,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I21104",
+      1000
+     ],
+     "start": 217.354,
+     "end": 220.1818,
+     "cpu_s": 2.75,
+     "build_s": 2.8273,
+     "overhead_s": 0.0005
+    },
+    {
+     "kind": "location",
+     "key": [
+      "I21104",
+      [
+       "오피스"
+      ]
+     ],
+     "start": 220.1818,
+     "end": 220.1818,
+     "cpu_s": 0.0,
+     "build_s": null,
+     "overhead_s": null
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I20201",
+      300
+     ],
+     "start": 220.1822,
+     "end": 223.0974,
+     "cpu_s": 2.8438,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I20201",
+      300
+     ],
+     "start": 220.1818,
+     "end": 223.0975,
+     "cpu_s": 2.8438,
+     "build_s": 2.9152,
+     "overhead_s": 0.0005
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I20201",
+      500
+     ],
+     "start": 223.0979,
+     "end": 226.0435,
+     "cpu_s": 2.9219,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I20201",
+      500
+     ],
+     "start": 223.0975,
+     "end": 226.0436,
+     "cpu_s": 2.9219,
+     "build_s": 2.9456,
+     "overhead_s": 0.0005
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I20201",
+      1000
+     ],
+     "start": 226.044,
+     "end": 228.8955,
+     "cpu_s": 2.8281,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I20201",
+      1000
+     ],
+     "start": 226.0436,
+     "end": 228.8956,
+     "cpu_s": 2.8281,
+     "build_s": 2.8515,
+     "overhead_s": 0.0005
+    },
+    {
+     "kind": "location",
+     "key": [
+      "I20201",
+      [
+       "오피스",
+       "초등학교"
+      ]
+     ],
+     "start": 228.8956,
+     "end": 228.8956,
+     "cpu_s": 0.0,
+     "build_s": null,
+     "overhead_s": null
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I20301",
+      300
+     ],
+     "start": 228.8961,
+     "end": 231.5737,
+     "cpu_s": 2.6562,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I20301",
+      300
+     ],
+     "start": 228.8956,
+     "end": 231.5737,
+     "cpu_s": 2.6562,
+     "build_s": 2.6776,
+     "overhead_s": 0.0005
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I20301",
+      500
+     ],
+     "start": 231.5741,
+     "end": 234.2548,
+     "cpu_s": 2.6875,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I20301",
+      500
+     ],
+     "start": 231.5737,
+     "end": 234.2549,
+     "cpu_s": 2.6875,
+     "build_s": 2.6807,
+     "overhead_s": 0.0005
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I20301",
+      1000
+     ],
+     "start": 234.2552,
+     "end": 237.2682,
+     "cpu_s": 2.9531,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I20301",
+      1000
+     ],
+     "start": 234.2549,
+     "end": 237.2683,
+     "cpu_s": 2.9531,
+     "build_s": 3.013,
+     "overhead_s": 0.0004
+    },
+    {
+     "kind": "location",
+     "key": [
+      "I20301",
+      [
+       "오피스"
+      ]
+     ],
+     "start": 237.2683,
+     "end": 237.2683,
+     "cpu_s": 0.0,
+     "build_s": null,
+     "overhead_s": null
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I20401",
+      300
+     ],
+     "start": 237.2686,
+     "end": 239.881,
+     "cpu_s": 2.5938,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I20401",
+      300
+     ],
+     "start": 237.2683,
+     "end": 239.8811,
+     "cpu_s": 2.5938,
+     "build_s": 2.6124,
+     "overhead_s": 0.0004
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I20401",
+      500
+     ],
+     "start": 239.8814,
+     "end": 242.5625,
+     "cpu_s": 2.6406,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I20401",
+      500
+     ],
+     "start": 239.8811,
+     "end": 242.5626,
+     "cpu_s": 2.6406,
+     "build_s": 2.6811,
+     "overhead_s": 0.0004
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I20401",
+      1000
+     ],
+     "start": 242.563,
+     "end": 245.5754,
+     "cpu_s": 2.9531,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I20401",
+      1000
+     ],
+     "start": 242.5626,
+     "end": 245.5754,
+     "cpu_s": 2.9688,
+     "build_s": 3.0124,
+     "overhead_s": 0.0004
+    },
+    {
+     "kind": "location",
+     "key": [
+      "I20401",
+      [
+       "오피스",
+       "병원"
+      ]
+     ],
+     "start": 245.5754,
+     "end": 245.5754,
+     "cpu_s": 0.0,
+     "build_s": null,
+     "overhead_s": null
+    }
+   ],
+   "pair": 0,
+   "impl": "a",
+   "rev": "93b7031"
+  },
+  {
+   "total_s": 245.52,
+   "process_cpu_s": 242.75,
+   "stats": {
+    "competition_entries": 87,
+    "location_entries": 14
+   },
+   "competition_builds": 87,
+   "location_builds": 14,
+   "sum_build_reference_s": 238.14,
+   "sum_build_reference_cpu_s": 235.45,
+   "sum_location_build_s": 7.09,
+   "sum_overhead_s": 0.2824,
+   "max_concurrent_builds": 1,
+   "records": [
+    {
+     "kind": "build_reference",
+     "key": [
+      "G20405",
+      300
+     ],
+     "start": 0.0011,
+     "end": 2.9664,
+     "cpu_s": 2.9062,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "G20405",
+      300
+     ],
+     "start": 0.0004,
+     "end": 2.9665,
+     "cpu_s": 2.9062,
+     "build_s": 2.9653,
+     "overhead_s": 0.0008
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "G20405",
+      500
+     ],
+     "start": 2.9671,
+     "end": 5.7815,
+     "cpu_s": 2.7656,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "G20405",
+      500
+     ],
+     "start": 2.9665,
+     "end": 5.7816,
+     "cpu_s": 2.7656,
+     "build_s": 2.8144,
+     "overhead_s": 0.0007
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "G20405",
+      1000
+     ],
+     "start": 5.7822,
+     "end": 8.8224,
+     "cpu_s": 2.9844,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "G20405",
+      1000
+     ],
+     "start": 5.7816,
+     "end": 8.8225,
+     "cpu_s": 2.9844,
+     "build_s": 3.0402,
+     "overhead_s": 0.0007
+    },
+    {
+     "kind": "location",
+     "key": [
+      "G20405",
+      [
+       "오피스",
+       "고등학교",
+       "초등학교"
+      ]
+     ],
+     "start": 8.8225,
+     "end": 9.4938,
+     "cpu_s": 0.6719,
+     "build_s": 0.6558,
+     "overhead_s": 0.0155
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "G20404",
+      300
+     ],
+     "start": 9.4944,
+     "end": 12.2363,
+     "cpu_s": 2.7188,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "G20404",
+      300
+     ],
+     "start": 9.4938,
+     "end": 12.2364,
+     "cpu_s": 2.7188,
+     "build_s": 2.7419,
+     "overhead_s": 0.0007
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "G20404",
+      500
+     ],
+     "start": 12.2368,
+     "end": 15.0361,
+     "cpu_s": 2.7344,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "G20404",
+      500
+     ],
+     "start": 12.2364,
+     "end": 15.0362,
+     "cpu_s": 2.7344,
+     "build_s": 2.7993,
+     "overhead_s": 0.0005
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "G20404",
+      1000
+     ],
+     "start": 15.0365,
+     "end": 17.9574,
+     "cpu_s": 2.8906,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "G20404",
+      1000
+     ],
+     "start": 15.0362,
+     "end": 17.9575,
+     "cpu_s": 2.8906,
+     "build_s": 2.9209,
+     "overhead_s": 0.0004
+    },
+    {
+     "kind": "location",
+     "key": [
+      "G20404",
+      [
+       "초등학교",
+       "중학교"
+      ]
+     ],
+     "start": 17.9575,
+     "end": 18.3475,
+     "cpu_s": 0.3594,
+     "build_s": 0.3753,
+     "overhead_s": 0.0147
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "S20701",
+      300
+     ],
+     "start": 18.3483,
+     "end": 21.0819,
+     "cpu_s": 2.6875,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "S20701",
+      300
+     ],
+     "start": 18.3475,
+     "end": 21.082,
+     "cpu_s": 2.6875,
+     "build_s": 2.7336,
+     "overhead_s": 0.0009
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "S20701",
+      500
+     ],
+     "start": 21.0826,
+     "end": 23.8483,
+     "cpu_s": 2.7656,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "S20701",
+      500
+     ],
+     "start": 21.082,
+     "end": 23.8483,
+     "cpu_s": 2.7656,
+     "build_s": 2.7657,
+     "overhead_s": 0.0006
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "S20701",
+      1000
+     ],
+     "start": 23.8488,
+     "end": 26.708,
+     "cpu_s": 2.8125,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "S20701",
+      1000
+     ],
+     "start": 23.8483,
+     "end": 26.7081,
+     "cpu_s": 2.8125,
+     "build_s": 2.8592,
+     "overhead_s": 0.0005
+    },
+    {
+     "kind": "location",
+     "key": [
+      "S20701",
+      [
+       "오피스",
+       "초등학교"
+      ]
+     ],
+     "start": 26.7081,
+     "end": 27.2279,
+     "cpu_s": 0.5156,
+     "build_s": 0.5031,
+     "overhead_s": 0.0168
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "S20702",
+      300
+     ],
+     "start": 27.2284,
+     "end": 29.9432,
+     "cpu_s": 2.6719,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "S20702",
+      300
+     ],
+     "start": 27.2279,
+     "end": 29.9433,
+     "cpu_s": 2.6719,
+     "build_s": 2.7148,
+     "overhead_s": 0.0005
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "S20702",
+      500
+     ],
+     "start": 29.9438,
+     "end": 32.6526,
+     "cpu_s": 2.7031,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "S20702",
+      500
+     ],
+     "start": 29.9433,
+     "end": 32.6527,
+     "cpu_s": 2.7031,
+     "build_s": 2.7088,
+     "overhead_s": 0.0007
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "S20702",
+      1000
+     ],
+     "start": 32.6532,
+     "end": 35.4384,
+     "cpu_s": 2.7969,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "S20702",
+      1000
+     ],
+     "start": 32.6527,
+     "end": 35.4384,
+     "cpu_s": 2.7969,
+     "build_s": 2.7852,
+     "overhead_s": 0.0005
+    },
+    {
+     "kind": "location",
+     "key": [
+      "S20702",
+      [
+       "오피스"
+      ]
+     ],
+     "start": 35.4384,
+     "end": 35.7761,
+     "cpu_s": 0.3281,
+     "build_s": 0.3187,
+     "overhead_s": 0.019
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "S20703",
+      300
+     ],
+     "start": 35.7765,
+     "end": 38.458,
+     "cpu_s": 2.6562,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "S20703",
+      300
+     ],
+     "start": 35.7761,
+     "end": 38.458,
+     "cpu_s": 2.6562,
+     "build_s": 2.6815,
+     "overhead_s": 0.0004
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "S20703",
+      500
+     ],
+     "start": 38.4586,
+     "end": 41.1028,
+     "cpu_s": 2.5781,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "S20703",
+      500
+     ],
+     "start": 38.4581,
+     "end": 41.1029,
+     "cpu_s": 2.5781,
+     "build_s": 2.6442,
+     "overhead_s": 0.0006
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "S20703",
+      1000
+     ],
+     "start": 41.1033,
+     "end": 44.0058,
+     "cpu_s": 2.8906,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "S20703",
+      1000
+     ],
+     "start": 41.1029,
+     "end": 44.0059,
+     "cpu_s": 2.8906,
+     "build_s": 2.9025,
+     "overhead_s": 0.0005
+    },
+    {
+     "kind": "location",
+     "key": [
+      "S20703",
+      [
+       "오피스"
+      ]
+     ],
+     "start": 44.0059,
+     "end": 44.0059,
+     "cpu_s": 0.0,
+     "build_s": null,
+     "overhead_s": null
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "S20901",
+      300
+     ],
+     "start": 44.0062,
+     "end": 46.6575,
+     "cpu_s": 2.6406,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "S20901",
+      300
+     ],
+     "start": 44.0059,
+     "end": 46.6576,
+     "cpu_s": 2.6406,
+     "build_s": 2.6513,
+     "overhead_s": 0.0003
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "S20901",
+      500
+     ],
+     "start": 46.658,
+     "end": 49.4412,
+     "cpu_s": 2.7188,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "S20901",
+      500
+     ],
+     "start": 46.6576,
+     "end": 49.4412,
+     "cpu_s": 2.7188,
+     "build_s": 2.7832,
+     "overhead_s": 0.0004
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "S20901",
+      1000
+     ],
+     "start": 49.4415,
+     "end": 52.1654,
+     "cpu_s": 2.625,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "S20901",
+      1000
+     ],
+     "start": 49.4412,
+     "end": 52.1655,
+     "cpu_s": 2.625,
+     "build_s": 2.7239,
+     "overhead_s": 0.0004
+    },
+    {
+     "kind": "location",
+     "key": [
+      "S20901",
+      [
+       "오피스",
+       "초등학교"
+      ]
+     ],
+     "start": 52.1655,
+     "end": 52.1655,
+     "cpu_s": 0.0,
+     "build_s": null,
+     "overhead_s": null
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "G21501",
+      300
+     ],
+     "start": 52.1661,
+     "end": 54.7678,
+     "cpu_s": 2.5469,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "G21501",
+      300
+     ],
+     "start": 52.1655,
+     "end": 54.7679,
+     "cpu_s": 2.5469,
+     "build_s": 2.6017,
+     "overhead_s": 0.0007
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "G21501",
+      500
+     ],
+     "start": 54.7682,
+     "end": 57.4121,
+     "cpu_s": 2.6094,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "G21501",
+      500
+     ],
+     "start": 54.7679,
+     "end": 57.4122,
+     "cpu_s": 2.6094,
+     "build_s": 2.6439,
+     "overhead_s": 0.0004
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "G21501",
+      1000
+     ],
+     "start": 57.4125,
+     "end": 60.3613,
+     "cpu_s": 2.9219,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "G21501",
+      1000
+     ],
+     "start": 57.4122,
+     "end": 60.3614,
+     "cpu_s": 2.9219,
+     "build_s": 2.9488,
+     "overhead_s": 0.0004
+    },
+    {
+     "kind": "location",
+     "key": [
+      "G21501",
+      [
+       "병원"
+      ]
+     ],
+     "start": 60.3614,
+     "end": 60.6214,
+     "cpu_s": 0.25,
+     "build_s": 0.2441,
+     "overhead_s": 0.0159
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I21201",
+      300
+     ],
+     "start": 60.622,
+     "end": 63.2683,
+     "cpu_s": 2.6406,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I21201",
+      300
+     ],
+     "start": 60.6214,
+     "end": 63.2684,
+     "cpu_s": 2.6562,
+     "build_s": 2.6463,
+     "overhead_s": 0.0007
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I21201",
+      500
+     ],
+     "start": 63.2688,
+     "end": 65.9383,
+     "cpu_s": 2.6094,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I21201",
+      500
+     ],
+     "start": 63.2684,
+     "end": 65.9384,
+     "cpu_s": 2.6094,
+     "build_s": 2.6695,
+     "overhead_s": 0.0005
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I21201",
+      1000
+     ],
+     "start": 65.9388,
+     "end": 68.7011,
+     "cpu_s": 2.7344,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I21201",
+      1000
+     ],
+     "start": 65.9384,
+     "end": 68.7012,
+     "cpu_s": 2.7344,
+     "build_s": 2.7623,
+     "overhead_s": 0.0005
+    },
+    {
+     "kind": "location",
+     "key": [
+      "I21201",
+      [
+       "오피스",
+       "병원",
+       "학원"
+      ]
+     ],
+     "start": 68.7012,
+     "end": 69.453,
+     "cpu_s": 0.75,
+     "build_s": 0.7346,
+     "overhead_s": 0.0171
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I21001",
+      300
+     ],
+     "start": 69.4534,
+     "end": 72.2536,
+     "cpu_s": 2.7812,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I21001",
+      300
+     ],
+     "start": 69.453,
+     "end": 72.2536,
+     "cpu_s": 2.7812,
+     "build_s": 2.8002,
+     "overhead_s": 0.0005
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I21001",
+      500
+     ],
+     "start": 72.2541,
+     "end": 75.1138,
+     "cpu_s": 2.8438,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I21001",
+      500
+     ],
+     "start": 72.2536,
+     "end": 75.1139,
+     "cpu_s": 2.8438,
+     "build_s": 2.8597,
+     "overhead_s": 0.0005
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I21001",
+      1000
+     ],
+     "start": 75.1142,
+     "end": 78.0078,
+     "cpu_s": 2.8594,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I21001",
+      1000
+     ],
+     "start": 75.1139,
+     "end": 78.0079,
+     "cpu_s": 2.8594,
+     "build_s": 2.8936,
+     "overhead_s": 0.0004
+    },
+    {
+     "kind": "location",
+     "key": [
+      "I21001",
+      [
+       "초등학교",
+       "오피스"
+      ]
+     ],
+     "start": 78.0079,
+     "end": 78.5212,
+     "cpu_s": 0.5,
+     "build_s": 0.4944,
+     "overhead_s": 0.0189
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I21007",
+      300
+     ],
+     "start": 78.5216,
+     "end": 81.3089,
+     "cpu_s": 2.7344,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I21007",
+      300
+     ],
+     "start": 78.5212,
+     "end": 81.309,
+     "cpu_s": 2.7344,
+     "build_s": 2.7873,
+     "overhead_s": 0.0005
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I21007",
+      500
+     ],
+     "start": 81.3095,
+     "end": 84.2389,
+     "cpu_s": 2.875,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I21007",
+      500
+     ],
+     "start": 81.309,
+     "end": 84.2389,
+     "cpu_s": 2.8906,
+     "build_s": 2.9294,
+     "overhead_s": 0.0005
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I21007",
+      1000
+     ],
+     "start": 84.2394,
+     "end": 87.0854,
+     "cpu_s": 2.7969,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I21007",
+      1000
+     ],
+     "start": 84.239,
+     "end": 87.0854,
+     "cpu_s": 2.7969,
+     "build_s": 2.846,
+     "overhead_s": 0.0005
+    },
+    {
+     "kind": "location",
+     "key": [
+      "I21007",
+      [
+       "중학교",
+       "고등학교",
+       "학원"
+      ]
+     ],
+     "start": 87.0854,
+     "end": 87.7206,
+     "cpu_s": 0.6406,
+     "build_s": 0.6181,
+     "overhead_s": 0.0171
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I21005",
+      300
+     ],
+     "start": 87.7211,
+     "end": 90.5163,
+     "cpu_s": 2.7969,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I21005",
+      300
+     ],
+     "start": 87.7206,
+     "end": 90.5163,
+     "cpu_s": 2.7969,
+     "build_s": 2.7952,
+     "overhead_s": 0.0005
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I21005",
+      500
+     ],
+     "start": 90.5167,
+     "end": 93.2327,
+     "cpu_s": 2.6875,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I21005",
+      500
+     ],
+     "start": 90.5164,
+     "end": 93.2328,
+     "cpu_s": 2.6875,
+     "build_s": 2.716,
+     "overhead_s": 0.0004
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I21005",
+      1000
+     ],
+     "start": 93.2335,
+     "end": 96.197,
+     "cpu_s": 2.9531,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I21005",
+      1000
+     ],
+     "start": 93.2328,
+     "end": 96.197,
+     "cpu_s": 2.9531,
+     "build_s": 2.9635,
+     "overhead_s": 0.0007
+    },
+    {
+     "kind": "location",
+     "key": [
+      "I21005",
+      [
+       "오피스",
+       "고등학교"
+      ]
+     ],
+     "start": 96.197,
+     "end": 96.7244,
+     "cpu_s": 0.5312,
+     "build_s": 0.5102,
+     "overhead_s": 0.0171
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I21008",
+      300
+     ],
+     "start": 96.725,
+     "end": 99.3654,
+     "cpu_s": 2.6094,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I21008",
+      300
+     ],
+     "start": 96.7244,
+     "end": 99.3654,
+     "cpu_s": 2.6094,
+     "build_s": 2.6404,
+     "overhead_s": 0.0006
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I21008",
+      500
+     ],
+     "start": 99.3659,
+     "end": 102.071,
+     "cpu_s": 2.6562,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I21008",
+      500
+     ],
+     "start": 99.3654,
+     "end": 102.0711,
+     "cpu_s": 2.6562,
+     "build_s": 2.7051,
+     "overhead_s": 0.0005
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I21008",
+      1000
+     ],
+     "start": 102.0719,
+     "end": 104.9452,
+     "cpu_s": 2.7969,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I21008",
+      1000
+     ],
+     "start": 102.0711,
+     "end": 104.9452,
+     "cpu_s": 2.7969,
+     "build_s": 2.8733,
+     "overhead_s": 0.0008
+    },
+    {
+     "kind": "location",
+     "key": [
+      "I21008",
+      [
+       "초등학교",
+       "중학교",
+       "학원"
+      ]
+     ],
+     "start": 104.9452,
+     "end": 105.5841,
+     "cpu_s": 0.625,
+     "build_s": 0.6211,
+     "overhead_s": 0.0177
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I21004",
+      300
+     ],
+     "start": 105.5847,
+     "end": 108.3211,
+     "cpu_s": 2.7188,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I21004",
+      300
+     ],
+     "start": 105.5841,
+     "end": 108.3212,
+     "cpu_s": 2.7188,
+     "build_s": 2.7364,
+     "overhead_s": 0.0007
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I21004",
+      500
+     ],
+     "start": 108.3214,
+     "end": 111.0641,
+     "cpu_s": 2.75,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I21004",
+      500
+     ],
+     "start": 108.3212,
+     "end": 111.0642,
+     "cpu_s": 2.75,
+     "build_s": 2.7427,
+     "overhead_s": 0.0003
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I21004",
+      1000
+     ],
+     "start": 111.0649,
+     "end": 113.8836,
+     "cpu_s": 2.7812,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I21004",
+      1000
+     ],
+     "start": 111.0642,
+     "end": 113.8837,
+     "cpu_s": 2.7812,
+     "build_s": 2.8187,
+     "overhead_s": 0.0008
+    },
+    {
+     "kind": "location",
+     "key": [
+      "I21004",
+      [
+       "중학교",
+       "고등학교",
+       "학원"
+      ]
+     ],
+     "start": 113.8837,
+     "end": 113.8837,
+     "cpu_s": 0.0,
+     "build_s": null,
+     "overhead_s": null
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I21006",
+      300
+     ],
+     "start": 113.8841,
+     "end": 116.5236,
+     "cpu_s": 2.6094,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I21006",
+      300
+     ],
+     "start": 113.8837,
+     "end": 116.5236,
+     "cpu_s": 2.6094,
+     "build_s": 2.6395,
+     "overhead_s": 0.0005
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I21006",
+      500
+     ],
+     "start": 116.5242,
+     "end": 119.16,
+     "cpu_s": 2.625,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I21006",
+      500
+     ],
+     "start": 116.5237,
+     "end": 119.1601,
+     "cpu_s": 2.625,
+     "build_s": 2.6358,
+     "overhead_s": 0.0006
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I21006",
+      1000
+     ],
+     "start": 119.1607,
+     "end": 121.9202,
+     "cpu_s": 2.75,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I21006",
+      1000
+     ],
+     "start": 119.1601,
+     "end": 121.9203,
+     "cpu_s": 2.75,
+     "build_s": 2.7595,
+     "overhead_s": 0.0007
+    },
+    {
+     "kind": "location",
+     "key": [
+      "I21006",
+      [
+       "초등학교",
+       "중학교"
+      ]
+     ],
+     "start": 121.9203,
+     "end": 121.9203,
+     "cpu_s": 0.0,
+     "build_s": null,
+     "overhead_s": null
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I21003",
+      300
+     ],
+     "start": 121.9207,
+     "end": 124.437,
+     "cpu_s": 2.4688,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I21003",
+      300
+     ],
+     "start": 121.9203,
+     "end": 124.4371,
+     "cpu_s": 2.4688,
+     "build_s": 2.5163,
+     "overhead_s": 0.0005
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I21003",
+      500
+     ],
+     "start": 124.4375,
+     "end": 127.0697,
+     "cpu_s": 2.625,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I21003",
+      500
+     ],
+     "start": 124.4371,
+     "end": 127.0697,
+     "cpu_s": 2.625,
+     "build_s": 2.6322,
+     "overhead_s": 0.0004
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I21003",
+      1000
+     ],
+     "start": 127.0704,
+     "end": 129.7225,
+     "cpu_s": 2.625,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I21003",
+      1000
+     ],
+     "start": 127.0697,
+     "end": 129.7226,
+     "cpu_s": 2.625,
+     "build_s": 2.6521,
+     "overhead_s": 0.0007
+    },
+    {
+     "kind": "location",
+     "key": [
+      "I21003",
+      [
+       "초등학교",
+       "중학교"
+      ]
+     ],
+     "start": 129.7226,
+     "end": 129.7226,
+     "cpu_s": 0.0,
+     "build_s": null,
+     "overhead_s": null
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "R10406",
+      300
+     ],
+     "start": 129.7229,
+     "end": 132.3517,
+     "cpu_s": 2.6094,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "R10406",
+      300
+     ],
+     "start": 129.7226,
+     "end": 132.3518,
+     "cpu_s": 2.6094,
+     "build_s": 2.6288,
+     "overhead_s": 0.0004
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "R10406",
+      500
+     ],
+     "start": 132.3521,
+     "end": 135.0705,
+     "cpu_s": 2.6875,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "R10406",
+      500
+     ],
+     "start": 132.3518,
+     "end": 135.0705,
+     "cpu_s": 2.6875,
+     "build_s": 2.7184,
+     "overhead_s": 0.0003
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "R10406",
+      1000
+     ],
+     "start": 135.0711,
+     "end": 137.9198,
+     "cpu_s": 2.8281,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "R10406",
+      1000
+     ],
+     "start": 135.0705,
+     "end": 137.9198,
+     "cpu_s": 2.8281,
+     "build_s": 2.8487,
+     "overhead_s": 0.0006
+    },
+    {
+     "kind": "location",
+     "key": [
+      "R10406",
+      [
+       "중학교",
+       "고등학교",
+       "학원"
+      ]
+     ],
+     "start": 137.9198,
+     "end": 137.9198,
+     "cpu_s": 0.0,
+     "build_s": null,
+     "overhead_s": null
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "R10202",
+      300
+     ],
+     "start": 137.9202,
+     "end": 140.5996,
+     "cpu_s": 2.6562,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "R10202",
+      300
+     ],
+     "start": 137.9198,
+     "end": 140.5996,
+     "cpu_s": 2.6562,
+     "build_s": 2.6794,
+     "overhead_s": 0.0004
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "R10202",
+      500
+     ],
+     "start": 140.6001,
+     "end": 143.3269,
+     "cpu_s": 2.7344,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "R10202",
+      500
+     ],
+     "start": 140.5997,
+     "end": 143.327,
+     "cpu_s": 2.7344,
+     "build_s": 2.7268,
+     "overhead_s": 0.0005
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "R10202",
+      1000
+     ],
+     "start": 143.3273,
+     "end": 146.0984,
+     "cpu_s": 2.6719,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "R10202",
+      1000
+     ],
+     "start": 143.327,
+     "end": 146.0985,
+     "cpu_s": 2.6719,
+     "build_s": 2.7711,
+     "overhead_s": 0.0004
+    },
+    {
+     "kind": "location",
+     "key": [
+      "R10202",
+      [
+       "고등학교",
+       "학원"
+      ]
+     ],
+     "start": 146.0985,
+     "end": 146.5306,
+     "cpu_s": 0.4375,
+     "build_s": 0.4149,
+     "overhead_s": 0.0172
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "P10501",
+      300
+     ],
+     "start": 146.5314,
+     "end": 149.1399,
+     "cpu_s": 2.5781,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "P10501",
+      300
+     ],
+     "start": 146.5306,
+     "end": 149.14,
+     "cpu_s": 2.5781,
+     "build_s": 2.6085,
+     "overhead_s": 0.0008
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "P10501",
+      500
+     ],
+     "start": 149.1403,
+     "end": 151.6976,
+     "cpu_s": 2.5156,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "P10501",
+      500
+     ],
+     "start": 149.14,
+     "end": 151.6976,
+     "cpu_s": 2.5156,
+     "build_s": 2.5573,
+     "overhead_s": 0.0003
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "P10501",
+      1000
+     ],
+     "start": 151.698,
+     "end": 154.4078,
+     "cpu_s": 2.6875,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "P10501",
+      1000
+     ],
+     "start": 151.6976,
+     "end": 154.4078,
+     "cpu_s": 2.6875,
+     "build_s": 2.7098,
+     "overhead_s": 0.0004
+    },
+    {
+     "kind": "location",
+     "key": [
+      "P10501",
+      [
+       "초등학교",
+       "중학교",
+       "고등학교"
+      ]
+     ],
+     "start": 154.4078,
+     "end": 154.9589,
+     "cpu_s": 0.5469,
+     "build_s": 0.5365,
+     "overhead_s": 0.0146
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "P10603",
+      300
+     ],
+     "start": 154.9593,
+     "end": 157.5262,
+     "cpu_s": 2.5312,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "P10603",
+      300
+     ],
+     "start": 154.959,
+     "end": 157.5262,
+     "cpu_s": 2.5312,
+     "build_s": 2.5669,
+     "overhead_s": 0.0004
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "P10603",
+      500
+     ],
+     "start": 157.5266,
+     "end": 160.277,
+     "cpu_s": 2.6719,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "P10603",
+      500
+     ],
+     "start": 157.5262,
+     "end": 160.277,
+     "cpu_s": 2.6719,
+     "build_s": 2.7504,
+     "overhead_s": 0.0004
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "P10603",
+      1000
+     ],
+     "start": 160.2774,
+     "end": 163.0982,
+     "cpu_s": 2.8125,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "P10603",
+      1000
+     ],
+     "start": 160.277,
+     "end": 163.0982,
+     "cpu_s": 2.8125,
+     "build_s": 2.8208,
+     "overhead_s": 0.0004
+    },
+    {
+     "kind": "location",
+     "key": [
+      "P10603",
+      [
+       "오피스",
+       "초등학교"
+      ]
+     ],
+     "start": 163.0982,
+     "end": 163.0982,
+     "cpu_s": 0.0,
+     "build_s": null,
+     "overhead_s": null
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "R10310",
+      300
+     ],
+     "start": 163.0986,
+     "end": 165.7067,
+     "cpu_s": 2.5625,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "R10310",
+      300
+     ],
+     "start": 163.0983,
+     "end": 165.7068,
+     "cpu_s": 2.5625,
+     "build_s": 2.6081,
+     "overhead_s": 0.0005
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "R10310",
+      500
+     ],
+     "start": 165.7073,
+     "end": 168.3623,
+     "cpu_s": 2.6562,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "R10310",
+      500
+     ],
+     "start": 165.7068,
+     "end": 168.3624,
+     "cpu_s": 2.6562,
+     "build_s": 2.655,
+     "overhead_s": 0.0006
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "R10310",
+      1000
+     ],
+     "start": 168.3628,
+     "end": 171.2191,
+     "cpu_s": 2.8438,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "R10310",
+      1000
+     ],
+     "start": 168.3624,
+     "end": 171.2191,
+     "cpu_s": 2.8438,
+     "build_s": 2.8563,
+     "overhead_s": 0.0004
+    },
+    {
+     "kind": "location",
+     "key": [
+      "R10310",
+      [
+       "오피스",
+       "학원"
+      ]
+     ],
+     "start": 171.2191,
+     "end": 171.769,
+     "cpu_s": 0.5312,
+     "build_s": 0.5322,
+     "overhead_s": 0.0177
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "R10407",
+      300
+     ],
+     "start": 171.7696,
+     "end": 174.4024,
+     "cpu_s": 2.5625,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "R10407",
+      300
+     ],
+     "start": 171.7691,
+     "end": 174.4024,
+     "cpu_s": 2.5625,
+     "build_s": 2.6328,
+     "overhead_s": 0.0006
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "R10407",
+      500
+     ],
+     "start": 174.4029,
+     "end": 177.127,
+     "cpu_s": 2.7031,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "R10407",
+      500
+     ],
+     "start": 174.4025,
+     "end": 177.127,
+     "cpu_s": 2.7031,
+     "build_s": 2.7241,
+     "overhead_s": 0.0005
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "R10407",
+      1000
+     ],
+     "start": 177.1277,
+     "end": 180.751,
+     "cpu_s": 3.5312,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "R10407",
+      1000
+     ],
+     "start": 177.1271,
+     "end": 180.7511,
+     "cpu_s": 3.5312,
+     "build_s": 3.6233,
+     "overhead_s": 0.0007
+    },
+    {
+     "kind": "location",
+     "key": [
+      "R10407",
+      [
+       "오피스",
+       "고등학교"
+      ]
+     ],
+     "start": 180.7511,
+     "end": 180.7511,
+     "cpu_s": 0.0,
+     "build_s": null,
+     "overhead_s": null
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "R10404",
+      300
+     ],
+     "start": 180.7517,
+     "end": 183.7434,
+     "cpu_s": 2.9688,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "R10404",
+      300
+     ],
+     "start": 180.7511,
+     "end": 183.7435,
+     "cpu_s": 2.9688,
+     "build_s": 2.9917,
+     "overhead_s": 0.0007
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "R10404",
+      500
+     ],
+     "start": 183.7444,
+     "end": 186.3332,
+     "cpu_s": 2.5625,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "R10404",
+      500
+     ],
+     "start": 183.7435,
+     "end": 186.3332,
+     "cpu_s": 2.5625,
+     "build_s": 2.5888,
+     "overhead_s": 0.0009
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "R10404",
+      1000
+     ],
+     "start": 186.3335,
+     "end": 189.0083,
+     "cpu_s": 2.6562,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "R10404",
+      1000
+     ],
+     "start": 186.3332,
+     "end": 189.0083,
+     "cpu_s": 2.6562,
+     "build_s": 2.6748,
+     "overhead_s": 0.0003
+    },
+    {
+     "kind": "location",
+     "key": [
+      "R10404",
+      [
+       "초등학교",
+       "중학교",
+       "학원"
+      ]
+     ],
+     "start": 189.0084,
+     "end": 189.0084,
+     "cpu_s": 0.0,
+     "build_s": null,
+     "overhead_s": null
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I20101",
+      300
+     ],
+     "start": 189.0087,
+     "end": 191.5741,
+     "cpu_s": 2.5469,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I20101",
+      300
+     ],
+     "start": 189.0084,
+     "end": 191.5742,
+     "cpu_s": 2.5469,
+     "build_s": 2.5654,
+     "overhead_s": 0.0004
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I20101",
+      500
+     ],
+     "start": 191.5746,
+     "end": 194.0951,
+     "cpu_s": 2.5312,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I20101",
+      500
+     ],
+     "start": 191.5742,
+     "end": 194.0952,
+     "cpu_s": 2.5312,
+     "build_s": 2.5205,
+     "overhead_s": 0.0005
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I20101",
+      1000
+     ],
+     "start": 194.0957,
+     "end": 196.8251,
+     "cpu_s": 2.7188,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I20101",
+      1000
+     ],
+     "start": 194.0952,
+     "end": 196.8251,
+     "cpu_s": 2.7188,
+     "build_s": 2.7294,
+     "overhead_s": 0.0006
+    },
+    {
+     "kind": "location",
+     "key": [
+      "I20101",
+      [
+       "오피스",
+       "병원"
+      ]
+     ],
+     "start": 196.8251,
+     "end": 197.3749,
+     "cpu_s": 0.5625,
+     "build_s": 0.5326,
+     "overhead_s": 0.0171
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I21103",
+      300
+     ],
+     "start": 197.3753,
+     "end": 199.9994,
+     "cpu_s": 2.5938,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I21103",
+      300
+     ],
+     "start": 197.3749,
+     "end": 199.9994,
+     "cpu_s": 2.5938,
+     "build_s": 2.6241,
+     "overhead_s": 0.0004
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I21103",
+      500
+     ],
+     "start": 199.9998,
+     "end": 202.6998,
+     "cpu_s": 2.6406,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I21103",
+      500
+     ],
+     "start": 199.9994,
+     "end": 202.6999,
+     "cpu_s": 2.6406,
+     "build_s": 2.7,
+     "overhead_s": 0.0005
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I21103",
+      1000
+     ],
+     "start": 202.7005,
+     "end": 205.5797,
+     "cpu_s": 2.8281,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I21103",
+      1000
+     ],
+     "start": 202.6999,
+     "end": 205.5797,
+     "cpu_s": 2.8438,
+     "build_s": 2.8792,
+     "overhead_s": 0.0006
+    },
+    {
+     "kind": "location",
+     "key": [
+      "I21103",
+      [
+       "오피스"
+      ]
+     ],
+     "start": 205.5797,
+     "end": 205.5797,
+     "cpu_s": 0.0,
+     "build_s": null,
+     "overhead_s": null
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I21101",
+      300
+     ],
+     "start": 205.5802,
+     "end": 208.2636,
+     "cpu_s": 2.6719,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I21101",
+      300
+     ],
+     "start": 205.5797,
+     "end": 208.2637,
+     "cpu_s": 2.6719,
+     "build_s": 2.6834,
+     "overhead_s": 0.0006
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I21101",
+      500
+     ],
+     "start": 208.2642,
+     "end": 210.8459,
+     "cpu_s": 2.5781,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I21101",
+      500
+     ],
+     "start": 208.2637,
+     "end": 210.846,
+     "cpu_s": 2.5781,
+     "build_s": 2.5817,
+     "overhead_s": 0.0006
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I21101",
+      1000
+     ],
+     "start": 210.8465,
+     "end": 213.5421,
+     "cpu_s": 2.6719,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I21101",
+      1000
+     ],
+     "start": 210.846,
+     "end": 213.5422,
+     "cpu_s": 2.6719,
+     "build_s": 2.6956,
+     "overhead_s": 0.0006
+    },
+    {
+     "kind": "location",
+     "key": [
+      "I21101",
+      [
+       "오피스"
+      ]
+     ],
+     "start": 213.5422,
+     "end": 213.5422,
+     "cpu_s": 0.0,
+     "build_s": null,
+     "overhead_s": null
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I21104",
+      300
+     ],
+     "start": 213.5427,
+     "end": 216.1676,
+     "cpu_s": 2.5781,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I21104",
+      300
+     ],
+     "start": 213.5422,
+     "end": 216.1677,
+     "cpu_s": 2.5781,
+     "build_s": 2.6249,
+     "overhead_s": 0.0005
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I21104",
+      500
+     ],
+     "start": 216.1683,
+     "end": 218.7899,
+     "cpu_s": 2.6094,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I21104",
+      500
+     ],
+     "start": 216.1677,
+     "end": 218.7899,
+     "cpu_s": 2.6094,
+     "build_s": 2.6216,
+     "overhead_s": 0.0006
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I21104",
+      1000
+     ],
+     "start": 218.7903,
+     "end": 221.4119,
+     "cpu_s": 2.5938,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I21104",
+      1000
+     ],
+     "start": 218.7899,
+     "end": 221.412,
+     "cpu_s": 2.5938,
+     "build_s": 2.6216,
+     "overhead_s": 0.0005
+    },
+    {
+     "kind": "location",
+     "key": [
+      "I21104",
+      [
+       "오피스"
+      ]
+     ],
+     "start": 221.412,
+     "end": 221.412,
+     "cpu_s": 0.0,
+     "build_s": null,
+     "overhead_s": null
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I20201",
+      300
+     ],
+     "start": 221.4124,
+     "end": 223.9332,
+     "cpu_s": 2.4688,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I20201",
+      300
+     ],
+     "start": 221.412,
+     "end": 223.9332,
+     "cpu_s": 2.4688,
+     "build_s": 2.5208,
+     "overhead_s": 0.0004
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I20201",
+      500
+     ],
+     "start": 223.9336,
+     "end": 226.5299,
+     "cpu_s": 2.5938,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I20201",
+      500
+     ],
+     "start": 223.9332,
+     "end": 226.53,
+     "cpu_s": 2.5938,
+     "build_s": 2.5963,
+     "overhead_s": 0.0004
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I20201",
+      1000
+     ],
+     "start": 226.5303,
+     "end": 229.2511,
+     "cpu_s": 2.7031,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I20201",
+      1000
+     ],
+     "start": 226.53,
+     "end": 229.2512,
+     "cpu_s": 2.7031,
+     "build_s": 2.7208,
+     "overhead_s": 0.0004
+    },
+    {
+     "kind": "location",
+     "key": [
+      "I20201",
+      [
+       "오피스",
+       "초등학교"
+      ]
+     ],
+     "start": 229.2512,
+     "end": 229.2512,
+     "cpu_s": 0.0,
+     "build_s": null,
+     "overhead_s": null
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I20301",
+      300
+     ],
+     "start": 229.2516,
+     "end": 231.7809,
+     "cpu_s": 2.5156,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I20301",
+      300
+     ],
+     "start": 229.2512,
+     "end": 231.781,
+     "cpu_s": 2.5156,
+     "build_s": 2.5293,
+     "overhead_s": 0.0005
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I20301",
+      500
+     ],
+     "start": 231.7815,
+     "end": 234.4833,
+     "cpu_s": 2.6875,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I20301",
+      500
+     ],
+     "start": 231.781,
+     "end": 234.4834,
+     "cpu_s": 2.6875,
+     "build_s": 2.7018,
+     "overhead_s": 0.0006
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I20301",
+      1000
+     ],
+     "start": 234.4838,
+     "end": 237.3032,
+     "cpu_s": 2.7656,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I20301",
+      1000
+     ],
+     "start": 234.4834,
+     "end": 237.3033,
+     "cpu_s": 2.7656,
+     "build_s": 2.8194,
+     "overhead_s": 0.0005
+    },
+    {
+     "kind": "location",
+     "key": [
+      "I20301",
+      [
+       "오피스"
+      ]
+     ],
+     "start": 237.3033,
+     "end": 237.3033,
+     "cpu_s": 0.0,
+     "build_s": null,
+     "overhead_s": null
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I20401",
+      300
+     ],
+     "start": 237.3036,
+     "end": 239.9175,
+     "cpu_s": 2.5938,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I20401",
+      300
+     ],
+     "start": 237.3033,
+     "end": 239.9176,
+     "cpu_s": 2.5938,
+     "build_s": 2.6139,
+     "overhead_s": 0.0004
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I20401",
+      500
+     ],
+     "start": 239.9179,
+     "end": 242.5793,
+     "cpu_s": 2.6719,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I20401",
+      500
+     ],
+     "start": 239.9176,
+     "end": 242.5793,
+     "cpu_s": 2.6719,
+     "build_s": 2.6614,
+     "overhead_s": 0.0004
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I20401",
+      1000
+     ],
+     "start": 242.5798,
+     "end": 245.5173,
+     "cpu_s": 2.9062,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I20401",
+      1000
+     ],
+     "start": 242.5794,
+     "end": 245.5174,
+     "cpu_s": 2.9062,
+     "build_s": 2.9375,
+     "overhead_s": 0.0006
+    },
+    {
+     "kind": "location",
+     "key": [
+      "I20401",
+      [
+       "오피스",
+       "병원"
+      ]
+     ],
+     "start": 245.5174,
+     "end": 245.5174,
+     "cpu_s": 0.0,
+     "build_s": null,
+     "overhead_s": null
+    }
+   ],
+   "pair": 0,
+   "impl": "b",
+   "rev": "working"
+  },
+  {
+   "total_s": 263.73,
+   "process_cpu_s": 260.05,
+   "stats": {
+    "competition_entries": 87,
+    "location_entries": 14
+   },
+   "competition_builds": 87,
+   "location_builds": 14,
+   "sum_build_reference_s": 255.69,
+   "sum_build_reference_cpu_s": 252.12,
+   "sum_location_build_s": 7.73,
+   "sum_overhead_s": 0.302,
+   "max_concurrent_builds": 1,
+   "records": [
+    {
+     "kind": "build_reference",
+     "key": [
+      "G20405",
+      300
+     ],
+     "start": 0.0015,
+     "end": 2.7346,
+     "cpu_s": 2.7031,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "G20405",
+      300
+     ],
+     "start": 0.0004,
+     "end": 2.7346,
+     "cpu_s": 2.7031,
+     "build_s": 2.7331,
+     "overhead_s": 0.0011
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "G20405",
+      500
+     ],
+     "start": 2.7353,
+     "end": 5.609,
+     "cpu_s": 2.7656,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "G20405",
+      500
+     ],
+     "start": 2.7346,
+     "end": 5.6091,
+     "cpu_s": 2.7656,
+     "build_s": 2.8737,
+     "overhead_s": 0.0008
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "G20405",
+      1000
+     ],
+     "start": 5.6098,
+     "end": 8.2849,
+     "cpu_s": 2.6562,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "G20405",
+      1000
+     ],
+     "start": 5.6091,
+     "end": 8.285,
+     "cpu_s": 2.6562,
+     "build_s": 2.6751,
+     "overhead_s": 0.0008
+    },
+    {
+     "kind": "location",
+     "key": [
+      "G20405",
+      [
+       "오피스",
+       "고등학교",
+       "초등학교"
+      ]
+     ],
+     "start": 8.285,
+     "end": 9.3641,
+     "cpu_s": 0.9375,
+     "build_s": 1.052,
+     "overhead_s": 0.0271
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "G20404",
+      300
+     ],
+     "start": 9.3651,
+     "end": 12.3913,
+     "cpu_s": 3.0,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "G20404",
+      300
+     ],
+     "start": 9.3642,
+     "end": 12.3913,
+     "cpu_s": 3.0,
+     "build_s": 3.0262,
+     "overhead_s": 0.001
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "G20404",
+      500
+     ],
+     "start": 12.3917,
+     "end": 15.445,
+     "cpu_s": 3.0156,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "G20404",
+      500
+     ],
+     "start": 12.3913,
+     "end": 15.445,
+     "cpu_s": 3.0156,
+     "build_s": 3.0533,
+     "overhead_s": 0.0004
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "G20404",
+      1000
+     ],
+     "start": 15.4454,
+     "end": 18.3315,
+     "cpu_s": 2.8594,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "G20404",
+      1000
+     ],
+     "start": 15.445,
+     "end": 18.3315,
+     "cpu_s": 2.8594,
+     "build_s": 2.8861,
+     "overhead_s": 0.0004
+    },
+    {
+     "kind": "location",
+     "key": [
+      "G20404",
+      [
+       "초등학교",
+       "중학교"
+      ]
+     ],
+     "start": 18.3316,
+     "end": 18.7693,
+     "cpu_s": 0.4219,
+     "build_s": 0.4218,
+     "overhead_s": 0.016
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "S20701",
+      300
+     ],
+     "start": 18.7697,
+     "end": 21.6332,
+     "cpu_s": 2.7969,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "S20701",
+      300
+     ],
+     "start": 18.7693,
+     "end": 21.6332,
+     "cpu_s": 2.7969,
+     "build_s": 2.8635,
+     "overhead_s": 0.0004
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "S20701",
+      500
+     ],
+     "start": 21.6336,
+     "end": 24.7882,
+     "cpu_s": 3.125,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "S20701",
+      500
+     ],
+     "start": 21.6332,
+     "end": 24.7882,
+     "cpu_s": 3.125,
+     "build_s": 3.1546,
+     "overhead_s": 0.0004
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "S20701",
+      1000
+     ],
+     "start": 24.7886,
+     "end": 28.3618,
+     "cpu_s": 3.5156,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "S20701",
+      1000
+     ],
+     "start": 24.7882,
+     "end": 28.3618,
+     "cpu_s": 3.5156,
+     "build_s": 3.5732,
+     "overhead_s": 0.0004
+    },
+    {
+     "kind": "location",
+     "key": [
+      "S20701",
+      [
+       "오피스",
+       "초등학교"
+      ]
+     ],
+     "start": 28.3618,
+     "end": 28.902,
+     "cpu_s": 0.5312,
+     "build_s": 0.5225,
+     "overhead_s": 0.0176
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "S20702",
+      300
+     ],
+     "start": 28.9024,
+     "end": 32.0892,
+     "cpu_s": 3.0938,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "S20702",
+      300
+     ],
+     "start": 28.902,
+     "end": 32.0893,
+     "cpu_s": 3.1094,
+     "build_s": 3.1868,
+     "overhead_s": 0.0005
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "S20702",
+      500
+     ],
+     "start": 32.0896,
+     "end": 35.5242,
+     "cpu_s": 3.3594,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "S20702",
+      500
+     ],
+     "start": 32.0893,
+     "end": 35.5242,
+     "cpu_s": 3.3594,
+     "build_s": 3.4346,
+     "overhead_s": 0.0003
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "S20702",
+      1000
+     ],
+     "start": 35.5246,
+     "end": 38.9215,
+     "cpu_s": 3.3594,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "S20702",
+      1000
+     ],
+     "start": 35.5242,
+     "end": 38.9216,
+     "cpu_s": 3.3594,
+     "build_s": 3.3969,
+     "overhead_s": 0.0004
+    },
+    {
+     "kind": "location",
+     "key": [
+      "S20702",
+      [
+       "오피스"
+      ]
+     ],
+     "start": 38.9216,
+     "end": 39.3724,
+     "cpu_s": 0.4375,
+     "build_s": 0.4245,
+     "overhead_s": 0.0263
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "S20703",
+      300
+     ],
+     "start": 39.3731,
+     "end": 42.9637,
+     "cpu_s": 3.5312,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "S20703",
+      300
+     ],
+     "start": 39.3724,
+     "end": 42.9638,
+     "cpu_s": 3.5312,
+     "build_s": 3.5906,
+     "overhead_s": 0.0007
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "S20703",
+      500
+     ],
+     "start": 42.9642,
+     "end": 46.359,
+     "cpu_s": 3.3125,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "S20703",
+      500
+     ],
+     "start": 42.9638,
+     "end": 46.359,
+     "cpu_s": 3.3281,
+     "build_s": 3.3948,
+     "overhead_s": 0.0004
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "S20703",
+      1000
+     ],
+     "start": 46.3595,
+     "end": 50.1525,
+     "cpu_s": 3.7344,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "S20703",
+      1000
+     ],
+     "start": 46.359,
+     "end": 50.1526,
+     "cpu_s": 3.7344,
+     "build_s": 3.793,
+     "overhead_s": 0.0005
+    },
+    {
+     "kind": "location",
+     "key": [
+      "S20703",
+      [
+       "오피스"
+      ]
+     ],
+     "start": 50.1526,
+     "end": 50.1526,
+     "cpu_s": 0.0,
+     "build_s": null,
+     "overhead_s": null
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "S20901",
+      300
+     ],
+     "start": 50.1531,
+     "end": 53.3191,
+     "cpu_s": 3.0938,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "S20901",
+      300
+     ],
+     "start": 50.1526,
+     "end": 53.3191,
+     "cpu_s": 3.0938,
+     "build_s": 3.166,
+     "overhead_s": 0.0005
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "S20901",
+      500
+     ],
+     "start": 53.3196,
+     "end": 56.354,
+     "cpu_s": 3.0,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "S20901",
+      500
+     ],
+     "start": 53.3192,
+     "end": 56.3541,
+     "cpu_s": 3.0,
+     "build_s": 3.0344,
+     "overhead_s": 0.0005
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "S20901",
+      1000
+     ],
+     "start": 56.3546,
+     "end": 59.6948,
+     "cpu_s": 3.3125,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "S20901",
+      1000
+     ],
+     "start": 56.3541,
+     "end": 59.6949,
+     "cpu_s": 3.3281,
+     "build_s": 3.3402,
+     "overhead_s": 0.0006
+    },
+    {
+     "kind": "location",
+     "key": [
+      "S20901",
+      [
+       "오피스",
+       "초등학교"
+      ]
+     ],
+     "start": 59.6949,
+     "end": 59.6949,
+     "cpu_s": 0.0,
+     "build_s": null,
+     "overhead_s": null
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "G21501",
+      300
+     ],
+     "start": 59.6955,
+     "end": 63.2927,
+     "cpu_s": 3.5312,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "G21501",
+      300
+     ],
+     "start": 59.6949,
+     "end": 63.2928,
+     "cpu_s": 3.5312,
+     "build_s": 3.5972,
+     "overhead_s": 0.0008
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "G21501",
+      500
+     ],
+     "start": 63.2937,
+     "end": 67.4171,
+     "cpu_s": 3.8125,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "G21501",
+      500
+     ],
+     "start": 63.2929,
+     "end": 67.4172,
+     "cpu_s": 3.8125,
+     "build_s": 4.1234,
+     "overhead_s": 0.0009
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "G21501",
+      1000
+     ],
+     "start": 67.4179,
+     "end": 71.101,
+     "cpu_s": 3.5469,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "G21501",
+      1000
+     ],
+     "start": 67.4172,
+     "end": 71.1011,
+     "cpu_s": 3.5469,
+     "build_s": 3.6831,
+     "overhead_s": 0.0008
+    },
+    {
+     "kind": "location",
+     "key": [
+      "G21501",
+      [
+       "병원"
+      ]
+     ],
+     "start": 71.1011,
+     "end": 71.3273,
+     "cpu_s": 0.2344,
+     "build_s": 0.2138,
+     "overhead_s": 0.0125
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I21201",
+      300
+     ],
+     "start": 71.3277,
+     "end": 73.9694,
+     "cpu_s": 2.6406,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I21201",
+      300
+     ],
+     "start": 71.3274,
+     "end": 73.9695,
+     "cpu_s": 2.6406,
+     "build_s": 2.6417,
+     "overhead_s": 0.0004
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I21201",
+      500
+     ],
+     "start": 73.9699,
+     "end": 77.5649,
+     "cpu_s": 3.4688,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I21201",
+      500
+     ],
+     "start": 73.9695,
+     "end": 77.565,
+     "cpu_s": 3.4688,
+     "build_s": 3.595,
+     "overhead_s": 0.0005
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I21201",
+      1000
+     ],
+     "start": 77.5657,
+     "end": 80.9974,
+     "cpu_s": 3.4219,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I21201",
+      1000
+     ],
+     "start": 77.565,
+     "end": 80.9974,
+     "cpu_s": 3.4219,
+     "build_s": 3.4317,
+     "overhead_s": 0.0007
+    },
+    {
+     "kind": "location",
+     "key": [
+      "I21201",
+      [
+       "오피스",
+       "병원",
+       "학원"
+      ]
+     ],
+     "start": 80.9974,
+     "end": 81.8259,
+     "cpu_s": 0.8281,
+     "build_s": 0.8098,
+     "overhead_s": 0.0187
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I21001",
+      300
+     ],
+     "start": 81.8266,
+     "end": 84.8007,
+     "cpu_s": 2.9062,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I21001",
+      300
+     ],
+     "start": 81.826,
+     "end": 84.8008,
+     "cpu_s": 2.9062,
+     "build_s": 2.9741,
+     "overhead_s": 0.0007
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I21001",
+      500
+     ],
+     "start": 84.8012,
+     "end": 87.4163,
+     "cpu_s": 2.6094,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I21001",
+      500
+     ],
+     "start": 84.8008,
+     "end": 87.4163,
+     "cpu_s": 2.6094,
+     "build_s": 2.6151,
+     "overhead_s": 0.0004
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I21001",
+      1000
+     ],
+     "start": 87.4166,
+     "end": 90.2399,
+     "cpu_s": 2.7812,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I21001",
+      1000
+     ],
+     "start": 87.4163,
+     "end": 90.2399,
+     "cpu_s": 2.7812,
+     "build_s": 2.8233,
+     "overhead_s": 0.0003
+    },
+    {
+     "kind": "location",
+     "key": [
+      "I21001",
+      [
+       "초등학교",
+       "오피스"
+      ]
+     ],
+     "start": 90.24,
+     "end": 90.734,
+     "cpu_s": 0.5,
+     "build_s": 0.4765,
+     "overhead_s": 0.0176
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I21007",
+      300
+     ],
+     "start": 90.7344,
+     "end": 93.335,
+     "cpu_s": 2.5781,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I21007",
+      300
+     ],
+     "start": 90.734,
+     "end": 93.3351,
+     "cpu_s": 2.5781,
+     "build_s": 2.6006,
+     "overhead_s": 0.0004
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I21007",
+      500
+     ],
+     "start": 93.3355,
+     "end": 95.9869,
+     "cpu_s": 2.625,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I21007",
+      500
+     ],
+     "start": 93.3351,
+     "end": 95.987,
+     "cpu_s": 2.625,
+     "build_s": 2.6514,
+     "overhead_s": 0.0005
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I21007",
+      1000
+     ],
+     "start": 95.9874,
+     "end": 98.833,
+     "cpu_s": 2.8281,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I21007",
+      1000
+     ],
+     "start": 95.987,
+     "end": 98.833,
+     "cpu_s": 2.8281,
+     "build_s": 2.8456,
+     "overhead_s": 0.0004
+    },
+    {
+     "kind": "location",
+     "key": [
+      "I21007",
+      [
+       "중학교",
+       "고등학교",
+       "학원"
+      ]
+     ],
+     "start": 98.833,
+     "end": 99.4977,
+     "cpu_s": 0.6562,
+     "build_s": 0.6468,
+     "overhead_s": 0.018
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I21005",
+      300
+     ],
+     "start": 99.4981,
+     "end": 102.154,
+     "cpu_s": 2.625,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I21005",
+      300
+     ],
+     "start": 99.4978,
+     "end": 102.1541,
+     "cpu_s": 2.625,
+     "build_s": 2.6559,
+     "overhead_s": 0.0005
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I21005",
+      500
+     ],
+     "start": 102.1548,
+     "end": 104.9683,
+     "cpu_s": 2.7969,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I21005",
+      500
+     ],
+     "start": 102.1541,
+     "end": 104.9684,
+     "cpu_s": 2.7969,
+     "build_s": 2.8135,
+     "overhead_s": 0.0007
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I21005",
+      1000
+     ],
+     "start": 104.9688,
+     "end": 107.7821,
+     "cpu_s": 2.7656,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I21005",
+      1000
+     ],
+     "start": 104.9684,
+     "end": 107.7822,
+     "cpu_s": 2.7656,
+     "build_s": 2.8133,
+     "overhead_s": 0.0005
+    },
+    {
+     "kind": "location",
+     "key": [
+      "I21005",
+      [
+       "오피스",
+       "고등학교"
+      ]
+     ],
+     "start": 107.7822,
+     "end": 108.298,
+     "cpu_s": 0.5156,
+     "build_s": 0.499,
+     "overhead_s": 0.0168
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I21008",
+      300
+     ],
+     "start": 108.2986,
+     "end": 110.9351,
+     "cpu_s": 2.625,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I21008",
+      300
+     ],
+     "start": 108.2981,
+     "end": 110.9351,
+     "cpu_s": 2.625,
+     "build_s": 2.6365,
+     "overhead_s": 0.0006
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I21008",
+      500
+     ],
+     "start": 110.9356,
+     "end": 113.6658,
+     "cpu_s": 2.6875,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I21008",
+      500
+     ],
+     "start": 110.9351,
+     "end": 113.6658,
+     "cpu_s": 2.6875,
+     "build_s": 2.7302,
+     "overhead_s": 0.0005
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I21008",
+      1000
+     ],
+     "start": 113.6662,
+     "end": 116.5007,
+     "cpu_s": 2.8125,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I21008",
+      1000
+     ],
+     "start": 113.6658,
+     "end": 116.5008,
+     "cpu_s": 2.8125,
+     "build_s": 2.8345,
+     "overhead_s": 0.0004
+    },
+    {
+     "kind": "location",
+     "key": [
+      "I21008",
+      [
+       "초등학교",
+       "중학교",
+       "학원"
+      ]
+     ],
+     "start": 116.5008,
+     "end": 117.1509,
+     "cpu_s": 0.6406,
+     "build_s": 0.6332,
+     "overhead_s": 0.0169
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I21004",
+      300
+     ],
+     "start": 117.1514,
+     "end": 119.9357,
+     "cpu_s": 2.7656,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I21004",
+      300
+     ],
+     "start": 117.151,
+     "end": 119.9358,
+     "cpu_s": 2.7656,
+     "build_s": 2.7843,
+     "overhead_s": 0.0006
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I21004",
+      500
+     ],
+     "start": 119.9365,
+     "end": 122.7187,
+     "cpu_s": 2.75,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I21004",
+      500
+     ],
+     "start": 119.9358,
+     "end": 122.7188,
+     "cpu_s": 2.75,
+     "build_s": 2.7822,
+     "overhead_s": 0.0007
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I21004",
+      1000
+     ],
+     "start": 122.7192,
+     "end": 125.6821,
+     "cpu_s": 2.9531,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I21004",
+      1000
+     ],
+     "start": 122.7188,
+     "end": 125.6822,
+     "cpu_s": 2.9531,
+     "build_s": 2.9629,
+     "overhead_s": 0.0005
+    },
+    {
+     "kind": "location",
+     "key": [
+      "I21004",
+      [
+       "중학교",
+       "고등학교",
+       "학원"
+      ]
+     ],
+     "start": 125.6822,
+     "end": 125.6822,
+     "cpu_s": 0.0,
+     "build_s": null,
+     "overhead_s": null
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I21006",
+      300
+     ],
+     "start": 125.6828,
+     "end": 128.3418,
+     "cpu_s": 2.6562,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I21006",
+      300
+     ],
+     "start": 125.6823,
+     "end": 128.3419,
+     "cpu_s": 2.6719,
+     "build_s": 2.659,
+     "overhead_s": 0.0006
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I21006",
+      500
+     ],
+     "start": 128.3423,
+     "end": 131.1278,
+     "cpu_s": 2.75,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I21006",
+      500
+     ],
+     "start": 128.3419,
+     "end": 131.1278,
+     "cpu_s": 2.75,
+     "build_s": 2.7855,
+     "overhead_s": 0.0004
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I21006",
+      1000
+     ],
+     "start": 131.1282,
+     "end": 133.9586,
+     "cpu_s": 2.8125,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I21006",
+      1000
+     ],
+     "start": 131.1278,
+     "end": 133.9587,
+     "cpu_s": 2.8125,
+     "build_s": 2.8304,
+     "overhead_s": 0.0004
+    },
+    {
+     "kind": "location",
+     "key": [
+      "I21006",
+      [
+       "초등학교",
+       "중학교"
+      ]
+     ],
+     "start": 133.9587,
+     "end": 133.9587,
+     "cpu_s": 0.0,
+     "build_s": null,
+     "overhead_s": null
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I21003",
+      300
+     ],
+     "start": 133.9591,
+     "end": 136.558,
+     "cpu_s": 2.5938,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I21003",
+      300
+     ],
+     "start": 133.9587,
+     "end": 136.5581,
+     "cpu_s": 2.5938,
+     "build_s": 2.5989,
+     "overhead_s": 0.0005
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I21003",
+      500
+     ],
+     "start": 136.5584,
+     "end": 139.2401,
+     "cpu_s": 2.6562,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I21003",
+      500
+     ],
+     "start": 136.5581,
+     "end": 139.2402,
+     "cpu_s": 2.6562,
+     "build_s": 2.6817,
+     "overhead_s": 0.0004
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I21003",
+      1000
+     ],
+     "start": 139.2407,
+     "end": 142.3071,
+     "cpu_s": 3.0,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I21003",
+      1000
+     ],
+     "start": 139.2402,
+     "end": 142.3071,
+     "cpu_s": 3.0,
+     "build_s": 3.0664,
+     "overhead_s": 0.0006
+    },
+    {
+     "kind": "location",
+     "key": [
+      "I21003",
+      [
+       "초등학교",
+       "중학교"
+      ]
+     ],
+     "start": 142.3071,
+     "end": 142.3072,
+     "cpu_s": 0.0,
+     "build_s": null,
+     "overhead_s": null
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "R10406",
+      300
+     ],
+     "start": 142.3076,
+     "end": 145.065,
+     "cpu_s": 2.6875,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "R10406",
+      300
+     ],
+     "start": 142.3072,
+     "end": 145.0651,
+     "cpu_s": 2.7031,
+     "build_s": 2.7574,
+     "overhead_s": 0.0005
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "R10406",
+      500
+     ],
+     "start": 145.0658,
+     "end": 147.919,
+     "cpu_s": 2.8438,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "R10406",
+      500
+     ],
+     "start": 145.0651,
+     "end": 147.919,
+     "cpu_s": 2.8438,
+     "build_s": 2.8532,
+     "overhead_s": 0.0007
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "R10406",
+      1000
+     ],
+     "start": 147.9195,
+     "end": 150.7812,
+     "cpu_s": 2.8125,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "R10406",
+      1000
+     ],
+     "start": 147.919,
+     "end": 150.7813,
+     "cpu_s": 2.8125,
+     "build_s": 2.8617,
+     "overhead_s": 0.0005
+    },
+    {
+     "kind": "location",
+     "key": [
+      "R10406",
+      [
+       "중학교",
+       "고등학교",
+       "학원"
+      ]
+     ],
+     "start": 150.7813,
+     "end": 150.7813,
+     "cpu_s": 0.0,
+     "build_s": null,
+     "overhead_s": null
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "R10202",
+      300
+     ],
+     "start": 150.7817,
+     "end": 153.4423,
+     "cpu_s": 2.6406,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "R10202",
+      300
+     ],
+     "start": 150.7813,
+     "end": 153.4424,
+     "cpu_s": 2.6406,
+     "build_s": 2.6606,
+     "overhead_s": 0.0005
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "R10202",
+      500
+     ],
+     "start": 153.4428,
+     "end": 156.1391,
+     "cpu_s": 2.6875,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "R10202",
+      500
+     ],
+     "start": 153.4424,
+     "end": 156.1392,
+     "cpu_s": 2.6875,
+     "build_s": 2.6963,
+     "overhead_s": 0.0005
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "R10202",
+      1000
+     ],
+     "start": 156.1395,
+     "end": 158.9794,
+     "cpu_s": 2.7969,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "R10202",
+      1000
+     ],
+     "start": 156.1392,
+     "end": 158.9795,
+     "cpu_s": 2.7969,
+     "build_s": 2.8399,
+     "overhead_s": 0.0004
+    },
+    {
+     "kind": "location",
+     "key": [
+      "R10202",
+      [
+       "고등학교",
+       "학원"
+      ]
+     ],
+     "start": 158.9795,
+     "end": 159.4197,
+     "cpu_s": 0.4531,
+     "build_s": 0.4237,
+     "overhead_s": 0.0166
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "P10501",
+      300
+     ],
+     "start": 159.4203,
+     "end": 162.0854,
+     "cpu_s": 2.6562,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "P10501",
+      300
+     ],
+     "start": 159.4198,
+     "end": 162.0854,
+     "cpu_s": 2.6562,
+     "build_s": 2.6651,
+     "overhead_s": 0.0006
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "P10501",
+      500
+     ],
+     "start": 162.0857,
+     "end": 164.7685,
+     "cpu_s": 2.6562,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "P10501",
+      500
+     ],
+     "start": 162.0854,
+     "end": 164.7685,
+     "cpu_s": 2.6562,
+     "build_s": 2.6828,
+     "overhead_s": 0.0003
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "P10501",
+      1000
+     ],
+     "start": 164.7689,
+     "end": 167.5252,
+     "cpu_s": 2.7031,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "P10501",
+      1000
+     ],
+     "start": 164.7685,
+     "end": 167.5253,
+     "cpu_s": 2.7031,
+     "build_s": 2.7563,
+     "overhead_s": 0.0005
+    },
+    {
+     "kind": "location",
+     "key": [
+      "P10501",
+      [
+       "초등학교",
+       "중학교",
+       "고등학교"
+      ]
+     ],
+     "start": 167.5253,
+     "end": 168.0801,
+     "cpu_s": 0.5625,
+     "build_s": 0.5401,
+     "overhead_s": 0.0147
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "P10603",
+      300
+     ],
+     "start": 168.0806,
+     "end": 170.7885,
+     "cpu_s": 2.7031,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "P10603",
+      300
+     ],
+     "start": 168.0801,
+     "end": 170.7886,
+     "cpu_s": 2.7031,
+     "build_s": 2.7079,
+     "overhead_s": 0.0005
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "P10603",
+      500
+     ],
+     "start": 170.7891,
+     "end": 173.5258,
+     "cpu_s": 2.6719,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "P10603",
+      500
+     ],
+     "start": 170.7886,
+     "end": 173.5259,
+     "cpu_s": 2.6719,
+     "build_s": 2.7367,
+     "overhead_s": 0.0006
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "P10603",
+      1000
+     ],
+     "start": 173.5265,
+     "end": 176.3301,
+     "cpu_s": 2.7812,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "P10603",
+      1000
+     ],
+     "start": 173.5259,
+     "end": 176.3302,
+     "cpu_s": 2.7812,
+     "build_s": 2.8036,
+     "overhead_s": 0.0007
+    },
+    {
+     "kind": "location",
+     "key": [
+      "P10603",
+      [
+       "오피스",
+       "초등학교"
+      ]
+     ],
+     "start": 176.3302,
+     "end": 176.3303,
+     "cpu_s": 0.0,
+     "build_s": null,
+     "overhead_s": null
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "R10310",
+      300
+     ],
+     "start": 176.3308,
+     "end": 179.0927,
+     "cpu_s": 2.7344,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "R10310",
+      300
+     ],
+     "start": 176.3303,
+     "end": 179.0928,
+     "cpu_s": 2.7344,
+     "build_s": 2.7619,
+     "overhead_s": 0.0006
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "R10310",
+      500
+     ],
+     "start": 179.0934,
+     "end": 181.9061,
+     "cpu_s": 2.7812,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "R10310",
+      500
+     ],
+     "start": 179.0928,
+     "end": 181.9062,
+     "cpu_s": 2.7812,
+     "build_s": 2.8127,
+     "overhead_s": 0.0007
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "R10310",
+      1000
+     ],
+     "start": 181.907,
+     "end": 184.7573,
+     "cpu_s": 2.8438,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "R10310",
+      1000
+     ],
+     "start": 181.9062,
+     "end": 184.7573,
+     "cpu_s": 2.8438,
+     "build_s": 2.8503,
+     "overhead_s": 0.0008
+    },
+    {
+     "kind": "location",
+     "key": [
+      "R10310",
+      [
+       "오피스",
+       "학원"
+      ]
+     ],
+     "start": 184.7573,
+     "end": 185.3065,
+     "cpu_s": 0.5469,
+     "build_s": 0.5316,
+     "overhead_s": 0.0175
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "R10407",
+      300
+     ],
+     "start": 185.3069,
+     "end": 188.0184,
+     "cpu_s": 2.6875,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "R10407",
+      300
+     ],
+     "start": 185.3065,
+     "end": 188.0185,
+     "cpu_s": 2.7031,
+     "build_s": 2.7115,
+     "overhead_s": 0.0004
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "R10407",
+      500
+     ],
+     "start": 188.0188,
+     "end": 190.6594,
+     "cpu_s": 2.625,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "R10407",
+      500
+     ],
+     "start": 188.0185,
+     "end": 190.6594,
+     "cpu_s": 2.625,
+     "build_s": 2.6406,
+     "overhead_s": 0.0004
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "R10407",
+      1000
+     ],
+     "start": 190.6598,
+     "end": 193.5604,
+     "cpu_s": 2.8906,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "R10407",
+      1000
+     ],
+     "start": 190.6595,
+     "end": 193.5604,
+     "cpu_s": 2.8906,
+     "build_s": 2.9006,
+     "overhead_s": 0.0004
+    },
+    {
+     "kind": "location",
+     "key": [
+      "R10407",
+      [
+       "오피스",
+       "고등학교"
+      ]
+     ],
+     "start": 193.5604,
+     "end": 193.5604,
+     "cpu_s": 0.0,
+     "build_s": null,
+     "overhead_s": null
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "R10404",
+      300
+     ],
+     "start": 193.5609,
+     "end": 196.5109,
+     "cpu_s": 2.8906,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "R10404",
+      300
+     ],
+     "start": 193.5604,
+     "end": 196.511,
+     "cpu_s": 2.8906,
+     "build_s": 2.95,
+     "overhead_s": 0.0005
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "R10404",
+      500
+     ],
+     "start": 196.5116,
+     "end": 200.1012,
+     "cpu_s": 3.5,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "R10404",
+      500
+     ],
+     "start": 196.511,
+     "end": 200.1013,
+     "cpu_s": 3.5,
+     "build_s": 3.5896,
+     "overhead_s": 0.0007
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "R10404",
+      1000
+     ],
+     "start": 200.1021,
+     "end": 203.6714,
+     "cpu_s": 3.5,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "R10404",
+      1000
+     ],
+     "start": 200.1013,
+     "end": 203.6715,
+     "cpu_s": 3.5,
+     "build_s": 3.5693,
+     "overhead_s": 0.0008
+    },
+    {
+     "kind": "location",
+     "key": [
+      "R10404",
+      [
+       "초등학교",
+       "중학교",
+       "학원"
+      ]
+     ],
+     "start": 203.6715,
+     "end": 203.6715,
+     "cpu_s": 0.0,
+     "build_s": null,
+     "overhead_s": null
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I20101",
+      300
+     ],
+     "start": 203.6722,
+     "end": 206.5559,
+     "cpu_s": 2.8594,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I20101",
+      300
+     ],
+     "start": 203.6715,
+     "end": 206.5559,
+     "cpu_s": 2.8594,
+     "build_s": 2.8837,
+     "overhead_s": 0.0007
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I20101",
+      500
+     ],
+     "start": 206.5563,
+     "end": 209.8479,
+     "cpu_s": 3.1875,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I20101",
+      500
+     ],
+     "start": 206.5559,
+     "end": 209.848,
+     "cpu_s": 3.1875,
+     "build_s": 3.2916,
+     "overhead_s": 0.0004
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I20101",
+      1000
+     ],
+     "start": 209.8483,
+     "end": 212.8209,
+     "cpu_s": 2.9531,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I20101",
+      1000
+     ],
+     "start": 209.848,
+     "end": 212.821,
+     "cpu_s": 2.9531,
+     "build_s": 2.9726,
+     "overhead_s": 0.0005
+    },
+    {
+     "kind": "location",
+     "key": [
+      "I20101",
+      [
+       "오피스",
+       "병원"
+      ]
+     ],
+     "start": 212.8211,
+     "end": 213.3764,
+     "cpu_s": 0.5625,
+     "build_s": 0.5375,
+     "overhead_s": 0.0179
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I21103",
+      300
+     ],
+     "start": 213.3768,
+     "end": 215.9745,
+     "cpu_s": 2.5625,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I21103",
+      300
+     ],
+     "start": 213.3764,
+     "end": 215.9746,
+     "cpu_s": 2.5625,
+     "build_s": 2.5977,
+     "overhead_s": 0.0005
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I21103",
+      500
+     ],
+     "start": 215.9752,
+     "end": 218.6083,
+     "cpu_s": 2.625,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I21103",
+      500
+     ],
+     "start": 215.9746,
+     "end": 218.6084,
+     "cpu_s": 2.625,
+     "build_s": 2.6331,
+     "overhead_s": 0.0007
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I21103",
+      1000
+     ],
+     "start": 218.6089,
+     "end": 221.5098,
+     "cpu_s": 2.8438,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I21103",
+      1000
+     ],
+     "start": 218.6084,
+     "end": 221.5098,
+     "cpu_s": 2.8438,
+     "build_s": 2.9009,
+     "overhead_s": 0.0006
+    },
+    {
+     "kind": "location",
+     "key": [
+      "I21103",
+      [
+       "오피스"
+      ]
+     ],
+     "start": 221.5098,
+     "end": 221.5098,
+     "cpu_s": 0.0,
+     "build_s": null,
+     "overhead_s": null
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I21101",
+      300
+     ],
+     "start": 221.5103,
+     "end": 224.3916,
+     "cpu_s": 2.8906,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I21101",
+      300
+     ],
+     "start": 221.5099,
+     "end": 224.3916,
+     "cpu_s": 2.8906,
+     "build_s": 2.8813,
+     "overhead_s": 0.0005
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I21101",
+      500
+     ],
+     "start": 224.3921,
+     "end": 227.1261,
+     "cpu_s": 2.7188,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I21101",
+      500
+     ],
+     "start": 224.3917,
+     "end": 227.1261,
+     "cpu_s": 2.7188,
+     "build_s": 2.734,
+     "overhead_s": 0.0005
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I21101",
+      1000
+     ],
+     "start": 227.1265,
+     "end": 229.9721,
+     "cpu_s": 2.8125,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I21101",
+      1000
+     ],
+     "start": 227.1261,
+     "end": 229.9722,
+     "cpu_s": 2.8125,
+     "build_s": 2.8456,
+     "overhead_s": 0.0004
+    },
+    {
+     "kind": "location",
+     "key": [
+      "I21101",
+      [
+       "오피스"
+      ]
+     ],
+     "start": 229.9722,
+     "end": 229.9722,
+     "cpu_s": 0.0,
+     "build_s": null,
+     "overhead_s": null
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I21104",
+      300
+     ],
+     "start": 229.9726,
+     "end": 232.7618,
+     "cpu_s": 2.75,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I21104",
+      300
+     ],
+     "start": 229.9722,
+     "end": 232.7618,
+     "cpu_s": 2.75,
+     "build_s": 2.7892,
+     "overhead_s": 0.0004
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I21104",
+      500
+     ],
+     "start": 232.7623,
+     "end": 235.5852,
+     "cpu_s": 2.7969,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I21104",
+      500
+     ],
+     "start": 232.7619,
+     "end": 235.5852,
+     "cpu_s": 2.7969,
+     "build_s": 2.8229,
+     "overhead_s": 0.0005
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I21104",
+      1000
+     ],
+     "start": 235.5858,
+     "end": 238.5422,
+     "cpu_s": 2.9531,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I21104",
+      1000
+     ],
+     "start": 235.5853,
+     "end": 238.5423,
+     "cpu_s": 2.9531,
+     "build_s": 2.9564,
+     "overhead_s": 0.0006
+    },
+    {
+     "kind": "location",
+     "key": [
+      "I21104",
+      [
+       "오피스"
+      ]
+     ],
+     "start": 238.5423,
+     "end": 238.5423,
+     "cpu_s": 0.0,
+     "build_s": null,
+     "overhead_s": null
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I20201",
+      300
+     ],
+     "start": 238.543,
+     "end": 241.1958,
+     "cpu_s": 2.625,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I20201",
+      300
+     ],
+     "start": 238.5423,
+     "end": 241.1959,
+     "cpu_s": 2.625,
+     "build_s": 2.6528,
+     "overhead_s": 0.0007
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I20201",
+      500
+     ],
+     "start": 241.1963,
+     "end": 243.9264,
+     "cpu_s": 2.7188,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I20201",
+      500
+     ],
+     "start": 241.1959,
+     "end": 243.9264,
+     "cpu_s": 2.7188,
+     "build_s": 2.7301,
+     "overhead_s": 0.0005
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I20201",
+      1000
+     ],
+     "start": 243.9268,
+     "end": 246.7848,
+     "cpu_s": 2.8438,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I20201",
+      1000
+     ],
+     "start": 243.9264,
+     "end": 246.7848,
+     "cpu_s": 2.8438,
+     "build_s": 2.858,
+     "overhead_s": 0.0004
+    },
+    {
+     "kind": "location",
+     "key": [
+      "I20201",
+      [
+       "오피스",
+       "초등학교"
+      ]
+     ],
+     "start": 246.7848,
+     "end": 246.7849,
+     "cpu_s": 0.0,
+     "build_s": null,
+     "overhead_s": null
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I20301",
+      300
+     ],
+     "start": 246.7855,
+     "end": 249.5978,
+     "cpu_s": 2.75,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I20301",
+      300
+     ],
+     "start": 246.7849,
+     "end": 249.5978,
+     "cpu_s": 2.75,
+     "build_s": 2.8123,
+     "overhead_s": 0.0007
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I20301",
+      500
+     ],
+     "start": 249.5985,
+     "end": 252.304,
+     "cpu_s": 2.6875,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I20301",
+      500
+     ],
+     "start": 249.5978,
+     "end": 252.3041,
+     "cpu_s": 2.6875,
+     "build_s": 2.7055,
+     "overhead_s": 0.0007
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I20301",
+      1000
+     ],
+     "start": 252.3045,
+     "end": 255.2367,
+     "cpu_s": 2.8906,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I20301",
+      1000
+     ],
+     "start": 252.3041,
+     "end": 255.2368,
+     "cpu_s": 2.8906,
+     "build_s": 2.9322,
+     "overhead_s": 0.0005
+    },
+    {
+     "kind": "location",
+     "key": [
+      "I20301",
+      [
+       "오피스"
+      ]
+     ],
+     "start": 255.2368,
+     "end": 255.2368,
+     "cpu_s": 0.0,
+     "build_s": null,
+     "overhead_s": null
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I20401",
+      300
+     ],
+     "start": 255.2373,
+     "end": 257.9303,
+     "cpu_s": 2.6875,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I20401",
+      300
+     ],
+     "start": 255.2368,
+     "end": 257.9303,
+     "cpu_s": 2.6875,
+     "build_s": 2.693,
+     "overhead_s": 0.0005
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I20401",
+      500
+     ],
+     "start": 257.931,
+     "end": 260.8495,
+     "cpu_s": 2.8438,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I20401",
+      500
+     ],
+     "start": 257.9303,
+     "end": 260.8495,
+     "cpu_s": 2.8438,
+     "build_s": 2.9185,
+     "overhead_s": 0.0007
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I20401",
+      1000
+     ],
+     "start": 260.8499,
+     "end": 263.7315,
+     "cpu_s": 2.7969,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I20401",
+      1000
+     ],
+     "start": 260.8495,
+     "end": 263.7316,
+     "cpu_s": 2.7969,
+     "build_s": 2.8816,
+     "overhead_s": 0.0004
+    },
+    {
+     "kind": "location",
+     "key": [
+      "I20401",
+      [
+       "오피스",
+       "병원"
+      ]
+     ],
+     "start": 263.7316,
+     "end": 263.7316,
+     "cpu_s": 0.0,
+     "build_s": null,
+     "overhead_s": null
+    }
+   ],
+   "pair": 1,
+   "impl": "b",
+   "rev": "working"
+  },
+  {
+   "total_s": 265.94,
+   "process_cpu_s": 261.75,
+   "stats": {
+    "competition_entries": 87,
+    "location_entries": 14
+   },
+   "competition_builds": 87,
+   "location_builds": 14,
+   "sum_build_reference_s": 258.14,
+   "sum_build_reference_cpu_s": 254.05,
+   "sum_location_build_s": 7.5,
+   "sum_overhead_s": 0.2956,
+   "max_concurrent_builds": 1,
+   "records": [
+    {
+     "kind": "build_reference",
+     "key": [
+      "G20405",
+      300
+     ],
+     "start": 0.001,
+     "end": 2.8481,
+     "cpu_s": 2.8438,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "G20405",
+      300
+     ],
+     "start": 0.0003,
+     "end": 2.8481,
+     "cpu_s": 2.8438,
+     "build_s": 2.8471,
+     "overhead_s": 0.0007
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "G20405",
+      500
+     ],
+     "start": 2.8484,
+     "end": 5.4899,
+     "cpu_s": 2.625,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "G20405",
+      500
+     ],
+     "start": 2.8481,
+     "end": 5.49,
+     "cpu_s": 2.625,
+     "build_s": 2.6415,
+     "overhead_s": 0.0004
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "G20405",
+      1000
+     ],
+     "start": 5.4905,
+     "end": 8.3319,
+     "cpu_s": 2.7812,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "G20405",
+      1000
+     ],
+     "start": 5.49,
+     "end": 8.332,
+     "cpu_s": 2.7812,
+     "build_s": 2.8414,
+     "overhead_s": 0.0006
+    },
+    {
+     "kind": "location",
+     "key": [
+      "G20405",
+      [
+       "오피스",
+       "고등학교",
+       "초등학교"
+      ]
+     ],
+     "start": 8.332,
+     "end": 9.0266,
+     "cpu_s": 0.6875,
+     "build_s": 0.6784,
+     "overhead_s": 0.0161
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "G20404",
+      300
+     ],
+     "start": 9.0269,
+     "end": 11.8175,
+     "cpu_s": 2.7656,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "G20404",
+      300
+     ],
+     "start": 9.0266,
+     "end": 11.8175,
+     "cpu_s": 2.7656,
+     "build_s": 2.7906,
+     "overhead_s": 0.0003
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "G20404",
+      500
+     ],
+     "start": 11.8179,
+     "end": 14.5264,
+     "cpu_s": 2.7031,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "G20404",
+      500
+     ],
+     "start": 11.8176,
+     "end": 14.5264,
+     "cpu_s": 2.7031,
+     "build_s": 2.7085,
+     "overhead_s": 0.0004
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "G20404",
+      1000
+     ],
+     "start": 14.5267,
+     "end": 17.3509,
+     "cpu_s": 2.7969,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "G20404",
+      1000
+     ],
+     "start": 14.5264,
+     "end": 17.351,
+     "cpu_s": 2.7969,
+     "build_s": 2.8242,
+     "overhead_s": 0.0003
+    },
+    {
+     "kind": "location",
+     "key": [
+      "G20404",
+      [
+       "초등학교",
+       "중학교"
+      ]
+     ],
+     "start": 17.351,
+     "end": 17.8124,
+     "cpu_s": 0.4531,
+     "build_s": 0.444,
+     "overhead_s": 0.0174
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "S20701",
+      300
+     ],
+     "start": 17.8127,
+     "end": 20.3999,
+     "cpu_s": 2.5625,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "S20701",
+      300
+     ],
+     "start": 17.8124,
+     "end": 20.3999,
+     "cpu_s": 2.5625,
+     "build_s": 2.5872,
+     "overhead_s": 0.0004
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "S20701",
+      500
+     ],
+     "start": 20.4003,
+     "end": 23.2464,
+     "cpu_s": 2.8125,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "S20701",
+      500
+     ],
+     "start": 20.3999,
+     "end": 23.2464,
+     "cpu_s": 2.8125,
+     "build_s": 2.8461,
+     "overhead_s": 0.0004
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "S20701",
+      1000
+     ],
+     "start": 23.2467,
+     "end": 26.0722,
+     "cpu_s": 2.7969,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "S20701",
+      1000
+     ],
+     "start": 23.2464,
+     "end": 26.0722,
+     "cpu_s": 2.7969,
+     "build_s": 2.8255,
+     "overhead_s": 0.0003
+    },
+    {
+     "kind": "location",
+     "key": [
+      "S20701",
+      [
+       "오피스",
+       "초등학교"
+      ]
+     ],
+     "start": 26.0722,
+     "end": 26.5786,
+     "cpu_s": 0.5,
+     "build_s": 0.4909,
+     "overhead_s": 0.0155
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "S20702",
+      300
+     ],
+     "start": 26.5789,
+     "end": 29.2573,
+     "cpu_s": 2.6406,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "S20702",
+      300
+     ],
+     "start": 26.5786,
+     "end": 29.2574,
+     "cpu_s": 2.6406,
+     "build_s": 2.6784,
+     "overhead_s": 0.0004
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "S20702",
+      500
+     ],
+     "start": 29.2578,
+     "end": 31.9497,
+     "cpu_s": 2.6562,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "S20702",
+      500
+     ],
+     "start": 29.2574,
+     "end": 31.9497,
+     "cpu_s": 2.6562,
+     "build_s": 2.6919,
+     "overhead_s": 0.0004
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "S20702",
+      1000
+     ],
+     "start": 31.95,
+     "end": 34.734,
+     "cpu_s": 2.75,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "S20702",
+      1000
+     ],
+     "start": 31.9497,
+     "end": 34.7341,
+     "cpu_s": 2.75,
+     "build_s": 2.784,
+     "overhead_s": 0.0003
+    },
+    {
+     "kind": "location",
+     "key": [
+      "S20702",
+      [
+       "오피스"
+      ]
+     ],
+     "start": 34.7341,
+     "end": 35.0537,
+     "cpu_s": 0.3281,
+     "build_s": 0.3024,
+     "overhead_s": 0.0172
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "S20703",
+      300
+     ],
+     "start": 35.0541,
+     "end": 37.76,
+     "cpu_s": 2.625,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "S20703",
+      300
+     ],
+     "start": 35.0537,
+     "end": 37.76,
+     "cpu_s": 2.625,
+     "build_s": 2.7059,
+     "overhead_s": 0.0004
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "S20703",
+      500
+     ],
+     "start": 37.7605,
+     "end": 40.5752,
+     "cpu_s": 2.7969,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "S20703",
+      500
+     ],
+     "start": 37.7601,
+     "end": 40.5752,
+     "cpu_s": 2.7969,
+     "build_s": 2.8147,
+     "overhead_s": 0.0005
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "S20703",
+      1000
+     ],
+     "start": 40.5759,
+     "end": 44.4809,
+     "cpu_s": 3.75,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "S20703",
+      1000
+     ],
+     "start": 40.5753,
+     "end": 44.481,
+     "cpu_s": 3.75,
+     "build_s": 3.905,
+     "overhead_s": 0.0008
+    },
+    {
+     "kind": "location",
+     "key": [
+      "S20703",
+      [
+       "오피스"
+      ]
+     ],
+     "start": 44.481,
+     "end": 44.481,
+     "cpu_s": 0.0,
+     "build_s": null,
+     "overhead_s": null
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "S20901",
+      300
+     ],
+     "start": 44.4817,
+     "end": 47.4451,
+     "cpu_s": 2.9062,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "S20901",
+      300
+     ],
+     "start": 44.4811,
+     "end": 47.4451,
+     "cpu_s": 2.9062,
+     "build_s": 2.9634,
+     "overhead_s": 0.0007
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "S20901",
+      500
+     ],
+     "start": 47.4456,
+     "end": 50.3509,
+     "cpu_s": 2.875,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "S20901",
+      500
+     ],
+     "start": 47.4451,
+     "end": 50.351,
+     "cpu_s": 2.875,
+     "build_s": 2.9053,
+     "overhead_s": 0.0005
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "S20901",
+      1000
+     ],
+     "start": 50.3514,
+     "end": 53.2882,
+     "cpu_s": 2.875,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "S20901",
+      1000
+     ],
+     "start": 50.351,
+     "end": 53.2882,
+     "cpu_s": 2.875,
+     "build_s": 2.9368,
+     "overhead_s": 0.0004
+    },
+    {
+     "kind": "location",
+     "key": [
+      "S20901",
+      [
+       "오피스",
+       "초등학교"
+      ]
+     ],
+     "start": 53.2882,
+     "end": 53.2882,
+     "cpu_s": 0.0,
+     "build_s": null,
+     "overhead_s": null
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "G21501",
+      300
+     ],
+     "start": 53.2887,
+     "end": 56.3429,
+     "cpu_s": 3.0,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "G21501",
+      300
+     ],
+     "start": 53.2882,
+     "end": 56.343,
+     "cpu_s": 3.0,
+     "build_s": 3.0542,
+     "overhead_s": 0.0005
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "G21501",
+      500
+     ],
+     "start": 56.3438,
+     "end": 59.2094,
+     "cpu_s": 2.8438,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "G21501",
+      500
+     ],
+     "start": 56.343,
+     "end": 59.2094,
+     "cpu_s": 2.8438,
+     "build_s": 2.8656,
+     "overhead_s": 0.0009
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "G21501",
+      1000
+     ],
+     "start": 59.21,
+     "end": 62.1558,
+     "cpu_s": 2.8906,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "G21501",
+      1000
+     ],
+     "start": 59.2095,
+     "end": 62.1559,
+     "cpu_s": 2.8906,
+     "build_s": 2.9458,
+     "overhead_s": 0.0006
+    },
+    {
+     "kind": "location",
+     "key": [
+      "G21501",
+      [
+       "병원"
+      ]
+     ],
+     "start": 62.1559,
+     "end": 62.4016,
+     "cpu_s": 0.25,
+     "build_s": 0.2307,
+     "overhead_s": 0.015
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I21201",
+      300
+     ],
+     "start": 62.4022,
+     "end": 65.0105,
+     "cpu_s": 2.5938,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I21201",
+      300
+     ],
+     "start": 62.4016,
+     "end": 65.0105,
+     "cpu_s": 2.5938,
+     "build_s": 2.6083,
+     "overhead_s": 0.0005
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I21201",
+      500
+     ],
+     "start": 65.0109,
+     "end": 67.6478,
+     "cpu_s": 2.6094,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I21201",
+      500
+     ],
+     "start": 65.0105,
+     "end": 67.6479,
+     "cpu_s": 2.6094,
+     "build_s": 2.6369,
+     "overhead_s": 0.0005
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I21201",
+      1000
+     ],
+     "start": 67.6485,
+     "end": 70.4772,
+     "cpu_s": 2.7969,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I21201",
+      1000
+     ],
+     "start": 67.6479,
+     "end": 70.4773,
+     "cpu_s": 2.7969,
+     "build_s": 2.8287,
+     "overhead_s": 0.0007
+    },
+    {
+     "kind": "location",
+     "key": [
+      "I21201",
+      [
+       "오피스",
+       "병원",
+       "학원"
+      ]
+     ],
+     "start": 70.4773,
+     "end": 71.2546,
+     "cpu_s": 0.7812,
+     "build_s": 0.7591,
+     "overhead_s": 0.0182
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I21001",
+      300
+     ],
+     "start": 71.255,
+     "end": 73.9273,
+     "cpu_s": 2.6406,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I21001",
+      300
+     ],
+     "start": 71.2546,
+     "end": 73.9274,
+     "cpu_s": 2.6406,
+     "build_s": 2.6723,
+     "overhead_s": 0.0005
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I21001",
+      500
+     ],
+     "start": 73.9279,
+     "end": 76.6868,
+     "cpu_s": 2.7188,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I21001",
+      500
+     ],
+     "start": 73.9274,
+     "end": 76.6869,
+     "cpu_s": 2.7188,
+     "build_s": 2.7589,
+     "overhead_s": 0.0005
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I21001",
+      1000
+     ],
+     "start": 76.6874,
+     "end": 79.6183,
+     "cpu_s": 2.875,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I21001",
+      1000
+     ],
+     "start": 76.6869,
+     "end": 79.6183,
+     "cpu_s": 2.875,
+     "build_s": 2.9309,
+     "overhead_s": 0.0005
+    },
+    {
+     "kind": "location",
+     "key": [
+      "I21001",
+      [
+       "초등학교",
+       "오피스"
+      ]
+     ],
+     "start": 79.6183,
+     "end": 80.1402,
+     "cpu_s": 0.5,
+     "build_s": 0.5023,
+     "overhead_s": 0.0196
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I21007",
+      300
+     ],
+     "start": 80.1407,
+     "end": 82.9043,
+     "cpu_s": 2.75,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I21007",
+      300
+     ],
+     "start": 80.1402,
+     "end": 82.9044,
+     "cpu_s": 2.75,
+     "build_s": 2.7636,
+     "overhead_s": 0.0006
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I21007",
+      500
+     ],
+     "start": 82.905,
+     "end": 85.6609,
+     "cpu_s": 2.75,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I21007",
+      500
+     ],
+     "start": 82.9044,
+     "end": 85.661,
+     "cpu_s": 2.75,
+     "build_s": 2.7559,
+     "overhead_s": 0.0007
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I21007",
+      1000
+     ],
+     "start": 85.6613,
+     "end": 88.5064,
+     "cpu_s": 2.8125,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I21007",
+      1000
+     ],
+     "start": 85.661,
+     "end": 88.5065,
+     "cpu_s": 2.8125,
+     "build_s": 2.8451,
+     "overhead_s": 0.0004
+    },
+    {
+     "kind": "location",
+     "key": [
+      "I21007",
+      [
+       "중학교",
+       "고등학교",
+       "학원"
+      ]
+     ],
+     "start": 88.5065,
+     "end": 89.1155,
+     "cpu_s": 0.6094,
+     "build_s": 0.5923,
+     "overhead_s": 0.0167
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I21005",
+      300
+     ],
+     "start": 89.1159,
+     "end": 92.0146,
+     "cpu_s": 2.8125,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I21005",
+      300
+     ],
+     "start": 89.1155,
+     "end": 92.0147,
+     "cpu_s": 2.8125,
+     "build_s": 2.8987,
+     "overhead_s": 0.0005
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I21005",
+      500
+     ],
+     "start": 92.0151,
+     "end": 94.9383,
+     "cpu_s": 2.9062,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I21005",
+      500
+     ],
+     "start": 92.0147,
+     "end": 94.9383,
+     "cpu_s": 2.9062,
+     "build_s": 2.9232,
+     "overhead_s": 0.0005
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I21005",
+      1000
+     ],
+     "start": 94.9389,
+     "end": 97.9932,
+     "cpu_s": 3.0312,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I21005",
+      1000
+     ],
+     "start": 94.9384,
+     "end": 97.9932,
+     "cpu_s": 3.0312,
+     "build_s": 3.0543,
+     "overhead_s": 0.0006
+    },
+    {
+     "kind": "location",
+     "key": [
+      "I21005",
+      [
+       "오피스",
+       "고등학교"
+      ]
+     ],
+     "start": 97.9932,
+     "end": 98.5654,
+     "cpu_s": 0.5781,
+     "build_s": 0.5534,
+     "overhead_s": 0.0187
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I21008",
+      300
+     ],
+     "start": 98.5661,
+     "end": 101.4611,
+     "cpu_s": 2.8281,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I21008",
+      300
+     ],
+     "start": 98.5654,
+     "end": 101.4611,
+     "cpu_s": 2.8281,
+     "build_s": 2.895,
+     "overhead_s": 0.0007
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I21008",
+      500
+     ],
+     "start": 101.4615,
+     "end": 104.33,
+     "cpu_s": 2.8438,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I21008",
+      500
+     ],
+     "start": 101.4611,
+     "end": 104.33,
+     "cpu_s": 2.8438,
+     "build_s": 2.8685,
+     "overhead_s": 0.0004
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I21008",
+      1000
+     ],
+     "start": 104.3305,
+     "end": 107.1936,
+     "cpu_s": 2.8594,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I21008",
+      1000
+     ],
+     "start": 104.33,
+     "end": 107.1937,
+     "cpu_s": 2.8594,
+     "build_s": 2.8631,
+     "overhead_s": 0.0005
+    },
+    {
+     "kind": "location",
+     "key": [
+      "I21008",
+      [
+       "초등학교",
+       "중학교",
+       "학원"
+      ]
+     ],
+     "start": 107.1937,
+     "end": 107.8246,
+     "cpu_s": 0.625,
+     "build_s": 0.614,
+     "overhead_s": 0.0169
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I21004",
+      300
+     ],
+     "start": 107.825,
+     "end": 110.8536,
+     "cpu_s": 2.9531,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I21004",
+      300
+     ],
+     "start": 107.8246,
+     "end": 110.8537,
+     "cpu_s": 2.9531,
+     "build_s": 3.0286,
+     "overhead_s": 0.0005
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I21004",
+      500
+     ],
+     "start": 110.8544,
+     "end": 114.1205,
+     "cpu_s": 3.2031,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I21004",
+      500
+     ],
+     "start": 110.8537,
+     "end": 114.1205,
+     "cpu_s": 3.2031,
+     "build_s": 3.2661,
+     "overhead_s": 0.0007
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I21004",
+      1000
+     ],
+     "start": 114.1209,
+     "end": 117.4227,
+     "cpu_s": 3.2031,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I21004",
+      1000
+     ],
+     "start": 114.1205,
+     "end": 117.4227,
+     "cpu_s": 3.2031,
+     "build_s": 3.3018,
+     "overhead_s": 0.0004
+    },
+    {
+     "kind": "location",
+     "key": [
+      "I21004",
+      [
+       "중학교",
+       "고등학교",
+       "학원"
+      ]
+     ],
+     "start": 117.4227,
+     "end": 117.4227,
+     "cpu_s": 0.0,
+     "build_s": null,
+     "overhead_s": null
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I21006",
+      300
+     ],
+     "start": 117.4232,
+     "end": 120.6143,
+     "cpu_s": 3.1406,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I21006",
+      300
+     ],
+     "start": 117.4227,
+     "end": 120.6144,
+     "cpu_s": 3.1406,
+     "build_s": 3.1911,
+     "overhead_s": 0.0006
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I21006",
+      500
+     ],
+     "start": 120.6151,
+     "end": 123.7511,
+     "cpu_s": 3.0469,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I21006",
+      500
+     ],
+     "start": 120.6144,
+     "end": 123.7512,
+     "cpu_s": 3.0469,
+     "build_s": 3.136,
+     "overhead_s": 0.0008
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I21006",
+      1000
+     ],
+     "start": 123.7518,
+     "end": 127.0815,
+     "cpu_s": 3.25,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I21006",
+      1000
+     ],
+     "start": 123.7512,
+     "end": 127.0816,
+     "cpu_s": 3.2656,
+     "build_s": 3.3297,
+     "overhead_s": 0.0007
+    },
+    {
+     "kind": "location",
+     "key": [
+      "I21006",
+      [
+       "초등학교",
+       "중학교"
+      ]
+     ],
+     "start": 127.0816,
+     "end": 127.0816,
+     "cpu_s": 0.0,
+     "build_s": null,
+     "overhead_s": null
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I21003",
+      300
+     ],
+     "start": 127.0823,
+     "end": 130.2409,
+     "cpu_s": 3.1094,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I21003",
+      300
+     ],
+     "start": 127.0816,
+     "end": 130.2409,
+     "cpu_s": 3.1094,
+     "build_s": 3.1586,
+     "overhead_s": 0.0007
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I21003",
+      500
+     ],
+     "start": 130.2414,
+     "end": 133.2944,
+     "cpu_s": 3.0469,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I21003",
+      500
+     ],
+     "start": 130.2409,
+     "end": 133.2945,
+     "cpu_s": 3.0469,
+     "build_s": 3.053,
+     "overhead_s": 0.0006
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I21003",
+      1000
+     ],
+     "start": 133.2949,
+     "end": 136.2047,
+     "cpu_s": 2.9062,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I21003",
+      1000
+     ],
+     "start": 133.2945,
+     "end": 136.2048,
+     "cpu_s": 2.9062,
+     "build_s": 2.9098,
+     "overhead_s": 0.0005
+    },
+    {
+     "kind": "location",
+     "key": [
+      "I21003",
+      [
+       "초등학교",
+       "중학교"
+      ]
+     ],
+     "start": 136.2048,
+     "end": 136.2048,
+     "cpu_s": 0.0,
+     "build_s": null,
+     "overhead_s": null
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "R10406",
+      300
+     ],
+     "start": 136.2053,
+     "end": 138.8901,
+     "cpu_s": 2.6562,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "R10406",
+      300
+     ],
+     "start": 136.2048,
+     "end": 138.8902,
+     "cpu_s": 2.6719,
+     "build_s": 2.6848,
+     "overhead_s": 0.0006
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "R10406",
+      500
+     ],
+     "start": 138.8905,
+     "end": 141.5776,
+     "cpu_s": 2.6562,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "R10406",
+      500
+     ],
+     "start": 138.8902,
+     "end": 141.5776,
+     "cpu_s": 2.6562,
+     "build_s": 2.6871,
+     "overhead_s": 0.0003
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "R10406",
+      1000
+     ],
+     "start": 141.5781,
+     "end": 144.439,
+     "cpu_s": 2.7812,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "R10406",
+      1000
+     ],
+     "start": 141.5776,
+     "end": 144.4391,
+     "cpu_s": 2.7812,
+     "build_s": 2.8609,
+     "overhead_s": 0.0006
+    },
+    {
+     "kind": "location",
+     "key": [
+      "R10406",
+      [
+       "중학교",
+       "고등학교",
+       "학원"
+      ]
+     ],
+     "start": 144.4391,
+     "end": 144.4391,
+     "cpu_s": 0.0,
+     "build_s": null,
+     "overhead_s": null
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "R10202",
+      300
+     ],
+     "start": 144.4396,
+     "end": 147.1739,
+     "cpu_s": 2.7031,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "R10202",
+      300
+     ],
+     "start": 144.4391,
+     "end": 147.174,
+     "cpu_s": 2.7031,
+     "build_s": 2.7343,
+     "overhead_s": 0.0005
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "R10202",
+      500
+     ],
+     "start": 147.1743,
+     "end": 149.8776,
+     "cpu_s": 2.6719,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "R10202",
+      500
+     ],
+     "start": 147.174,
+     "end": 149.8777,
+     "cpu_s": 2.6719,
+     "build_s": 2.7033,
+     "overhead_s": 0.0004
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "R10202",
+      1000
+     ],
+     "start": 149.878,
+     "end": 152.7206,
+     "cpu_s": 2.8438,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "R10202",
+      1000
+     ],
+     "start": 149.8777,
+     "end": 152.7207,
+     "cpu_s": 2.8438,
+     "build_s": 2.8426,
+     "overhead_s": 0.0004
+    },
+    {
+     "kind": "location",
+     "key": [
+      "R10202",
+      [
+       "고등학교",
+       "학원"
+      ]
+     ],
+     "start": 152.7207,
+     "end": 153.1407,
+     "cpu_s": 0.4062,
+     "build_s": 0.4048,
+     "overhead_s": 0.0153
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "P10501",
+      300
+     ],
+     "start": 153.1412,
+     "end": 155.9145,
+     "cpu_s": 2.7656,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "P10501",
+      300
+     ],
+     "start": 153.1407,
+     "end": 155.9146,
+     "cpu_s": 2.7656,
+     "build_s": 2.7733,
+     "overhead_s": 0.0006
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "P10501",
+      500
+     ],
+     "start": 155.9149,
+     "end": 158.6024,
+     "cpu_s": 2.6719,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "P10501",
+      500
+     ],
+     "start": 155.9146,
+     "end": 158.6025,
+     "cpu_s": 2.6719,
+     "build_s": 2.6875,
+     "overhead_s": 0.0004
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "P10501",
+      1000
+     ],
+     "start": 158.6029,
+     "end": 161.5207,
+     "cpu_s": 2.875,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "P10501",
+      1000
+     ],
+     "start": 158.6025,
+     "end": 161.5207,
+     "cpu_s": 2.875,
+     "build_s": 2.9178,
+     "overhead_s": 0.0004
+    },
+    {
+     "kind": "location",
+     "key": [
+      "P10501",
+      [
+       "초등학교",
+       "중학교",
+       "고등학교"
+      ]
+     ],
+     "start": 161.5207,
+     "end": 162.1755,
+     "cpu_s": 0.6406,
+     "build_s": 0.6371,
+     "overhead_s": 0.0177
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "P10603",
+      300
+     ],
+     "start": 162.1761,
+     "end": 164.9956,
+     "cpu_s": 2.7656,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "P10603",
+      300
+     ],
+     "start": 162.1755,
+     "end": 164.9957,
+     "cpu_s": 2.7656,
+     "build_s": 2.8195,
+     "overhead_s": 0.0007
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "P10603",
+      500
+     ],
+     "start": 164.9962,
+     "end": 167.7397,
+     "cpu_s": 2.6719,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "P10603",
+      500
+     ],
+     "start": 164.9957,
+     "end": 167.7398,
+     "cpu_s": 2.6719,
+     "build_s": 2.7435,
+     "overhead_s": 0.0005
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "P10603",
+      1000
+     ],
+     "start": 167.7403,
+     "end": 170.5793,
+     "cpu_s": 2.7969,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "P10603",
+      1000
+     ],
+     "start": 167.7398,
+     "end": 170.5794,
+     "cpu_s": 2.7969,
+     "build_s": 2.839,
+     "overhead_s": 0.0006
+    },
+    {
+     "kind": "location",
+     "key": [
+      "P10603",
+      [
+       "오피스",
+       "초등학교"
+      ]
+     ],
+     "start": 170.5794,
+     "end": 170.5794,
+     "cpu_s": 0.0,
+     "build_s": null,
+     "overhead_s": null
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "R10310",
+      300
+     ],
+     "start": 170.5801,
+     "end": 173.2382,
+     "cpu_s": 2.625,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "R10310",
+      300
+     ],
+     "start": 170.5794,
+     "end": 173.2382,
+     "cpu_s": 2.625,
+     "build_s": 2.6581,
+     "overhead_s": 0.0007
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "R10310",
+      500
+     ],
+     "start": 173.2387,
+     "end": 175.9645,
+     "cpu_s": 2.6875,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "R10310",
+      500
+     ],
+     "start": 173.2382,
+     "end": 175.9646,
+     "cpu_s": 2.6875,
+     "build_s": 2.7258,
+     "overhead_s": 0.0006
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "R10310",
+      1000
+     ],
+     "start": 175.965,
+     "end": 178.7153,
+     "cpu_s": 2.6875,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "R10310",
+      1000
+     ],
+     "start": 175.9646,
+     "end": 178.7153,
+     "cpu_s": 2.6875,
+     "build_s": 2.7503,
+     "overhead_s": 0.0004
+    },
+    {
+     "kind": "location",
+     "key": [
+      "R10310",
+      [
+       "오피스",
+       "학원"
+      ]
+     ],
+     "start": 178.7153,
+     "end": 179.2379,
+     "cpu_s": 0.5312,
+     "build_s": 0.5062,
+     "overhead_s": 0.0164
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "R10407",
+      300
+     ],
+     "start": 179.2386,
+     "end": 181.9614,
+     "cpu_s": 2.7188,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "R10407",
+      300
+     ],
+     "start": 179.238,
+     "end": 181.9615,
+     "cpu_s": 2.7188,
+     "build_s": 2.7228,
+     "overhead_s": 0.0007
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "R10407",
+      500
+     ],
+     "start": 181.9618,
+     "end": 184.8201,
+     "cpu_s": 2.8125,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "R10407",
+      500
+     ],
+     "start": 181.9615,
+     "end": 184.8201,
+     "cpu_s": 2.8125,
+     "build_s": 2.8583,
+     "overhead_s": 0.0004
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "R10407",
+      1000
+     ],
+     "start": 184.8208,
+     "end": 188.1489,
+     "cpu_s": 3.2812,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "R10407",
+      1000
+     ],
+     "start": 184.8202,
+     "end": 188.1489,
+     "cpu_s": 3.2812,
+     "build_s": 3.3281,
+     "overhead_s": 0.0007
+    },
+    {
+     "kind": "location",
+     "key": [
+      "R10407",
+      [
+       "오피스",
+       "고등학교"
+      ]
+     ],
+     "start": 188.1489,
+     "end": 188.1489,
+     "cpu_s": 0.0,
+     "build_s": null,
+     "overhead_s": null
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "R10404",
+      300
+     ],
+     "start": 188.1494,
+     "end": 190.8437,
+     "cpu_s": 2.6875,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "R10404",
+      300
+     ],
+     "start": 188.1489,
+     "end": 190.8438,
+     "cpu_s": 2.6875,
+     "build_s": 2.6943,
+     "overhead_s": 0.0005
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "R10404",
+      500
+     ],
+     "start": 190.8441,
+     "end": 193.5412,
+     "cpu_s": 2.7031,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "R10404",
+      500
+     ],
+     "start": 190.8438,
+     "end": 193.5412,
+     "cpu_s": 2.7031,
+     "build_s": 2.6971,
+     "overhead_s": 0.0004
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "R10404",
+      1000
+     ],
+     "start": 193.5419,
+     "end": 197.0232,
+     "cpu_s": 3.3438,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "R10404",
+      1000
+     ],
+     "start": 193.5413,
+     "end": 197.0233,
+     "cpu_s": 3.3438,
+     "build_s": 3.4813,
+     "overhead_s": 0.0008
+    },
+    {
+     "kind": "location",
+     "key": [
+      "R10404",
+      [
+       "초등학교",
+       "중학교",
+       "학원"
+      ]
+     ],
+     "start": 197.0233,
+     "end": 197.0233,
+     "cpu_s": 0.0,
+     "build_s": null,
+     "overhead_s": null
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I20101",
+      300
+     ],
+     "start": 197.0241,
+     "end": 200.8871,
+     "cpu_s": 3.7188,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I20101",
+      300
+     ],
+     "start": 197.0233,
+     "end": 200.8872,
+     "cpu_s": 3.7188,
+     "build_s": 3.863,
+     "overhead_s": 0.0009
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I20101",
+      500
+     ],
+     "start": 200.8881,
+     "end": 205.3361,
+     "cpu_s": 4.1719,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I20101",
+      500
+     ],
+     "start": 200.8872,
+     "end": 205.3362,
+     "cpu_s": 4.1719,
+     "build_s": 4.448,
+     "overhead_s": 0.001
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I20101",
+      1000
+     ],
+     "start": 205.3371,
+     "end": 209.876,
+     "cpu_s": 4.4219,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I20101",
+      1000
+     ],
+     "start": 205.3362,
+     "end": 209.8761,
+     "cpu_s": 4.4219,
+     "build_s": 4.5389,
+     "overhead_s": 0.001
+    },
+    {
+     "kind": "location",
+     "key": [
+      "I20101",
+      [
+       "오피스",
+       "병원"
+      ]
+     ],
+     "start": 209.8761,
+     "end": 210.6863,
+     "cpu_s": 0.7812,
+     "build_s": 0.7832,
+     "overhead_s": 0.027
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I21103",
+      300
+     ],
+     "start": 210.6867,
+     "end": 214.3697,
+     "cpu_s": 3.5938,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I21103",
+      300
+     ],
+     "start": 210.6863,
+     "end": 214.3697,
+     "cpu_s": 3.5938,
+     "build_s": 3.683,
+     "overhead_s": 0.0004
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I21103",
+      500
+     ],
+     "start": 214.3703,
+     "end": 217.553,
+     "cpu_s": 3.1562,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I21103",
+      500
+     ],
+     "start": 214.3697,
+     "end": 217.553,
+     "cpu_s": 3.1562,
+     "build_s": 3.1827,
+     "overhead_s": 0.0006
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I21103",
+      1000
+     ],
+     "start": 217.5534,
+     "end": 220.9108,
+     "cpu_s": 3.3438,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I21103",
+      1000
+     ],
+     "start": 217.553,
+     "end": 220.9109,
+     "cpu_s": 3.3438,
+     "build_s": 3.3574,
+     "overhead_s": 0.0005
+    },
+    {
+     "kind": "location",
+     "key": [
+      "I21103",
+      [
+       "오피스"
+      ]
+     ],
+     "start": 220.9109,
+     "end": 220.9109,
+     "cpu_s": 0.0,
+     "build_s": null,
+     "overhead_s": null
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I21101",
+      300
+     ],
+     "start": 220.9116,
+     "end": 224.1763,
+     "cpu_s": 3.1719,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I21101",
+      300
+     ],
+     "start": 220.9109,
+     "end": 224.1764,
+     "cpu_s": 3.1719,
+     "build_s": 3.2647,
+     "overhead_s": 0.0007
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I21101",
+      500
+     ],
+     "start": 224.1768,
+     "end": 227.0493,
+     "cpu_s": 2.8281,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I21101",
+      500
+     ],
+     "start": 224.1764,
+     "end": 227.0494,
+     "cpu_s": 2.8281,
+     "build_s": 2.8725,
+     "overhead_s": 0.0005
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I21101",
+      1000
+     ],
+     "start": 227.0498,
+     "end": 230.1077,
+     "cpu_s": 2.9844,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I21101",
+      1000
+     ],
+     "start": 227.0494,
+     "end": 230.1077,
+     "cpu_s": 2.9844,
+     "build_s": 3.0579,
+     "overhead_s": 0.0004
+    },
+    {
+     "kind": "location",
+     "key": [
+      "I21101",
+      [
+       "오피스"
+      ]
+     ],
+     "start": 230.1077,
+     "end": 230.1077,
+     "cpu_s": 0.0,
+     "build_s": null,
+     "overhead_s": null
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I21104",
+      300
+     ],
+     "start": 230.1083,
+     "end": 232.9611,
+     "cpu_s": 2.8438,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I21104",
+      300
+     ],
+     "start": 230.1077,
+     "end": 232.9612,
+     "cpu_s": 2.8438,
+     "build_s": 2.8528,
+     "overhead_s": 0.0006
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I21104",
+      500
+     ],
+     "start": 232.962,
+     "end": 236.4768,
+     "cpu_s": 3.4062,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I21104",
+      500
+     ],
+     "start": 232.9612,
+     "end": 236.4768,
+     "cpu_s": 3.4062,
+     "build_s": 3.5148,
+     "overhead_s": 0.0009
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I21104",
+      1000
+     ],
+     "start": 236.4776,
+     "end": 239.8233,
+     "cpu_s": 3.2344,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I21104",
+      1000
+     ],
+     "start": 236.4769,
+     "end": 239.8233,
+     "cpu_s": 3.2344,
+     "build_s": 3.3457,
+     "overhead_s": 0.0008
+    },
+    {
+     "kind": "location",
+     "key": [
+      "I21104",
+      [
+       "오피스"
+      ]
+     ],
+     "start": 239.8233,
+     "end": 239.8233,
+     "cpu_s": 0.0,
+     "build_s": null,
+     "overhead_s": null
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I20201",
+      300
+     ],
+     "start": 239.8237,
+     "end": 242.8174,
+     "cpu_s": 2.9219,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I20201",
+      300
+     ],
+     "start": 239.8234,
+     "end": 242.8174,
+     "cpu_s": 2.9219,
+     "build_s": 2.9937,
+     "overhead_s": 0.0004
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I20201",
+      500
+     ],
+     "start": 242.8178,
+     "end": 245.8636,
+     "cpu_s": 2.9531,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I20201",
+      500
+     ],
+     "start": 242.8174,
+     "end": 245.8637,
+     "cpu_s": 2.9531,
+     "build_s": 3.0458,
+     "overhead_s": 0.0005
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I20201",
+      1000
+     ],
+     "start": 245.8642,
+     "end": 249.0414,
+     "cpu_s": 3.125,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I20201",
+      1000
+     ],
+     "start": 245.8637,
+     "end": 249.0415,
+     "cpu_s": 3.125,
+     "build_s": 3.1772,
+     "overhead_s": 0.0006
+    },
+    {
+     "kind": "location",
+     "key": [
+      "I20201",
+      [
+       "오피스",
+       "초등학교"
+      ]
+     ],
+     "start": 249.0415,
+     "end": 249.0415,
+     "cpu_s": 0.0,
+     "build_s": null,
+     "overhead_s": null
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I20301",
+      300
+     ],
+     "start": 249.042,
+     "end": 251.8905,
+     "cpu_s": 2.8438,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I20301",
+      300
+     ],
+     "start": 249.0415,
+     "end": 251.8906,
+     "cpu_s": 2.8438,
+     "build_s": 2.8485,
+     "overhead_s": 0.0006
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I20301",
+      500
+     ],
+     "start": 251.8911,
+     "end": 254.6141,
+     "cpu_s": 2.7031,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I20301",
+      500
+     ],
+     "start": 251.8906,
+     "end": 254.6141,
+     "cpu_s": 2.7031,
+     "build_s": 2.723,
+     "overhead_s": 0.0005
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I20301",
+      1000
+     ],
+     "start": 254.6148,
+     "end": 257.5216,
+     "cpu_s": 2.875,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I20301",
+      1000
+     ],
+     "start": 254.6142,
+     "end": 257.5217,
+     "cpu_s": 2.875,
+     "build_s": 2.9068,
+     "overhead_s": 0.0007
+    },
+    {
+     "kind": "location",
+     "key": [
+      "I20301",
+      [
+       "오피스"
+      ]
+     ],
+     "start": 257.5217,
+     "end": 257.5217,
+     "cpu_s": 0.0,
+     "build_s": null,
+     "overhead_s": null
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I20401",
+      300
+     ],
+     "start": 257.5221,
+     "end": 260.2607,
+     "cpu_s": 2.7031,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I20401",
+      300
+     ],
+     "start": 257.5217,
+     "end": 260.2608,
+     "cpu_s": 2.7031,
+     "build_s": 2.7386,
+     "overhead_s": 0.0005
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I20401",
+      500
+     ],
+     "start": 260.2612,
+     "end": 263.0231,
+     "cpu_s": 2.75,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I20401",
+      500
+     ],
+     "start": 260.2608,
+     "end": 263.0232,
+     "cpu_s": 2.75,
+     "build_s": 2.7619,
+     "overhead_s": 0.0005
+    },
+    {
+     "kind": "build_reference",
+     "key": [
+      "I20401",
+      1000
+     ],
+     "start": 263.0235,
+     "end": 265.9391,
+     "cpu_s": 2.9062,
+     "concurrent": 1
+    },
+    {
+     "kind": "competition",
+     "key": [
+      "I20401",
+      1000
+     ],
+     "start": 263.0232,
+     "end": 265.9391,
+     "cpu_s": 2.9062,
+     "build_s": 2.9156,
+     "overhead_s": 0.0003
+    },
+    {
+     "kind": "location",
+     "key": [
+      "I20401",
+      [
+       "오피스",
+       "병원"
+      ]
+     ],
+     "start": 265.9391,
+     "end": 265.9391,
+     "cpu_s": 0.0,
+     "build_s": null,
+     "overhead_s": null
+    }
+   ],
+   "pair": 1,
+   "impl": "a",
+   "rev": "93b7031"
+  }
+ ]
+}

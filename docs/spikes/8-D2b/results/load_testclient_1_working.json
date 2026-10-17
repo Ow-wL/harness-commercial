@@ -1,0 +1,3035 @@
+{
+ "version": 2,
+ "impl": "working",
+ "engine": "mvp-0.4",
+ "radius_options": [
+  300,
+  500,
+  1000
+ ],
+ "conditions": {
+  "python": "3.10.11",
+  "platform": "Windows-10-10.0.26200-SP0",
+  "cpu_count": 16,
+  "duration_s": 60.0,
+  "interval_s": 0.25,
+  "cold_at_s": [
+   10.0,
+   25.0,
+   40.0
+  ],
+  "client": "fastapi.testclient (in-process, uvicorn 없음)",
+  "hit_key": [
+   "R10406",
+   500
+  ],
+  "time_origin": "앱 시작(background warm 시작) 직전"
+ },
+ "load_runtime_s": 4.6,
+ "summary": {
+  "cache": {
+   "all": {
+    "n": 121,
+    "median_ms": 0.0,
+    "p95_ms": 0.1,
+    "max_ms": 0.1,
+    "min_ms": 0.0
+   },
+   "overlapping_build": {
+    "n": 109,
+    "median_ms": 0.0,
+    "p95_ms": 0.1,
+    "max_ms": 0.1,
+    "min_ms": 0.0
+   },
+   "not_overlapping_build": {
+    "n": 12,
+    "median_ms": 0.0,
+    "p95_ms": 0.1,
+    "max_ms": 0.1,
+    "min_ms": 0.0
+   },
+   "build_active_at_start": {
+    "n": 109,
+    "median_ms": 0.0,
+    "p95_ms": 0.1,
+    "max_ms": 0.1,
+    "min_ms": 0.0
+   },
+   "errors": []
+  },
+  "api_hit": {
+   "all": {
+    "n": 120,
+    "median_ms": 86.25,
+    "p95_ms": 112.685,
+    "max_ms": 241.0,
+    "min_ms": 67.8
+   },
+   "overlapping_build": {
+    "n": 107,
+    "median_ms": 86.5,
+    "p95_ms": 102.09,
+    "max_ms": 203.8,
+    "min_ms": 67.8
+   },
+   "not_overlapping_build": {
+    "n": 13,
+    "median_ms": 85.3,
+    "p95_ms": 169.3,
+    "max_ms": 241.0,
+    "min_ms": 72.5
+   },
+   "build_active_at_start": {
+    "n": 105,
+    "median_ms": 86.5,
+    "p95_ms": 100.68,
+    "max_ms": 203.8,
+    "min_ms": 67.8
+   },
+   "errors": []
+  }
+ },
+ "api_cold": [
+  {
+   "key": [
+    "I20401",
+    1000
+   ],
+   "scheduled": 10.0,
+   "s": 6.712,
+   "status": 200,
+   "overlapping_build": true
+  },
+  {
+   "key": [
+    "I20301",
+    1000
+   ],
+   "scheduled": 25.0,
+   "s": 7.031,
+   "status": 200,
+   "overlapping_build": true
+  },
+  {
+   "key": [
+    "I20201",
+    1000
+   ],
+   "scheduled": 40.0,
+   "s": 4.106,
+   "status": 200,
+   "overlapping_build": true
+  }
+ ],
+ "api_hit_idle_after_warm": {
+  "n": 30,
+  "median_ms": 55.741,
+  "p95_ms": 68.132,
+  "max_ms": 75.445,
+  "min_ms": 49.883
+ },
+ "warm_done_s_with_load_in_first_window": 298.5,
+ "raw": {
+  "probes": [
+   {
+    "kind": "cache",
+    "scheduled": 0.0,
+    "start": 0.0551,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 0.0042,
+    "status": "ok",
+    "end": 0.0551
+   },
+   {
+    "kind": "api_hit",
+    "scheduled": 0.25,
+    "start": 0.2597,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 0.2088,
+    "status": 200,
+    "end": 0.4635
+   },
+   {
+    "kind": "cache",
+    "scheduled": 0.5,
+    "start": 0.5126,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 0.4617,
+    "status": "ok",
+    "end": 0.5127
+   },
+   {
+    "kind": "api_hit",
+    "scheduled": 0.75,
+    "start": 0.7738,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 0.7229,
+    "status": 200,
+    "end": 0.8629
+   },
+   {
+    "kind": "cache",
+    "scheduled": 1.0,
+    "start": 1.0038,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 0.9529,
+    "status": "ok",
+    "end": 1.0038
+   },
+   {
+    "kind": "api_hit",
+    "scheduled": 1.25,
+    "start": 1.2701,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 1.2192,
+    "status": 200,
+    "end": 1.3588
+   },
+   {
+    "kind": "cache",
+    "scheduled": 1.5,
+    "start": 1.5151,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 1.4642,
+    "status": "ok",
+    "end": 1.5151
+   },
+   {
+    "kind": "api_hit",
+    "scheduled": 1.75,
+    "start": 1.763,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 1.7121,
+    "status": 200,
+    "end": 1.8308
+   },
+   {
+    "kind": "cache",
+    "scheduled": 2.0,
+    "start": 2.0086,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 1.9577,
+    "status": "ok",
+    "end": 2.0086
+   },
+   {
+    "kind": "api_hit",
+    "scheduled": 2.25,
+    "start": 2.2585,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 2.2075,
+    "status": 200,
+    "end": 2.3456
+   },
+   {
+    "kind": "cache",
+    "scheduled": 2.5,
+    "start": 2.5111,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 2.4602,
+    "status": "ok",
+    "end": 2.5112
+   },
+   {
+    "kind": "api_hit",
+    "scheduled": 2.75,
+    "start": 2.7563,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 2.7054,
+    "status": 200,
+    "end": 2.8525
+   },
+   {
+    "kind": "cache",
+    "scheduled": 3.0,
+    "start": 3.0053,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 2.9544,
+    "status": "ok",
+    "end": 3.0054
+   },
+   {
+    "kind": "api_hit",
+    "scheduled": 3.25,
+    "start": 3.2527,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 3.2018,
+    "status": 200,
+    "end": 3.3426
+   },
+   {
+    "kind": "cache",
+    "scheduled": 3.5,
+    "start": 3.5214,
+    "build_active_at_start": false,
+    "since_build_start_at_start": 3.4705,
+    "status": "ok",
+    "end": 3.5214
+   },
+   {
+    "kind": "api_hit",
+    "scheduled": 3.75,
+    "start": 3.765,
+    "build_active_at_start": false,
+    "since_build_start_at_start": 3.7141,
+    "status": 200,
+    "end": 3.8793
+   },
+   {
+    "kind": "cache",
+    "scheduled": 4.0,
+    "start": 4.0144,
+    "build_active_at_start": false,
+    "since_build_start_at_start": 3.9635,
+    "status": "ok",
+    "end": 4.0144
+   },
+   {
+    "kind": "api_hit",
+    "scheduled": 4.25,
+    "start": 4.2613,
+    "build_active_at_start": false,
+    "since_build_start_at_start": 4.2104,
+    "status": 200,
+    "end": 4.3585
+   },
+   {
+    "kind": "cache",
+    "scheduled": 4.5,
+    "start": 4.5157,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 0.059,
+    "status": "ok",
+    "end": 4.5157
+   },
+   {
+    "kind": "api_hit",
+    "scheduled": 4.75,
+    "start": 4.7606,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 0.3039,
+    "status": 200,
+    "end": 4.8473
+   },
+   {
+    "kind": "cache",
+    "scheduled": 5.0,
+    "start": 5.0057,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 0.549,
+    "status": "ok",
+    "end": 5.0057
+   },
+   {
+    "kind": "api_hit",
+    "scheduled": 5.25,
+    "start": 5.2604,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 0.8037,
+    "status": 200,
+    "end": 5.3455
+   },
+   {
+    "kind": "cache",
+    "scheduled": 5.5,
+    "start": 5.5245,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 1.0678,
+    "status": "ok",
+    "end": 5.5245
+   },
+   {
+    "kind": "api_hit",
+    "scheduled": 5.75,
+    "start": 5.7651,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 1.3084,
+    "status": 200,
+    "end": 5.8537
+   },
+   {
+    "kind": "cache",
+    "scheduled": 6.0,
+    "start": 6.0117,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 1.555,
+    "status": "ok",
+    "end": 6.0117
+   },
+   {
+    "kind": "api_hit",
+    "scheduled": 6.25,
+    "start": 6.2581,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 1.8014,
+    "status": 200,
+    "end": 6.3523
+   },
+   {
+    "kind": "cache",
+    "scheduled": 6.5,
+    "start": 6.5138,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 2.0571,
+    "status": "ok",
+    "end": 6.5138
+   },
+   {
+    "kind": "api_hit",
+    "scheduled": 6.75,
+    "start": 6.7531,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 2.2964,
+    "status": 200,
+    "end": 6.8338
+   },
+   {
+    "kind": "cache",
+    "scheduled": 7.0,
+    "start": 7.0243,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 2.5676,
+    "status": "ok",
+    "end": 7.0243
+   },
+   {
+    "kind": "api_hit",
+    "scheduled": 7.25,
+    "start": 7.2645,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 2.8078,
+    "status": 200,
+    "end": 7.354
+   },
+   {
+    "kind": "cache",
+    "scheduled": 7.5,
+    "start": 7.5158,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 3.0591,
+    "status": "ok",
+    "end": 7.5158
+   },
+   {
+    "kind": "api_hit",
+    "scheduled": 7.75,
+    "start": 7.7623,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 3.3056,
+    "status": 200,
+    "end": 7.8632
+   },
+   {
+    "kind": "cache",
+    "scheduled": 8.0,
+    "start": 8.0068,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 3.5501,
+    "status": "ok",
+    "end": 8.0068
+   },
+   {
+    "kind": "api_hit",
+    "scheduled": 8.25,
+    "start": 8.2583,
+    "build_active_at_start": false,
+    "since_build_start_at_start": 3.8015,
+    "status": 200,
+    "end": 8.4993
+   },
+   {
+    "kind": "cache",
+    "scheduled": 8.5,
+    "start": 8.5144,
+    "build_active_at_start": false,
+    "since_build_start_at_start": 4.0577,
+    "status": "ok",
+    "end": 8.5145
+   },
+   {
+    "kind": "api_hit",
+    "scheduled": 8.75,
+    "start": 8.7594,
+    "build_active_at_start": false,
+    "since_build_start_at_start": 4.3027,
+    "status": 200,
+    "end": 8.9106
+   },
+   {
+    "kind": "cache",
+    "scheduled": 9.0,
+    "start": 9.0014,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 0.1571,
+    "status": "ok",
+    "end": 9.0014
+   },
+   {
+    "kind": "api_hit",
+    "scheduled": 9.25,
+    "start": 9.2701,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 0.4257,
+    "status": 200,
+    "end": 9.3618
+   },
+   {
+    "kind": "cache",
+    "scheduled": 9.5,
+    "start": 9.5162,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 0.6718,
+    "status": "ok",
+    "end": 9.5162
+   },
+   {
+    "kind": "api_hit",
+    "scheduled": 9.75,
+    "start": 9.7615,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 0.9172,
+    "status": 200,
+    "end": 9.8425
+   },
+   {
+    "kind": "api_cold",
+    "scheduled": 10.0,
+    "start": 10.0083,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 1.164,
+    "status": 200,
+    "end": 16.7204,
+    "key": [
+     "I20401",
+     1000
+    ]
+   },
+   {
+    "kind": "cache",
+    "scheduled": 10.0,
+    "start": 10.0124,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 1.1681,
+    "status": "ok",
+    "end": 10.0124
+   },
+   {
+    "kind": "api_hit",
+    "scheduled": 10.25,
+    "start": 10.2583,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 1.414,
+    "status": 200,
+    "end": 10.3492
+   },
+   {
+    "kind": "cache",
+    "scheduled": 10.5,
+    "start": 10.5069,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 1.6626,
+    "status": "ok",
+    "end": 10.5069
+   },
+   {
+    "kind": "api_hit",
+    "scheduled": 10.75,
+    "start": 10.7535,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 1.9092,
+    "status": 200,
+    "end": 10.8461
+   },
+   {
+    "kind": "cache",
+    "scheduled": 11.0,
+    "start": 11.0079,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 2.1636,
+    "status": "ok",
+    "end": 11.0079
+   },
+   {
+    "kind": "api_hit",
+    "scheduled": 11.25,
+    "start": 11.2532,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 2.4089,
+    "status": 200,
+    "end": 11.3284
+   },
+   {
+    "kind": "cache",
+    "scheduled": 11.5,
+    "start": 11.5158,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 2.6715,
+    "status": "ok",
+    "end": 11.5159
+   },
+   {
+    "kind": "api_hit",
+    "scheduled": 11.75,
+    "start": 11.7643,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 2.92,
+    "status": 200,
+    "end": 11.867
+   },
+   {
+    "kind": "cache",
+    "scheduled": 12.0,
+    "start": 12.0168,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 3.1725,
+    "status": "ok",
+    "end": 12.0169
+   },
+   {
+    "kind": "api_hit",
+    "scheduled": 12.25,
+    "start": 12.2599,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 3.4156,
+    "status": 200,
+    "end": 12.3368
+   },
+   {
+    "kind": "cache",
+    "scheduled": 12.5,
+    "start": 12.5088,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 0.1381,
+    "status": "ok",
+    "end": 12.5088
+   },
+   {
+    "kind": "api_hit",
+    "scheduled": 12.75,
+    "start": 12.7566,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 0.3859,
+    "status": 200,
+    "end": 12.8388
+   },
+   {
+    "kind": "cache",
+    "scheduled": 13.0,
+    "start": 13.0092,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 0.6385,
+    "status": "ok",
+    "end": 13.0092
+   },
+   {
+    "kind": "api_hit",
+    "scheduled": 13.25,
+    "start": 13.2539,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 0.8832,
+    "status": 200,
+    "end": 13.3411
+   },
+   {
+    "kind": "cache",
+    "scheduled": 13.5,
+    "start": 13.503,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 1.1323,
+    "status": "ok",
+    "end": 13.503
+   },
+   {
+    "kind": "api_hit",
+    "scheduled": 13.75,
+    "start": 13.7509,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 1.3801,
+    "status": 200,
+    "end": 13.8305
+   },
+   {
+    "kind": "cache",
+    "scheduled": 14.0,
+    "start": 14.0144,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 1.6437,
+    "status": "ok",
+    "end": 14.0144
+   },
+   {
+    "kind": "api_hit",
+    "scheduled": 14.25,
+    "start": 14.2611,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 1.8904,
+    "status": 200,
+    "end": 14.3501
+   },
+   {
+    "kind": "cache",
+    "scheduled": 14.5,
+    "start": 14.5105,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 2.1398,
+    "status": "ok",
+    "end": 14.5106
+   },
+   {
+    "kind": "api_hit",
+    "scheduled": 14.75,
+    "start": 14.7561,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 2.3854,
+    "status": 200,
+    "end": 14.849
+   },
+   {
+    "kind": "cache",
+    "scheduled": 15.0,
+    "start": 15.0041,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 2.6334,
+    "status": "ok",
+    "end": 15.0041
+   },
+   {
+    "kind": "api_hit",
+    "scheduled": 15.25,
+    "start": 15.2748,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 2.9041,
+    "status": 200,
+    "end": 15.3622
+   },
+   {
+    "kind": "cache",
+    "scheduled": 15.5,
+    "start": 15.5141,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 3.1434,
+    "status": "ok",
+    "end": 15.5141
+   },
+   {
+    "kind": "api_hit",
+    "scheduled": 15.75,
+    "start": 15.7687,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 3.398,
+    "status": 200,
+    "end": 15.8591
+   },
+   {
+    "kind": "cache",
+    "scheduled": 16.0,
+    "start": 16.0106,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 3.6399,
+    "status": "ok",
+    "end": 16.0106
+   },
+   {
+    "kind": "api_hit",
+    "scheduled": 16.25,
+    "start": 16.2606,
+    "build_active_at_start": false,
+    "since_build_start_at_start": 3.8899,
+    "status": 200,
+    "end": 16.3373
+   },
+   {
+    "kind": "cache",
+    "scheduled": 16.5,
+    "start": 16.5079,
+    "build_active_at_start": false,
+    "since_build_start_at_start": 4.1372,
+    "status": "ok",
+    "end": 16.508
+   },
+   {
+    "kind": "api_hit",
+    "scheduled": 16.75,
+    "start": 16.7584,
+    "build_active_at_start": false,
+    "since_build_start_at_start": 4.3877,
+    "status": 200,
+    "end": 16.8437
+   },
+   {
+    "kind": "cache",
+    "scheduled": 17.0,
+    "start": 17.0035,
+    "build_active_at_start": false,
+    "since_build_start_at_start": 4.6328,
+    "status": "ok",
+    "end": 17.0035
+   },
+   {
+    "kind": "api_hit",
+    "scheduled": 17.25,
+    "start": 17.2667,
+    "build_active_at_start": false,
+    "since_build_start_at_start": 4.896,
+    "status": 200,
+    "end": 17.3522
+   },
+   {
+    "kind": "cache",
+    "scheduled": 17.5,
+    "start": 17.5216,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 0.1663,
+    "status": "ok",
+    "end": 17.5217
+   },
+   {
+    "kind": "api_hit",
+    "scheduled": 17.75,
+    "start": 17.7614,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 0.4061,
+    "status": 200,
+    "end": 17.8484
+   },
+   {
+    "kind": "cache",
+    "scheduled": 18.0,
+    "start": 18.0098,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 0.6545,
+    "status": "ok",
+    "end": 18.0098
+   },
+   {
+    "kind": "api_hit",
+    "scheduled": 18.25,
+    "start": 18.2662,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 0.9109,
+    "status": 200,
+    "end": 18.3536
+   },
+   {
+    "kind": "cache",
+    "scheduled": 18.5,
+    "start": 18.5074,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 1.1521,
+    "status": "ok",
+    "end": 18.5075
+   },
+   {
+    "kind": "api_hit",
+    "scheduled": 18.75,
+    "start": 18.7686,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 1.4133,
+    "status": 200,
+    "end": 18.8578
+   },
+   {
+    "kind": "cache",
+    "scheduled": 19.0,
+    "start": 19.0155,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 1.6602,
+    "status": "ok",
+    "end": 19.0155
+   },
+   {
+    "kind": "api_hit",
+    "scheduled": 19.25,
+    "start": 19.2699,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 1.9146,
+    "status": 200,
+    "end": 19.3725
+   },
+   {
+    "kind": "cache",
+    "scheduled": 19.5,
+    "start": 19.5183,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 2.163,
+    "status": "ok",
+    "end": 19.5183
+   },
+   {
+    "kind": "api_hit",
+    "scheduled": 19.75,
+    "start": 19.7607,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 2.4054,
+    "status": 200,
+    "end": 19.8733
+   },
+   {
+    "kind": "cache",
+    "scheduled": 20.0,
+    "start": 20.0077,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 2.6524,
+    "status": "ok",
+    "end": 20.0077
+   },
+   {
+    "kind": "api_hit",
+    "scheduled": 20.25,
+    "start": 20.261,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 2.9057,
+    "status": 200,
+    "end": 20.3503
+   },
+   {
+    "kind": "cache",
+    "scheduled": 20.5,
+    "start": 20.5093,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 3.154,
+    "status": "ok",
+    "end": 20.5093
+   },
+   {
+    "kind": "api_hit",
+    "scheduled": 20.75,
+    "start": 20.7645,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 3.4092,
+    "status": 200,
+    "end": 20.8567
+   },
+   {
+    "kind": "cache",
+    "scheduled": 21.0,
+    "start": 21.0208,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 3.6655,
+    "status": "ok",
+    "end": 21.0208
+   },
+   {
+    "kind": "api_hit",
+    "scheduled": 21.25,
+    "start": 21.2639,
+    "build_active_at_start": false,
+    "since_build_start_at_start": 3.9086,
+    "status": 200,
+    "end": 21.3364
+   },
+   {
+    "kind": "cache",
+    "scheduled": 21.5,
+    "start": 21.5173,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 0.0587,
+    "status": "ok",
+    "end": 21.5173
+   },
+   {
+    "kind": "api_hit",
+    "scheduled": 21.75,
+    "start": 21.7592,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 0.3006,
+    "status": 200,
+    "end": 21.8369
+   },
+   {
+    "kind": "cache",
+    "scheduled": 22.0,
+    "start": 22.007,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 0.5484,
+    "status": "ok",
+    "end": 22.007
+   },
+   {
+    "kind": "api_hit",
+    "scheduled": 22.25,
+    "start": 22.2558,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 0.7971,
+    "status": 200,
+    "end": 22.3328
+   },
+   {
+    "kind": "cache",
+    "scheduled": 22.5,
+    "start": 22.5031,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 1.0445,
+    "status": "ok",
+    "end": 22.5031
+   },
+   {
+    "kind": "api_hit",
+    "scheduled": 22.75,
+    "start": 22.7517,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 1.2931,
+    "status": 200,
+    "end": 22.8335
+   },
+   {
+    "kind": "cache",
+    "scheduled": 23.0,
+    "start": 23.0161,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 1.5575,
+    "status": "ok",
+    "end": 23.0161
+   },
+   {
+    "kind": "api_hit",
+    "scheduled": 23.25,
+    "start": 23.2624,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 1.8038,
+    "status": 200,
+    "end": 23.3538
+   },
+   {
+    "kind": "cache",
+    "scheduled": 23.5,
+    "start": 23.5172,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 2.0586,
+    "status": "ok",
+    "end": 23.5172
+   },
+   {
+    "kind": "api_hit",
+    "scheduled": 23.75,
+    "start": 23.7633,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 2.3047,
+    "status": 200,
+    "end": 23.8598
+   },
+   {
+    "kind": "cache",
+    "scheduled": 24.0,
+    "start": 24.0086,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 2.55,
+    "status": "ok",
+    "end": 24.0086
+   },
+   {
+    "kind": "api_hit",
+    "scheduled": 24.25,
+    "start": 24.2571,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 2.7985,
+    "status": 200,
+    "end": 24.334
+   },
+   {
+    "kind": "cache",
+    "scheduled": 24.5,
+    "start": 24.5034,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 3.0448,
+    "status": "ok",
+    "end": 24.5035
+   },
+   {
+    "kind": "api_hit",
+    "scheduled": 24.75,
+    "start": 24.7743,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 0.0747,
+    "status": 200,
+    "end": 24.8519
+   },
+   {
+    "kind": "api_cold",
+    "scheduled": 25.0,
+    "start": 25.0136,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 0.314,
+    "status": 200,
+    "end": 32.0451,
+    "key": [
+     "I20301",
+     1000
+    ]
+   },
+   {
+    "kind": "cache",
+    "scheduled": 25.0,
+    "start": 25.0147,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 0.3151,
+    "status": "ok",
+    "end": 25.0147
+   },
+   {
+    "kind": "api_hit",
+    "scheduled": 25.25,
+    "start": 25.2657,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 0.5661,
+    "status": 200,
+    "end": 25.3455
+   },
+   {
+    "kind": "cache",
+    "scheduled": 25.5,
+    "start": 25.5078,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 0.8082,
+    "status": "ok",
+    "end": 25.5078
+   },
+   {
+    "kind": "api_hit",
+    "scheduled": 25.75,
+    "start": 25.7579,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 1.0583,
+    "status": 200,
+    "end": 25.8577
+   },
+   {
+    "kind": "cache",
+    "scheduled": 26.0,
+    "start": 26.0032,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 1.3036,
+    "status": "ok",
+    "end": 26.0032
+   },
+   {
+    "kind": "api_hit",
+    "scheduled": 26.25,
+    "start": 26.2654,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 1.5658,
+    "status": 200,
+    "end": 26.3464
+   },
+   {
+    "kind": "cache",
+    "scheduled": 26.5,
+    "start": 26.521,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 1.8214,
+    "status": "ok",
+    "end": 26.521
+   },
+   {
+    "kind": "api_hit",
+    "scheduled": 26.75,
+    "start": 26.7627,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 2.0631,
+    "status": 200,
+    "end": 26.8595
+   },
+   {
+    "kind": "cache",
+    "scheduled": 27.0,
+    "start": 27.0095,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 2.3099,
+    "status": "ok",
+    "end": 27.0095
+   },
+   {
+    "kind": "api_hit",
+    "scheduled": 27.25,
+    "start": 27.2545,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 2.5549,
+    "status": 200,
+    "end": 27.3331
+   },
+   {
+    "kind": "cache",
+    "scheduled": 27.5,
+    "start": 27.5015,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 2.8019,
+    "status": "ok",
+    "end": 27.5015
+   },
+   {
+    "kind": "api_hit",
+    "scheduled": 27.75,
+    "start": 27.7643,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 3.0646,
+    "status": 200,
+    "end": 27.861
+   },
+   {
+    "kind": "cache",
+    "scheduled": 28.0,
+    "start": 28.0228,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 3.3231,
+    "status": "ok",
+    "end": 28.0228
+   },
+   {
+    "kind": "api_hit",
+    "scheduled": 28.25,
+    "start": 28.2634,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 3.5638,
+    "status": 200,
+    "end": 28.3474
+   },
+   {
+    "kind": "cache",
+    "scheduled": 28.5,
+    "start": 28.5175,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 0.1303,
+    "status": "ok",
+    "end": 28.5175
+   },
+   {
+    "kind": "api_hit",
+    "scheduled": 28.75,
+    "start": 28.7589,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 0.3717,
+    "status": 200,
+    "end": 28.8437
+   },
+   {
+    "kind": "cache",
+    "scheduled": 29.0,
+    "start": 29.008,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 0.6208,
+    "status": "ok",
+    "end": 29.008
+   },
+   {
+    "kind": "api_hit",
+    "scheduled": 29.25,
+    "start": 29.2568,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 0.8696,
+    "status": 200,
+    "end": 29.3376
+   },
+   {
+    "kind": "cache",
+    "scheduled": 29.5,
+    "start": 29.5086,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 1.1214,
+    "status": "ok",
+    "end": 29.5087
+   },
+   {
+    "kind": "api_hit",
+    "scheduled": 29.75,
+    "start": 29.7696,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 1.3823,
+    "status": 200,
+    "end": 29.8599
+   },
+   {
+    "kind": "cache",
+    "scheduled": 30.0,
+    "start": 30.015,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 1.6278,
+    "status": "ok",
+    "end": 30.015
+   },
+   {
+    "kind": "api_hit",
+    "scheduled": 30.25,
+    "start": 30.2627,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 1.8755,
+    "status": 200,
+    "end": 30.3435
+   },
+   {
+    "kind": "cache",
+    "scheduled": 30.5,
+    "start": 30.512,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 2.1248,
+    "status": "ok",
+    "end": 30.5121
+   },
+   {
+    "kind": "api_hit",
+    "scheduled": 30.75,
+    "start": 30.7598,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 2.3726,
+    "status": 200,
+    "end": 30.8535
+   },
+   {
+    "kind": "cache",
+    "scheduled": 31.0,
+    "start": 31.0173,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 2.6301,
+    "status": "ok",
+    "end": 31.0173
+   },
+   {
+    "kind": "api_hit",
+    "scheduled": 31.25,
+    "start": 31.2594,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 2.8722,
+    "status": 200,
+    "end": 31.352
+   },
+   {
+    "kind": "cache",
+    "scheduled": 31.5,
+    "start": 31.5096,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 3.1224,
+    "status": "ok",
+    "end": 31.5097
+   },
+   {
+    "kind": "api_hit",
+    "scheduled": 31.75,
+    "start": 31.7617,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 3.3745,
+    "status": 200,
+    "end": 31.858
+   },
+   {
+    "kind": "cache",
+    "scheduled": 32.0,
+    "start": 32.0058,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 0.013,
+    "status": "ok",
+    "end": 32.0059
+   },
+   {
+    "kind": "api_hit",
+    "scheduled": 32.25,
+    "start": 32.254,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 0.2612,
+    "status": 200,
+    "end": 32.3407
+   },
+   {
+    "kind": "cache",
+    "scheduled": 32.5,
+    "start": 32.5072,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 0.5144,
+    "status": "ok",
+    "end": 32.5073
+   },
+   {
+    "kind": "api_hit",
+    "scheduled": 32.75,
+    "start": 32.7596,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 0.7668,
+    "status": 200,
+    "end": 32.8481
+   },
+   {
+    "kind": "cache",
+    "scheduled": 33.0,
+    "start": 33.0057,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 1.0129,
+    "status": "ok",
+    "end": 33.0057
+   },
+   {
+    "kind": "api_hit",
+    "scheduled": 33.25,
+    "start": 33.2742,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 1.2814,
+    "status": 200,
+    "end": 33.3623
+   },
+   {
+    "kind": "cache",
+    "scheduled": 33.5,
+    "start": 33.5154,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 1.5225,
+    "status": "ok",
+    "end": 33.5154
+   },
+   {
+    "kind": "api_hit",
+    "scheduled": 33.75,
+    "start": 33.7725,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 1.7797,
+    "status": 200,
+    "end": 33.8563
+   },
+   {
+    "kind": "cache",
+    "scheduled": 34.0,
+    "start": 34.0138,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 2.021,
+    "status": "ok",
+    "end": 34.0139
+   },
+   {
+    "kind": "api_hit",
+    "scheduled": 34.25,
+    "start": 34.2682,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 2.2754,
+    "status": 200,
+    "end": 34.3539
+   },
+   {
+    "kind": "cache",
+    "scheduled": 34.5,
+    "start": 34.5175,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 2.5247,
+    "status": "ok",
+    "end": 34.5175
+   },
+   {
+    "kind": "api_hit",
+    "scheduled": 34.75,
+    "start": 34.7603,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 2.7675,
+    "status": 200,
+    "end": 34.8365
+   },
+   {
+    "kind": "cache",
+    "scheduled": 35.0,
+    "start": 35.0108,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 3.018,
+    "status": "ok",
+    "end": 35.0108
+   },
+   {
+    "kind": "api_hit",
+    "scheduled": 35.25,
+    "start": 35.2552,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 3.2624,
+    "status": 200,
+    "end": 35.3322
+   },
+   {
+    "kind": "cache",
+    "scheduled": 35.5,
+    "start": 35.5027,
+    "build_active_at_start": false,
+    "since_build_start_at_start": 3.5099,
+    "status": "ok",
+    "end": 35.5027
+   },
+   {
+    "kind": "api_hit",
+    "scheduled": 35.75,
+    "start": 35.7527,
+    "build_active_at_start": false,
+    "since_build_start_at_start": 3.7599,
+    "status": 200,
+    "end": 35.8367
+   },
+   {
+    "kind": "cache",
+    "scheduled": 36.0,
+    "start": 36.0149,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 0.2246,
+    "status": "ok",
+    "end": 36.0149
+   },
+   {
+    "kind": "api_hit",
+    "scheduled": 36.25,
+    "start": 36.2697,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 0.4794,
+    "status": 200,
+    "end": 36.3507
+   },
+   {
+    "kind": "cache",
+    "scheduled": 36.5,
+    "start": 36.5115,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 0.7211,
+    "status": "ok",
+    "end": 36.5115
+   },
+   {
+    "kind": "api_hit",
+    "scheduled": 36.75,
+    "start": 36.7652,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 0.9749,
+    "status": 200,
+    "end": 36.8429
+   },
+   {
+    "kind": "cache",
+    "scheduled": 37.0,
+    "start": 37.0126,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 1.2223,
+    "status": "ok",
+    "end": 37.0126
+   },
+   {
+    "kind": "api_hit",
+    "scheduled": 37.25,
+    "start": 37.2574,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 1.4671,
+    "status": 200,
+    "end": 37.3558
+   },
+   {
+    "kind": "cache",
+    "scheduled": 37.5,
+    "start": 37.5028,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 1.7125,
+    "status": "ok",
+    "end": 37.5028
+   },
+   {
+    "kind": "api_hit",
+    "scheduled": 37.75,
+    "start": 37.7648,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 1.9745,
+    "status": 200,
+    "end": 37.8398
+   },
+   {
+    "kind": "cache",
+    "scheduled": 38.0,
+    "start": 38.0211,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 2.2308,
+    "status": "ok",
+    "end": 38.0211
+   },
+   {
+    "kind": "api_hit",
+    "scheduled": 38.25,
+    "start": 38.2607,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 2.4704,
+    "status": 200,
+    "end": 38.3469
+   },
+   {
+    "kind": "cache",
+    "scheduled": 38.5,
+    "start": 38.5063,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 2.716,
+    "status": "ok",
+    "end": 38.5063
+   },
+   {
+    "kind": "api_hit",
+    "scheduled": 38.75,
+    "start": 38.7522,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 2.9619,
+    "status": 200,
+    "end": 38.8385
+   },
+   {
+    "kind": "cache",
+    "scheduled": 39.0,
+    "start": 39.0092,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 3.2189,
+    "status": "ok",
+    "end": 39.0092
+   },
+   {
+    "kind": "api_hit",
+    "scheduled": 39.25,
+    "start": 39.2657,
+    "build_active_at_start": false,
+    "since_build_start_at_start": 3.4754,
+    "status": 200,
+    "end": 39.3465
+   },
+   {
+    "kind": "cache",
+    "scheduled": 39.5,
+    "start": 39.5167,
+    "build_active_at_start": false,
+    "since_build_start_at_start": 3.7264,
+    "status": "ok",
+    "end": 39.5167
+   },
+   {
+    "kind": "api_hit",
+    "scheduled": 39.75,
+    "start": 39.7626,
+    "build_active_at_start": false,
+    "since_build_start_at_start": 3.9723,
+    "status": 200,
+    "end": 39.845
+   },
+   {
+    "kind": "api_cold",
+    "scheduled": 40.0,
+    "start": 40.0075,
+    "build_active_at_start": false,
+    "since_build_start_at_start": 4.2172,
+    "status": 200,
+    "end": 44.1132,
+    "key": [
+     "I20201",
+     1000
+    ]
+   },
+   {
+    "kind": "cache",
+    "scheduled": 40.0,
+    "start": 40.0081,
+    "build_active_at_start": false,
+    "since_build_start_at_start": 4.2178,
+    "status": "ok",
+    "end": 40.0082
+   },
+   {
+    "kind": "api_hit",
+    "scheduled": 40.25,
+    "start": 40.2569,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 0.0874,
+    "status": 200,
+    "end": 40.3533
+   },
+   {
+    "kind": "cache",
+    "scheduled": 40.5,
+    "start": 40.5155,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 0.346,
+    "status": "ok",
+    "end": 40.5155
+   },
+   {
+    "kind": "api_hit",
+    "scheduled": 40.75,
+    "start": 40.7555,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 0.586,
+    "status": 200,
+    "end": 40.8475
+   },
+   {
+    "kind": "cache",
+    "scheduled": 41.0,
+    "start": 41.0014,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 0.8319,
+    "status": "ok",
+    "end": 41.0014
+   },
+   {
+    "kind": "api_hit",
+    "scheduled": 41.25,
+    "start": 41.2521,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 1.0826,
+    "status": 200,
+    "end": 41.3483
+   },
+   {
+    "kind": "cache",
+    "scheduled": 41.5,
+    "start": 41.5193,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 1.3497,
+    "status": "ok",
+    "end": 41.5193
+   },
+   {
+    "kind": "api_hit",
+    "scheduled": 41.75,
+    "start": 41.7691,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 1.5996,
+    "status": 200,
+    "end": 41.8556
+   },
+   {
+    "kind": "cache",
+    "scheduled": 42.0,
+    "start": 42.0143,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 1.8448,
+    "status": "ok",
+    "end": 42.0143
+   },
+   {
+    "kind": "api_hit",
+    "scheduled": 42.25,
+    "start": 42.2683,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 2.0987,
+    "status": 200,
+    "end": 42.3518
+   },
+   {
+    "kind": "cache",
+    "scheduled": 42.5,
+    "start": 42.5108,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 2.3412,
+    "status": "ok",
+    "end": 42.5108
+   },
+   {
+    "kind": "api_hit",
+    "scheduled": 42.75,
+    "start": 42.7533,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 2.5838,
+    "status": 200,
+    "end": 42.8385
+   },
+   {
+    "kind": "cache",
+    "scheduled": 43.0,
+    "start": 43.0159,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 2.8464,
+    "status": "ok",
+    "end": 43.0159
+   },
+   {
+    "kind": "api_hit",
+    "scheduled": 43.25,
+    "start": 43.2661,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 3.0966,
+    "status": 200,
+    "end": 43.3408
+   },
+   {
+    "kind": "cache",
+    "scheduled": 43.5,
+    "start": 43.5124,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 3.3429,
+    "status": "ok",
+    "end": 43.5124
+   },
+   {
+    "kind": "api_hit",
+    "scheduled": 43.75,
+    "start": 43.7604,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 3.5909,
+    "status": 200,
+    "end": 43.845
+   },
+   {
+    "kind": "cache",
+    "scheduled": 44.0,
+    "start": 44.0092,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 3.8397,
+    "status": "ok",
+    "end": 44.0092
+   },
+   {
+    "kind": "api_hit",
+    "scheduled": 44.25,
+    "start": 44.2633,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 0.2032,
+    "status": 200,
+    "end": 44.3516
+   },
+   {
+    "kind": "cache",
+    "scheduled": 44.5,
+    "start": 44.5046,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 0.4446,
+    "status": "ok",
+    "end": 44.5046
+   },
+   {
+    "kind": "api_hit",
+    "scheduled": 44.75,
+    "start": 44.765,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 0.705,
+    "status": 200,
+    "end": 44.8457
+   },
+   {
+    "kind": "cache",
+    "scheduled": 45.0,
+    "start": 45.0125,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 0.9525,
+    "status": "ok",
+    "end": 45.0125
+   },
+   {
+    "kind": "api_hit",
+    "scheduled": 45.25,
+    "start": 45.2608,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 1.2008,
+    "status": 200,
+    "end": 45.3389
+   },
+   {
+    "kind": "cache",
+    "scheduled": 45.5,
+    "start": 45.5116,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 1.4516,
+    "status": "ok",
+    "end": 45.5116
+   },
+   {
+    "kind": "api_hit",
+    "scheduled": 45.75,
+    "start": 45.7599,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 1.6999,
+    "status": 200,
+    "end": 45.8417
+   },
+   {
+    "kind": "cache",
+    "scheduled": 46.0,
+    "start": 46.0139,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 1.9538,
+    "status": "ok",
+    "end": 46.0139
+   },
+   {
+    "kind": "api_hit",
+    "scheduled": 46.25,
+    "start": 46.257,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 2.197,
+    "status": 200,
+    "end": 46.3398
+   },
+   {
+    "kind": "cache",
+    "scheduled": 46.5,
+    "start": 46.5037,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 2.4437,
+    "status": "ok",
+    "end": 46.5038
+   },
+   {
+    "kind": "api_hit",
+    "scheduled": 46.75,
+    "start": 46.7719,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 2.7119,
+    "status": 200,
+    "end": 46.9664
+   },
+   {
+    "kind": "cache",
+    "scheduled": 47.0,
+    "start": 47.0143,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 2.9543,
+    "status": "ok",
+    "end": 47.0144
+   },
+   {
+    "kind": "api_hit",
+    "scheduled": 47.25,
+    "start": 47.2691,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 3.2091,
+    "status": 200,
+    "end": 47.3514
+   },
+   {
+    "kind": "cache",
+    "scheduled": 47.5,
+    "start": 47.5114,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 3.4514,
+    "status": "ok",
+    "end": 47.5114
+   },
+   {
+    "kind": "api_hit",
+    "scheduled": 47.75,
+    "start": 47.7572,
+    "build_active_at_start": false,
+    "since_build_start_at_start": 3.6972,
+    "status": 200,
+    "end": 47.8498
+   },
+   {
+    "kind": "cache",
+    "scheduled": 48.0,
+    "start": 48.0017,
+    "build_active_at_start": false,
+    "since_build_start_at_start": 3.9417,
+    "status": "ok",
+    "end": 48.0017
+   },
+   {
+    "kind": "api_hit",
+    "scheduled": 48.25,
+    "start": 48.2659,
+    "build_active_at_start": false,
+    "since_build_start_at_start": 4.2059,
+    "status": 200,
+    "end": 48.349
+   },
+   {
+    "kind": "cache",
+    "scheduled": 48.5,
+    "start": 48.5133,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 0.0437,
+    "status": "ok",
+    "end": 48.5133
+   },
+   {
+    "kind": "api_hit",
+    "scheduled": 48.75,
+    "start": 48.7624,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 0.2928,
+    "status": 200,
+    "end": 48.8406
+   },
+   {
+    "kind": "cache",
+    "scheduled": 49.0,
+    "start": 49.0132,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 0.5435,
+    "status": "ok",
+    "end": 49.0132
+   },
+   {
+    "kind": "api_hit",
+    "scheduled": 49.25,
+    "start": 49.2623,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 0.7927,
+    "status": 200,
+    "end": 49.3432
+   },
+   {
+    "kind": "cache",
+    "scheduled": 49.5,
+    "start": 49.51,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 1.0404,
+    "status": "ok",
+    "end": 49.5101
+   },
+   {
+    "kind": "api_hit",
+    "scheduled": 49.75,
+    "start": 49.7583,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 1.2886,
+    "status": 200,
+    "end": 49.8351
+   },
+   {
+    "kind": "cache",
+    "scheduled": 50.0,
+    "start": 50.0078,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 1.5382,
+    "status": "ok",
+    "end": 50.0078
+   },
+   {
+    "kind": "api_hit",
+    "scheduled": 50.25,
+    "start": 50.2608,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 1.7912,
+    "status": 200,
+    "end": 50.3435
+   },
+   {
+    "kind": "cache",
+    "scheduled": 50.5,
+    "start": 50.504,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 2.0343,
+    "status": "ok",
+    "end": 50.504
+   },
+   {
+    "kind": "api_hit",
+    "scheduled": 50.75,
+    "start": 50.7565,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 2.2869,
+    "status": 200,
+    "end": 50.836
+   },
+   {
+    "kind": "cache",
+    "scheduled": 51.0,
+    "start": 51.0013,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 2.5317,
+    "status": "ok",
+    "end": 51.0013
+   },
+   {
+    "kind": "api_hit",
+    "scheduled": 51.25,
+    "start": 51.2649,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 2.7953,
+    "status": 200,
+    "end": 51.3423
+   },
+   {
+    "kind": "cache",
+    "scheduled": 51.5,
+    "start": 51.5104,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 3.0408,
+    "status": "ok",
+    "end": 51.5104
+   },
+   {
+    "kind": "api_hit",
+    "scheduled": 51.75,
+    "start": 51.7594,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 3.2897,
+    "status": 200,
+    "end": 51.8428
+   },
+   {
+    "kind": "cache",
+    "scheduled": 52.0,
+    "start": 52.0076,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 0.1291,
+    "status": "ok",
+    "end": 52.0076
+   },
+   {
+    "kind": "api_hit",
+    "scheduled": 52.25,
+    "start": 52.2573,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 0.3788,
+    "status": 200,
+    "end": 52.3392
+   },
+   {
+    "kind": "cache",
+    "scheduled": 52.5,
+    "start": 52.5057,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 0.6272,
+    "status": "ok",
+    "end": 52.5057
+   },
+   {
+    "kind": "api_hit",
+    "scheduled": 52.75,
+    "start": 52.7559,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 0.8773,
+    "status": 200,
+    "end": 52.8427
+   },
+   {
+    "kind": "cache",
+    "scheduled": 53.0,
+    "start": 53.0046,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 1.1261,
+    "status": "ok",
+    "end": 53.0046
+   },
+   {
+    "kind": "api_hit",
+    "scheduled": 53.25,
+    "start": 53.2653,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 1.3868,
+    "status": 200,
+    "end": 53.3556
+   },
+   {
+    "kind": "cache",
+    "scheduled": 53.5,
+    "start": 53.52,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 1.6415,
+    "status": "ok",
+    "end": 53.5201
+   },
+   {
+    "kind": "api_hit",
+    "scheduled": 53.75,
+    "start": 53.769,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 1.8905,
+    "status": 200,
+    "end": 53.8592
+   },
+   {
+    "kind": "cache",
+    "scheduled": 54.0,
+    "start": 54.0089,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 2.1304,
+    "status": "ok",
+    "end": 54.0089
+   },
+   {
+    "kind": "api_hit",
+    "scheduled": 54.25,
+    "start": 54.2595,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 2.381,
+    "status": 200,
+    "end": 54.3447
+   },
+   {
+    "kind": "cache",
+    "scheduled": 54.5,
+    "start": 54.5004,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 2.6219,
+    "status": "ok",
+    "end": 54.5005
+   },
+   {
+    "kind": "api_hit",
+    "scheduled": 54.75,
+    "start": 54.7642,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 2.8857,
+    "status": 200,
+    "end": 54.8401
+   },
+   {
+    "kind": "cache",
+    "scheduled": 55.0,
+    "start": 55.0121,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 3.1336,
+    "status": "ok",
+    "end": 55.0122
+   },
+   {
+    "kind": "api_hit",
+    "scheduled": 55.25,
+    "start": 55.2651,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 3.3866,
+    "status": 200,
+    "end": 55.3434
+   },
+   {
+    "kind": "cache",
+    "scheduled": 55.5,
+    "start": 55.511,
+    "build_active_at_start": false,
+    "since_build_start_at_start": 3.6325,
+    "status": "ok",
+    "end": 55.511
+   },
+   {
+    "kind": "api_hit",
+    "scheduled": 55.75,
+    "start": 55.7555,
+    "build_active_at_start": false,
+    "since_build_start_at_start": 3.877,
+    "status": 200,
+    "end": 55.8357
+   },
+   {
+    "kind": "cache",
+    "scheduled": 56.0,
+    "start": 56.0031,
+    "build_active_at_start": false,
+    "since_build_start_at_start": 4.1246,
+    "status": "ok",
+    "end": 56.0031
+   },
+   {
+    "kind": "api_hit",
+    "scheduled": 56.25,
+    "start": 56.2522,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 0.2294,
+    "status": 200,
+    "end": 56.3399
+   },
+   {
+    "kind": "cache",
+    "scheduled": 56.5,
+    "start": 56.503,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 0.4802,
+    "status": "ok",
+    "end": 56.5031
+   },
+   {
+    "kind": "api_hit",
+    "scheduled": 56.75,
+    "start": 56.7576,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 0.7348,
+    "status": 200,
+    "end": 56.8381
+   },
+   {
+    "kind": "cache",
+    "scheduled": 57.0,
+    "start": 57.0168,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 0.994,
+    "status": "ok",
+    "end": 57.0168
+   },
+   {
+    "kind": "api_hit",
+    "scheduled": 57.25,
+    "start": 57.2686,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 1.2458,
+    "status": 200,
+    "end": 57.3559
+   },
+   {
+    "kind": "cache",
+    "scheduled": 57.5,
+    "start": 57.5119,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 1.489,
+    "status": "ok",
+    "end": 57.5119
+   },
+   {
+    "kind": "api_hit",
+    "scheduled": 57.75,
+    "start": 57.7559,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 1.7331,
+    "status": 200,
+    "end": 57.8388
+   },
+   {
+    "kind": "cache",
+    "scheduled": 58.0,
+    "start": 58.0028,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 1.9799,
+    "status": "ok",
+    "end": 58.0028
+   },
+   {
+    "kind": "api_hit",
+    "scheduled": 58.25,
+    "start": 58.2651,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 2.2422,
+    "status": 200,
+    "end": 58.3644
+   },
+   {
+    "kind": "cache",
+    "scheduled": 58.5,
+    "start": 58.5144,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 2.4916,
+    "status": "ok",
+    "end": 58.5144
+   },
+   {
+    "kind": "api_hit",
+    "scheduled": 58.75,
+    "start": 58.7626,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 2.7398,
+    "status": 200,
+    "end": 58.8504
+   },
+   {
+    "kind": "cache",
+    "scheduled": 59.0,
+    "start": 59.0127,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 2.9899,
+    "status": "ok",
+    "end": 59.0127
+   },
+   {
+    "kind": "api_hit",
+    "scheduled": 59.25,
+    "start": 59.259,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 3.2361,
+    "status": 200,
+    "end": 59.3399
+   },
+   {
+    "kind": "cache",
+    "scheduled": 59.5,
+    "start": 59.51,
+    "build_active_at_start": true,
+    "since_build_start_at_start": 3.4872,
+    "status": "ok",
+    "end": 59.5101
+   },
+   {
+    "kind": "api_hit",
+    "scheduled": 59.75,
+    "start": 59.7566,
+    "build_active_at_start": false,
+    "since_build_start_at_start": 3.7338,
+    "status": 200,
+    "end": 59.8781
+   },
+   {
+    "kind": "cache",
+    "scheduled": 60.0,
+    "start": 60.0174,
+    "build_active_at_start": false,
+    "since_build_start_at_start": 3.9945,
+    "status": "ok",
+    "end": 60.0174
+   }
+  ],
+  "builds": [
+   {
+    "key": [
+     "G20405",
+     500
+    ],
+    "start": 0.0509,
+    "end": 3.5125
+   },
+   {
+    "key": [
+     "G20404",
+     500
+    ],
+    "start": 4.4567,
+    "end": 8.1939
+   },
+   {
+    "key": [
+     "S20701",
+     500
+    ],
+    "start": 8.8443,
+    "end": 12.37
+   },
+   {
+    "key": [
+     "I20401",
+     1000
+    ],
+    "start": 12.3707,
+    "end": 16.0189
+   },
+   {
+    "key": [
+     "S20702",
+     500
+    ],
+    "start": 17.3553,
+    "end": 21.0393
+   },
+   {
+    "key": [
+     "S20703",
+     500
+    ],
+    "start": 21.4586,
+    "end": 24.6991
+   },
+   {
+    "key": [
+     "S20901",
+     500
+    ],
+    "start": 24.6996,
+    "end": 28.3864
+   },
+   {
+    "key": [
+     "I20301",
+     1000
+    ],
+    "start": 28.3872,
+    "end": 31.9878
+   },
+   {
+    "key": [
+     "G21501",
+     500
+    ],
+    "start": 31.9928,
+    "end": 35.4961
+   },
+   {
+    "key": [
+     "I21201",
+     500
+    ],
+    "start": 35.7903,
+    "end": 39.1724
+   },
+   {
+    "key": [
+     "I20201",
+     1000
+    ],
+    "start": 40.1695,
+    "end": 44.0565
+   },
+   {
+    "key": [
+     "I21001",
+     500
+    ],
+    "start": 44.06,
+    "end": 47.7222
+   },
+   {
+    "key": [
+     "I21007",
+     500
+    ],
+    "start": 48.4696,
+    "end": 51.8777
+   },
+   {
+    "key": [
+     "I21005",
+     500
+    ],
+    "start": 51.8785,
+    "end": 55.3773
+   },
+   {
+    "key": [
+     "I21008",
+     500
+    ],
+    "start": 56.0228,
+    "end": 59.5523
+   },
+   {
+    "key": [
+     "I21004",
+     500
+    ],
+    "start": 60.4513,
+    "end": 63.7989
+   },
+   {
+    "key": [
+     "I21006",
+     500
+    ],
+    "start": 63.7994,
+    "end": 67.0204
+   },
+   {
+    "key": [
+     "I21003",
+     500
+    ],
+    "start": 67.0209,
+    "end": 70.5272
+   },
+   {
+    "key": [
+     "R10202",
+     500
+    ],
+    "start": 70.5278,
+    "end": 73.8235
+   },
+   {
+    "key": [
+     "P10501",
+     500
+    ],
+    "start": 74.4134,
+    "end": 77.7706
+   },
+   {
+    "key": [
+     "P10603",
+     500
+    ],
+    "start": 78.583,
+    "end": 82.0567
+   },
+   {
+    "key": [
+     "R10310",
+     500
+    ],
+    "start": 82.0572,
+    "end": 85.4396
+   },
+   {
+    "key": [
+     "R10407",
+     500
+    ],
+    "start": 86.1372,
+    "end": 89.5855
+   },
+   {
+    "key": [
+     "R10404",
+     500
+    ],
+    "start": 89.5864,
+    "end": 93.089
+   },
+   {
+    "key": [
+     "I20101",
+     500
+    ],
+    "start": 93.09,
+    "end": 96.5344
+   },
+   {
+    "key": [
+     "I21103",
+     500
+    ],
+    "start": 96.5353,
+    "end": 99.6832
+   },
+   {
+    "key": [
+     "I21101",
+     500
+    ],
+    "start": 99.684,
+    "end": 102.895
+   },
+   {
+    "key": [
+     "I21104",
+     500
+    ],
+    "start": 102.8958,
+    "end": 106.1527
+   },
+   {
+    "key": [
+     "I20201",
+     500
+    ],
+    "start": 106.1532,
+    "end": 109.1416
+   },
+   {
+    "key": [
+     "I20301",
+     500
+    ],
+    "start": 109.1421,
+    "end": 112.3963
+   },
+   {
+    "key": [
+     "I20401",
+     500
+    ],
+    "start": 112.3968,
+    "end": 115.6915
+   },
+   {
+    "key": [
+     "G20405",
+     300
+    ],
+    "start": 115.692,
+    "end": 118.9165
+   },
+   {
+    "key": [
+     "G20404",
+     300
+    ],
+    "start": 118.917,
+    "end": 122.1036
+   },
+   {
+    "key": [
+     "S20701",
+     300
+    ],
+    "start": 122.1041,
+    "end": 125.2438
+   },
+   {
+    "key": [
+     "S20702",
+     300
+    ],
+    "start": 125.2442,
+    "end": 128.2754
+   },
+   {
+    "key": [
+     "S20703",
+     300
+    ],
+    "start": 128.2759,
+    "end": 131.4223
+   },
+   {
+    "key": [
+     "S20901",
+     300
+    ],
+    "start": 131.423,
+    "end": 134.6038
+   },
+   {
+    "key": [
+     "G21501",
+     300
+    ],
+    "start": 134.6046,
+    "end": 137.7148
+   },
+   {
+    "key": [
+     "I21201",
+     300
+    ],
+    "start": 137.7155,
+    "end": 140.9837
+   },
+   {
+    "key": [
+     "I21001",
+     300
+    ],
+    "start": 140.9842,
+    "end": 144.284
+   },
+   {
+    "key": [
+     "I21007",
+     300
+    ],
+    "start": 144.2845,
+    "end": 147.5509
+   },
+   {
+    "key": [
+     "I21005",
+     300
+    ],
+    "start": 147.5515,
+    "end": 150.7727
+   },
+   {
+    "key": [
+     "I21008",
+     300
+    ],
+    "start": 150.7731,
+    "end": 154.0946
+   },
+   {
+    "key": [
+     "I21004",
+     300
+    ],
+    "start": 154.0953,
+    "end": 157.1948
+   },
+   {
+    "key": [
+     "I21006",
+     300
+    ],
+    "start": 157.1953,
+    "end": 160.3652
+   },
+   {
+    "key": [
+     "I21003",
+     300
+    ],
+    "start": 160.3658,
+    "end": 163.4526
+   },
+   {
+    "key": [
+     "R10406",
+     300
+    ],
+    "start": 163.4535,
+    "end": 166.8335
+   },
+   {
+    "key": [
+     "R10202",
+     300
+    ],
+    "start": 166.834,
+    "end": 170.1351
+   },
+   {
+    "key": [
+     "P10501",
+     300
+    ],
+    "start": 170.1357,
+    "end": 173.561
+   },
+   {
+    "key": [
+     "P10603",
+     300
+    ],
+    "start": 173.5616,
+    "end": 176.5989
+   },
+   {
+    "key": [
+     "R10310",
+     300
+    ],
+    "start": 176.5998,
+    "end": 179.9495
+   },
+   {
+    "key": [
+     "R10407",
+     300
+    ],
+    "start": 179.9504,
+    "end": 183.5006
+   },
+   {
+    "key": [
+     "R10404",
+     300
+    ],
+    "start": 183.5015,
+    "end": 186.9358
+   },
+   {
+    "key": [
+     "I20101",
+     300
+    ],
+    "start": 186.9363,
+    "end": 190.3108
+   },
+   {
+    "key": [
+     "I21103",
+     300
+    ],
+    "start": 190.3112,
+    "end": 193.7113
+   },
+   {
+    "key": [
+     "I21101",
+     300
+    ],
+    "start": 193.7119,
+    "end": 197.2421
+   },
+   {
+    "key": [
+     "I21104",
+     300
+    ],
+    "start": 197.2428,
+    "end": 200.2689
+   },
+   {
+    "key": [
+     "I20201",
+     300
+    ],
+    "start": 200.2694,
+    "end": 203.433
+   },
+   {
+    "key": [
+     "I20301",
+     300
+    ],
+    "start": 203.4335,
+    "end": 206.5021
+   },
+   {
+    "key": [
+     "I20401",
+     300
+    ],
+    "start": 206.5027,
+    "end": 209.8422
+   },
+   {
+    "key": [
+     "G20405",
+     1000
+    ],
+    "start": 209.8429,
+    "end": 213.0824
+   },
+   {
+    "key": [
+     "G20404",
+     1000
+    ],
+    "start": 213.0829,
+    "end": 216.5031
+   },
+   {
+    "key": [
+     "S20701",
+     1000
+    ],
+    "start": 216.5036,
+    "end": 219.786
+   },
+   {
+    "key": [
+     "S20702",
+     1000
+    ],
+    "start": 219.7867,
+    "end": 222.9478
+   },
+   {
+    "key": [
+     "S20703",
+     1000
+    ],
+    "start": 222.9483,
+    "end": 226.1915
+   },
+   {
+    "key": [
+     "S20901",
+     1000
+    ],
+    "start": 226.1923,
+    "end": 229.446
+   },
+   {
+    "key": [
+     "G21501",
+     1000
+    ],
+    "start": 229.4464,
+    "end": 232.7478
+   },
+   {
+    "key": [
+     "I21201",
+     1000
+    ],
+    "start": 232.7483,
+    "end": 236.1599
+   },
+   {
+    "key": [
+     "I21001",
+     1000
+    ],
+    "start": 236.1608,
+    "end": 239.677
+   },
+   {
+    "key": [
+     "I21007",
+     1000
+    ],
+    "start": 239.6777,
+    "end": 243.0758
+   },
+   {
+    "key": [
+     "I21005",
+     1000
+    ],
+    "start": 243.0763,
+    "end": 246.553
+   },
+   {
+    "key": [
+     "I21008",
+     1000
+    ],
+    "start": 246.5534,
+    "end": 249.5857
+   },
+   {
+    "key": [
+     "I21004",
+     1000
+    ],
+    "start": 249.5861,
+    "end": 252.0053
+   },
+   {
+    "key": [
+     "I21006",
+     1000
+    ],
+    "start": 252.0059,
+    "end": 254.3965
+   },
+   {
+    "key": [
+     "I21003",
+     1000
+    ],
+    "start": 254.3968,
+    "end": 256.8339
+   },
+   {
+    "key": [
+     "R10406",
+     1000
+    ],
+    "start": 256.8345,
+    "end": 259.6475
+   },
+   {
+    "key": [
+     "R10202",
+     1000
+    ],
+    "start": 259.6481,
+    "end": 262.8021
+   },
+   {
+    "key": [
+     "P10501",
+     1000
+    ],
+    "start": 262.8025,
+    "end": 265.7303
+   },
+   {
+    "key": [
+     "P10603",
+     1000
+    ],
+    "start": 265.7306,
+    "end": 268.3919
+   },
+   {
+    "key": [
+     "R10310",
+     1000
+    ],
+    "start": 268.3922,
+    "end": 272.1889
+   },
+   {
+    "key": [
+     "R10407",
+     1000
+    ],
+    "start": 272.1902,
+    "end": 279.1037
+   },
+   {
+    "key": [
+     "R10404",
+     1000
+    ],
+    "start": 279.1045,
+    "end": 282.8394
+   },
+   {
+    "key": [
+     "I20101",
+     1000
+    ],
+    "start": 282.8399,
+    "end": 286.4552
+   },
+   {
+    "key": [
+     "I21103",
+     1000
+    ],
+    "start": 286.4557,
+    "end": 290.5854
+   },
+   {
+    "key": [
+     "I21101",
+     1000
+    ],
+    "start": 290.5864,
+    "end": 294.5826
+   },
+   {
+    "key": [
+     "I21104",
+     1000
+    ],
+    "start": 294.5831,
+    "end": 298.4099
+   }
+  ]
+ }
+}
