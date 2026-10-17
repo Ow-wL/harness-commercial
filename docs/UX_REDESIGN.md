@@ -155,7 +155,7 @@
 |---|---|---|---|---|
 | 1 | "범위에 맞추기" / "두 위치 모두 보기" 버튼(우리 DOM, 키보드 접근) | 무조건 fit(단일: 원 / 비교: A∪B) | 해제 | 8-B1 / 8-B2 |
 | 2 | 새 위치 선택(클릭·주소·좌표) | 새 원이 지금 화면에서 이미 완료 조건(아래)을 만족하면 이동 없음, 아니면 fit(원이 U보다 크면 zoom-out도 fit) | 해제 | 8-B1 |
-| 3 | 반경 단계 변경(8-D 뒤) | 2와 같은 규칙(새 원) | 해제 | 8-D 뒤 |
+| 3 | 반경 단계 변경 | 2와 같은 규칙(새 원), 비교 중 B가 있으면 5와 같은 규칙 | 해제 | 8-D3 (구현) |
 | 4 | 숨김 복귀(모바일 패널 → 지도, 태블릿 지도 펼치기) | **미뤄 둔 2·3(비교는 5·1)이 있을 때만** 실제 크기 확인 뒤 1회 실행. 없으면 아무것도 안 함 | 유지 | 8-B1(단일) / 8-B2(비교) |
 | 5 | 비교 B 선택 | A∪B 맞춤 zoom ≥ 13이면 fit(A∪B), 아니면 B 원에 2 규칙 + "두 위치 모두 보기" 노출 | 해제 | 8-B2 |
 | 6 | 점포 기준 A↔B 전환, 비교 종료(→A) | 그 원이 지금 zoom에서 완료 조건을 만족하면 `panTo`(zoom 유지), 아니면 fit. **잠금 중이면 `panTo`만** | 유지 | 8-B2 |
@@ -377,6 +377,19 @@ SDK = `fitBounds(원 bounds, U margin)`, 직접 = 2.6 구현 수단(단일 원).
 - pytest 분리: 루트 `tests/conftest.py`에 `collect_ignore_glob = ["engine_v0_4/*"] if os.environ.get("SCORING_ENGINE_VERSION", "v0_3") != "v0_4" else []`, `tests/engine_v0_4/conftest.py`는 env가 `v0_4`가 아니면 `pytest.exit`. `pytest.ini`는 그대로.
 - `scripts/check.py`: 각 subprocess `env`에 엔진 버전을 명시(기본 단계 `"v0_3"`로 덮어씀, 신규 단계 "pytest: engine v0_4"는 `"v0_4"`). `python imports` 단계는 두 버전을 프로세스 각각으로. `backend/tests`는 기본 단계 그대로, v0.4 backend pass-through는 `tests/engine_v0_4/test_backend_radius.py`가 `create_app(service=…)`로.
 - 고정 literal: `tests/test_imports.py:28-29`, `tests/test_context_builder.py:196`, `frontend/src/api/schemas.ts:60`(`z.literal('mvp-0.3')`), `schemas.test.ts:70`. 프런트는 `z.enum(['mvp-0.3', 'mvp-0.4'])`, 실패 사례는 `'mvp-9.9'`. 비교에서 A·B `엔진버전`이 다르면 계약 오류 + 캐시 폐기.
+
+### 4.5a 8-D3 구현 메모 (2026-10-17 구현, 2026-10-18 재검수 통과 — 운영 미배포)
+- 구현 위치: `frontend/src/App.tsx`(반경 상태·`startA`·`requestCompare`·`changeRadius`·`recoverRadius`), `lib/resultCache.ts`, `lib/useNearbyRequest.ts`(응답 반경 대조·`prime`), `components/RadiusControl.tsx`, `MapView` `radiusM`.
+- 설계와 다르게 구현한 점(검수에서 판단):
+  - S3 "요약 skeleton": 결과 화면에서 반경을 바꿔 다시 분석하는 동안 패널은 분석 전 화면(조건 패널 + 기존 로딩 블록 + 반경 상태 줄 "반경 1km로 다시 분석 중")으로 바뀐다. 새 skeleton은 만들지 않았다(UI 개편 단위에서 다듬기).
+  - S8 "이전 반경으로 돌아가기": 오류 블록 안이 아니라 반경 선택 줄에 둔다(반경 변경으로 실패한 경우만).
+  - S9 비교 중 변경의 "두 위치를 반경 1km로 다시 분석 중": 반경 선택의 상태 줄(role=status)로 보인다. A가 끝나기 전에는 비교 화면 대신 조건 패널 + 로딩이 보인다.
+  - 공통 복구의 "재분석 1회": `/health`가 알린 엔진 버전이 캐시와 같을 때만 반경 500 캐시를 재사용한다(요청 0회 가능). 엔진이 바뀌었거나 버전을 알리지 않는 구버전 서버면 캐시를 전부 버리고 다시 조회한다(8-D3 검수 수정).
+  - `/health` 요청 실패·형식 오류는 광고 없음과 같이 다룬다(반경 선택 숨김).
+  - 복구용 `/health` 재조회는 요청 세대 번호로 무효화한다 — 그사이 새 분석·반경 변경·조건 변경·비교 종료 등이 있었으면 늦은 응답은 아무것도 바꾸지 않는다.
+  - A·B 엔진버전 대조는 같은 세대(업종·반경이 같은 A·B 요청)에서 나중에 도착한 쪽이 한다(응답 순서와 무관).
+  - 같은 React 배치에서 A·B가 함께 끝나도 대조되도록 상태와 ref를 함께 바꾸고, 렌더는 업종·반경·엔진버전이 모두 같은 A·B만 비교표로 그린다. 복구 진행 표시는 세대별(새 세대 복구를 이전 복구가 막지 않음).
+- 개발 프록시(`vite.config.ts`)에 `/health`를 추가했다. 운영은 FastAPI가 같은 origin에서 `/health`를 API로 서빙한다.
 
 ### 4.6 호환 배포·복구
 
