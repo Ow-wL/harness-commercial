@@ -26,3 +26,6 @@ Thumbs.db
 
 # geo raw downloads (url + sha256 in tests/manifests/geo.sha256.json; rebuild: scripts/build_geo.py)
 data/geo/raw/
+
+# spike temporary GeoJSON (regenerate: docs/spikes/9A-geo-theme/union_spike.py)
+frontend/spike/_geo/

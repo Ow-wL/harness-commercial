@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>묶음 A 스파이크 — 구 경계·외곽선·구 라벨·테마 전환 (검수용)</title>
+<style>
+/* 묶음 A 착수 전 스파이크 (docs/IMPROVEMENT_PLAN_2026-10.md §4 s1~s3). 개발 서버 전용(빌드·타입검사 밖), 앱 코드를 import하지 않는다.
+   s1 행정동 union으로 만든 구 경계·인천 외곽선(_geo/*.geojson, 임시 산출물)의 모양·위계·줌 단계
+   s2 NAVER 지명 라벨과 자체 구 라벨의 겹침, 라벨 색 후보(L1~L3)
+   s3 테마 전환 = 지도 파기·재생성(다크 GL 스타일 ↔ 밝은 지도) 비용과 상태 유지
+   쿼리: gl=0(래스터로 시작) · style=<My Style ID>(없으면 VITE_NAVER_MAP_STYLE_ID) · z=<래스터 기준 zoom> · label=L1|L2|L3 · light=1(밝은 지도로 시작) · data=1(naver.maps.Data로 그리기 시험) */
+:root{--bg:#0A1226;--panel:#0F1A33;--line:rgba(140,165,220,.16);--text:#EEF2FA;--muted:#95A3BD;--accent:#7AA2FF}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:system-ui,sans-serif;font-size:13px}
+/* NAVER SDK가 컨테이너에 inline position:relative를 넣으므로 fixed 래퍼 안에서 크기로 채운다(a3 스파이크와 같은 이유) */
+#mapwrap{position:fixed;inset:0}
+#map{width:100%;height:100%}
+.hud{position:fixed;left:12px;top:12px;z-index:10;display:flex;flex-direction:column;gap:6px;max-width:420px;padding:10px 12px;border-radius:10px;background:var(--panel);border:1px solid var(--line);box-shadow:0 10px 28px rgba(0,0,0,.4)}
+.hud b{color:var(--accent)}
+.hud .row{display:flex;flex-wrap:wrap;gap:6px}
+.hud button{font:inherit;padding:6px 10px;border-radius:8px;border:1px solid var(--line);background:#15223F;color:var(--text);cursor:pointer}
+.hud button[aria-pressed=true]{outline:2px solid var(--accent)}
+#log{max-height:160px;overflow:auto;white-space:pre-wrap;color:var(--muted);font-family:ui-monospace,monospace;font-size:11px}
+/* 구 라벨 후보. 글자만, 클릭 불가. halo는 text-shadow */
+.gl{font-weight:600;white-space:nowrap;transform:translate(-50%,-50%);pointer-events:none;letter-spacing:-.01em}
+.gl.L1{font-size:13px;color:#C7D1E4;text-shadow:0 0 2px #0A1226,0 0 2px #0A1226,0 1px 3px rgba(10,18,38,.9)}
+.gl.L2{font-size:14px;color:#EEF2FA;text-shadow:0 0 3px #0A1226,0 0 3px #0A1226,0 0 6px rgba(10,18,38,.95)}
+.gl.L3{font-size:13px;color:#A7B3CA;text-shadow:none}
+/* 밝은 지도 위 라벨 */
+[data-tone=light] .gl.L1{color:#1F2A44;text-shadow:0 0 2px #fff,0 0 2px #fff,0 1px 3px rgba(255,255,255,.95)}
+[data-tone=light] .gl.L2{color:#0A1226;text-shadow:0 0 3px #fff,0 0 3px #fff,0 0 6px #fff}
+[data-tone=light] .gl.L3{color:#4A5A7A;text-shadow:none}
+.pin{display:block;width:16px;height:16px;border-radius:50%;background:#7AA2FF;box-shadow:0 0 0 3px #0A1226,0 0 0 9px rgba(122,162,255,.32)}
+[data-tone=light] .pin{background:#2F5BDB;box-shadow:0 0 0 3px #fff,0 0 0 9px rgba(47,91,219,.3)}
+</style>
+</head>
+<body>
+<div id="mapwrap"><div id="map"></div></div>
+<div class="hud">
+  <div><b>구 경계 스파이크</b> <span id="status">준비 중…</span></div>
+  <div class="row">라벨 <button data-label="L1" aria-pressed="true">L1 #C7D1E4+halo</button><button data-label="L2">L2 #EEF2FA 14px</button><button data-label="L3">L3 현재(#A7B3CA)</button></div>
+  <div class="row">줌 <button data-z="11">11</button><button data-z="13">13</button><button data-z="16">16</button> <button id="theme">테마 전환(지도 재생성)</button> <button id="outside">밖 영역 dim</button></div>
+  <div id="log"></div>
+</div>
+<script type="module">
+const P = new URLSearchParams(location.search)
+const clientId = import.meta.env.VITE_NAVER_MAP_CLIENT_ID
+const styleId = P.get('style') || import.meta.env.VITE_NAVER_MAP_STYLE_ID || ''
+const START = { lat: 37.4894, lng: 126.7246 }          // 부평역 (golden 지점)
+const S = (window.__spike = { log: [], gen: 0, tone: null, renderMode: null, styleStatus: null, labelCls: P.get('label') || 'L1', timings: [] })
+const $ = (id) => document.getElementById(id)
+const rec = (type, extra) => { const e = Object.assign({ t: Math.round(performance.now()), type }, extra || {}); S.log.push(e); $('log').textContent = S.log.slice(-14).map((x) => JSON.stringify(x)).join('\n'); $('log').scrollTop = 1e9 }
+const status = (s) => { S.status = s; $('status').textContent = s + (S.tone ? ` · ${S.tone} · renderMode ${S.renderMode} · style ${S.styleStatus}` : '') }
+
+const [gu, outline] = await Promise.all([fetch('/spike/_geo/gu.geojson').then((r) => r.json()), fetch('/spike/_geo/outline.geojson').then((r) => r.json())])
+rec('geo-loaded', { gu: gu.features.length, outlineParts: outline.features[0].geometry.coordinates.length })
+
+// 색 (DESIGN §19.3 톤별). 외곽 › 구 › 행정동(점선) 위계
+const PAL = {
+  dark: { outline: 'rgba(199,209,228,.9)', outlineW: 2, gu: 'rgba(175,192,218,.6)', guW: 1, guFaint: 'rgba(175,192,218,.3)', dim: 'rgba(10,18,38,.45)', circle: '#7AA2FF' },
+  light: { outline: 'rgba(31,42,68,.85)', outlineW: 2, gu: 'rgba(74,90,122,.75)', guW: 1, guFaint: 'rgba(74,90,122,.35)', dim: 'rgba(23,32,43,.10)', circle: '#2F5BDB' },
+}
+const ringsOf = (geom) => (geom.type === 'Polygon' ? [geom.coordinates] : geom.coordinates)
+
+let api, map, zOff = 0, overlays = [], labels = [], dimPoly = null, dimOn = false
+const styleStatusSince = (t0) => { let s = null; for (const e of performance.getEntriesByType('resource')) if (/\/v3\/styler\/props/.test(e.name) && e.startTime >= t0 && e.responseStatus) s = e.responseStatus; return s }
+
+function clearOverlays() { overlays.forEach((o) => o.setMap(null)); labels.forEach((m) => m.setMap(null)); overlays = []; labels = []; if (dimPoly) { dimPoly.setMap(null); dimPoly = null } }
+
+function draw() {
+  clearOverlays()
+  const pal = PAL[S.tone]
+  const t0 = performance.now()
+  // 외곽선: Polygon(채움 없음, 선만). 구 경계: 구마다 Polygon
+  for (const poly of ringsOf(outline.features[0].geometry)) {
+    overlays.push(new api.Polygon({ map, paths: poly.map((ring) => ring.map(([lng, lat]) => new api.LatLng(lat, lng))), fillOpacity: 0, strokeColor: pal.outline, strokeWeight: pal.outlineW, strokeOpacity: 1, clickable: false, zIndex: 2 }))
+  }
+  for (const f of gu.features) for (const poly of ringsOf(f.geometry)) {
+    overlays.push(new api.Polygon({ map, paths: poly.map((ring) => ring.map(([lng, lat]) => new api.LatLng(lat, lng))), fillOpacity: 0, strokeColor: pal.gu, strokeWeight: pal.guW, strokeOpacity: 1, clickable: false, zIndex: 1 }))
+  }
+  // 구 라벨
+  for (const f of gu.features) {
+    const p = f.properties
+    labels.push(new api.Marker({ map, position: new api.LatLng(p.label_lat, p.label_lng), clickable: false, zIndex: 3,
+      icon: { content: `<div class="gl ${S.labelCls}">${p.시군구명}</div>`, anchor: new api.Point(0, 0) } }))
+  }
+  // 분석 핀 + 500m 원 (겹침 확인)
+  overlays.push(new api.Marker({ map, position: new api.LatLng(START.lat, START.lng), clickable: false, zIndex: 10, icon: { content: '<span class="pin"></span>', anchor: new api.Point(8, 8) } }))
+  overlays.push(new api.Circle({ map, center: new api.LatLng(START.lat, START.lng), radius: 500, fillColor: pal.circle, fillOpacity: .1, strokeColor: pal.circle, strokeWeight: 2, strokeStyle: 'shortdash', clickable: false, zIndex: 5 }))
+  if (dimOn) drawDim()
+  rec('draw', { ms: Math.round(performance.now() - t0), polygons: overlays.length, labels: labels.length })
+  applyTier()
+}
+function drawDim() {
+  // 밖 영역 dim: 큰 사각형 + 외곽 polygon들을 구멍으로(첫 ring = 바깥 사각형, 이후 ring = 섬·본토 바깥선). 섬 110개가 구멍이 된다
+  const pal = PAL[S.tone]
+  const world = [[33, 123], [33, 129], [40, 129], [40, 123]].map(([lat, lng]) => new api.LatLng(lat, lng))
+  const holes = ringsOf(outline.features[0].geometry).map((poly) => poly[0].map(([lng, lat]) => new api.LatLng(lat, lng)))
+  dimPoly = new api.Polygon({ map, paths: [world, ...holes], fillColor: pal.dim, fillOpacity: 1, strokeWeight: 0, clickable: false, zIndex: 0 })
+}
+const rasterZoom = () => map.getZoom() + zOff
+function applyTier() {
+  // 래스터 기준 ≤11 외곽선+라벨 / 12~14 구 경계+라벨 / ≥15 구 경계 흐리게, 라벨 숨김
+  const z = rasterZoom(), pal = PAL[S.tone]
+  const tier = z <= 11 ? 'A' : z < 15 ? 'B' : 'C'
+  overlays.forEach((o) => { if (o instanceof api.Polygon && o.getOptions && o.getOptions('zIndex') === 1) o.setOptions({ strokeColor: tier === 'C' ? pal.guFaint : pal.gu, visible: tier !== 'A' }) })
+  labels.forEach((m) => m.setVisible(tier !== 'C'))
+  S.tier = tier; S.zoomRaster = +z.toFixed(2)
+  status(`ready · zoom(래스터) ${z.toFixed(1)} · tier ${tier}`)
+}
+
+function build(mode) {
+  // mode: { gl, styleId } — 테마 전환은 파기 → 새 요소 → 재생성. 이전 세대 이벤트는 gen으로 버린다
+  const gen = ++S.gen, tDestroy = performance.now()
+  let prev = null
+  if (map) { prev = { center: map.getCenter(), zoomRaster: rasterZoom() }; clearOverlays(); try { map.destroy() } catch (e) { rec('destroy-error', { msg: String(e) }) } }
+  const old = $('map'); const el = document.createElement('div'); el.id = 'map'; old.replaceWith(el)
+  const center = prev ? prev.center : new api.LatLng(START.lat, START.lng)
+  const zRaster = prev ? prev.zoomRaster : (+P.get('z') || 13)
+  const opts = { center, zoom: zRaster - (mode.gl ? 1 : 0), gl: mode.gl, zoomControl: false, mapDataControl: true, scaleControl: true }
+  if (mode.gl && mode.styleId) opts.customStyleId = mode.styleId
+  const t0 = performance.now()
+  map = new api.Map(el, opts)
+  S.tone = null; S.renderMode = null; S.styleStatus = null; status('init 대기')
+  rec('map-created', { gen, gl: mode.gl, style: !!mode.styleId })
+  const timeout = setTimeout(() => { if (gen !== S.gen) return; rec('init-timeout', { gen }); if (mode.styleId) build({ gl: false, styleId: '' }) }, 8000)
+  api.Event.once(map, 'init', () => {
+    if (gen !== S.gen) return
+    clearTimeout(timeout)
+    S.renderMode = map.get('renderMode'); S.styleStatus = styleStatusSince(t0)
+    zOff = S.renderMode === 2 ? 1 : 0
+    const dark = S.renderMode === 2 && !!mode.styleId && S.styleStatus === 200
+    if (mode.styleId && !dark) { rec('style-failed', { gen, status: S.styleStatus, renderMode: S.renderMode }); return build({ gl: false, styleId: '' }) }
+    S.tone = dark ? 'dark' : 'light'; document.documentElement.dataset.tone = S.tone
+    const ms = Math.round(performance.now() - t0)
+    S.timings.push({ gen, gl: mode.gl, dark, initMs: ms, fromDestroyMs: Math.round(performance.now() - tDestroy) })
+    rec('init', { gen, renderMode: S.renderMode, tone: S.tone, initMs: ms, fromDestroyMs: Math.round(performance.now() - tDestroy), zoomRaster: +rasterZoom().toFixed(2) })
+    draw()
+    api.Event.addListener(map, 'zoom_changed', applyTier)
+    api.Event.addListener(map, 'idle', applyTier)
+    if (P.get('data') === '1') {   // naver.maps.Data로 MultiPolygon GeoJSON을 바로 그릴 수 있는지 시험
+      try { const feats = map.data.addGeoJson(gu); map.data.setStyle({ fillOpacity: 0, strokeColor: '#FF6F91', strokeWeight: 1 }); rec('data-layer', { features: feats.length, types: [...new Set(feats.map((f) => f.getGeometry().getType()))] }) } catch (e) { rec('data-layer-error', { msg: String(e) }) }
+    }
+  })
+}
+
+for (const b of document.querySelectorAll('[data-label]')) b.onclick = () => { S.labelCls = b.dataset.label; document.querySelectorAll('[data-label]').forEach((x) => x.setAttribute('aria-pressed', String(x === b))); draw() }
+for (const b of document.querySelectorAll('[data-z]')) b.onclick = () => map.setZoom(+b.dataset.z - zOff, false)
+$('theme').onclick = () => build(S.tone === 'dark' ? { gl: false, styleId: '' } : { gl: true, styleId })
+$('outside').onclick = () => { dimOn = !dimOn; if (dimOn) drawDim(); else if (dimPoly) { dimPoly.setMap(null); dimPoly = null } }
+S.build = build; S.setLabel = (c) => { S.labelCls = c; draw() }; S.zoomTo = (z) => map.setZoom(z - zOff, false)
+
+if (!clientId) { status('VITE_NAVER_MAP_CLIENT_ID 없음'); throw new Error('no client id') }
+const wantGl = P.get('gl') !== '0' && P.get('light') !== '1'
+window.__spikeReady = () => { api = window.naver.maps; status('sdk'); build(wantGl ? { gl: true, styleId } : { gl: false, styleId: '' }) }
+const sc = document.createElement('script')
+sc.src = 'https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=' + encodeURIComponent(clientId) + '&submodules=gl&callback=__spikeReady'
+sc.onerror = () => status('SDK 로드 실패')
+document.head.appendChild(sc)
+</script>
+</body>
+</html>
