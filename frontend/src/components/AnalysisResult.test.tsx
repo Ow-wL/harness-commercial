@@ -5,19 +5,14 @@ import nailShopFixture from '../fixtures/bupyeong-nailshop.json'
 // 루트 golden을 그 자리에서 읽는다 (frontend로 복사하지 않는다)
 import nailShopGolden from '../../../tests/golden/v0.3/json/full_네일숍.json'
 import { AnalysisResult } from './AnalysisResult.tsx'
-import { ContextBar } from './ContextBar.tsx'
-import { nearestStation } from '../lib/format.ts'
+import { EVIDENCE_TAB, getInTab, openTab } from '../test/tabs.ts'
+import { SERVICE_DISCLAIMER } from './DataSources.tsx'
 
 /** 실제 backend POST /analyze 응답 캡처(부평역 좌표 · PC방)를 schema 검증 후 결과 화면에 넣는다 */
 const FIXTURE = AnalyzeResponseSchema.parse(fixture)
 
 function renderResult() {
-  render(
-    <>
-      <ContextBar context={FIXTURE.context} meta={FIXTURE.result.meta} station={nearestStation(FIXTURE.result.지표)} />
-      <AnalysisResult analysis={FIXTURE} />
-    </>,
-  )
+  render(<AnalysisResult analysis={FIXTURE} />)
 }
 
 const PERSPECTIVE_LABELS = ['시장성', '고객성', '경쟁성', '입지성', '안정성']
@@ -35,15 +30,25 @@ describe('AnalysisResult — 실제 /analyze 응답(부평역 · PC방)', () => 
     expect(fixture.context).toMatchObject({ gu_name: '부평구', dong_name: '부평1동', rent_area: null })
   })
 
-  it('위치·업종 context를 보여 준다', () => {
+  it('머리: 행정동 이름이 제목, 보조 정보는 최근접역 직선거리, 좌표는 두지 않는다 (DESIGN.md §8.5·§8.5a, A3 — 조건 바는 App)', () => {
     renderResult()
     expect(screen.getByRole('heading', { level: 1, name: '부평구 부평1동 · PC방 분석' })).toBeInTheDocument()
-    const bar = screen.getByRole('group', { name: '분석 조건' })
-    expect(within(bar).getByText('부평구 부평1동')).toBeInTheDocument()
-    expect(within(bar).getByText('PC방 · 목적방문형')).toBeInTheDocument()
-    // 위치 보조 정보는 최근접역 직선거리, 좌표는 Context Bar에 두지 않는다 (DESIGN.md §8.5·§8.5a)
-    expect(within(bar).getByText('부평역 · 직선거리 85m')).toBeInTheDocument()
-    expect(bar).not.toHaveTextContent('37.4894')
+    const sub = document.querySelector<HTMLElement>('.result__sub')!
+    expect(sub).toHaveTextContent('부평역까지 직선거리 85m')
+    expect(sub).not.toHaveTextContent('37.4894')
+    expect(document.querySelector('.result__head')).not.toHaveTextContent('37.4894')
+  })
+
+  it('역 정보가 없으면 머리의 보조 정보(최근접역)를 생략한다', () => {
+    const r = structuredClone(FIXTURE)
+    Object.assign(r.result.지표[3].raw, { 최근접역: null, 최근접역_거리m: null })
+    render(<AnalysisResult analysis={r} />)
+    expect(document.querySelector('.result__sub')).not.toHaveTextContent('직선거리')
+  })
+
+  it('업종코드는 데이터 출처(출처·방법)에 둔다 (UX_REDESIGN 2.5 — Context Bar에서 옮김)', () => {
+    renderResult()
+    expect(getInTab(EVIDENCE_TAB, 'region', { name: '데이터 출처' })).toHaveTextContent('업종코드 R10406')
   })
 
   it('종합 점수를 fixture 값 그대로 보여 준다', () => {
@@ -55,7 +60,7 @@ describe('AnalysisResult — 실제 /analyze 응답(부평역 · PC방)', () => 
   it('종합 점수를 백분위·순위로 설명하지 않는다 (관점 점수의 가중평균)', () => {
     renderResult()
     const overall = screen.getByRole('region', { name: '종합 적합도' })
-    expect(within(overall).getByText('5대 관점 점수의 가중평균 · 인천 순위(백분위) 아님')).toBeInTheDocument()
+    expect(within(overall).getByText('다섯 관점 가중평균 · 순위 아님')).toBeInTheDocument()
     expect(overall).not.toHaveTextContent('행정동 대비 백분위')
     expect(overall).not.toHaveTextContent(/상위\s*\d/)
   })
@@ -80,14 +85,25 @@ describe('AnalysisResult — 실제 /analyze 응답(부평역 · PC방)', () => 
     expect(within(customer).getByText('가장 높음')).toBeInTheDocument()
     expect(within(competition).getByText('가장 낮음')).toBeInTheDocument()
 
-    const summary = within(screen.getByRole('region', { name: '종합 적합도' }))
-    expect(summary.getByText('병목').nextSibling).toHaveTextContent('경쟁성 30.2')
-    expect(summary.getByText('가장 강한 관점').nextSibling).toHaveTextContent('고객성 82.8')
+    // A3: 종합 점수 옆 "가장 강한 관점·병목" 요약은 헤드라인과 겹쳐 뺐다 — 헤드라인이 같은 사실을 말한다
+    const summary = screen.getByRole('region', { name: '종합 적합도' })
+    expect(summary).not.toHaveTextContent('가장 강한 관점')
+    expect(document.querySelector('.result__headline')).toHaveTextContent('고객성이 가장 높고, 경쟁성이 가장 낮습니다')
+  })
+
+  it('관점 행을 누르면 상세 근거 탭의 그 관점을 펼치고 그 제목으로 포커스가 간다 (A3)', () => {
+    renderResult()
+    fireEvent.click(within(perspectiveRows()[4]!).getByRole('button'))
+    expect(screen.getByRole('tab', { name: '상세 근거' })).toHaveAttribute('aria-selected', 'true')
+    const toggle = document.getElementById('detail-toggle-stability')!
+    expect(toggle).toHaveAttribute('aria-expanded', 'true')
+    expect(document.activeElement).toBe(toggle)
   })
 
   it('세부 분석은 기본 접힘이고, 버튼으로 열면 breakdown이 보인다', () => {
     renderResult()
-    const toggle = screen.getByRole('button', { name: /^안정성/ })
+    openTab(EVIDENCE_TAB)
+    const toggle = document.getElementById('detail-toggle-stability')!
     expect(toggle).toHaveAttribute('aria-expanded', 'false')
     expect(screen.queryByRole('table', { name: '안정성 세부 지표' })).not.toBeInTheDocument()
 
@@ -106,26 +122,29 @@ describe('AnalysisResult — 실제 /analyze 응답(부평역 · PC방)', () => 
 
     // 원시값은 2차 disclosure
     expect(screen.queryByText('인천_업종평균_3년생존율')).not.toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: '원시값 보기' }))
+    fireEvent.click(getInTab(EVIDENCE_TAB, 'button', { name: '원시값 보기' }))
     expect(screen.getByText('인천_업종평균_3년생존율')).toBeInTheDocument()
   })
 
   it('엔진 경고가 없으면 "특별한 경고가 없습니다"와 데이터 한계를 접지 않고 보여 준다', () => {
     renderResult()
-    const warnings = within(screen.getByRole('region', { name: '주의할 점' }))
+    const warnings = within(getInTab(EVIDENCE_TAB, 'region', { name: '주의할 점' }))
     expect(warnings.getByText('특별한 경고가 없습니다.')).toBeInTheDocument()
     expect(warnings.getByText(/상권 임대료\(소규모상가\)' 지표를 제외/)).toBeInTheDocument()
   })
 
-  it('면책은 엔진 원문 그대로 항상 보인다', () => {
+  it('면책: 요약에는 서비스 고정 문장(§19.6 P1), 엔진 면책 원문은 바꾸지 않고 데이터 출처에 라벨과 함께', () => {
     renderResult()
-    expect(screen.getByText(fixture.result.면책)).toBeInTheDocument()
+    expect(screen.getByText(SERVICE_DISCLAIMER)).toBeVisible()
+    const sources = getInTab(EVIDENCE_TAB, 'region', { name: '데이터 출처' })
+    expect(within(sources).getByRole('heading', { name: '엔진 면책 원문(mvp-0.3)' })).toBeInTheDocument()
+    expect(within(sources).getByText(fixture.result.면책)).toBeInTheDocument()
   })
 
   it('관점 막대 범례는 50을 "인천 중앙"이 아니라 척도 중간으로 설명한다', () => {
     renderResult()
     const perspectives = screen.getByRole('region', { name: '5대 관점' })
-    expect(within(perspectives).getByText('50 = 척도 중간 · 순위 아님')).toBeInTheDocument()
+    expect(within(perspectives).getByText('막대의 50은 0~100 척도의 중간이며 순위가 아닙니다.')).toBeInTheDocument()
     expect(perspectives).not.toHaveTextContent('인천 중앙')
   })
 
@@ -135,13 +154,13 @@ describe('AnalysisResult — 실제 /analyze 응답(부평역 · PC방)', () => 
     const stability = perspectiveRows().find((r) => r.dataset.key === 'stability')!
     expect(stability).toHaveTextContent('3년 생존율 52.3% · 인천 업종평균 55.2% · 구 단위')
     expect(stability).not.toHaveTextContent('시군구 단위 데이터')
-    const warnings = screen.getByRole('region', { name: '주의할 점' })
+    const warnings = getInTab(EVIDENCE_TAB, 'region', { name: '주의할 점' })
     expect(warnings).not.toHaveTextContent('단위 데이터로 계산했습니다')
   })
 
   it('데이터 출처는 정규화_기준 한 줄 대신 관점별 비교 대상을 보여 준다', () => {
     renderResult()
-    const sources = screen.getByRole('region', { name: '데이터 출처' })
+    const sources = getInTab(EVIDENCE_TAB, 'region', { name: '데이터 출처' })
     expect(sources).not.toHaveTextContent(fixture.result.meta.정규화_기준)
     const table = within(sources).getByRole('table', { name: '관점별 점수 비교 대상' })
     const row = (name: string) => within(table).getByRole('row', { name: new RegExp(`^${name}`) })
@@ -176,7 +195,7 @@ describe('AnalysisResult — 실제 /analyze 응답(부평역 · 네일숍): 안
     expect(stability).toHaveTextContent(NOT_COMPUTED)
     expect(stability).not.toHaveTextContent('인천 전체 업종평균')
 
-    const warnings = screen.getByRole('region', { name: '주의할 점' })
+    const warnings = getInTab(EVIDENCE_TAB, 'region', { name: '주의할 점' })
     expect(warnings).not.toHaveTextContent('인천 전체 업종평균')
     expect(warnings).not.toHaveTextContent('지표를 제외하고 계산했습니다')              // S4 제외 안내는 산출된 안정성에만
     expect(within(warnings).getByText(analysis.result.경고[1]!)).toBeInTheDocument()   // 엔진 "계산 불가 지표: 안정성 …" 원문
@@ -195,14 +214,14 @@ describe('AnalysisResult — 실제 /analyze 응답(부평역 · 네일숍): 안
     const competition = perspectiveRows().find((r) => r.dataset.key === 'competition')!
     expect(within(competition).getByText('병목')).toBeInTheDocument()
 
-    const warnings = within(screen.getByRole('region', { name: '주의할 점' }))
+    const warnings = within(getInTab(EVIDENCE_TAB, 'region', { name: '주의할 점' }))
     expect(
       warnings.getByText(
         '경쟁성 점수가 1.2점으로 병목 기준(25점 미만)에 해당합니다. 종합 점수와 별개로 이 관점이 실제 위험 요인일 수 있습니다.',
       ),
     ).toBeInTheDocument()
     expect(warnings.queryByText(analysis.result.경고[0]!)).not.toBeInTheDocument()
-    expect(screen.getByRole('region', { name: '주의할 점' })).not.toHaveTextContent('하위')
+    expect(getInTab(EVIDENCE_TAB, 'region', { name: '주의할 점' })).not.toHaveTextContent('하위')
     for (const text of analysis.result.경고.slice(1)) expect(warnings.getByText(text)).toBeInTheDocument()
   })
 
@@ -212,7 +231,7 @@ describe('AnalysisResult — 실제 /analyze 응답(부평역 · 네일숍): 안
       result: { ...nailShopFixture.result, 경고: [...nailShopFixture.result.경고].reverse() },
     })
     render(<AnalysisResult analysis={reordered} />)
-    const warnings = within(screen.getByRole('region', { name: '주의할 점' }))
+    const warnings = within(getInTab(EVIDENCE_TAB, 'region', { name: '주의할 점' }))
     for (const text of reordered.result.경고) expect(warnings.getByText(text)).toBeInTheDocument()
   })
 })
@@ -248,22 +267,25 @@ describe('AnalysisResult — 관점 score=null 인 정상 엔진 결과', () => 
     const competition = perspectiveRows().find((r) => r.dataset.key === 'competition')!
     expect(within(competition).getByText('병목')).toBeInTheDocument()
 
-    const warnings = within(screen.getByRole('region', { name: '주의할 점' }))
+    const warnings = within(getInTab(EVIDENCE_TAB, 'region', { name: '주의할 점' }))
     expect(warnings.getByText(/^경쟁성 점수가 1\.2점으로 병목 기준\(25점 미만\)에 해당합니다/)).toBeInTheDocument()
     for (const text of analysis.result.경고.slice(1)) expect(warnings.getByText(text)).toBeInTheDocument()
   })
 })
 
 describe('AnalysisResult — 헤드라인·주의 요약 띠 (8-C1a)', () => {
-  it('제목 바로 아래 헤드라인, 그 아래 띠(부평역 PC방: 학교 0곳 1줄), 그다음 종합 점수', () => {
+  it('A3 머리 순서: 제목 → 종합 점수 → 헤드라인 → 띠(부평역 PC방: 학교 0곳 1줄) → 탭', () => {
     renderResult()
     const title = screen.getByRole('heading', { level: 1 })
-    const head = screen.getByText('고객성이 가장 높고, 경쟁성이 가장 낮습니다')
+    const head = document.querySelector<HTMLElement>('.result__headline')!
+    expect(head).toHaveTextContent('고객성이 가장 높고, 경쟁성이 가장 낮습니다')
     const band = screen.getByRole('region', { name: '주의 요약' })
     const overall = screen.getByRole('region', { name: '종합 적합도' })
-    expect(title.compareDocumentPosition(head) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    const tabs = screen.getByRole('tablist', { name: '결과 보기' })
+    expect(title.compareDocumentPosition(overall) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(overall.compareDocumentPosition(head) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     expect(head.compareDocumentPosition(band) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
-    expect(band.compareDocumentPosition(overall) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(band.compareDocumentPosition(tabs) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     const links = within(band).getAllByRole('link')
     expect(links).toHaveLength(1)
     expect(links[0]).toHaveAccessibleName('안내: 학교 주변 규제 업종 · 300m 안 초·중·고 0곳')
@@ -284,7 +306,7 @@ describe('AnalysisResult — 헤드라인·주의 요약 띠 (8-C1a)', () => {
       '경고: 안정성 미산출 · 종합에서 제외 · 신뢰도 낮음',
       '경고: 네일숍 제도 진입장벽 높음: 본인 미용사(네일) 면허 필요.',
     ])
-    const warnings = screen.getByRole('region', { name: '주의할 점' })
+    const warnings = getInTab(EVIDENCE_TAB, 'region', { name: '주의할 점' })
     expect(warnings).toHaveTextContent('계산 불가 지표: 안정성')               // 원문은 섹션에 그대로
   })
 })

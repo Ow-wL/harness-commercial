@@ -1,8 +1,7 @@
-import { fireEvent, render, screen, within } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { AnalyzeResponseSchema, type EngineResult } from '../api/schemas.ts'
 import pcbangFixture from '../fixtures/bupyeong-pcbang.json'
 import { formatDistance, locationName, nearestStation } from '../lib/format.ts'
-import { ContextBar } from './ContextBar.tsx'
 import { LocationSummary } from './LocationSummary.tsx'
 
 /** 실제 /analyze 응답 (부평역 · PC방): context 부평구 부평1동, 입지성 raw 최근접역 "부평" · 85m */
@@ -30,23 +29,7 @@ describe('위치 표시 규칙 (lib/format, DESIGN.md §8.5·§8.5a)', () => {
   })
 })
 
-describe('Context Bar 위치 표시', () => {
-  it('행정동 이름을 주 정보로, 최근접역 직선거리를 보조 정보로 보이고 좌표는 보이지 않는다', () => {
-    render(<ContextBar context={PCBANG.context} meta={PCBANG.result.meta} station={nearestStation(PCBANG.result.지표)} />)
-    const bar = screen.getByRole('group', { name: '분석 조건' })
-    expect(within(bar).getByText('부평구 부평1동')).toBeInTheDocument()
-    expect(within(bar).getByText('부평역 · 직선거리 85m')).toBeInTheDocument()
-    expect(bar).not.toHaveTextContent(String(PCBANG.context.lat))
-    expect(bar).not.toHaveTextContent('도로명')
-  })
-
-  it('역 정보가 없으면 보조 정보를 생략한다', () => {
-    render(<ContextBar context={PCBANG.context} meta={PCBANG.result.meta} station={null} />)
-    const bar = screen.getByRole('group', { name: '분석 조건' })
-    expect(within(bar).getByText('부평구 부평1동')).toBeInTheDocument()
-    expect(bar).not.toHaveTextContent('직선거리')
-  })
-})
+/* Context Bar(헤더의 위치·업종 칩)는 A3에서 위쪽 조건 바(App)와 결과 머리(AnalysisResult)로 옮겼다 — 그 규칙은 App.test·AnalysisResult.test가 본다 */
 
 describe('LocationSummary (결과 패널 위치 보조 정보)', () => {
   it('최근접역을 직선거리로 보이고, 도보 거리와 다를 수 있음을 알린다', () => {

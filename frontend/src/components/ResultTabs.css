@@ -1,0 +1,53 @@
+/* 결과 탭 (A3 §19.1): 패널 안 둥근 묶음, 고른 탭은 패널 3 바탕 + 주색 글자 + 아래 2px 선. 스크롤해도 위에 붙어 있다 */
+.tabs {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  gap: 2px;
+  margin: 18px 24px 0;
+  padding: 4px;
+  border-radius: 12px;
+  background: var(--color-surface-muted);
+  box-shadow: 0 -10px 0 var(--color-surface); /* 붙어 있을 때 위로 지나가는 내용을 가린다 */
+}
+
+.tabs__tab {
+  flex: 1;
+  height: 36px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  font: var(--text-small);
+  font-weight: 600;
+  white-space: nowrap;
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+
+.tabs__tab:hover {
+  color: var(--color-text-secondary);
+}
+
+.tabs__tab[aria-selected="true"] {
+  background: var(--color-surface-sunken);
+  color: var(--color-accent);
+  box-shadow: inset 0 -2px 0 var(--color-accent);
+}
+
+.tabs__count {
+  margin-left: 3px;
+  font-weight: 500;
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.tabpanel[hidden] {
+  display: none;
+}
+
+@media (max-width: 639px) {
+  .tabs {
+    margin: 14px 16px 0;
+  }
+}

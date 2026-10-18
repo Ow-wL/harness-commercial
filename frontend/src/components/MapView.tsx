@@ -152,13 +152,10 @@ function applyMapTone(tone: MapTone | null) {
 /** 사용 영역 U의 여백 (D-022) */
 const FIT_PAD = 8
 /**
- * SDK 컨트롤 DOM을 못 찾을 때 대신 쓰는 사각형(8-B0 실측 크기, 지도 생성 직후 1/4회 아직 없었음):
- * 확대 컨트롤 SMALL 50×79(오른쪽 위), 로고·축척 158×17(오른쪽 아래)
+ * SDK 표기 DOM을 못 찾을 때 대신 쓰는 사각형(지도 생성 직후 아직 없을 수 있다, 8-B0): 로고·축척·지도 데이터 저작권 한 줄,
+ * 왼쪽 아래(A3, D-023 — 실측 약 240×17). 확대·축소·맞춤은 우리 버튼(.map__controls)이라 DOM으로 잰다
  */
-const SDK_CONTROL_FALLBACK = (w: number, h: number): Rect[] => [
-  { x: w - 60, y: 10, w: 50, h: 79 },
-  { x: w - 168, y: h - 27, w: 158, h: 17 },
-]
+const SDK_CONTROL_FALLBACK = (_w: number, h: number): Rect[] => [{ x: 10, y: h - 27, w: 240, h: 17 }]
 
 /** 지도 클릭 좌표 자릿수: 소수 6자리 ≈ 0.1m. 이 값이 그대로 요청 body와 화면에 쓰인다 */
 const COORD_DIGITS = 6
@@ -281,9 +278,19 @@ function mapObstacles(section: HTMLElement, canvas: HTMLElement | null): Rect[] 
   const m = section.getBoundingClientRect()
   const rel = (b: DOMRect): Rect => ({ x: b.left - m.left, y: b.top - m.top, w: b.width, h: b.height })
   const out: Rect[] = []
-  for (const el of section.querySelectorAll<HTMLElement>('.map__legend, .map__guide, .map__store-bar')) {
+  for (const el of section.querySelectorAll<HTMLElement>('.map__legend, .map__guide, .map__store-bar, .map__controls')) {
     const b = el.getBoundingClientRect()
     if (b.width > 0 && b.height > 0) out.push(rel(b))
+  }
+  // 지도 밖에서 지도 위에 떠 있는 화면 요소(A3: 위쪽 조건 바·오른쪽 결과 패널): `data-map-obstacle`. 지도와 겹친 부분만 센다
+  for (const el of document.querySelectorAll<HTMLElement>('[data-map-obstacle]')) {
+    if (section.contains(el) || el.contains(section)) continue
+    const b = el.getBoundingClientRect()
+    const x = Math.max(b.left, m.left)
+    const y = Math.max(b.top, m.top)
+    const r = Math.min(b.right, m.right)
+    const bottom = Math.min(b.bottom, m.bottom)
+    if (r - x > 0 && bottom - y > 0) out.push({ x: x - m.left, y: y - m.top, w: r - x, h: bottom - y })
   }
   const sdk = sdkControlRects(section, canvas)
   out.push(...(sdk.length > 0 ? sdk : SDK_CONTROL_FALLBACK(section.clientWidth, section.clientHeight)))
@@ -536,13 +543,14 @@ export function MapView({
         zoom: gl ? INITIAL_ZOOM - 1 : INITIAL_ZOOM,
         ...(gl ? { gl: true } : {}),
         ...(kind === 'styled' ? { customStyleId: styleId } : {}),
-        zoomControl: true,
-        zoomControlOptions: { position: loaded.Position.TOP_RIGHT, style: loaded.ZoomControlStyle?.SMALL },
+        // 확대·축소는 지도에 보이는 영역 오른쪽 아래의 우리 버튼(.map__controls, A3 §19.1) — 지도가 화면 전체라 SDK 오른쪽
+        // 컨트롤은 결과 패널 뒤에 숨는다. 로고·축척·지도 데이터 저작권(D-023 D7)은 왼쪽 아래 한 줄 + 배경 띠(syncControlBand)
+        zoomControl: false,
         scaleControl: true,
-        // 지도 데이터 저작권 표기(D-023 D7): 로고·축척과 같은 오른쪽 아래 줄에 두고 배경 띠를 깐다(syncControlBand).
-        // §19.1의 왼쪽 아래 배치는 레이아웃 개편 단위에서 범례 자리와 함께 옮긴다
+        logoControlOptions: { position: loaded.Position.BOTTOM_LEFT },
+        scaleControlOptions: { position: loaded.Position.BOTTOM_LEFT },
         mapDataControl: true,
-        mapDataControlOptions: { position: loaded.Position.BOTTOM_RIGHT },
+        mapDataControlOptions: { position: loaded.Position.BOTTOM_LEFT },
       })
       const stopWaiting = () => {
         if (tick) clearInterval(tick)
@@ -850,6 +858,15 @@ export function MapView({
     pendingFitRef.current = null
     runFitRef.current({ t: 'single', mode: 'auto' })
   }, [api, map, selectedLat, selectedLng])
+
+  /**
+   * 확대·축소 버튼(A3): 사용자가 직접 바꾼 것이므로 잠금을 켠다(D-022 순위 7 — SDK `zooming`은 우리 호출에서 오지 않는다, 8-B0)
+   */
+  const zoomBy = (delta: number) => {
+    if (!map) return
+    lockedRef.current = true
+    map.setZoom(Math.round(map.getZoom()) + delta, true)
+  }
 
   /** "범위에 맞추기"(단일)·"두 위치 모두 보기"(비교) — 순위 1: 무조건 맞추고 잠금을 푼다 */
   const fitToRange = () => {
@@ -1183,15 +1200,27 @@ export function MapView({
               같은 업종 점포
             </li>
           )}
-          {/* D-022 순위 1: 단일 "범위에 맞추기"(분석 불가 지점은 반경 원이 없어 두지 않는다), 비교 "두 위치 모두 보기"(B를 고른 뒤) */}
-          {(compare ? compare.location !== null && selected !== null : selected !== null && markerTone === 'selected') && (
-            <li className="map__legend-action">
-              <button type="button" className="button-ghost button-ghost--small map__fit" onClick={fitToRange}>
-                {compare ? '두 위치 모두 보기' : '범위에 맞추기'}
-              </button>
-            </li>
-          )}
         </ul>
+      )}
+      {map && !error && (
+        // 지도에 보이는 영역의 오른쪽 아래(결과 패널 왼쪽, A3 §19.1): 확대·축소 + D-022 순위 1 맞춤 버튼
+        <div className="map__controls">
+          <div className="map__zoom" role="group" aria-label="지도 확대·축소">
+            <button type="button" className="map__zoom-button" aria-label="지도 확대" onClick={() => zoomBy(1)}>
+              <span aria-hidden="true">+</span>
+            </button>
+            <button type="button" className="map__zoom-button" aria-label="지도 축소" onClick={() => zoomBy(-1)}>
+              <span aria-hidden="true">−</span>
+            </button>
+          </div>
+          {/* 단일 "범위에 맞추기"(분석 불가 지점은 반경 원이 없어 두지 않는다), 비교 "두 위치 모두 보기"(B를 고른 뒤) */}
+          {(compare ? compare.location !== null && selected !== null : selected !== null && markerTone === 'selected') && (
+            <button type="button" className="map__fit" onClick={fitToRange}>
+              <span className="map__fit-icon" aria-hidden="true" />
+              <span className="map__fit-label">{compare ? '두 위치 모두 보기' : '범위에 맞추기'}</span>
+            </button>
+          )}
+        </div>
       )}
     </section>
   )

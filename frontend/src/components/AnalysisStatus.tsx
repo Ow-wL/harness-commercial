@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react'
-import { Icon } from './Icon.tsx'
 import './AnalysisStatus.css'
 
 /**
@@ -35,23 +34,6 @@ export function AnalysisLoading() {
         ))}
         <span className="skeleton skeleton--meta" />
       </div>
-    </div>
-  )
-}
-
-/** 분석 전 빈 상태 (§10.2): line icon + 안내 + 3단계. 일러스트 없음 */
-export function AnalysisEmpty() {
-  return (
-    <div className="empty">
-      <span className="empty__icon">
-        <Icon name="map-pin" size={24} />
-      </span>
-      <p className="empty__text">위치와 업종을 고르면 이곳에 분석 결과가 나옵니다</p>
-      <ol className="empty__steps">
-        <li>지도에서 위치를 고릅니다</li>
-        <li>업종을 고릅니다</li>
-        <li>분석하기를 누릅니다</li>
-      </ol>
     </div>
   )
 }

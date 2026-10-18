@@ -1,4 +1,5 @@
 import type { MouseEvent } from 'react'
+import { useRevealTarget } from '../lib/resultTabs.ts'
 import { BAND_MAX, type BandLine, type BandTarget } from '../lib/attentionBand.ts'
 import { COMPARE_IDS } from '../lib/compareState.ts'
 import './AttentionBand.css'
@@ -16,15 +17,13 @@ const TARGET_ID: Record<BandTarget, string> = {
 /** 아이콘 모양만으로 뜻을 전하지 않게 스크린리더용 앞말을 붙인다 */
 const MARK_LABEL: Record<BandLine['mark'], string> = { '!': '경고', i: '안내', '†': '계산 구성' }
 
-/** 섹션 제목으로 이동하고 포커스를 옮긴다(제목은 원래 포커스를 받지 않으므로 tabindex=-1 을 붙인다) */
-function goTo(id: string) {
-  return (e: MouseEvent<HTMLAnchorElement>) => {
-    const el = document.getElementById(id)
-    if (!el) return
+/** 섹션 제목으로 이동하고 포커스를 옮긴다. 대상이 숨은 결과 탭 안이면 그 탭을 먼저 연다(A3 탭, ResultTabs) */
+function useGoTo() {
+  const reveal = useRevealTarget()
+  return (id: string) => (e: MouseEvent<HTMLAnchorElement>) => {
+    if (!document.getElementById(id)) return
     e.preventDefault()
-    if (!el.hasAttribute('tabindex')) el.setAttribute('tabindex', '-1')
-    el.scrollIntoView?.({ block: 'start' })
-    el.focus({ preventScroll: true })
+    reveal(id)
   }
 }
 
@@ -34,6 +33,7 @@ function goTo(id: string) {
  * 최대 5줄, 넘치면 "주의 N건 더 보기 ›"(주의할 점 섹션으로).
  */
 export function AttentionBand({ lines, moreTarget }: { lines: readonly BandLine[]; moreTarget: BandTarget }) {
+  const goTo = useGoTo()
   if (lines.length === 0) return null
   const shown = lines.slice(0, BAND_MAX)
   const more = lines.length - shown.length

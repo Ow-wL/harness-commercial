@@ -89,7 +89,8 @@
   color: var(--color-text-secondary);
 }
 
-/* 지도 위 떠 있는 요소만 --shadow-sm (§11 단계 2) */
+/* 지도 위 떠 있는 요소 (A3 §19.1): 패널과 같은 바탕·테두리. 위치는 지도에 "보이는" 영역 기준 —
+   오른쪽 끝 = 결과 패널 왼쪽(--map-visible-right), 위쪽 = 조건 바 아래(--map-visible-top, App.css) */
 .map__guide,
 .map__legend {
   position: absolute;
@@ -100,31 +101,33 @@
   box-shadow: var(--shadow-map-ui);
 }
 
-/* 미선택 안내: 지도 아래쪽 가운데 surface 칩 (§8.12) */
+/* 안내 칩: 보이는 영역 위쪽 가운데(조건 바 아래, 시안 .maphint) */
 .map__guide {
-  bottom: var(--space-6);
-  left: 50%;
+  top: var(--map-visible-top, var(--space-6));
+  left: calc((100% - var(--map-visible-right, 0px)) / 2);
   transform: translateX(-50%);
-  padding: var(--space-2) var(--space-4);
+  padding: 9px 16px;
   border-radius: var(--radius-pill);
   font: var(--text-small);
-  color: var(--color-text-primary);
+  color: var(--color-text-secondary);
   white-space: nowrap;
   pointer-events: none;
 }
 
-/* 범례: 왼쪽 아래 작은 패널, --text-caption (§5.D) */
+/* 범례: 왼쪽 아래 한 줄(줄바꿈 가능), 그 아래 NAVER 로고·축척·저작권 줄 (시안 .legend) */
 .map__legend {
-  bottom: var(--space-4);
-  left: var(--space-4);
+  bottom: calc(var(--a3-gap, 16px) + 22px);
+  left: var(--a3-gap, 16px);
   display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-  padding: var(--space-2) var(--space-3);
-  border-radius: var(--radius-md);
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 14px;
+  max-width: calc(100% - var(--map-visible-right, 0px) - var(--a3-gap, 16px) - 200px);
+  padding: 9px 12px;
+  border-radius: 10px;
   list-style: none;
-  font: var(--text-caption);
-  letter-spacing: 0.01em;
+  font-size: 12px;
+  line-height: 1.4;
   color: var(--color-text-secondary);
   pointer-events: none;
 }
@@ -132,16 +135,84 @@
 .map__legend li {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
+  gap: 6px;
+  white-space: nowrap;
 }
 
-/* 범위에 맞추기(D-022): 범례 마지막 줄 ghost small. 범례는 pointer-events: none이라 버튼만 다시 켠다 */
-.map__legend-action {
-  margin: 0 calc(-1 * var(--space-2)) calc(-1 * var(--space-1));
+/* 확대·축소·맞춤 (A3 §19.1): 보이는 지도 영역 오른쪽 아래(패널 왼쪽) */
+.map__controls {
+  position: absolute;
+  z-index: 1;
+  right: var(--map-visible-right, var(--space-4));
+  bottom: calc(var(--a3-gap, 16px) + 8px);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.map__zoom {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--color-map-ui-edge);
+  border-radius: 12px;
+  background: var(--color-surface);
+  box-shadow: var(--shadow-map-ui);
+}
+
+.map__zoom-button {
+  width: 44px;
+  height: 44px;
+  border: 0;
+  background: transparent;
+  font-size: 20px;
+  line-height: 1;
+  color: var(--color-text-primary);
+  cursor: pointer;
+}
+
+.map__zoom-button + .map__zoom-button {
+  border-top: 1px solid var(--color-border);
+}
+
+.map__zoom-button:hover,
+.map__fit:hover {
+  background: var(--color-surface-muted);
 }
 
 .map__fit {
-  pointer-events: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 44px;
+  padding: 0 14px;
+  border: 1px solid var(--color-map-ui-edge);
+  border-radius: 12px;
+  background: var(--color-surface);
+  box-shadow: var(--shadow-map-ui);
+  font: var(--text-small);
+  font-weight: 600;
+  white-space: nowrap;
+  color: var(--color-text-primary);
+  cursor: pointer;
+}
+
+/* 맞춤 아이콘: 네 모서리 괄호 + 가운데 점 (시안 ICON.fit) */
+.map__fit-icon {
+  position: relative;
+  width: 14px;
+  height: 14px;
+  background:
+    radial-gradient(circle, currentColor 0 2px, transparent 2.5px) center / 100% 100% no-repeat,
+    linear-gradient(currentColor, currentColor) top left / 5px 1.7px no-repeat,
+    linear-gradient(currentColor, currentColor) top left / 1.7px 5px no-repeat,
+    linear-gradient(currentColor, currentColor) top right / 5px 1.7px no-repeat,
+    linear-gradient(currentColor, currentColor) top right / 1.7px 5px no-repeat,
+    linear-gradient(currentColor, currentColor) bottom left / 5px 1.7px no-repeat,
+    linear-gradient(currentColor, currentColor) bottom left / 1.7px 5px no-repeat,
+    linear-gradient(currentColor, currentColor) bottom right / 5px 1.7px no-repeat,
+    linear-gradient(currentColor, currentColor) bottom right / 1.7px 5px no-repeat;
 }
 
 .map__legend-marker {
@@ -255,8 +326,8 @@
 .map__store-bar {
   position: absolute;
   z-index: 2;
-  top: var(--space-3);
-  left: 50%;
+  top: var(--map-visible-top, var(--space-3));
+  left: calc((100% - var(--map-visible-right, 0px)) / 2);
   display: flex;
   align-items: center;
   gap: var(--space-2);
@@ -311,8 +382,6 @@
 
 @media (max-width: 639px) {
   .map__store-bar {
-    top: auto;
-    bottom: var(--space-12);
     max-width: calc(100% - 2 * var(--space-4));
   }
 }
@@ -354,26 +423,39 @@
 }
 
 @media (max-width: 639px) {
+  /* mobile: 범례는 숨긴다(시안 — 지도가 작고 같은 정보가 시트·패널에 있다). 확대·축소·맞춤은 지도 오른쪽 아래(시트 위),
+     맞춤은 아이콘만 보이고 이름은 스크린리더에 남긴다 */
   .map__legend {
-    bottom: auto;
-    top: var(--space-3);
+    display: none;
   }
 
-  /* NAVER 로고·축척(지도 아래 약 10~20px) 위로: 점포 막대와 같은 높이. 둘은 함께 보이지 않는다
-     (안내는 위치 미선택·비교 중, 점포 막대는 단일 분석 결과의 점포 선택 때) */
-  /* 비교 중에는 안내 칩과 선택한 점포 막대가 함께 생길 수 있다 — 같은 자리라 점포 막대가 있을 때는 안내를 숨긴다 */
+  .map__controls {
+    right: var(--space-3);
+    bottom: var(--space-3);
+  }
+
+  .map__fit {
+    width: 44px;
+    padding: 0;
+    justify-content: center;
+  }
+
+  .map__fit-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+
+  /* 안내 칩·점포 막대: 조건 바 아래 같은 자리. 둘이 함께 생기면(비교 중 점포 선택) 점포 막대가 이긴다 */
   .map--store-active .map__guide {
     display: none;
   }
 
-  /* mobile 범례는 위쪽이라 점포 정보창(상호)을 가린다 — 점포를 고른 동안은 숨긴다(상호는 점포 막대에도 있다) */
-  .map--store-active .map__legend {
-    display: none;
-  }
-
   .map__guide {
-    bottom: var(--space-12);
-    width: max-content; /* left: 50% 때문에 남은 폭(절반)에서 줄바꿈하지 않게 — 내용 폭, 최대 화면 폭 - 여백 */
+    width: max-content; /* 남은 폭(절반)에서 줄바꿈하지 않게 — 내용 폭, 최대 화면 폭 - 여백 */
     max-width: calc(100% - 2 * var(--space-4));
     white-space: normal;
     text-align: center;

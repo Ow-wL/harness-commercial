@@ -4,6 +4,7 @@ import { GUIDE_LABELS, PERSPECTIVE_GUIDE } from '../content/scoreGuide.ts'
 import pcbangFixture from '../fixtures/bupyeong-pcbang.json'
 import nailShopFixture from '../fixtures/bupyeong-nailshop.json'
 import { AnalysisResult } from './AnalysisResult.tsx'
+import { EVIDENCE_TAB, getInTab } from '../test/tabs.ts'
 
 /** 실제 /analyze 응답: 부평역 PC방(5개 관점 산출) · 부평역 네일숍(안정성 미산출) */
 const PCBANG = AnalyzeResponseSchema.parse(pcbangFixture)
@@ -72,7 +73,7 @@ describe('관점 설명 (DESIGN.md §8.9a)', () => {
 
   it('"모두 펼치기"는 관점 아코디언만 열고 설명은 접힌 채로 둔다', () => {
     render(<AnalysisResult analysis={PCBANG} />)
-    fireEvent.click(screen.getByRole('button', { name: '모두 펼치기' }))
+    fireEvent.click(getInTab(EVIDENCE_TAB, 'button', { name: '모두 펼치기' }))
     for (const label of Object.values(LABELS)) {
       expect(guideToggle(label)).toHaveAttribute('aria-expanded', 'false')
     }
@@ -92,7 +93,7 @@ describe('점수 읽는 법 (DESIGN.md §8.9b)', () => {
 
   it('기본 접힘이고, 펼치면 여섯 주제가 보인다', () => {
     render(<AnalysisResult analysis={PCBANG} />)
-    const toggle = screen.getByRole('button', { name: '점수 읽는 법' })
+    const toggle = getInTab(EVIDENCE_TAB, 'button', { name: '점수 읽는 법' })
     expect(toggle).toHaveAttribute('aria-expanded', 'false')
     expect(screen.queryByRole('region', { name: '점수 읽는 법' })).not.toBeInTheDocument()
 
@@ -111,7 +112,7 @@ describe('점수 읽는 법 (DESIGN.md §8.9b)', () => {
 
   it('이 결과의 가중치·충족률은 응답 값으로 채운다 (정상 산출)', () => {
     render(<AnalysisResult analysis={PCBANG} />)
-    fireEvent.click(screen.getByRole('button', { name: '점수 읽는 법' }))
+    fireEvent.click(getInTab(EVIDENCE_TAB, 'button', { name: '점수 읽는 법' }))
     const region = screen.getByRole('region', { name: '점수 읽는 법' })
     expect(region).toHaveTextContent('5개 관점 중 5개 산출')
     expect(region).toHaveTextContent('이 결과 100%')
@@ -122,7 +123,7 @@ describe('점수 읽는 법 (DESIGN.md §8.9b)', () => {
 
   it('미산출 관점은 적용 가중치에서 "제외"로 보이고 남은 관점의 재분배 값이 보인다', () => {
     render(<AnalysisResult analysis={NAILSHOP} />)
-    fireEvent.click(screen.getByRole('button', { name: '점수 읽는 법' }))
+    fireEvent.click(getInTab(EVIDENCE_TAB, 'button', { name: '점수 읽는 법' }))
     const region = screen.getByRole('region', { name: '점수 읽는 법' })
     expect(region).toHaveTextContent('5개 관점 중 4개 산출')
     // 응답 적용_가중치 {market 0.188, customer 0.375, competition 0.25, location 0.188}

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import {
   analyze,
   DEFAULT_RADIUS_M,
@@ -9,15 +9,13 @@ import {
   type ApiFailure,
 } from './api/client.ts'
 import type { AnalyzeResponse, NearbyStoresResponse } from './api/schemas.ts'
-import { AnalysisResult } from './components/AnalysisResult.tsx'
-import { AnalysisEmpty, AnalysisLoading } from './components/AnalysisStatus.tsx'
+import { AnalysisResult, HeadlineText } from './components/AnalysisResult.tsx'
+import { AnalysisLoading } from './components/AnalysisStatus.tsx'
 import { BandPeek } from './components/AttentionBand.tsx'
 import { ComparePanel, CompareSheet } from './components/ComparePanel.tsx'
 import { CompareDetail, CompareResult, StoreSideSwitch } from './components/CompareResult.tsx'
 import { ConditionPanel, type BusinessesState } from './components/ConditionPanel.tsx'
-import { CompareContextBar, ContextBar } from './components/ContextBar.tsx'
 import { ErrorBlock } from './components/ErrorBlock.tsx'
-import { LocationSummary } from './components/LocationSummary.tsx'
 import { MapView, type LatLng, type MapCompare, type MapStore } from './components/MapView.tsx'
 import { NearbyStores } from './components/NearbyStores.tsx'
 import { RadiusControl } from './components/RadiusControl.tsx'
@@ -26,7 +24,17 @@ import type { SdkState } from './map/naverMaps.ts'
 import type { CompareSide } from './lib/compare.ts'
 import { COMPARE_IDS, sameCoordinates, type CompareState, type CompareView } from './lib/compareState.ts'
 import { errorView, type ErrorAction } from './lib/errorView.ts'
-import { formatDistance, formatRadius, locationName, nearestStation, storeAddress, storeName } from './lib/format.ts'
+import {
+  formatDistance,
+  formatRadius,
+  formatScore,
+  groupName,
+  locationName,
+  nearestStation,
+  storeAddress,
+  storeName,
+} from './lib/format.ts'
+import { headline } from './lib/headline.ts'
 import { singleBand } from './lib/attentionBand.ts'
 import { ResultCache } from './lib/resultCache.ts'
 import { useNearbyRequest, type RadiusProblem } from './lib/useNearbyRequest.ts'
@@ -801,14 +809,6 @@ function App() {
       : null
 
   const compared = compare.status === 'success' ? compare.response : null
-  // 헤더 분석 조건: 비교 요약은 A·B를 함께, 전체 결과는 보고 있는 위치, 그 밖(단일 결과·B 고르기)은 A
-  const headerBar = !result ? null : compared && compareView === 'summary' ? (
-    <CompareContextBar a={result} b={compared} />
-  ) : compared && compareView === 'detail-B' ? (
-    <ContextBar context={compared.context} meta={compared.result.meta} station={nearestStation(compared.result.지표)} />
-  ) : (
-    <ContextBar context={result.context} meta={result.result.meta} station={station} />
-  )
   /**
    * 응답 위치의 참고 주소 줄 (7-B2 단일 결과, 7-B3 비교 A/B 카드·전체 결과). 분석에 쓴 context 좌표(= 요청 좌표,
    * matchesRequest가 보장)로 조회한다 — 선택 단계(위치 필드·B 카드)와 같은 키라 화면을 오가도 다시 조회하지 않는다.
@@ -835,8 +835,10 @@ function App() {
     result && result.result.지표[2].flags.includes('미개척_동종점포_0개') && wider.length > 0
       ? `${formatRadius(result.result.meta.분석반경_m)} 안에 같은 업종이 없어 경쟁성을 내지 않았습니다. ${wider.map(formatRadius).join('·')}로 넓히면 산출될 수 있습니다.`
       : null
+  const radiusInBar = result !== null
   const radiusControl = radiusEnabled ? (
     <RadiusControl
+      variant={radiusInBar ? 'bar' : 'step'}
       options={radiusOptions}
       value={radius}
       disabled={radiusBusy}
@@ -856,203 +858,304 @@ function App() {
     focusLater(COMPARE_IDS.sheetAction)
   }
 
-  return (
-    <div className="app" data-phase={result ? 'result' : 'select'} data-screen={mobileScreen}>
-      <header ref={headerRef} className="app-header">
-        <span className="app-header__title">우리동네 상권분석 매니저</span>
-        {headerBar}
-        {/* 대상 #data-sources가 있는 화면에서만: 단일 결과·비교 요약·전체 결과 (B 고르기 화면에는 없다) */}
-        {result && (!comparing || compare.status === 'success') && (
-          <a className="app-header__link" href="#data-sources">
-            데이터 출처
-          </a>
+  // ─── A3 화면 (DESIGN.md §19.1): 지도 = 배경 전체, 위쪽 조건 바, 오른쪽 떠 있는 패널(mobile은 하단 시트) ───
+  const biz = result?.result.meta
+  /** 조건 바: 단일 결과 = 위치 · 업종 · [바꾸기], 비교 = "두 위치 비교 · 업종 · 반경" · [B 다시 고르기] */
+  const barCondition = !result || !biz ? null : comparing ? (
+    <div className="bar__cond" role="group" aria-label="비교 조건">
+      <span className="bar__place">두 위치 비교</span>
+      <span className="bar__biz">
+        {biz.업종} · 반경 {formatRadius(biz.분석반경_m)}
+      </span>
+      {(compare.status === 'success' || compare.status === 'error') && (
+        <button type="button" className="bar__edit" onClick={pickB}>
+          B 다시 고르기
+        </button>
+      )}
+    </div>
+  ) : (
+    <div className="bar__cond" role="group" aria-label="분석 조건">
+      <span className="bar__place">{locationName(result.context)}</span>
+      <span className="bar__biz">
+        {biz.업종} · {groupName(biz.업종그룹)}
+      </span>
+      <button type="button" className="bar__edit" onClick={cancelAnalysis}>
+        <span className="visually-hidden">조건</span> 바꾸기
+      </button>
+    </div>
+  )
+  // 반경: 결과가 있으면 조건 바에(radiusInBar), 분석 전·실패·다시 분석 중이면 조건 패널 ③에 (한 번에 하나만 그린다)
+  const radiusNotes =
+    radiusNotice || (radiusInBar && radiusEnabled && (radiusStatus || narrowHint)) ? (
+      <div className="panel__notes">
+        {radiusNotice && (
+          <p className="radius-notice" role="status">
+            {radiusNotice}
+          </p>
         )}
-      </header>
-      <div className="workspace">
-        <main className="workspace__panel">
-          {radiusNotice && (
-            <p className="radius-notice" role="status">
-              {radiusNotice}
+        {radiusInBar && radiusStatus && <p className="radius-notice radius-notice--busy">{radiusStatus}</p>}
+        {radiusInBar && narrowHint && <p className="radius-notice">{narrowHint}</p>}
+      </div>
+    ) : null
+
+  /** 패널 아래 고정 행동 (mobile에서는 "지도 보기"를 앞에) */
+  const foot = (children: ReactNode) => (
+    <div className="panel__foot">
+      <button
+        type="button"
+        className="button button--ghost-fill mobile-only"
+        onClick={comparing ? showMapFromCompare : () => setMobileScreen('map')}
+      >
+        지도 보기
+      </button>
+      {children}
+    </div>
+  )
+
+  let panelLabel = '분석 조건'
+  let panelBody: ReactNode
+  let panelFoot: ReactNode = null
+  if (result && compare.status === 'success') {
+    panelLabel = '두 위치 비교 결과'
+    if (compareView === 'summary') {
+      // AnalysisResult는 한 번에 하나만 마운트한다(고정 id, COMPARE_DESIGN.md 6장). 점포 목록은 보이는 기준 위치의 것만(5차-B5)
+      panelBody = (
+        <CompareResult
+          a={result}
+          b={compare.response}
+          nearby={compareStores(storeSide, storeSide === 'A' ? result : compare.response, true)}
+          onShowDetail={showCompareDetail}
+          onEnd={endCompare}
+          onChangeConditions={cancelAnalysis}
+          addresses={{ A: addressOf(result), B: addressOf(compare.response) }}
+        />
+      )
+      panelFoot = foot(
+        <>
+          {(['A', 'B'] as const).map((side) => (
+            <button
+              key={side}
+              id={side === 'A' ? COMPARE_IDS.detailA : COMPARE_IDS.detailB}
+              type="button"
+              className="button button--ghost-fill panel__foot-split"
+              onClick={() => showCompareDetail(side)}
+            >
+              <span className={`pin-letter pin-letter--${side.toLowerCase()}`} aria-hidden="true">
+                {side}
+              </span>
+              <span>
+                {side} <span className="panel__foot-long">전체</span> 결과 <span className="panel__foot-long">보기</span>
+              </span>
+            </button>
+          ))}
+        </>,
+      )
+    } else {
+      const side: CompareSide = compareView === 'detail-A' ? 'A' : 'B'
+      const shown = side === 'A' ? result : compare.response
+      panelBody = (
+        <CompareDetail
+          key={compareView}
+          side={side}
+          analysis={shown}
+          nearby={compareStores(side, shown, false)}
+          nearbyCount={(side === 'A' ? nearby : nearbyB.state)?.status === 'success' ? shown.result.지표[2].raw.동종점포수 : null}
+          address={addressOf(shown)}
+        />
+      )
+      panelFoot = foot(
+        <button type="button" className="button button--primary" onClick={() => backToCompareSummary(side)}>
+          비교로 돌아가기
+        </button>,
+      )
+    }
+  } else if (result && compare.status !== 'off' && compare.status !== 'success') {
+    panelLabel = '두 위치 비교 — B 위치 고르기'
+    panelBody = (
+      <ComparePanel
+        a={result}
+        compare={compare}
+        onLocationSubmit={submitCompareLocation}
+        onAnalyze={runCompare}
+        onErrorAction={handleCompareErrorAction}
+        onChangeConditions={cancelAnalysis}
+        bAddress={<ReferenceAddress sdk={sdk} point={compare.location} />}
+        searchApi={searchApi}
+        searchResetKey={bPickSeq}
+      />
+    )
+    panelFoot = foot(
+      <button type="button" className="button button--ghost-fill" onClick={endCompare}>
+        비교 취소
+      </button>,
+    )
+  } else if (result) {
+    panelLabel = '분석 결과'
+    panelBody = (
+      <AnalysisResult
+        analysis={result}
+        address={addressOf(result)}
+        nearbyCount={nearby?.status === 'success' ? nearby.data.count : null}
+        nearby={
+          nearby && (
+            <NearbyStores
+              key={`${result.context.lat},${result.context.lng},${result.result.meta.업종코드}`}
+              state={nearby}
+              bizName={result.result.meta.업종}
+              radiusM={result.result.meta.분석반경_m}
+              expectedCount={result.result.지표[2].raw.동종점포수}
+              show={showStores}
+              onShowChange={changeShowStores}
+              activeId={activeStoreId}
+              onSelect={selectStore}
+              onRetry={() => analysis.status === 'success' && loadNearby(analysis.request)}
+            />
+          )
+        }
+      />
+    )
+    panelFoot = foot(
+      <button id={COMPARE_IDS.start} type="button" className="button button--primary" onClick={startCompare}>
+        다른 위치와 비교
+      </button>,
+    )
+  } else {
+    panelBody = (
+      <div className="intro">
+        {errorAt('top')}
+        <ConditionPanel
+          location={location}
+          bizCode={bizCode}
+          businesses={businesses}
+          analyzing={analyzing}
+          locked={analyzing}
+          locationError={errorAt('location')}
+          businessError={errorAt('business')}
+          onPickOnMap={pickOnMap}
+          onLocationInput={selectLocation}
+          onBizChange={changeBusiness}
+          onRetryBusinesses={reloadBusinesses}
+          onAnalyze={runAnalysis}
+          address={<ReferenceAddress sdk={sdk} point={location} />}
+          searchApi={searchApi}
+          radiusStep={radiusControl}
+        >
+          {compareReload && analysis.status === 'error' && (
+            <p className="radius-notice">
+              비교 중 A 위치를 다시 분석하지 못했습니다. &quot;다시 시도&quot;는 A·B를 함께 다시 분석합니다.{' '}
+              <button type="button" className="button-ghost" onClick={endCompare}>
+                비교 종료
+              </button>
             </p>
           )}
-          {result && compare.status === 'success' && radiusControl}
-          {result && compare.status === 'success' ? (
-            // AnalysisResult는 한 번에 하나만 마운트한다(고정 id, COMPARE_DESIGN.md 6장). 점포 목록은 보이는 기준 위치의 것만(5차-B5)
-            compareView === 'summary' ? (
-              <CompareResult
-                a={result}
-                b={compare.response}
-                nearby={compareStores(storeSide, storeSide === 'A' ? result : compare.response, true)}
-                onShowDetail={showCompareDetail}
-                onReselect={pickB}
-                onEnd={endCompare}
-                onChangeConditions={cancelAnalysis}
-                onShowMap={showMapFromCompare}
-                addresses={{ A: addressOf(result), B: addressOf(compare.response) }}
-              />
-            ) : (
-              <CompareDetail
-                key={compareView}
-                side={compareView === 'detail-A' ? 'A' : 'B'}
-                analysis={compareView === 'detail-A' ? result : compare.response}
-                nearby={
-                  compareView === 'detail-A'
-                    ? compareStores('A', result, false)
-                    : compareStores('B', compare.response, false)
-                }
-                address={addressOf(compareView === 'detail-A' ? result : compare.response)}
-                onBack={() => backToCompareSummary(compareView === 'detail-A' ? 'A' : 'B')}
-                onShowMap={showMapFromCompare}
-              />
-            )
-          ) : result && compare.status !== 'off' && compare.status !== 'success' ? (
-            <>
-            {radiusControl}
-            <ComparePanel
-              a={result}
-              compare={compare}
-              onLocationSubmit={submitCompareLocation}
-              onAnalyze={runCompare}
-              onErrorAction={handleCompareErrorAction}
-              onEnd={endCompare}
-              onChangeConditions={cancelAnalysis}
-              onShowMap={showMapFromCompare}
-              bAddress={<ReferenceAddress sdk={sdk} point={compare.location} />}
-              searchApi={searchApi}
-              searchResetKey={bPickSeq}
-            />
-            </>
-          ) : result ? (
-            <>
-              <div className="conditions-summary">
-                {/* 참고 주소는 분석에 쓴 context 좌표(= 요청 좌표)로 — 분석 전 위치 필드와 같은 키라 다시 조회하지 않는다 */}
-                <LocationSummary context={result.context} station={station} address={addressOf(result)} />
-                <span className="conditions-summary__actions">
-                  <button type="button" className="button-ghost mobile-only" onClick={() => setMobileScreen('map')}>
-                    지도 보기
-                  </button>
-                  <button id={COMPARE_IDS.start} type="button" className="button-ghost" onClick={startCompare}>
-                    다른 위치와 비교
-                  </button>
-                  <button type="button" className="button-ghost" onClick={cancelAnalysis}>
-                    조건 변경
-                  </button>
-                </span>
-              </div>
-              {radiusControl}
-              <AnalysisResult
-                analysis={result}
-                nearby={
-                  nearby && (
-                    <NearbyStores
-                      key={`${result.context.lat},${result.context.lng},${result.result.meta.업종코드}`}
-                      state={nearby}
-                      bizName={result.result.meta.업종}
-                      radiusM={result.result.meta.분석반경_m}
-                      expectedCount={result.result.지표[2].raw.동종점포수}
-                      show={showStores}
-                      onShowChange={changeShowStores}
-                      activeId={activeStoreId}
-                      onSelect={selectStore}
-                      onRetry={() => analysis.status === 'success' && loadNearby(analysis.request)}
-                    />
-                  )
-                }
-              />
-            </>
-          ) : (
-            <div className="intro">
-              <h1 className="intro__title">우리동네 상권분석 매니저</h1>
-              <p className="intro__lead">인천 158개 행정동 공공데이터로 위치·업종을 비교합니다</p>
-              {errorAt('top')}
-              <ConditionPanel
-                location={location}
-                bizCode={bizCode}
-                businesses={businesses}
-                analyzing={analyzing}
-                locked={analyzing}
-                locationError={errorAt('location')}
-                businessError={errorAt('business')}
-                onPickOnMap={pickOnMap}
-                onLocationInput={selectLocation}
-                onBizChange={changeBusiness}
-                onRetryBusinesses={reloadBusinesses}
-                onAnalyze={runAnalysis}
-                address={<ReferenceAddress sdk={sdk} point={location} />}
-                searchApi={searchApi}
-              />
-              {radiusControl}
-              {compareReload && analysis.status === 'error' && (
-                <p className="radius-notice">
-                  비교 중 A 위치를 다시 분석하지 못했습니다. &quot;다시 시도&quot;는 A·B를 함께 다시 분석합니다.{' '}
-                  <button type="button" className="button-ghost" onClick={endCompare}>
-                    비교 종료
-                  </button>
-                </p>
-              )}
-              <div className="intro__result">
-                {analysis.status === 'loading' && <AnalysisLoading />}
-                {errorAt('result')}
-                {analysis.status === 'idle' && <AnalysisEmpty />}
-              </div>
-            </div>
-          )}
+          <div className="intro__result">
+            {analysis.status === 'loading' && <AnalysisLoading />}
+            {errorAt('result')}
+          </div>
+        </ConditionPanel>
+      </div>
+    )
+  }
+
+  return (
+    <div
+      className="app"
+      data-phase={result ? 'result' : 'select'}
+      data-screen={mobileScreen}
+      data-compare={comparing ? 'on' : 'off'}
+    >
+      <div className="app__map" ref={mapRef}>
+        <MapView
+          onSdkState={setSdk}
+          // mobile 지도↔패널 전환 신호: 크기 알림 없이 지도 화면으로 돌아와도 크기 맞춤·미룬 정보창 처리 (6-4)
+          layoutKey={mobileScreen}
+          selected={location}
+          radiusM={radius}
+          markerTone={markerTone}
+          dong={result ? { guCode: result.context.gu_code, dongName: result.context.dong_name } : null}
+          interactive={!analyzing && !bRequesting}
+          onSelect={selectLocation}
+          // 지금 보이는 점포 기준의 마커만 (B 고르기·분석 중·실패에는 없음). A 점포 데이터는 비교 중에도 그대로 둔다
+          stores={mapStores}
+          activeStoreId={activeStoreId}
+          onStoreSelect={selectStore}
+          storeContext={
+            comparing && visibleSide
+              ? `${visibleSide} ${(visibleSide === 'A' ? result : compared)?.context.dong_name} 주변`
+              : undefined
+          }
+          compare={mapCompare}
+        />
+      </div>
+      <header ref={headerRef} className="app-header bar" data-map-obstacle>
+        <span className="bar__brand">
+          <span className="bar__logo" aria-hidden="true" />
+          <span className="bar__name">우리동네 상권</span>
+        </span>
+        {barCondition}
+        {radiusInBar && radiusControl}
+      </header>
+      <div className="panel" data-map-obstacle>
+        <main className="workspace__panel" aria-label={panelLabel}>
+          {radiusNotes}
+          {panelBody}
         </main>
-        <div className="workspace__map" ref={mapRef}>
-          <MapView
-            onSdkState={setSdk}
-            // mobile 지도↔패널 전환 신호: 크기 알림 없이 지도 화면으로 돌아와도 크기 맞춤·미룬 정보창 처리 (6-4)
-            layoutKey={mobileScreen}
-            selected={location}
-            radiusM={radius}
-            markerTone={markerTone}
-            dong={result ? { guCode: result.context.gu_code, dongName: result.context.dong_name } : null}
-            interactive={!analyzing && !bRequesting}
-            onSelect={selectLocation}
-            // 지금 보이는 점포 기준의 마커만 (B 고르기·분석 중·실패에는 없음). A 점포 데이터는 비교 중에도 그대로 둔다
-            stores={mapStores}
-            activeStoreId={activeStoreId}
-            onStoreSelect={selectStore}
-            storeContext={
-              comparing && visibleSide
-                ? `${visibleSide} ${(visibleSide === 'A' ? result : compared)?.context.dong_name} 주변`
-                : undefined
-            }
-            compare={mapCompare}
-          />
-          {/* mobile 지도 화면 하단 sheet (peek): 선택 확인 → 패널로. 비교 중에는 B 선택용 sheet */}
-          {result && compare.status !== 'off' ? (
-            <CompareSheet
-              a={result}
-              compare={compare}
-              onAnalyze={runCompare}
-              onShowPanel={() => {
-                setMobileScreen('panel')
-                // 지금 패널 화면의 제목으로: B 고르기 → B 카드 제목, 비교 요약 → 비교 제목, 전체 결과 → 결과 제목
-                focusLater(
-                  compare.status !== 'success'
-                    ? COMPARE_IDS.bTitle
-                    : compareView === 'summary'
-                      ? COMPARE_IDS.title
-                      : 'result-title',
-                )
-              }}
-              onEnd={endCompare}
-            />
+        {panelFoot}
+      </div>
+      {/* mobile 지도 화면 하단 sheet (peek): 요약 → "결과 자세히"로 패널. 비교 중에는 B 선택용 sheet */}
+      {result && compare.status !== 'off' ? (
+        <CompareSheet
+          a={result}
+          compare={compare}
+          onAnalyze={runCompare}
+          onShowPanel={() => {
+            setMobileScreen('panel')
+            // 지금 패널 화면의 제목으로: B 고르기 → B 카드 제목, 비교 요약 → 비교 제목, 전체 결과 → 결과 제목
+            focusLater(
+              compare.status !== 'success'
+                ? COMPARE_IDS.bTitle
+                : compareView === 'summary'
+                  ? COMPARE_IDS.title
+                  : 'result-title',
+            )
+          }}
+          onEnd={endCompare}
+        />
+      ) : (
+        <div className="map-sheet mobile-only">
+          {resultIsForSelection && analysis.status === 'success' ? (
+            <>
+              <p className="map-sheet__score">
+                <span className="map-sheet__value">
+                  {result.result.종합.점수 === null ? '산출 불가' : formatScore(result.result.종합.점수)}
+                </span>
+                {result.result.종합.점수 !== null && <span className="map-sheet__unit">/ 100</span>}
+                <span className="map-sheet__cap">
+                  <strong>{locationName(result.context)}</strong>
+                  {station && ` · ${station.name} ${formatDistance(station.distanceM)}`}
+                </span>
+              </p>
+              <p className="map-sheet__headline">
+                <HeadlineText text={headline(result.result)} />
+              </p>
+              {/* 참고 주소 한 줄(7-B2, 말줄임 · 작은 높이에서는 숨김 — ReferenceAddress.css). 분석에 쓴 context 좌표 */}
+              {addressOf(result)}
+              {/* 주의 요약 띠 첫 줄 (8-C1a) — 지금 선택과 같은 좌표의 결과일 때만 */}
+              <BandPeek lines={singleBand(analysis.response)} />
+              <div className="map-sheet__actions">
+                <button type="button" className="button button--ghost-fill" onClick={() => setMobileScreen('panel')}>
+                  결과 자세히
+                </button>
+                <button type="button" className="button button--primary" onClick={startCompare}>
+                  다른 위치와 비교
+                </button>
+              </div>
+            </>
           ) : (
-            <div className="map-sheet mobile-only">
+            <>
+              <p className="map-sheet__title">어디에, 어떤 가게를 열까요?</p>
               <p className="map-sheet__text">
-                {resultIsForSelection ? (
-                  <>
-                    <strong>{locationName(result.context)}</strong>
-                    {station && (
-                      <span className="map-sheet__sub">
-                        {' '}
-                        · {station.name} 직선거리 {formatDistance(station.distanceM)}
-                      </span>
-                    )}
-                  </>
-                ) : location ? (
+                {location ? (
                   // 분석 전에는 행정동을 모른다(backend가 판정) — 고른 좌표만 보여 준다
                   <>
                     선택됨 · <span className="mono">{location.lat}, {location.lng}</span>
@@ -1061,8 +1164,6 @@ function App() {
                   '지도를 눌러 위치를 고르세요'
                 )}
               </p>
-              {/* 주의 요약 띠 첫 줄 (8-C1a) — 지금 선택과 같은 좌표의 결과일 때만 */}
-              {resultIsForSelection && analysis.status === 'success' && <BandPeek lines={singleBand(analysis.response)} />}
               {/* 참고 주소 한 줄(말줄임, 작은 높이에서는 숨김 — ReferenceAddress.css). 좌표 키가 패널·결과와 같아 조회는 1회 */}
               <ReferenceAddress sdk={sdk} point={location} />
               <button
@@ -1070,12 +1171,12 @@ function App() {
                 className={`button ${location ? 'button--primary' : 'button--secondary'}`}
                 onClick={() => setMobileScreen('panel')}
               >
-                {result ? '결과 보기' : location ? '이 위치로 계속' : '좌표 직접 입력'}
+                {location ? '이 위치로 계속' : '조건 입력'}
               </button>
-            </div>
+            </>
           )}
         </div>
-      </div>
+      )}
     </div>
   )
 }

@@ -73,3 +73,103 @@
   font: var(--text-small);
   color: var(--color-text-primary);
 }
+
+/* ─── A3 ─── 분석 전 ③: 시안 .rseg (패널 2 바탕 묶음, 고른 것 패널 3) */
+.step .radius-control {
+  margin: 0;
+}
+
+.step .radius-control__group {
+  gap: 2px;
+  padding: 4px;
+  border: 0;
+  border-radius: 10px;
+  background: var(--color-surface-muted);
+}
+
+.step .radius-control__button {
+  min-width: 64px;
+  min-height: 36px;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--color-text-secondary);
+}
+
+.step .radius-control__button + .radius-control__button {
+  border-left: 0;
+}
+
+.step .radius-control__button[aria-pressed="true"] {
+  background: var(--color-surface-sunken);
+  color: var(--color-text-primary);
+}
+
+.step .radius-control__row {
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+/* 결과 화면: 위쪽 조건 바의 반경 묶음 (시안 .seg) */
+.radius-control--bar {
+  display: inline-flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 2px;
+  height: var(--a3-bar-h, 44px);
+  margin: 0;
+  padding: 4px;
+  border: 1px solid var(--color-map-ui-edge);
+  border-radius: 12px;
+  background: var(--color-surface);
+  box-shadow: var(--shadow-map-ui);
+}
+
+.radius-control--bar .radius-control__label {
+  padding: 0 8px 0 6px;
+  font-size: 12px;
+  font-weight: 400;
+  white-space: nowrap;
+  color: var(--color-text-muted);
+}
+
+.radius-control--bar .radius-control__button {
+  min-width: 44px;
+  min-height: 34px;
+  height: 34px;
+  padding: 0 10px;
+  border-radius: 8px;
+  background: transparent;
+  font-size: 13px;
+}
+
+.radius-control--bar .radius-control__button + .radius-control__button {
+  border-left: 0;
+}
+
+.radius-control--bar .radius-control__button[aria-pressed="true"] {
+  background: var(--color-accent-subtle);
+  color: var(--color-accent);
+}
+
+@media (max-width: 1100px) {
+  .radius-control--bar .radius-control__label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+}
+
+/* mobile: 반경은 조건 바 둘째 줄 전체 폭(시안은 숨겼지만 결과 화면에서 반경을 바꿀 자리가 필요하다) */
+@media (max-width: 639px) {
+  .radius-control--bar {
+    flex: 1 0 100%;
+  }
+
+  .radius-control--bar .radius-control__button {
+    flex: 1;
+    min-height: 44px;
+  }
+}

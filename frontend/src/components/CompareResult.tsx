@@ -14,33 +14,43 @@ import {
   type CompareSide,
 } from '../lib/compare.ts'
 import { COMPARE_IDS } from '../lib/compareState.ts'
-import { BOTTLENECK_WARN_BELOW, formatRatio, formatScore, locationName, nearestStation } from '../lib/format.ts'
+import {
+  BOTTLENECK_WARN_BELOW,
+  formatDistance,
+  formatRadius,
+  formatRatio,
+  formatScore,
+  locationName,
+  nearestStation,
+} from '../lib/format.ts'
 import { compareBand } from '../lib/attentionBand.ts'
 import { dataLimits, displayWarnings } from '../lib/warnings.ts'
 import { AnalysisResult } from './AnalysisResult.tsx'
 import { AttentionBand } from './AttentionBand.tsx'
-import { DataSources } from './DataSources.tsx'
+import { DataSources, SERVICE_DISCLAIMER } from './DataSources.tsx'
 import { Icon } from './Icon.tsx'
-import { LocationSummary } from './LocationSummary.tsx'
+import { TabRevealContext, useResultTabs, useTabIdBase, type TabDef } from '../lib/resultTabs.ts'
+import { TabList, TabPanel } from './ResultTabs.tsx'
 import './CompareResult.css'
 
 type Indicator = EngineResult['지표'][number]
+type CompareTab = 'summary' | 'stores' | 'evidence'
 
 /**
- * 두 위치 비교 요약 (docs/COMPARE_DESIGN.md 5장, 5차-B3).
- * 위치 카드 → 점수 비교 표(표시용 차이 A−B) → 미산출·데이터 차이 → 주의할 점(위치별) → 핵심 원시값(접힘) → 데이터 출처(1회).
- * 엔진 값을 다시 계산하지 않는다. 차이는 두 점수를 뺀 표시용 값이며 위치의 우열·순위가 아니다.
- * 고정 id 컴포넌트(WarningPanel·AnalysisResult)는 쓰지 않는다 — 같은 화면에 두 번 나오면 id가 겹친다(6장).
+ * 두 위치 비교 요약 (A3 compare, DESIGN.md §19.1, docs/COMPARE_DESIGN.md 5장).
+ * 머리: 비교 조건 · A/B 위치 줄(종합 점수, 누르면 그 위치 전체 결과) · 두 지점 거리 · 주의 요약 띠.
+ * 탭: 요약(관점별 A●·B○ 점 — 표시용 차이일 뿐 판정·순위 아님) · 주변 점포(A/B 기준) ·
+ * 상세 근거(점수 비교 표 · 미산출·데이터 차이 · 주의할 점(위치별) · 핵심 원시값 · 데이터 출처 1회).
+ * 엔진 값을 다시 계산하지 않는다. 고정 id 컴포넌트(WarningPanel·AnalysisResult)는 쓰지 않는다 — 같은 화면에 두 번 나오면
+ * id가 겹친다(6장).
  */
 export function CompareResult({
   a,
   b,
   nearby,
   onShowDetail,
-  onReselect,
   onEnd,
   onChangeConditions,
-  onShowMap,
   addresses,
 }: {
   a: AnalyzeResponse
@@ -48,52 +58,179 @@ export function CompareResult({
   /** 반경 안 같은 업종 점포 — 고른 기준 위치 하나 (5차-B5, App이 기준 전환과 함께 넘긴다) */
   nearby?: ReactNode
   onShowDetail: (side: CompareSide) => void
-  onReselect: () => void
   onEnd: () => void
   onChangeConditions: () => void
-  onShowMap: () => void
-  /** 위치 카드별 참고 주소 줄 (7-B3). A 카드에는 A context 좌표, B 카드에는 B context 좌표로 App이 만든다 */
+  /** 위치 줄별 참고 주소 (7-B3). A 줄에는 A context 좌표, B 줄에는 B context 좌표로 App이 만든다 */
   addresses?: Partial<Record<CompareSide, ReactNode>>
 }) {
   const biz = a.result.meta.업종
+  const radiusM = a.result.meta.분석반경_m
+  const { tab, setTab, reveal } = useResultTabs<CompareTab>('summary')
+  const idBase = useTabIdBase()
+  const overlap = radiusOverlap(a.context, b.context, radiusM)
+  const tabs: TabDef<CompareTab>[] = [
+    { key: 'summary', label: '요약' },
+    { key: 'stores', label: '주변 점포' },
+    { key: 'evidence', label: '상세 근거' },
+  ]
 
   return (
-    <section className="compare" aria-labelledby={COMPARE_IDS.title}>
-      <div className="compare__head">
-        <h1 id={COMPARE_IDS.title} className="compare__title" tabIndex={-1}>
-          두 위치 비교 · {biz}
-        </h1>
-        <p className="compare__lead">같은 업종({biz})으로 분석한 두 위치의 점수와 근거를 나란히 봅니다.</p>
-      </div>
-      <AttentionBand lines={compareBand(a, b)} moreTarget="compare-warnings" />
-
-      <LocationCard side="A" analysis={a} address={addresses?.A} onShowDetail={onShowDetail} />
-      <LocationCard side="B" analysis={b} address={addresses?.B} onShowDetail={onShowDetail} onReselect={onReselect} />
-
-      <ScoreComparison a={a} b={b} />
-      <NotComputed a={a} b={b} />
-      <Warnings a={a} b={b} />
-      <RawValues a={a} b={b} />
-      {nearby}
-      {/* 같은 업종·같은 엔진이라 출처는 하나다. 화면에 한 번만 둔다(#data-sources, 헤더 링크 대상) */}
-      <DataSources meta={a.result.meta} disclaimer={a.result.면책} />
-
-      <div className="compare__actions">
-        <button type="button" className="button-ghost mobile-only" onClick={onShowMap}>
-          지도 보기
-        </button>
-        <button type="button" className="button-ghost" onClick={onEnd}>
-          비교 종료
-        </button>
-        <button type="button" className="button-ghost" onClick={onChangeConditions}>
-          조건 변경
-        </button>
-      </div>
-    </section>
+    <TabRevealContext.Provider value={reveal}>
+      <section className="compare" aria-labelledby={COMPARE_IDS.title}>
+        <div className="result__head">
+          <div className="result__eyebrow">
+            <div className="compare__eyebrow-title">
+              <h1 id={COMPARE_IDS.title} className="compare__title" tabIndex={-1}>
+                두 위치 비교 · {biz}
+              </h1>
+              <span> · 같은 업종 · 반경 {formatRadius(radiusM)}</span>
+            </div>
+            <span className="result__eyebrow-actions">
+              <button type="button" className="link-button" onClick={onChangeConditions}>
+                조건 바꾸기
+              </button>
+              <button type="button" className="link-button" onClick={onEnd}>
+                비교 종료
+              </button>
+            </span>
+          </div>
+          <div className="compare__sites">
+            <SiteRow side="A" analysis={a} address={addresses?.A} onShowDetail={onShowDetail} />
+            <SiteRow side="B" analysis={b} address={addresses?.B} onShowDetail={onShowDetail} />
+          </div>
+          <p className="compare__distance">
+            두 지점 직선거리 {overlap.distanceM.toLocaleString('ko-KR')}m ·{' '}
+            {overlap.overlaps ? '분석 반경이 겹침' : '분석 반경 겹침 없음'}
+          </p>
+          <AttentionBand lines={compareBand(a, b)} moreTarget="compare-warnings" />
+        </div>
+        <TabList label="비교 보기" tabs={tabs} selected={tab} onSelect={setTab} idBase={idBase} />
+        <div className="result__body">
+          <TabPanel tab="summary" selected={tab} idBase={idBase}>
+            <CompareRows a={a} b={b} onOpen={() => reveal(COMPARE_IDS.scoreTitle)} />
+            <p className="result__hint">
+              <span className="compare__legend-a" aria-hidden="true" /> A{' '}
+              <span className="compare__legend-b" aria-hidden="true" /> B · 두 점 사이 거리는 표시용 차이일 뿐, 어느
+              위치가 낫다는 판정이나 순위가 아닙니다.
+            </p>
+            <p className="result__disclaimer">{SERVICE_DISCLAIMER}</p>
+          </TabPanel>
+          <TabPanel tab="stores" selected={tab} idBase={idBase}>
+            {nearby ?? <p className="result-section__empty">점포 목록이 없습니다.</p>}
+          </TabPanel>
+          <TabPanel tab="evidence" selected={tab} idBase={idBase}>
+            <ScoreComparison a={a} b={b} />
+            <NotComputed a={a} b={b} />
+            <Warnings a={a} b={b} />
+            <RawValues a={a} b={b} />
+            {/* 같은 업종·같은 엔진이라 출처는 하나다. 화면에 한 번만 둔다(#data-sources) */}
+            <DataSources meta={a.result.meta} disclaimer={a.result.면책} />
+          </TabPanel>
+        </div>
+      </section>
+    </TabRevealContext.Provider>
   )
 }
 
 const SIDE_TITLE: Record<CompareSide, string> = { A: 'A 기준 위치', B: 'B 비교 위치' }
+
+/** 비교 머리의 위치 줄: 글자 핀 · 행정동 · 최근접역·참고 주소 · 종합 점수 · › (누르면 그 위치 전체 결과) */
+function SiteRow({
+  side,
+  analysis,
+  address,
+  onShowDetail,
+}: {
+  side: CompareSide
+  analysis: AnalyzeResponse
+  address?: ReactNode
+  onShowDetail: (side: CompareSide) => void
+}) {
+  const station = nearestStation(analysis.result.지표)
+  const score = analysis.result.종합.점수
+  return (
+    <section className="compare__site" aria-label={SIDE_TITLE[side]}>
+      <button
+        type="button"
+        className="compare__site-button"
+        aria-label={`${SIDE_TITLE[side]} ${locationName(analysis.context)} · 종합 ${score === null ? '산출 불가' : `${formatScore(score)}점`} · 전체 결과로`}
+        onClick={() => onShowDetail(side)}
+      >
+        <span className={`pin-letter pin-letter--${side.toLowerCase()}`} aria-hidden="true">
+          {side}
+        </span>
+        <span className="compare__site-name">{locationName(analysis.context)}</span>
+        <span className="compare__site-score">
+          {score === null ? '산출 불가' : formatScore(score)}
+          {score !== null && <small>/100</small>}
+        </span>
+        <span className="compare__site-go" aria-hidden="true">
+          ›
+        </span>
+      </button>
+      <p className="compare__site-sub">
+        {station && `${station.name}까지 직선거리 ${formatDistance(station.distanceM)}`}
+        {address}
+      </p>
+    </section>
+  )
+}
+
+/** 요약 탭: 관점별 A●·B○ 점 (UX_REDESIGN 2.5 비교 점 그래프). 표시용 위치일 뿐, 표는 상세 근거 탭에 있다 */
+function CompareRows({ a, b, onOpen }: { a: AnalyzeResponse; b: AnalyzeResponse; onOpen: () => void }) {
+  return (
+    <section className="compare-rows" aria-labelledby="compare-rows-title">
+      <h2 id="compare-rows-title" className="visually-hidden">
+        관점별 점수 (A·B)
+      </h2>
+      <p className="perspectives__scale" aria-hidden="true">
+        <span>0</span>
+        <span>50</span>
+        <span>100</span>
+      </p>
+      <ul className="compare-rows__list">
+        {PERSPECTIVE_KEYS.map((key) => {
+          const ia = scoreOf(a.result, key)
+          const ib = scoreOf(b.result, key)
+          const lo = ia.score !== null && ib.score !== null ? Math.min(ia.score, ib.score) : null
+          const hi = ia.score !== null && ib.score !== null ? Math.max(ia.score, ib.score) : null
+          const tag = bottleneckTag('B', b.result, ib) ?? bottleneckTag('A', a.result, ia)
+          return (
+            <li key={key}>
+              <button type="button" className="compare-row" onClick={onOpen}>
+                <span className="compare-row__label">{ia.label}</span>
+                <span className="compare-row__axis" aria-hidden="true">
+                  <span className="compare-row__mid" />
+                  {lo !== null && hi !== null && (
+                    <span className="compare-row__gap" style={{ left: `${lo}%`, width: `${hi - lo}%` }} />
+                  )}
+                  {ib.score !== null && <span className="compare-row__b" style={{ left: `${ib.score}%` }} />}
+                  {ia.score !== null && <span className="compare-row__a" style={{ left: `${ia.score}%` }} />}
+                </span>
+                <span className="compare-row__vals">
+                  <span className="visually-hidden">A </span>
+                  <b>{ia.score === null ? '미산출' : formatScore(ia.score)}</b>
+                  <span aria-hidden="true"> · </span>
+                  <span className="visually-hidden">, B </span>
+                  <b className="compare-row__vb">{ib.score === null ? '미산출' : formatScore(ib.score)}</b>
+                </span>
+                {tag && <span className="compare-row__tag">{tag}</span>}
+                <span className="visually-hidden"> · 점수 비교 표로</span>
+              </button>
+            </li>
+          )
+        })}
+      </ul>
+    </section>
+  )
+}
+
+/** 위치 안의 사실: 병목(25 미만)만 경고 글자로 붙인다. 두 위치를 견주는 말이 아니다 */
+function bottleneckTag(side: CompareSide, r: EngineResult, ind: Indicator): string | null {
+  return r.종합.병목_지표 === ind.key && ind.score !== null && ind.score < BOTTLENECK_WARN_BELOW
+    ? `${side} 병목 — ${BOTTLENECK_WARN_BELOW}점 미만`
+    : null
+}
 
 /**
  * 비교 요약의 점포 기준 전환 (§4.3, D4): aria-pressed 버튼 2개. 고른 위치의 목록·마커만 보인다.
@@ -131,88 +268,38 @@ export function StoreSideSwitch({
 /**
  * 위치별 전체 결과 (§3.3 detail-A / detail-B). 기존 AnalysisResult 하나를 그 위치 응답으로 띄운다 —
  * 한 번에 하나만 마운트하므로 고정 id가 겹치지 않는다(6장). 점포 목록은 그 위치의 것만 받는다(B 화면에 A 점포를 보이지 않게).
+ * "비교로 돌아가기"는 패널 아래 행동(App)이다.
  */
 export function CompareDetail({
   side,
   analysis,
   nearby,
+  nearbyCount,
   address,
-  onBack,
-  onShowMap,
 }: {
   side: CompareSide
   analysis: AnalyzeResponse
   /** 그 위치의 점포 목록 (A 전체 → A 점포, B 전체 → B 점포, 5차-B5) */
   nearby?: ReactNode
+  nearbyCount?: number | null
   /** 보고 있는 위치의 참고 주소 줄 (7-B3, 그 위치 context 좌표) */
   address?: ReactNode
-  onBack: () => void
-  onShowMap: () => void
 }) {
-  // 열 때 맨 위("비교로 돌아가기" 막대)부터 보이게 하는 스크롤 초기화와 결과 제목 포커스는 App이 한 번에 한다(6-5) —
-  // 여기 마운트 effect에 두면 개발 모드 StrictMode가 App의 포커스 뒤에 다시 실행해 포커스로 맞춘 화면을 되돌린다
+  // 열 때 맨 위부터 보이게 하는 스크롤 초기화와 결과 제목 포커스는 App이 한 번에 한다(6-5)
   return (
     <div className="compare-detail">
-      <div className="compare-detail__bar">
-        <div>
-          <p className="compare-detail__label">두 위치 비교 중 · {SIDE_TITLE[side]} 전체 결과</p>
-          <LocationSummary context={analysis.context} station={nearestStation(analysis.result.지표)} address={address} />
-        </div>
-        <span className="conditions-summary__actions">
-          <button type="button" className="button-ghost" onClick={onBack}>
-            비교로 돌아가기
-          </button>
-          <button type="button" className="button-ghost mobile-only" onClick={onShowMap}>
-            지도 보기
-          </button>
-        </span>
-      </div>
-      <AnalysisResult analysis={analysis} titlePrefix={side} nearby={nearby} />
+      <AnalysisResult
+        analysis={analysis}
+        titlePrefix={side}
+        nearby={nearby}
+        nearbyCount={nearbyCount}
+        address={address}
+        eyebrowAction={<span className="compare-detail__label">두 위치 비교 중 · {SIDE_TITLE[side]} 전체 결과</span>}
+      />
     </div>
   )
 }
 
-function LocationCard({
-  side,
-  analysis,
-  address,
-  onShowDetail,
-  onReselect,
-}: {
-  side: CompareSide
-  analysis: AnalyzeResponse
-  address?: ReactNode
-  onShowDetail: (side: CompareSide) => void
-  onReselect?: () => void
-}) {
-  const titleId = useId()
-  return (
-    <section className="compare__card" aria-labelledby={titleId}>
-      <h2 id={titleId} className="compare__card-title">
-        {SIDE_TITLE[side]}
-      </h2>
-      <p className="compare__place">
-        <strong>{locationName(analysis.context)}</strong>
-      </p>
-      <LocationSummary context={analysis.context} station={nearestStation(analysis.result.지표)} address={address} />
-      <div className="compare__card-actions">
-        <button
-          id={side === 'A' ? COMPARE_IDS.detailA : COMPARE_IDS.detailB}
-          type="button"
-          className="button button--secondary"
-          onClick={() => onShowDetail(side)}
-        >
-          {side} 전체 결과 보기
-        </button>
-        {onReselect && (
-          <button type="button" className="button-ghost" onClick={onReselect}>
-            B 위치 다시 고르기
-          </button>
-        )}
-      </div>
-    </section>
-  )
-}
 
 const scoreOf = (r: EngineResult, key: string): Indicator => r.지표.find((i) => i.key === key)!
 

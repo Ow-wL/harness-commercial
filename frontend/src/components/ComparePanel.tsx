@@ -30,9 +30,7 @@ export function ComparePanel({
   onLocationSubmit,
   onAnalyze,
   onErrorAction,
-  onEnd,
   onChangeConditions,
-  onShowMap,
   bAddress,
   searchApi,
   searchResetKey,
@@ -43,9 +41,7 @@ export function ComparePanel({
   onLocationSubmit: (point: LatLng) => void
   onAnalyze: () => void
   onErrorAction: (action: ErrorAction) => void
-  onEnd: () => void
   onChangeConditions: () => void
-  onShowMap: () => void
   /** 지금 B 좌표의 참고 주소 줄 (7-B3, App이 B 좌표로 만든 ReferenceAddress). B 좌표가 없으면 그리지 않는다 */
   bAddress?: ReactNode
   /** Geocoder가 준비된 SDK (7-B5). 있을 때만 B 카드에 "B 주소로 찾기"를 그린다 — 고른 좌표는 `onLocationSubmit`으로 */
@@ -70,21 +66,29 @@ export function ComparePanel({
 
   return (
     <section className="compare" aria-labelledby={COMPARE_IDS.title}>
-      <div className="compare__head">
-        <h1 id={COMPARE_IDS.title} className="compare__title" tabIndex={-1}>
-          두 위치 비교 · {biz}
-        </h1>
+      <div className="result__head">
+        <div className="result__eyebrow">
+          <div className="compare__eyebrow-title">
+            <h1 id={COMPARE_IDS.title} className="compare__title" tabIndex={-1}>
+              두 위치 비교 · {biz}
+            </h1>
+            <span> · B 위치 고르기</span>
+          </div>
+          <button type="button" className="link-button" onClick={onChangeConditions}>
+            조건 바꾸기
+          </button>
+        </div>
         <p className="compare__lead">A 분석 결과는 그대로 두고, 같은 업종({biz})으로 B 위치를 분석합니다.</p>
+        <section className="compare__fixed-a" aria-label="A 기준 위치">
+          <span className="pin-letter pin-letter--a" aria-hidden="true">
+            A
+          </span>
+          <h2 id={aTitleId} className="compare__fixed-a-title">
+            {locationName(a.context)}
+          </h2>
+          <span className="compare__fixed-a-score">종합 {scoreText(a.result.종합.점수)}</span>
+        </section>
       </div>
-
-      <section className="compare__card" aria-labelledby={aTitleId}>
-        <h2 id={aTitleId} className="compare__card-title">
-          A 기준 위치
-        </h2>
-        <p className="compare__place">
-          <strong>{locationName(a.context)}</strong> · 종합 {scoreText(a.result.종합.점수)}
-        </p>
-      </section>
 
       <section ref={bCardRef} className="compare__card" aria-labelledby={COMPARE_IDS.bTitle}>
         <h2 id={COMPARE_IDS.bTitle} className="compare__card-title" tabIndex={-1}>
@@ -160,17 +164,6 @@ export function ComparePanel({
         </p>
       </section>
 
-      <div className="compare__actions">
-        <button type="button" className="button-ghost mobile-only" onClick={onShowMap}>
-          지도 보기
-        </button>
-        <button type="button" className="button-ghost" onClick={onEnd}>
-          비교 취소
-        </button>
-        <button type="button" className="button-ghost" onClick={onChangeConditions}>
-          조건 변경
-        </button>
-      </div>
     </section>
   )
 }

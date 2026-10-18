@@ -1,29 +1,115 @@
-/* 결과 패널 안 공통: 섹션 + divider (카드로 감싸지 않는다, DESIGN.md §7.5) */
+/* 결과 패널 (A3 §19.1): 머리(항상 보임) → 탭 → 탭 내용. 패널 안 좌우 24px(mobile 16px) */
 .result {
   display: flex;
   flex-direction: column;
+  min-height: 100%;
+}
+
+.result__head {
+  display: flex;
+  flex-direction: column;
+  padding: 22px 24px 0;
+}
+
+/* 맨 위 작은 줄: "분석 결과 · 반경 500m" (주색) + 오른쪽 조작 */
+.result__eyebrow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.5;
+  letter-spacing: 0.02em;
+  color: var(--color-accent);
 }
 
 .result__title {
-  margin: 0 0 var(--space-6);
-  font: var(--text-page-title);
-  letter-spacing: -0.015em;
+  margin: 6px 0 0;
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.3;
+  letter-spacing: -0.02em;
   color: var(--color-text-primary);
 }
 
-.result__summary {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-6);
-  padding-bottom: var(--space-8);
+.result__sub {
+  margin-top: 2px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--color-text-muted);
 }
 
+/* 최근접역 · 참고 주소를 한 문단으로 이어 쓴다(길면 자연 줄바꿈) */
+.result__sub .reference-address {
+  display: inline;
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+.result__sub > span + .reference-address::before {
+  content: " · ";
+}
+
+.result__sub .reference-address__label {
+  font-weight: 400;
+  color: var(--color-text-muted);
+}
+
+/* 프로그램으로 옮긴 포커스 대상 제목(tabindex=-1)은 조작 요소가 아니라 테두리를 그리지 않는다 */
+.result__title:focus,
+.compare__title:focus,
+.conditions__title:focus {
+  outline: none;
+}
+
+.result__headline b {
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.result__headline .result__headline-hi {
+  color: var(--color-accent);
+}
+
+/* 헤드라인 (2.3): 큰 점수 아래 15px */
+.result__headline {
+  margin: 14px 0 0;
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--color-text-secondary);
+}
+
+.result__body {
+  flex: 1;
+  padding: 6px 24px 20px;
+}
+
+.result__hint,
+.result__disclaimer {
+  margin: 12px 0 0;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--color-text-muted);
+}
+
+.result__disclaimer {
+  color: var(--color-text-secondary);
+}
+
+/* 상세 근거 탭의 섹션: 구분선으로만 나눈다(카드로 감싸지 않는다, §7.5) */
 .result-section {
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
-  padding: var(--space-8) 0;
+  padding: var(--space-6) 0;
   border-top: 1px solid var(--color-border);
+}
+
+.tabpanel > .result-section:first-child {
+  border-top: 0;
+  padding-top: var(--space-4);
 }
 
 .result-section__head {
@@ -35,7 +121,9 @@
 
 .result-section__title {
   margin: 0;
-  font: var(--text-section);
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.4;
   letter-spacing: -0.01em;
   color: var(--color-text-primary);
 }
@@ -58,6 +146,104 @@
   margin: 0;
   font: var(--text-small);
   color: var(--color-text-muted);
+}
+
+.result__eyebrow-actions {
+  display: inline-flex;
+  flex: none;
+  gap: 12px;
+}
+
+/* 패널 안 글자 버튼(비교 종료 등) */
+.link-button {
+  padding: 4px 0;
+  border: 0;
+  background: none;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-accent);
+  cursor: pointer;
+}
+
+.link-button:hover {
+  text-decoration: underline;
+}
+
+/* 낮은 화면(≤860px 높이): 머리를 줄여 다섯 관점이 스크롤 없이 보이게 (시안 a3.css) */
+@media (max-height: 860px) and (min-width: 640px) {
+  .result__head {
+    padding-top: 16px;
+  }
+
+  .result__headline {
+    margin-top: 8px;
+  }
+
+  .result__head .band {
+    margin-top: 10px;
+  }
+
+  .tabs {
+    margin-top: 12px;
+  }
+
+  .result__body {
+    padding-top: 2px;
+  }
+
+  .perspectives__scale {
+    margin-top: 8px;
+  }
+
+  .perspective__button {
+    padding: 7px 0;
+  }
+
+  .panel__foot {
+    padding-top: 12px;
+    padding-bottom: 14px;
+  }
+}
+
+@media (max-width: 639px) {
+  .result__head {
+    padding: 14px 16px 0;
+  }
+
+  /* 펼친 시트(패널 화면): 머리를 압축해 다섯 관점을 먼저 (시안 a3.css .panel[data-sheet=full]) */
+  .result__eyebrow > span:first-child {
+    display: none;
+  }
+
+  .result__title {
+    margin: 0;
+    font-size: 17px;
+  }
+
+  .result__sub {
+    font-size: 12px;
+  }
+
+  .result__sub .reference-address {
+    font-size: 12px;
+  }
+
+  .result__headline {
+    margin-top: 6px;
+    font-size: 14px;
+  }
+
+  .result__head .band {
+    margin-top: 8px;
+  }
+
+  .perspectives__scale {
+    display: none;
+  }
+
+  .result__body {
+    padding: 4px 16px 16px;
+  }
 }
 
 /* 정의 목록 (§8.8) */
@@ -140,10 +326,6 @@
 }
 
 @media (max-width: 639px) {
-  .result__title {
-    margin-bottom: var(--space-5);
-  }
-
   .data-table tr > :first-child {
     position: sticky;
     left: 0;

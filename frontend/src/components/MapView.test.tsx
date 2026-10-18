@@ -116,7 +116,7 @@ const fakeSdk = {
   Circle: vi.fn(overlay),
   Polygon: vi.fn(overlay),
   InfoWindow: vi.fn(infoWindow),
-  Position: { TOP_RIGHT: 'TOP_RIGHT', BOTTOM_RIGHT: 'BOTTOM_RIGHT' },
+  Position: { TOP_RIGHT: 'TOP_RIGHT', BOTTOM_RIGHT: 'BOTTOM_RIGHT', BOTTOM_LEFT: 'BOTTOM_LEFT' },
   ZoomControlStyle: { SMALL: 'SMALL', LARGE: 'LARGE' },
   Event: {
     addListener: vi.fn((target: unknown, type: string, handler: () => void) => {
@@ -182,10 +182,8 @@ function viewOf(map: FakeMap) {
   const b = map.getBounds()
   const bounds = { s: b.getSW().lat(), n: b.getNE().lat(), w: b.getSW().lng(), e: b.getNE().lng() }
   const rectOf = (p: { lat: number; lng: number }) => boxToRect(circleBox(p.lat, p.lng, 500), { bounds, w: map.size.w, h: map.size.h })
-  const u = usableArea(map.size, [
-    { x: map.size.w - 60, y: 10, w: 50, h: 79 },
-    { x: map.size.w - 168, y: map.size.h - 27, w: 158, h: 17 },
-  ])
+  // jsdom: 오버레이 크기 0 → SDK 표기 대체 사각형(왼쪽 아래 한 줄, A3)만
+  const u = usableArea(map.size, [{ x: 10, y: map.size.h - 27, w: 240, h: 17 }])
   return { rectOf, u }
 }
 /** 단일 완료 조건(원 ⊂ U, 지름 ≥ U 짧은 변 절반) */
@@ -286,10 +284,7 @@ describe('MapView — 범위 맞춤 단일 (8-B1, D-022)', () => {
     const b = map.getBounds()
     const bounds = { s: b.getSW().lat(), n: b.getNE().lat(), w: b.getSW().lng(), e: b.getNE().lng() }
     const rect = boxToRect(circleBox(point.lat, point.lng, 500), { bounds, w: map.size.w, h: map.size.h })
-    const u = usableArea(map.size, [
-      { x: map.size.w - 60, y: 10, w: 50, h: 79 },
-      { x: map.size.w - 168, y: map.size.h - 27, w: 158, h: 17 },
-    ])
+    const u = usableArea(map.size, [{ x: 10, y: map.size.h - 27, w: 240, h: 17 }])
     return { rect, u, ok: satisfiesSingle(rect, u) }
   }
 
@@ -374,7 +369,7 @@ describe('MapView — 범위 맞춤 단일 (8-B1, D-022)', () => {
     const view = await mount(props({ selected: BUPYEONG }))
     const button = screen.getByRole('button', { name: '범위에 맞추기' })
     expect(button).toHaveAttribute('type', 'button')
-    expect(screen.getByRole('list', { name: '지도 범례' }).contains(button)).toBe(true)
+    expect(view.section.querySelector('.map__controls')!.contains(button)).toBe(true)   // 지도 오른쪽 아래 조작 묶음(A3)
     fireEvent.click(button)
     expect(view.map.setZoom).toHaveBeenCalledTimes(2)                   // 조건 만족 상태에서도
 
@@ -384,6 +379,22 @@ describe('MapView — 범위 맞춤 단일 (8-B1, D-022)', () => {
     fireEvent.click(button)
     expect(view.map.setZoom).toHaveBeenCalledTimes(4)                   // 사용자 setZoom(18) 1회 + 맞춤 1회
     expect(circleState(view.map, BUPYEONG).ok).toBe(true)
+  })
+
+  it('지도 확대·축소 버튼(A3): 한 단계씩 바꾸고, 사용자가 직접 바꾼 것이라 잠금을 켠다 — 이후 숨김 복귀 자동 맞춤은 하지 않는다', async () => {
+    const view = await mount(props({ selected: BUPYEONG }))
+    const z = view.map.zoom
+    fireEvent.click(screen.getByRole('button', { name: '지도 확대' }))
+    expect(view.map.setZoom).toHaveBeenLastCalledWith(z + 1, true)
+    fireEvent.click(screen.getByRole('button', { name: '지도 축소' }))
+    expect(view.map.setZoom).toHaveBeenLastCalledWith(z, true)
+    const calls = view.map.setZoom.mock.calls.length
+    layout.set(view.section, { w: 0, h: 0 })
+    resize()
+    view.rerender(<MapView {...props({ selected: { lat: 37.4475, lng: 126.7015 } })} />)   // 새 위치는 잠금을 풀고 맞춘다(순위 2)
+    layout.set(view.section, { w: 955, h: 365 })
+    resize()
+    expect(view.map.setZoom.mock.calls.length).toBe(calls + 1)
   })
 
   it('잠금 중 숨김 복귀는 미뤘던 자동 맞춤을 하지 않는다(사용자가 직접 둔 화면 유지)', async () => {
@@ -406,9 +417,15 @@ describe('MapView — 범위 맞춤 단일 (8-B1, D-022)', () => {
     expect(screen.queryByRole('button', { name: '범위에 맞추기' })).not.toBeInTheDocument()
   })
 
-  it('확대 컨트롤은 SDK SMALL, 실제 그리기 방식(renderMode)을 section에 남긴다', async () => {
+  it('확대·축소는 지도 위 우리 버튼(SDK 확대 컨트롤 끔), 로고·축척·저작권은 왼쪽 아래, 실제 그리기 방식(renderMode)을 section에 남긴다', async () => {
     const view = await mount(props())
-    expect(view.map.options.zoomControlOptions).toEqual({ position: 'TOP_RIGHT', style: 'SMALL' })
+    expect(view.map.options.zoomControl).toBe(false)
+    expect(view.map.options).toMatchObject({
+      logoControlOptions: { position: 'BOTTOM_LEFT' },
+      scaleControlOptions: { position: 'BOTTOM_LEFT' },
+      mapDataControl: true,
+      mapDataControlOptions: { position: 'BOTTOM_LEFT' },
+    })
     expect(view.map.options.gl).toBeUndefined()                         // GL은 VITE_NAVER_MAP_GL=1일 때만
     expect(view.section).toHaveAttribute('data-render-mode', '1')
   })
@@ -1333,10 +1350,7 @@ describe('MapView — 분석 반경 (8-D3, D-022 순위 3)', () => {
     const b = map.getBounds()
     const bounds = { s: b.getSW().lat(), n: b.getNE().lat(), w: b.getSW().lng(), e: b.getNE().lng() }
     const rect = boxToRect(circleBox(p.lat, p.lng, r), { bounds, w: map.size.w, h: map.size.h })
-    const u = usableArea(map.size, [
-      { x: map.size.w - 60, y: 10, w: 50, h: 79 },
-      { x: map.size.w - 168, y: map.size.h - 27, w: 158, h: 17 },
-    ])
+    const u = usableArea(map.size, [{ x: 10, y: map.size.h - 27, w: 240, h: 17 }])
     return satisfiesSingle(rect, u)
   }
 
@@ -1569,12 +1583,12 @@ describe('MapView — A3 다크 지도 스타일과 밝은 지도 복구 (8-DK, 
     expect(document.documentElement.dataset.mapTone).toBeUndefined()
   })
 
-  it('스타일 ID가 없으면 지금처럼 바로 밝은 지도로 내놓고, 저작권 표기를 로고·축척과 같은 오른쪽 아래에 켠다', async () => {
+  it('스타일 ID가 없으면 지금처럼 바로 밝은 지도로 내놓고, 저작권 표기를 로고·축척과 같은 왼쪽 아래에 켠다', async () => {
     vi.stubEnv('VITE_NAVER_MAP_STYLE_ID', '')
     const view = await mountStyled({ selected: A })
     expect(maps[0]!.options.gl).toBeUndefined()
     expect(maps[0]!.options.customStyleId).toBeUndefined()
-    expect(maps[0]!.options).toMatchObject({ mapDataControl: true, mapDataControlOptions: { position: 'BOTTOM_RIGHT' } })
+    expect(maps[0]!.options).toMatchObject({ mapDataControl: true, mapDataControlOptions: { position: 'BOTTOM_LEFT' } })
     expect(document.documentElement.dataset.mapTone).toBe('light')
     expect(view.onSdkState).toHaveBeenLastCalledWith(expect.objectContaining({ status: 'ready' }))
     expect(fakeSdk.Circle).toHaveBeenCalled()

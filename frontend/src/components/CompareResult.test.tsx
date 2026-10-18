@@ -7,6 +7,7 @@ import guwolFixture from '../fixtures/compare-guwol-pcbang.json'
 import songdoFixture from '../fixtures/compare-songdo-pcbang.json'
 import { brokenControls, brokenReferences, duplicateIds, expandAll } from '../test/a11yRefs.ts'
 import { CompareResult } from './CompareResult.tsx'
+import { EVIDENCE_TAB, getInTab, openTab, queryInTab } from '../test/tabs.ts'
 
 // 실제 POST /analyze 응답 (모두 PC방, docs/COMPARE_DESIGN.md 10.1)
 const A = AnalyzeResponseSchema.parse(bupyeongFixture)            // 부평구 부평1동
@@ -21,7 +22,7 @@ function renderCompare(a: AnalyzeResponse, b: AnalyzeResponse) {
   return { ...view, ...handlers }
 }
 
-const scoreTable = () => screen.getByRole('table', { name: /종합·5대 관점 점수 비교/ })
+const scoreTable = () => getInTab(EVIDENCE_TAB, 'table', { name: /종합·5대 관점 점수 비교/ })
 /** 표 행 → [항목, A, B, 차이] 텍스트 */
 const rows = () =>
   within(scoreTable())
@@ -113,7 +114,7 @@ describe('CompareResult — 해석 안내', () => {
 
   it('미산출·데이터 차이: 실제 미산출 관점과 충족률로 위치별 안내 (경쟁성 0곳은 0곳 이유)', () => {
     renderCompare(A, NO_COMPETITION)
-    const section = screen.getByRole('region', { name: '미산출·데이터 차이' })
+    const section = getInTab(EVIDENCE_TAB, 'region', { name: '미산출·데이터 차이' })
     expect(within(section).getAllByRole('listitem').map((li) => li.textContent)).toEqual([
       'B 연수구 송도2동: 경쟁성 미산출 — 반경 500m 안에 같은 업종 점포가 없어 점수를 내지 않았고, 종합점수에서 제외했습니다',
       '데이터 충족률: A 100% · B 78%',
@@ -122,12 +123,12 @@ describe('CompareResult — 해석 안내', () => {
 
   it('모두 산출되고 충족률이 같으면 미산출 섹션을 두지 않는다', () => {
     renderCompare(A, OTHER_GU)
-    expect(screen.queryByRole('region', { name: '미산출·데이터 차이' })).not.toBeInTheDocument()
+    expect(queryInTab(EVIDENCE_TAB, 'region', { name: '미산출·데이터 차이' })).not.toBeInTheDocument()
   })
 
   it('주의할 점은 위치별로: 병목 문장은 표시용 문장, 그 밖의 엔진 경고·데이터 한계는 그대로', () => {
     renderCompare(A, OTHER_GU)
-    const warnings = screen.getByRole('region', { name: '주의할 점' })
+    const warnings = getInTab(EVIDENCE_TAB, 'region', { name: '주의할 점' })
     const a = within(warnings).getByRole('region', { name: 'A 부평구 부평1동' })
     const b = within(warnings).getByRole('region', { name: 'B 남동구 구월3동' })
     expect(a).toHaveTextContent('특별한 경고가 없습니다.')
@@ -162,7 +163,7 @@ describe('CompareResult — 해석 안내', () => {
 describe('CompareResult — 원시값·출처', () => {
   it('원시값 표는 접혀 있고, 펼치면 없는 키("해당 없음")와 null("데이터 없음")을 구분한다', () => {
     renderCompare(A, NO_COMPETITION)
-    const toggle = screen.getByRole('button', { name: '원시값 보기' })
+    const toggle = getInTab(EVIDENCE_TAB, 'button', { name: '원시값 보기' })
     expect(toggle).toHaveAttribute('aria-expanded', 'false')
     expect(screen.queryByRole('region', { name: '핵심 원시값 표' })).not.toBeInTheDocument()
 
@@ -180,6 +181,7 @@ describe('CompareResult — 원시값·출처', () => {
   it('데이터 출처는 한 번만 (#data-sources)', () => {
     renderCompare(A, OTHER_GU)
     expect(document.querySelectorAll('#data-sources')).toHaveLength(1)
+    openTab(EVIDENCE_TAB)                                                     // 상세 근거 탭 안(A3)
     expect(screen.getAllByRole('region', { name: '데이터 출처' })).toHaveLength(1)
   })
 
@@ -201,15 +203,14 @@ describe('CompareResult — 원시값·출처', () => {
     }
   })
 
-  it('위치 카드: "A/B 전체 결과 보기"·"B 위치 다시 고르기"가 각 동작을 부른다', () => {
-    const { onShowDetail, onReselect } = renderCompare(A, OTHER_GU)
-    fireEvent.click(screen.getByRole('button', { name: 'B 전체 결과 보기' }))
+  it('A/B 위치 줄을 누르면 그 위치 전체 결과로 (A3 — "B 다시 고르기"는 조건 바, 전체 결과 버튼은 패널 아래 App)', () => {
+    const { onShowDetail } = renderCompare(A, OTHER_GU)
+    fireEvent.click(within(screen.getByRole('region', { name: 'B 비교 위치' })).getByRole('button', { name: /전체 결과로/ }))
     expect(onShowDetail).toHaveBeenCalledWith('B')
-    fireEvent.click(screen.getByRole('button', { name: 'A 전체 결과 보기' }))
+    fireEvent.click(within(screen.getByRole('region', { name: 'A 기준 위치' })).getByRole('button', { name: /전체 결과로/ }))
     expect(onShowDetail).toHaveBeenCalledWith('A')
-    fireEvent.click(within(screen.getByRole('region', { name: 'B 비교 위치' })).getByRole('button', { name: 'B 위치 다시 고르기' }))
-    expect(onReselect).toHaveBeenCalled()
-    expect(within(screen.getByRole('region', { name: 'A 기준 위치' })).queryByRole('button', { name: /다시 고르기/ })).toBeNull()
+    expect(screen.getByRole('region', { name: 'B 비교 위치' })).toHaveTextContent('59.1')
+    expect(screen.queryByRole('button', { name: /다시 고르기/ })).toBeNull()
   })
 })
 

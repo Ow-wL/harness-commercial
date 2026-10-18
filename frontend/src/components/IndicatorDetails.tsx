@@ -1,4 +1,4 @@
-import { useId, useState } from 'react'
+import { useId, useLayoutEffect, useState } from 'react'
 import type { EngineResult } from '../api/schemas.ts'
 import { confidenceLabel, formatRatio, formatScore, notComputedText, type Indicator } from '../lib/format.ts'
 import { Chip } from './Chip.tsx'
@@ -26,12 +26,27 @@ export function IndicatorDetails({
   indicators,
   summary,
   meta,
+  openRequest,
 }: {
   indicators: readonly Indicator[]
   summary: EngineResult['종합']
   meta: EngineResult['meta']
+  /** 요약 탭의 관점 행을 누르면(A3): 그 관점을 펼치고 그 토글로 포커스 — n이 바뀔 때마다 */
+  openRequest?: { key: string; n: number } | null
 }) {
   const [open, setOpen] = useState<ReadonlySet<string>>(new Set())
+  // 요청을 받으면 그 관점을 펼친다(렌더 중 상태 조정). 포커스는 펼친 뒤 layout effect에서
+  const [seenRequest, setSeenRequest] = useState(openRequest)
+  if (openRequest && openRequest !== seenRequest) {
+    setSeenRequest(openRequest)
+    if (!open.has(openRequest.key)) setOpen(new Set(open).add(openRequest.key))
+  }
+  useLayoutEffect(() => {
+    if (!openRequest) return
+    const toggle = document.getElementById(`detail-toggle-${openRequest.key}`)
+    toggle?.scrollIntoView?.({ block: 'start' })
+    toggle?.focus({ preventScroll: true })
+  }, [openRequest])
   const allOpen = open.size === indicators.length
 
   const toggle = (key: string) =>
@@ -88,7 +103,14 @@ function IndicatorAccordion({
   return (
     <div className={`detail persp-${ind.key}`}>
       <h3 className="detail__heading">
-        <button type="button" className="detail__toggle" aria-expanded={open} aria-controls={panelId} onClick={onToggle}>
+        <button
+          id={`detail-toggle-${ind.key}`}
+          type="button"
+          className="detail__toggle"
+          aria-expanded={open}
+          aria-controls={panelId}
+          onClick={onToggle}
+        >
           <span className="chevron" data-open={open}>
             <Icon name="chevron-right" />
           </span>

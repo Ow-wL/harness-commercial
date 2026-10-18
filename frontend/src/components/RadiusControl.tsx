@@ -19,6 +19,7 @@ export function RadiusControl({
   status,
   narrowHint,
   back,
+  variant = 'step',
 }: {
   options: readonly number[]
   value: number
@@ -30,8 +31,38 @@ export function RadiusControl({
   narrowHint?: string | null
   /** 실패 뒤 이전 반경으로 돌아가기 (S8) */
   back?: { radius: number; onBack: () => void } | null
+  /**
+   * step: 분석 전 패널 ③(라벨·버튼·안내·상태 모두). bar: 결과 화면 위쪽 조건 바(A3) — 라벨과 버튼만 보이고 안내는
+   * 스크린리더 설명으로 둔다. 바 상태의 진행·좁은 반경 안내는 App이 패널 맨 위에 보인다
+   */
+  variant?: 'step' | 'bar'
 }) {
   const labelId = useId()
+  const helpId = useId()
+  if (variant === 'bar') {
+    return (
+      <div className="radius-control radius-control--bar" role="group" aria-labelledby={labelId} aria-describedby={helpId}>
+        <span className="radius-control__label" id={labelId}>
+          분석 반경
+        </span>
+        {options.map((r) => (
+          <button
+            key={r}
+            type="button"
+            className="radius-control__button"
+            aria-pressed={r === value}
+            disabled={disabled}
+            onClick={() => r !== value && onChange(r)}
+          >
+            {formatRadius(r)}
+          </button>
+        ))}
+        <span id={helpId} className="visually-hidden">
+          {RADIUS_HELP}
+        </span>
+      </div>
+    )
+  }
   return (
     <section className="radius-control" aria-label="분석 반경">
       <div className="radius-control__row">

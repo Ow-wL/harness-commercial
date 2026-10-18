@@ -37,7 +37,14 @@ const comparisons = (radiusM: number) =>
     },
   ] as const
 
-/** 데이터 출처 · 면책 (§9 부록). 면책은 엔진 `면책` 원문, 접지 않는다. */
+/**
+ * 결과 주 화면의 서비스 고정 문장 (DESIGN.md §19.6 P1, 사용자 결정 2026-10-16 — 판단 보조 강조안).
+ * 엔진 `면책` 원문은 바꾸지 않고 데이터 출처 섹션의 "엔진 면책 원문" 자리에 그대로 둔다
+ */
+export const SERVICE_DISCLAIMER =
+  '공공데이터로 본 참고 지표예요. 창업 결정은 현장 확인과 함께 판단해 주세요. 순위·매출 예측이 아닙니다.'
+
+/** 데이터 출처 · 엔진 면책 원문 (§9 부록, §19.6). 면책은 엔진 `면책` 원문 그대로(라벨과 한 줄 설명만 붙인다). */
 export function DataSources({ meta, disclaimer }: { meta: EngineResult['meta']; disclaimer: string }) {
   return (
     <section id="data-sources" className="result-section" aria-labelledby="sources-title">
@@ -94,8 +101,10 @@ export function DataSources({ meta, disclaimer }: { meta: EngineResult['meta']; 
         </table>
       </div>
       <p className="result-section__note">
-        분석 반경 {meta.분석반경_m}m · 엔진 {meta.엔진버전}
+        분석 반경 {meta.분석반경_m}m · 업종코드 {meta.업종코드} · 엔진 {meta.엔진버전}
       </p>
+      <h3 className="result-section__subtitle">엔진 면책 원문({meta.엔진버전})</h3>
+      <p className="result-section__note">분석 엔진이 결과와 함께 내는 문장을 바꾸지 않고 그대로 옮겼습니다.</p>
       <p className="disclaimer">{disclaimer}</p>
     </section>
   )

@@ -15,7 +15,8 @@ export type BusinessesState =
   | { status: 'error'; failure: ApiFailure }
 
 /**
- * 조건 입력 (DESIGN.md §5.A, §7.1·§7.3·§7.4, §8.13): 단계 표시 → 위치 → 업종 → 분석하기.
+ * 분석 전 패널 (A3 before, DESIGN.md §19.1 · §5.A·§7.1·§7.3·§7.4): "새 분석" 머리 → ① 위치 → ② 업종 → ③ 분석 반경(서버가
+ * 반경을 광고할 때만) → 분석하기(패널 아래 고정). 단계 번호는 CSS counter라 라벨 글자에 섞이지 않는다.
  * 업종 목록은 GET /businesses 응답 그대로(그룹·순서). 분석 중에는 조건 입력을 잠근다.
  */
 export function ConditionPanel({
@@ -33,6 +34,8 @@ export function ConditionPanel({
   onAnalyze,
   address,
   searchApi,
+  radiusStep,
+  children,
 }: {
   location: LatLng | null
   bizCode: string | null
@@ -50,16 +53,27 @@ export function ConditionPanel({
   address?: ReactNode
   /** Geocoder가 준비된 SDK (7-B4). 있을 때만 "주소로 찾기"를 그린다 — SDK 미준비·Geocoder 없음·실패면 null */
   searchApi?: NaverMapsApi | null
+  /** ③ 분석 반경 (8-D3 RadiusControl — 서버가 반경을 2개 이상 광고할 때만 App이 넘긴다) */
+  radiusStep?: ReactNode
+  /** 분석하기 위 안내·진행·오류 (App) */
+  children?: ReactNode
 }) {
   const hintId = useId()
   const missing = !location ? '위치를 먼저 선택하세요' : !bizCode ? '업종을 선택하세요' : null
 
   return (
-    <section className="conditions" aria-labelledby="conditions-title">
-      <h2 id="conditions-title" className="visually-hidden">
-        분석 조건
-      </h2>
-      <StepIndicator location={location !== null} business={bizCode !== null} />
+    <section className="conditions" aria-label="분석 조건">
+      <div className="conditions__head">
+        <p className="result__eyebrow">
+          <span>새 분석</span>
+        </p>
+        <h1 id="conditions-title" className="conditions__title">
+          어디에, 어떤 가게를 열까요?
+        </h1>
+        <p className="conditions__lead">
+          인천 158개 행정동 공공데이터로 그 자리를 다섯 관점에서 살펴봅니다. 매출이나 성공 확률을 예측하지는 않습니다.
+        </p>
+      </div>
       <LocationField
         location={location}
         disabled={locked}
@@ -77,6 +91,8 @@ export function ConditionPanel({
         onChange={onBizChange}
         onRetry={onRetryBusinesses}
       />
+      {radiusStep && <div className="field step">{radiusStep}</div>}
+      {children}
       <div className="conditions__submit">
         <button
           type="button"
@@ -96,31 +112,6 @@ export function ConditionPanel({
         )}
       </div>
     </section>
-  )
-}
-
-/** ① 위치 ② 업종 ③ 분석 (§8.13). 현재 단계 accent, 완료 단계 체크, 이후 단계 muted */
-function StepIndicator({ location, business }: { location: boolean; business: boolean }) {
-  const steps = [
-    { label: '위치', done: location },
-    { label: '업종', done: business },
-    { label: '분석', done: false },
-  ]
-  const current = steps.findIndex((s) => !s.done)
-  return (
-    <ol className="steps" aria-label="진행 단계">
-      {steps.map((s, i) => (
-        <li
-          key={s.label}
-          className={`steps__item${s.done ? ' steps__item--done' : ''}${i === current ? ' steps__item--current' : ''}`}
-          aria-current={i === current ? 'step' : undefined}
-        >
-          {s.done ? <Icon name="check" size={12} /> : <span aria-hidden="true">{'①②③'[i]}</span>}
-          {s.label}
-          {s.done && <span className="visually-hidden"> (완료)</span>}
-        </li>
-      ))}
-    </ol>
   )
 }
 
@@ -166,8 +157,8 @@ function LocationField({
   const onSearchFocusLost = useSearchFocusRecovery(searchApi, () => manualToggleRef.current)
 
   return (
-    <div className="field" role="group" aria-labelledby={labelId}>
-      <span id={labelId} className="field__label">
+    <div className="field step" role="group" aria-labelledby={labelId} data-done={location !== null}>
+      <span id={labelId} className="field__label step__title">
         위치
       </span>
       {location ? (
@@ -245,8 +236,8 @@ function BusinessSelect({
   const selectedGroup = catalog?.groups.find((g) => g.businesses.some((b) => b.code === bizCode))
 
   return (
-    <div className="field">
-      <label className="field__label" htmlFor={selectId}>
+    <div className="field step" data-done={bizCode !== null}>
+      <label className="field__label step__title" htmlFor={selectId}>
         업종
       </label>
       <div className="select-wrap">
