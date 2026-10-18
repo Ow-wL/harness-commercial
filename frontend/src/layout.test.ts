@@ -143,3 +143,34 @@ describe('참고 주소 줄 — mobile sheet 공간 (7-B2, ADDRESS_DESIGN §5.5)
     expect(css).toMatch(/@media \(max-height: 640px\) \{\s*\.map-sheet \.reference-address \{\s*display: none;/)
   })
 })
+
+describe('tablet 패널 접기 (P9, A3)', () => {
+  const tabletAt = appCss.indexOf('@media (min-width: 640px) and (max-width: 1100px) {\n  .panel__fold {')
+  const tablet = appCss.slice(tabletAt, appCss.indexOf('\n}\n', tabletAt))
+
+  it('접기 줄은 tablet(640~1100px)에서만 보인다 — 밖에서는 display: none', () => {
+    expect(appCss).toMatch(/\.panel__fold \{\s*display: none;\s*\}/)
+    expect(tabletAt).toBeGreaterThan(-1)
+    expect(tablet).toMatch(/\.panel__fold \{[^}]*display: flex;[^}]*min-height: 44px;/)
+  })
+
+  it('접으면 패널은 56px 띠 — 아래 고정을 풀고 접기 줄 밖의 내용(스크롤·아래 행동)은 그리지 않는다', () => {
+    expect(tablet).toMatch(/\.panel\[data-folded\] \{\s*bottom: auto;\s*\}/)
+    expect(tablet).toMatch(/\.panel\[data-folded\] \.panel__fold \{[^}]*min-height: 56px;/)
+    expect(tablet).toMatch(/\.panel\[data-folded\] > :not\(\.panel__fold\) \{\s*display: none;\s*\}/)
+  })
+
+  it('접기·펼치기 버튼은 44px', () => {
+    const at = appCss.indexOf('.panel__fold-button {')
+    expect(appCss.slice(at, appCss.indexOf('}', at))).toMatch(/min-height: 44px;/)
+  })
+})
+
+describe('위치 입력 방법 segmented (P2·P3)', () => {
+  it('버튼은 각 44px, 고른 방법은 aria-pressed로 표시한다', () => {
+    const css = readFileSync(join(process.cwd(), 'src', 'components', 'LocationMethodSwitch.css'), 'utf-8')
+    const at = css.indexOf('.location-method__button {')
+    expect(css.slice(at, css.indexOf('}', at))).toMatch(/min-height: 44px;/)
+    expect(css).toContain('.location-method__button[aria-pressed="true"] {')
+  })
+})

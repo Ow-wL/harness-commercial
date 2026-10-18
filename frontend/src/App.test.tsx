@@ -221,6 +221,93 @@ describe('업종 목록 (GET /businesses)', () => {
   })
 })
 
+describe('tablet 패널 접기 (P9, A3)', () => {
+  const ok = (body: unknown) => ({ status: 200, body })
+  const panel = () => document.querySelector<HTMLElement>('.panel')!
+  const foldButton = () => screen.getByRole('button', { name: /^패널 (접기|펼치기)$/ })
+
+  it('접으면 띠에 위치 · 반경 · 점포 수, 펼치면 그대로 — 버튼은 aria-expanded로 패널 스크롤 영역을 가리킨다', async () => {
+    mockApi({ analyze: [ok(fixture)], nearby: [ok(nearbyFixture)] })
+    render(<App />)
+    await selectBupyeongPcBang()
+    fireEvent.click(analyzeButton())
+    await findList('PC방 점포 목록')
+    expect(foldButton()).toHaveAttribute('aria-expanded', 'true')
+    expect(foldButton()).toHaveAttribute('aria-controls', 'workspace-panel')
+    expect(document.getElementById('workspace-panel')).toHaveAccessibleName('분석 결과')
+    expect(panel().querySelector('.panel__fold-label')).toBeEmptyDOMElement()   // 펼친 상태: 제목과 겹치지 않게 비운다
+
+    fireEvent.click(foldButton())
+    expect(panel()).toHaveAttribute('data-folded', 'true')
+    expect(panel().querySelector('.panel__fold-label')).toHaveTextContent(`부평구 부평1동 · 반경 500m · 점포 ${nearbyFixture.count}곳`)
+    // 접기도 MapView 화면 전환 신호에 실린다(크기 맞춤 흐름 1회 — zoom은 바꾸지 않는다, D-022 순위 8)
+    expect(screen.getByTestId('map')).toHaveAttribute('data-layout-key', expect.stringMatching(/:folded$/))
+    expect(foldButton()).toHaveAccessibleName('패널 펼치기')
+    expect(foldButton()).toHaveAttribute('aria-expanded', 'false')
+    expect(document.activeElement).not.toBe(document.body)
+    fireEvent.click(foldButton())
+    expect(panel()).not.toHaveAttribute('data-folded')
+  })
+
+  it('결과에서 접고 조건 바꾸기 → 같은 조건으로 다시 분석(캐시 적중): 새 결과는 펼쳐진 채 제목 포커스, 이전 접힘이 되살아나지 않는다 (8-P 검수 회귀)', async () => {
+    const fetchMock = mockApi({ analyze: [ok(fixture)], nearby: [ok(nearbyFixture)] })
+    render(<App />)
+    await selectBupyeongPcBang()
+    fireEvent.click(analyzeButton())
+    await findList('PC방 점포 목록')
+    fireEvent.click(foldButton())
+    expect(panel()).toHaveAttribute('data-folded', 'true')
+
+    fireEvent.click(screen.getByRole('button', { name: '조건 바꾸기' }))
+    expect(panel()).not.toHaveAttribute('data-folded')
+    fireEvent.click(analyzeButton())
+    const title = await screen.findByRole('heading', { level: 1, name: '부평구 부평1동 · PC방 분석' })
+    expect(analyzeCalls(fetchMock)).toHaveLength(1)                  // 캐시 적중 — 같은 응답 객체가 다시 보인다
+    expect(panel()).not.toHaveAttribute('data-folded')
+    expect(foldButton()).toHaveAttribute('aria-expanded', 'true')
+    await waitFor(() => expect(document.activeElement).toBe(title))
+  })
+
+  it('결과에서 접고 조건 바꾸기 → 다른 위치로 새 응답: 새 결과는 펼쳐진 채 제목 포커스 (8-P 검수 회귀)', async () => {
+    const fetchMock = mockApi({
+      analyze: [ok(fixture), ok(songdoFixture)],
+      nearby: [ok(nearbyFixture), ok(songdoNearbyFixture)],
+    })
+    render(<App />)
+    await selectBupyeongPcBang()
+    fireEvent.click(analyzeButton())
+    await findList('PC방 점포 목록')
+    fireEvent.click(foldButton())
+    expect(panel()).toHaveAttribute('data-folded', 'true')
+
+    fireEvent.click(screen.getByRole('button', { name: '조건 바꾸기' }))
+    fireEvent.click(screen.getByRole('button', { name: '지도 클릭: 송도' }))
+    fireEvent.click(analyzeButton())
+    const title = await screen.findByRole('heading', { level: 1, name: '연수구 송도2동 · PC방 분석' })
+    expect(analyzeCalls(fetchMock)).toHaveLength(2)
+    expect(panel()).not.toHaveAttribute('data-folded')
+    await waitFor(() => expect(document.activeElement).toBe(title))
+    // 새 결과에서 다시 접고 펼칠 수 있다(기록은 지금 화면 것만)
+    fireEvent.click(foldButton())
+    expect(panel()).toHaveAttribute('data-folded', 'true')
+    fireEvent.click(foldButton())
+    expect(panel()).not.toHaveAttribute('data-folded')
+  })
+
+  it('접은 뒤 화면이 바뀌면(조건 바꾸기 → 분석 조건) 다시 펼친다 — 접힌 패널 안으로 포커스를 옮기지 않는다', async () => {
+    mockApi({ analyze: [ok(fixture)], nearby: [ok(nearbyFixture)] })
+    render(<App />)
+    fireEvent.click(foldButton())
+    expect(panel()).toHaveAttribute('data-folded', 'true')
+    expect(panel().querySelector('.panel__fold-label')).toHaveTextContent('분석 조건')
+    await selectBupyeongPcBang()
+    fireEvent.click(analyzeButton())
+    await screen.findByRole('heading', { level: 1, name: '부평구 부평1동 · PC방 분석' })
+    expect(panel()).not.toHaveAttribute('data-folded')
+    expect(document.activeElement).toHaveAttribute('id', 'result-title')
+  })
+})
+
 describe('분석 흐름', () => {
   it('위치·업종을 고르기 전에는 분석 버튼이 비활성이고, 둘 다 고르면 활성이 된다', async () => {
     mockApi()
@@ -243,7 +330,7 @@ describe('분석 흐름', () => {
     mockApi()
     render(<App />)
     const conditions = screen.getByRole('region', { name: '분석 조건' })
-    fireEvent.click(within(conditions).getByRole('button', { name: '좌표 직접 입력' }))   // 펼침 토글(mobile sheet에도 같은 이름 버튼이 있다)
+    fireEvent.click(within(conditions).getByRole('button', { name: '좌표 입력' }))   // 위치 입력 방법 segmented(mobile sheet에도 같은 이름 버튼이 있다)
     fireEvent.change(screen.getByLabelText('위도'), { target: { value: '37.4894' } })
     fireEvent.change(screen.getByLabelText('경도'), { target: { value: '126.7246' } })
     const submit = screen.getByRole('button', { name: '이 좌표로 선택' })
@@ -1419,7 +1506,14 @@ describe('단일 위치 참고 주소 (7-B2, docs/ADDRESS_DESIGN.md §5.2 B·§5
     const lines = addressLines()
     expect(lines).toHaveLength(2)                                // 위치 필드 + mobile sheet(같은 좌표, 같은 캐시)
     expect(lines[0]).toHaveTextContent('참고 주소 · 인천광역시 부평구 광장로 16 부평민자역사 (NAVER 지도)')
-    expect(screen.getByText('37.4894, 126.7246', { selector: '.location__value .mono' })).toBeInTheDocument()   // 좌표 표시는 그대로
+    // 참고 주소가 있으면 요약은 주소가 앞, 좌표는 접힘(P3) — "좌표"를 펼치면 같은 숫자 그대로
+    const conditionsRegion = screen.getByRole('region', { name: '분석 조건' })
+    expect(conditionsRegion.querySelector('.location__value .mono')).toBeNull()
+    const coordsToggle = within(conditionsRegion).getByRole('button', { name: '좌표' })
+    expect(coordsToggle).toHaveAttribute('aria-expanded', 'false')
+    expect(screen.getByText('37.4894, 126.7246', { selector: '.location__coords .mono' })).not.toBeVisible()
+    fireEvent.click(coordsToggle)
+    expect(screen.getByText('37.4894, 126.7246', { selector: '.location__coords .mono' })).toBeVisible()
 
     const select = screen.getByRole('combobox', { name: '업종' })
     await waitFor(() => expect(select).toBeEnabled())
@@ -1447,7 +1541,7 @@ describe('단일 위치 참고 주소 (7-B2, docs/ADDRESS_DESIGN.md §5.2 B·§5
 
     // 주소 없음(code 3): 줄 없음, 좌표 표시는 그대로
     const conditions = screen.getByRole('region', { name: '분석 조건' })
-    fireEvent.click(within(conditions).getByRole('button', { name: '좌표 직접 입력' }))
+    fireEvent.click(within(conditions).getByRole('button', { name: '좌표 입력' }))
     fireEvent.change(screen.getByLabelText('위도'), { target: { value: '37.4891' } })
     fireEvent.change(screen.getByLabelText('경도'), { target: { value: '126.7236' } })
     fireEvent.click(screen.getByRole('button', { name: '이 좌표로 선택' }))
@@ -1824,7 +1918,19 @@ describe('단일 위치 주소 검색 (7-B4, docs/ADDRESS_DESIGN.md §5.2 A)', (
     expect(searchToggle()).not.toBeInTheDocument()
     sdkReady()
     expect(searchToggle()).toBeInTheDocument()
-    expect(within(conditions()).getByRole('button', { name: '좌표 직접 입력' })).toBeInTheDocument()   // 기존 키보드 대안 그대로
+    // 위치 입력 방법 segmented 1줄 (P2·P3): 지도 → 주소 → 좌표, aria-pressed, 처음은 지도 안내
+    const methods = within(within(conditions()).getByRole('group', { name: '위치 입력 방법' })).getAllByRole('button')
+    expect(methods.map((b) => b.textContent)).toEqual(['지도에서 고르기', '주소로 찾기', '좌표 입력'])
+    expect(methods.map((b) => b.getAttribute('aria-pressed'))).toEqual(['true', 'false', 'false'])
+    expect(conditions()).toHaveTextContent('지도를 눌러 위치를 고르세요.')
+    // 고른 방법의 폼 하나만 열린다
+    fireEvent.click(searchToggle()!)
+    expect(within(conditions()).getByRole('textbox', { name: '주소' })).toBeInTheDocument()
+    expect(within(conditions()).queryByLabelText('위도')).not.toBeInTheDocument()
+    fireEvent.click(within(conditions()).getByRole('button', { name: '좌표 입력' }))
+    expect(within(conditions()).queryByRole('textbox', { name: '주소' })).not.toBeInTheDocument()
+    expect(within(conditions()).getByLabelText('위도')).toBeInTheDocument()
+    expect(methods.map((b) => b.getAttribute('aria-pressed'))).toEqual(['false', 'false', 'true'])
   })
 
   it('검색 → 결과 선택: 분석은 시작하지 않고 위치 요약으로 포커스, 참고 주소는 역지오코딩 캐시로, 분석 요청 좌표는 adapter 좌표 그대로', async () => {
@@ -1842,12 +1948,13 @@ describe('단일 위치 주소 검색 (7-B4, docs/ADDRESS_DESIGN.md §5.2 A)', (
     const item = within(screen.getByRole('list', { name: /검색 결과 1건/ })).getByRole('button')
     expect(item).toHaveTextContent('인천광역시 부평구 부평대로 3')
     fireEvent.click(item)
-    // 위치 요약(tabIndex=-1)으로 포커스, 폼은 접힘, 분석 요청 없음
-    const summary = screen.getByText(`${lat}, ${lng}`, { selector: '.location__value .mono' }).closest<HTMLElement>('.location__value')!
+    // 위치 요약(tabIndex=-1)으로 포커스, 결과 목록은 닫히고 주소 폼(고른 방법)은 입력값 그대로 남는다, 분석 요청 없음
+    const summary = screen.getByText(`${lat}, ${lng}`, { selector: '.location__value .mono' }).closest<HTMLElement>('.location__selected')!
     expect(document.activeElement).toBe(summary)
     expect(summary).toHaveAttribute('tabindex', '-1')
-    expect(within(conditions()).queryByRole('textbox', { name: '주소' })).not.toBeInTheDocument()
-    expect(searchToggle()).toHaveAttribute('aria-expanded', 'false')
+    expect(screen.queryByRole('list', { name: /검색 결과/ })).not.toBeInTheDocument()
+    expect(within(conditions()).getByRole('textbox', { name: '주소' })).toHaveValue('인천광역시 부평구 부평대로 1')
+    expect(searchToggle()).toHaveAttribute('aria-pressed', 'true')
     expect(screen.getByTestId('map')).toHaveAttribute('data-selected', `${lat},${lng}`)
     expect(analyzeCalls(fetchMock)).toHaveLength(0)
 
@@ -1863,6 +1970,39 @@ describe('단일 위치 주소 검색 (7-B4, docs/ADDRESS_DESIGN.md §5.2 A)', (
     expect(screen.getByRole('group', { name: '분석 조건' })).toHaveTextContent('부평구 부평1동')   // 행정동은 context 그대로
     expect(screen.getByRole('group', { name: '분석 조건' })).not.toHaveTextContent('부평대로')
     expect(sdkMock.geocodeCalls).toHaveLength(1)
+  })
+
+  it('mobile 지도 sheet에도 같은 segmented — 주소·좌표를 누르면 패널 화면으로 가서 그 폼의 첫 입력칸으로 포커스 (B5)', () => {
+    mockApi()
+    render(<App />)
+    sdkReady()
+    const app = document.querySelector<HTMLElement>('.app')!
+    const sheet = () => within(document.querySelector<HTMLElement>('.map-sheet')!)
+    const sheetMethods = sheet().getByRole('group', { name: '위치 입력 방법' })
+    expect(within(sheetMethods).getAllByRole('button').map((b) => b.textContent)).toEqual(['지도에서 고르기', '주소로 찾기', '좌표 입력'])
+    expect(app).toHaveAttribute('data-screen', 'map')
+
+    fireEvent.click(sheet().getByRole('button', { name: '좌표 입력' }))
+    expect(app).toHaveAttribute('data-screen', 'panel')
+    expect(document.activeElement).toBe(within(conditions()).getByLabelText('위도'))
+    expect(within(conditions()).getByRole('button', { name: '좌표 입력' })).toHaveAttribute('aria-pressed', 'true')
+
+    // 패널의 "지도에서 고르기" → 지도 화면, sheet도 같은 방법이 눌린 상태
+    fireEvent.click(within(conditions()).getByRole('button', { name: '지도에서 고르기' }))
+    expect(app).toHaveAttribute('data-screen', 'map')
+    expect(sheet().getByRole('button', { name: '지도에서 고르기' })).toHaveAttribute('aria-pressed', 'true')
+
+    fireEvent.click(sheet().getByRole('button', { name: '주소로 찾기' }))
+    expect(app).toHaveAttribute('data-screen', 'panel')
+    expect(document.activeElement).toBe(within(conditions()).getByRole('textbox', { name: '주소' }))
+  })
+
+  it('참고 주소가 없으면 좌표를 접지 않는다 — 좌표가 유일한 요약', () => {
+    mockApi()
+    render(<App />)
+    fireEvent.click(screen.getByRole('button', { name: '지도 클릭: 부평역' }))
+    expect(screen.getByText('37.4894, 126.7246', { selector: '.location__value .mono' })).toBeVisible()
+    expect(within(conditions()).queryByRole('button', { name: '좌표' })).not.toBeInTheDocument()
   })
 
   it('인천 밖 결과도 고를 수 있고, 분석하면 backend location_outside를 기존 오류로 보인다(사전 차단 없음)', async () => {
@@ -1882,7 +2022,7 @@ describe('단일 위치 주소 검색 (7-B4, docs/ADDRESS_DESIGN.md §5.2 A)', (
     expect(bodyOf(analyzeCalls(fetchMock)[0]!)).toEqual({ lat: 37.5662952, lng: 126.9779692, biz_code: 'R10406' })
   })
 
-  it('SDK 인증 실패: 포커스가 있던 검색 폼이 사라지면 "좌표 직접 입력"으로 포커스, 늦은 검색 응답은 버리고 좌표 입력·분석은 그대로', async () => {
+  it('SDK 인증 실패: 포커스가 있던 검색 폼이 사라지면 "지도에서 고르기"(눌린 상태)로 포커스, 늦은 검색 응답은 버리고 좌표 입력·분석은 그대로', async () => {
     const fetchMock = mockApi({ analyze: [ok(fixture)], nearby: [ok(nearbyFixture)] })
     render(<App />)
     sdkReady()
@@ -1891,13 +2031,15 @@ describe('단일 위치 주소 검색 (7-B4, docs/ADDRESS_DESIGN.md §5.2 A)', (
     fireEvent.click(screen.getByRole('button', { name: 'SDK 인증 실패' }))
     expect(searchToggle()).not.toBeInTheDocument()
     expect(within(conditions()).queryByRole('textbox', { name: '주소' })).not.toBeInTheDocument()
-    expect(document.activeElement).toBe(within(conditions()).getByRole('button', { name: '좌표 직접 입력' }))
+    const mapMethod = within(conditions()).getByRole('button', { name: '지도에서 고르기' })
+    expect(document.activeElement).toBe(mapMethod)
+    expect(mapMethod).toHaveAttribute('aria-pressed', 'true')
     await answer(sdkMock.geocodeCalls, 0, 200, forward([BUPYEONG]))           // 늦은 응답
     expect(screen.queryByRole('list', { name: /검색 결과/ })).not.toBeInTheDocument()
     expect(screen.getByTestId('map')).toHaveAttribute('data-selected', '')
 
     // 기본 위치 선택은 그대로
-    fireEvent.click(within(conditions()).getByRole('button', { name: '좌표 직접 입력' }))
+    fireEvent.click(within(conditions()).getByRole('button', { name: '좌표 입력' }))
     fireEvent.change(screen.getByLabelText('위도'), { target: { value: '37.4894' } })
     fireEvent.change(screen.getByLabelText('경도'), { target: { value: '126.7246' } })
     fireEvent.click(screen.getByRole('button', { name: '이 좌표로 선택' }))
@@ -1956,7 +2098,9 @@ describe('단일 위치 주소 검색 (7-B4, docs/ADDRESS_DESIGN.md §5.2 A)', (
     await selectBupyeongPcBang()
     fireEvent.click(analyzeButton())
     expect(searchToggle()).toBeDisabled()
-    expect(within(conditions()).getByRole('button', { name: '좌표 직접 입력' })).toBeDisabled()
+    expect(within(conditions()).getByRole('button', { name: '좌표 입력' })).toBeDisabled()
+    expect(within(conditions()).getByRole('button', { name: '지도에서 고르기' })).toBeDisabled()
+    expect(within(conditions()).getByRole('textbox', { name: '주소' })).toBeDisabled()
     await act(async () => release(ok(fixture)))
     await screen.findByRole('heading', { level: 1, name: '부평구 부평1동 · PC방 분석' })
   })
@@ -2263,13 +2407,13 @@ describe('mobile 패널에서 고른 점포 → "지도 보기" (6-4)', () => {
     fireEvent.click(analyzeButton())
     const list = await findList('PC방 점포 목록')
     expect(app()).toHaveAttribute('data-screen', 'panel')
-    expect(map()).toHaveAttribute('data-layout-key', 'panel')                     // 화면 전환 신호를 MapView에 넘긴다
+    expect(map()).toHaveAttribute('data-layout-key', 'panel:open')                     // 화면 전환 신호를 MapView에 넘긴다
     fireEvent.click(within(list).getAllByRole('button')[0]!)
     expect(map()).toHaveAttribute('data-active-store', nearbyFixture.stores[0]!.id)   // 숨겨진 지도에 선택만 넘긴다
 
     fireEvent.click(screen.getAllByRole('button', { name: '지도 보기' })[0]!)
     expect(app()).toHaveAttribute('data-screen', 'map')
-    expect(map()).toHaveAttribute('data-layout-key', 'map')
+    expect(map()).toHaveAttribute('data-layout-key', 'map:open')
     expect(map()).toHaveAttribute('data-active-store', nearbyFixture.stores[0]!.id)
     expect(map()).toHaveAttribute('data-stores', '12')
     expect(analyzeCalls(fetchMock)).toHaveLength(1)

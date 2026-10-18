@@ -15,7 +15,9 @@ import { BandPeek } from './components/AttentionBand.tsx'
 import { ComparePanel, CompareSheet } from './components/ComparePanel.tsx'
 import { CompareDetail, CompareResult, StoreSideSwitch } from './components/CompareResult.tsx'
 import { ConditionPanel, type BusinessesState } from './components/ConditionPanel.tsx'
+import { LocationMethodSwitch, type LocationMethod } from './components/LocationMethodSwitch.tsx'
 import { ErrorBlock } from './components/ErrorBlock.tsx'
+import { Icon } from './components/Icon.tsx'
 import { MapView, type LatLng, type MapCompare, type MapStore } from './components/MapView.tsx'
 import { MoreBelow } from './components/MoreBelow.tsx'
 import { NearbyStores } from './components/NearbyStores.tsx'
@@ -39,6 +41,7 @@ import { headline } from './lib/headline.ts'
 import { singleBand } from './lib/attentionBand.ts'
 import { ResultCache } from './lib/resultCache.ts'
 import { useNearbyRequest, type RadiusProblem } from './lib/useNearbyRequest.ts'
+import { useReferenceAddress } from './lib/useReferenceAddress.ts'
 import './App.css'
 
 /**
@@ -155,6 +158,12 @@ function App() {
   // NAVER SDK 상태 (7-B2, docs/ADDRESS_DESIGN.md §5.1): MapView가 onSdkState로 올린다. 참고 주소는 ready + geocoder ready일 때만 조회한다.
   // 로더를 여기서 다시 부르거나 SDK를 다시 넣지 않는다
   const [sdk, setSdk] = useState<SdkState>({ status: 'loading' })
+  // 위치 입력 방법 (P2·P3): 조건 패널과 mobile 지도 sheet의 segmented가 같이 쓴다. sheet에서 주소·좌표를 고르면
+  // 패널 화면으로 가서 그 폼의 첫 입력칸으로 포커스(methodFocus를 올린다, B5)
+  const [locationMethod, setLocationMethod] = useState<LocationMethod>('map')
+  const [methodFocus, setMethodFocus] = useState(0)
+  // 고른 좌표의 참고 주소가 실제로 있는지 — 있으면 위치 요약에서 좌표를 접는다. ReferenceAddress와 같은 캐시라 조회는 1회
+  const pickedAddress = useReferenceAddress(sdk, location)
   // 반경 안 동종 점포 (4차): 분석 성공 뒤 같은 좌표·업종으로 따로 조회한다. null = 분석 결과 없음
   // 조건이 바뀌면 취소·제거하고, 늦게 온 이전 요청 응답은 버린다 (useNearbyRequest)
   const nearbyA = useNearbyRequest(nearbyOptions)
@@ -190,8 +199,14 @@ function App() {
   const [bPickSeq, setBPickSeq] = useState(0)
   // 비교 화면 전환 뒤 포커스를 옮길 요소 id (렌더 뒤에 옮긴다). resetScroll: 옮기기 직전에 그 요소의 조상 스크롤을 맨 위로(6-5)
   const [focusRequest, setFocusRequest] = useState<{ id: string; n: number; resetScroll?: boolean } | null>(null)
-  const focusLater = (id: string, opts: { resetScroll?: boolean } = {}) =>
+  // tablet 패널 접기 (P9, A3): 접은 화면(패널 이름 + 그때 보이던 결과 응답 객체)을 기억한다. 화면이 바뀌면(이름이나 응답이 달라지면)
+  // 그 기록은 버린다 — 조건 바꾸기 → 다시 분석(캐시 적중 포함)으로 같은 이름의 화면이 와도 이전 접힘이 되살아나지 않는다(8-P 검수).
+  // 포커스를 옮길 일이 생겨도 펼친다
+  const [foldedAt, setFoldedAt] = useState<{ label: string; shown: object | null } | null>(null)
+  const focusLater = (id: string, opts: { resetScroll?: boolean } = {}) => {
+    setFoldedAt(null)                                      // 접힌 패널 안으로 포커스를 옮기지 않게 먼저 펼친다
     setFocusRequest((r) => ({ id, n: (r?.n ?? 0) + 1, ...opts }))
+  }
 
   // GET /businesses — 업종 목록은 API에서만 받는다
   useEffect(() => {
@@ -631,6 +646,7 @@ function App() {
   /** 패널(펼친 시트) 스크롤 영역 — "아래에 더 있어요" 표시가 본다 */
   const panelScrollRef = useRef<HTMLElement>(null)
   const pickOnMap = () => {
+    setLocationMethod('map')
     setMobileScreen('map')
     mapRef.current?.scrollIntoView?.({ block: 'nearest' })
   }
@@ -1040,7 +1056,11 @@ function App() {
           onRetryBusinesses={reloadBusinesses}
           onAnalyze={runAnalysis}
           address={<ReferenceAddress sdk={sdk} point={location} />}
+          hasAddress={Boolean(pickedAddress?.roadAddress ?? pickedAddress?.jibunAddress)}
           searchApi={searchApi}
+          method={locationMethod}
+          methodFocus={methodFocus}
+          onMethodChange={setLocationMethod}
           radiusStep={radiusControl}
         >
           {compareReload && analysis.status === 'error' && (
@@ -1060,6 +1080,24 @@ function App() {
     )
   }
 
+  // 접은 화면 = 지금 화면인지: 패널 이름과 보이는 응답(비교 결과가 있으면 그것, 아니면 단일 결과)이 같아야 한다
+  const shownResponse: object | null = compared ?? result
+  if (foldedAt !== null && (foldedAt.label !== panelLabel || foldedAt.shown !== shownResponse)) {
+    setFoldedAt(null)                                      // 화면이 바뀌었다 — 렌더 중 상태 조정(이전 기록을 남기지 않는다)
+  }
+  const panelFolded = foldedAt !== null && foldedAt.label === panelLabel && foldedAt.shown === shownResponse
+  // 접힌 띠 문구 (P9, "지도 보기 · 반경 500m · 점포 12곳"을 A3에 맞춤): 단일 결과는 위치 · 반경 · 점포 수, 그 밖은 패널 이름
+  const foldSummary =
+    result && compare.status === 'off'
+      ? [
+          locationName(result.context),
+          `반경 ${formatRadius(result.result.meta.분석반경_m)}`,
+          nearby?.status === 'success' && `점포 ${nearby.data.count}곳`,
+        ]
+          .filter(Boolean)
+          .join(' · ')
+      : panelLabel
+
   return (
     <div
       className="app"
@@ -1071,7 +1109,8 @@ function App() {
         <MapView
           onSdkState={setSdk}
           // mobile 지도↔패널 전환 신호: 크기 알림 없이 지도 화면으로 돌아와도 크기 맞춤·미룬 정보창 처리 (6-4)
-          layoutKey={mobileScreen}
+          // tablet 패널 접기도 같은 신호 — 지도 크기는 그대로라 zoom은 바꾸지 않고 컨트롤 띠·미룬 정보창만 다시 본다(D-022 순위 8)
+          layoutKey={`${mobileScreen}:${panelFolded ? 'folded' : 'open'}`}
           selected={location}
           radiusM={radius}
           markerTone={markerTone}
@@ -1098,8 +1137,25 @@ function App() {
         {barCondition}
         {radiusInBar && radiusControl}
       </header>
-      <div className="panel" data-map-obstacle>
-        <main ref={panelScrollRef} className="workspace__panel" aria-label={panelLabel}>
+      <div className="panel" data-map-obstacle data-folded={panelFolded || undefined}>
+        {/* tablet(640~1100px)에서만 보인다 — 패널을 접어 지도를 넓게 본다 (P9) */}
+        <div className="panel__fold">
+          {/* 펼친 상태에서는 패널 제목과 겹치므로 접혔을 때만 */}
+          <span className="panel__fold-label">{panelFolded && foldSummary}</span>
+          <button
+            type="button"
+            className="panel__fold-button"
+            aria-expanded={!panelFolded}
+            aria-controls="workspace-panel"
+            onClick={() => setFoldedAt(panelFolded ? null : { label: panelLabel, shown: shownResponse })}
+          >
+            <span className="panel__fold-icon" aria-hidden="true">
+              <Icon name="chevron-right" size={16} />
+            </span>
+            <span className="visually-hidden">패널</span> {panelFolded ? '펼치기' : '접기'}
+          </button>
+        </div>
+        <main id="workspace-panel" ref={panelScrollRef} className="workspace__panel" aria-label={panelLabel}>
           {radiusNotes}
           {panelBody}
           {/* 결과·비교 화면에서만 (분석 전 패널은 아래 고정 "분석하기"가 같은 자리) */}
@@ -1171,6 +1227,19 @@ function App() {
               </p>
               {/* 참고 주소 한 줄(말줄임, 작은 높이에서는 숨김 — ReferenceAddress.css). 좌표 키가 패널·결과와 같아 조회는 1회 */}
               <ReferenceAddress sdk={sdk} point={location} />
+              {/* 조건 패널과 같은 segmented·같은 상태 (B5): 주소·좌표를 누르면 패널로 가서 그 폼을 바로 연다 */}
+              <LocationMethodSwitch
+                // 주소 기능이 꺼지면 조건 패널처럼 지도 안내로 본다
+                value={locationMethod === 'address' && !searchApi ? 'map' : locationMethod}
+                addressReady={searchApi !== null}
+                disabled={analyzing}
+                onChange={(m) => {
+                  setLocationMethod(m)
+                  if (m === 'map') return
+                  setMobileScreen('panel')
+                  setMethodFocus((n) => n + 1)
+                }}
+              />
               <button
                 type="button"
                 className={`button ${location ? 'button--primary' : 'button--secondary'}`}

@@ -4,7 +4,7 @@ import { GUIDE_LABELS, PERSPECTIVE_GUIDE } from '../content/scoreGuide.ts'
 import pcbangFixture from '../fixtures/bupyeong-pcbang.json'
 import nailShopFixture from '../fixtures/bupyeong-nailshop.json'
 import { AnalysisResult } from './AnalysisResult.tsx'
-import { EVIDENCE_TAB, getInTab } from '../test/tabs.ts'
+import { EVIDENCE_TAB, getInTab, openTab } from '../test/tabs.ts'
 
 /** 실제 /analyze 응답: 부평역 PC방(5개 관점 산출) · 부평역 네일숍(안정성 미산출) */
 const PCBANG = AnalyzeResponseSchema.parse(pcbangFixture)
@@ -21,16 +21,27 @@ const guideToggle = (label: string) => screen.getByRole('button', { name: `${lab
 describe('관점 설명 (DESIGN.md §8.9a)', () => {
   it('5개 관점 모두 아코디언 안에 기본 접힌 설명이 있고, 펼치면 해당 관점의 다섯 항목이 보인다', () => {
     render(<AnalysisResult analysis={PCBANG} />)
+    // 비용 줄이기(8-P 검수): 문서 전체 role 검색을 반복하지 않는다 — 상세 근거 탭 패널을 한 번 잡고, 관점마다 그 관점의
+    // 설명 묶음(.guide) 안에서만 role로 찾는다. "설명 영역이 없다"는 문서 전체에서 같은 role·이름을 DOM으로 센다
+    openTab(EVIDENCE_TAB)
+    const evidence = screen.getByRole('tabpanel', { name: EVIDENCE_TAB })
+    const regionsNamed = (name: string) =>
+      [...document.querySelectorAll('[role="region"]')].filter((el) => el.getAttribute('aria-label') === name)
     for (const [key, label] of Object.entries(LABELS) as [keyof typeof LABELS, string][]) {
-      openAccordion(label)
-      const toggle = guideToggle(label)
+      const name = `${label}은 무엇을 보나요`
+      fireEvent.click(within(evidence).getByRole('button', { name: new RegExp(`^${label}(?!은 무엇을 보나요)`) }))
+      const box = within(
+        [...evidence.querySelectorAll<HTMLElement>('.guide')].find((g) => g.querySelector('.guide__toggle')?.textContent?.includes(name))!,
+      )
+      const toggle = box.getByRole('button', { name })
       expect(toggle).toHaveAttribute('type', 'button')
       expect(toggle).toHaveAttribute('aria-expanded', 'false')
-      expect(screen.queryByRole('region', { name: `${label}은 무엇을 보나요` })).not.toBeInTheDocument()
+      expect(regionsNamed(name)).toHaveLength(0)
 
       fireEvent.click(toggle)
       expect(toggle).toHaveAttribute('aria-expanded', 'true')
-      const region = screen.getByRole('region', { name: `${label}은 무엇을 보나요` })
+      const region = box.getByRole('region', { name })
+      expect(regionsNamed(name)).toEqual([region])                  // 문서 전체에서 그 하나뿐
       expect(toggle).toHaveAttribute('aria-controls', region.id)
       for (const term of Object.values(GUIDE_LABELS)) expect(within(region).getByText(term)).toBeInTheDocument()
       const guide = PERSPECTIVE_GUIDE[key]
@@ -40,7 +51,7 @@ describe('관점 설명 (DESIGN.md §8.9a)', () => {
 
       fireEvent.click(toggle)
       expect(toggle).toHaveAttribute('aria-expanded', 'false')
-      expect(screen.queryByRole('region', { name: `${label}은 무엇을 보나요` })).not.toBeInTheDocument()
+      expect(regionsNamed(name)).toHaveLength(0)
     }
   })
 

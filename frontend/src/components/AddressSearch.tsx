@@ -28,6 +28,7 @@ export function AddressSearch({
   onSelect,
   onFocusLost,
   labelPrefix = '',
+  embedded = false,
 }: {
   api: NaverMapsApi
   disabled: boolean
@@ -36,8 +37,11 @@ export function AddressSearch({
   onFocusLost?: () => void
   /** 버튼·라벨·검색 영역 이름 앞에 붙는 말 (예: "B " → "B 주소로 찾기", "B 주소", "B 주소 검색") */
   labelPrefix?: string
+  /** 펼침 버튼 없이 폼을 늘 연다 — 위치 입력 방법 segmented에서 "주소로 찾기"를 고른 동안 (P2·P3). 결과를 골라도 폼은 남고 목록만 닫힌다 */
+  embedded?: boolean
 }) {
-  const [open, setOpen] = useState(false)
+  const [openState, setOpen] = useState(false)
+  const open = embedded || openState
   const [query, setQuery] = useState('')
   const [blank, setBlank] = useState(false)
   const [phase, setPhase] = useState<Phase>({ status: 'idle' })
@@ -145,19 +149,21 @@ export function AddressSearch({
 
   return (
     <div ref={rootRef} className="address-search">
-      <button
-        type="button"
-        className="button-ghost button-ghost--small"
-        aria-expanded={open}
-        aria-controls={formId}
-        disabled={disabled}
-        onClick={toggle}
-      >
-        <span className="chevron" data-open={open}>
-          <Icon name="chevron-right" />
-        </span>
-        {labelPrefix}주소로 찾기
-      </button>
+      {!embedded && (
+        <button
+          type="button"
+          className="button-ghost button-ghost--small"
+          aria-expanded={open}
+          aria-controls={formId}
+          disabled={disabled}
+          onClick={toggle}
+        >
+          <span className="chevron" data-open={open}>
+            <Icon name="chevron-right" />
+          </span>
+          {labelPrefix}주소로 찾기
+        </button>
+      )}
       {open && (
         <div id={formId} className="address-search__body">
           <form className="address-search__form" role="search" aria-label={`${labelPrefix}주소 검색`} onSubmit={submit} noValidate>

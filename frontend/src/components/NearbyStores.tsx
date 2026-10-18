@@ -123,6 +123,7 @@ export function NearbyStores({
             <p className="result-section__empty">반경 {formatRadius(radiusM)} 안에 같은 업종 점포가 없습니다.</p>
           ) : (
             <>
+              <DistanceStrip stores={stores} radiusM={radiusM} activeId={activeId} />
               <ol id={listId} className="nearby__list" aria-label={`${place ? `${place} ` : ''}${bizName} 점포 목록`}>
                 {visible.map((s) => (
                   <li key={s.id}>
@@ -155,5 +156,49 @@ export function NearbyStores({
         </>
       )}
     </section>
+  )
+}
+
+/** 거리 띠의 텍스트 구간 (P7): 반경보다 짧은 구간만 — 반경 전체 수는 위 안내 문구가 이미 말한다 */
+const STRIP_BANDS = [100, 300] as const
+
+/**
+ * 점포 거리 띠 (P7, DESIGN.md §8.14 · A3 시안 .strip): 목록 위 0~반경 가로 축에 점포 1개 = 점 1개(지도 점포 점과 같은 색),
+ * 선택한 점포 점은 강조. 점은 장식(aria-hidden)이고 같은 정보를 아래 텍스트("100m 안 N곳 · 300m 안 N곳")로 준다.
+ * 거리는 API distance_m 그대로(반올림·보정 없음), 축 밖으로 나가지 않게 0~100%로만 자른다.
+ */
+function DistanceStrip({
+  stores,
+  radiusM,
+  activeId,
+}: {
+  stores: NearbyStoresResponse['stores']
+  radiusM: number
+  activeId: string | null
+}) {
+  const bands = STRIP_BANDS.filter((m) => m < radiusM)
+  return (
+    <div className="nearby__strip-wrap">
+      <div className="nearby__strip" aria-hidden="true">
+        {stores.map((s) => (
+          <i
+            key={s.id}
+            className="nearby__dot"
+            data-active={s.id === activeId || undefined}
+            style={{ left: `${Math.min(100, Math.max(0, (s.distance_m / radiusM) * 100))}%` }}
+          />
+        ))}
+      </div>
+      <p className="nearby__axis" aria-hidden="true">
+        <span>분석 지점</span>
+        <span>{formatRadius(radiusM / 2)}</span>
+        <span>{formatRadius(radiusM)}</span>
+      </p>
+      {bands.length > 0 && (
+        <p className="nearby__bands">
+          {bands.map((m) => `${formatRadius(m)} 안 ${stores.filter((s) => s.distance_m <= m).length}곳`).join(' · ')}
+        </p>
+      )}
+    </div>
   )
 }

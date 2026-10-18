@@ -6,6 +6,7 @@ import { useSearchFocusRecovery } from '../lib/useSearchFocusRecovery.ts'
 import { AddressSearch } from './AddressSearch.tsx'
 import { CoordinateForm } from './CoordinateForm.tsx'
 import { Icon } from './Icon.tsx'
+import { LocationMethodSwitch, type LocationMethod } from './LocationMethodSwitch.tsx'
 import type { LatLng } from './MapView.tsx'
 import './ConditionPanel.css'
 
@@ -33,7 +34,11 @@ export function ConditionPanel({
   onRetryBusinesses,
   onAnalyze,
   address,
+  hasAddress = false,
   searchApi,
+  method,
+  methodFocus = 0,
+  onMethodChange,
   radiusStep,
   children,
 }: {
@@ -53,6 +58,13 @@ export function ConditionPanel({
   address?: ReactNode
   /** Geocoder가 준비된 SDK (7-B4). 있을 때만 "주소로 찾기"를 그린다 — SDK 미준비·Geocoder 없음·실패면 null */
   searchApi?: NaverMapsApi | null
+  /** 참고 주소 줄이 실제로 그려지는지 (있으면 좌표를 접는다, P3) */
+  hasAddress?: boolean
+  /** 위치 입력 방법 (P2·P3) — App이 들고 mobile 지도 sheet와 같이 쓴다 */
+  method: LocationMethod
+  /** mobile 지도 sheet에서 방법을 고르면 올린다 — 그 폼의 첫 입력칸으로 포커스 */
+  methodFocus?: number
+  onMethodChange: (method: LocationMethod) => void
   /** ③ 분석 반경 (8-D3 RadiusControl — 서버가 반경을 2개 이상 광고할 때만 App이 넘긴다) */
   radiusStep?: ReactNode
   /** 분석하기 위 안내·진행·오류 (App) */
@@ -79,7 +91,11 @@ export function ConditionPanel({
         disabled={locked}
         error={locationError}
         address={address}
+        hasAddress={hasAddress}
         searchApi={searchApi ?? null}
+        method={method}
+        methodFocus={methodFocus}
+        onMethodChange={onMethodChange}
         onPickOnMap={onPickOnMap}
         onLocationInput={onLocationInput}
       />
@@ -116,32 +132,48 @@ export function ConditionPanel({
 }
 
 /**
- * 위치 필드 (§7.4). 지도에서 고른 좌표를 읽기 전용으로 보여 준다.
- * 키보드 대안(§15): "주소로 찾기"(7-B4, Geocoder 준비 때만)와 "좌표 직접 입력" — 지도 클릭과 같은 기능(`onLocationInput`).
+ * 위치 필드 (§7.4, P2·P3): 선택 요약(참고 주소가 앞, 좌표는 접힘) → 입력 방법 segmented 1줄
+ * [지도에서 고르기 │ 주소로 찾기 │ 좌표 입력] → 고른 방법의 안내·폼 하나. 주소·좌표는 지도 클릭의 키보드 대안(§15)으로
+ * 지도 클릭과 같은 기능(`onLocationInput`)이다. "주소로 찾기"는 Geocoder 준비 때만(7-B4).
+ * 방법은 App이 들고 있다 — mobile 지도 sheet의 같은 segmented가 패널로 와서 그 폼을 바로 연다(`methodFocus`, B5).
  */
 function LocationField({
   location,
   disabled,
   error,
   address,
+  hasAddress,
   searchApi,
+  method,
+  methodFocus,
+  onMethodChange,
   onPickOnMap,
   onLocationInput,
 }: {
   location: LatLng | null
   disabled: boolean
   error?: ReactNode
-  /** "선택됨 · 좌표" 아래 참고 주소 줄 (7-B2). 좌표가 없으면 그리지 않는다 */
+  /** 선택 요약의 참고 주소 줄 (7-B2). 좌표가 없으면 그리지 않는다 */
   address?: ReactNode
+  /** 참고 주소 줄이 실제로 있을 때만 좌표를 접는다 — 주소가 없으면 좌표가 유일한 요약이다 */
+  hasAddress: boolean
   searchApi: NaverMapsApi | null
+  method: LocationMethod
+  /** 바뀔 때마다 고른 방법의 첫 입력칸으로 포커스 (mobile 지도 sheet에서 연 경우) */
+  methodFocus: number
+  onMethodChange: (method: LocationMethod) => void
   onPickOnMap: () => void
   onLocationInput: (point: LatLng) => void
 }) {
   const labelId = useId()
-  const [manualOpen, setManualOpen] = useState(false)
-  const manualId = useId()
-  const summaryRef = useRef<HTMLSpanElement>(null)
-  const manualToggleRef = useRef<HTMLButtonElement>(null)
+  const methodId = useId()
+  const coordsId = useId()
+  const [coordsOpen, setCoordsOpen] = useState(false)
+  const summaryRef = useRef<HTMLDivElement>(null)
+  const bodyRef = useRef<HTMLDivElement>(null)
+  const mapButtonRef = useRef<HTMLButtonElement>(null)
+  // Geocoder가 꺼지면 "주소로 찾기"가 없어진다 — 그동안은 지도 안내를 보인다
+  const shown: LocationMethod = method === 'address' && !searchApi ? 'map' : method
 
   // 주소 검색 결과를 고르면 위치 요약으로 포커스 (§10 Q2). 고른 좌표가 그려진 뒤에 옮긴다
   const [focusSummary, setFocusSummary] = useState(0)
@@ -153,61 +185,87 @@ function LocationField({
     setFocusSummary((n) => n + 1)
   }
 
-  // SDK 실패로 "주소로 찾기"가 포커스를 가진 채 사라지면 남은 기본 조작("좌표 직접 입력")으로 포커스를 옮긴다
-  const onSearchFocusLost = useSearchFocusRecovery(searchApi, () => manualToggleRef.current)
+  useLayoutEffect(() => {
+    if (methodFocus) bodyRef.current?.querySelector<HTMLInputElement>('input')?.focus()
+  }, [methodFocus])
+
+  // SDK 실패로 주소 폼이 포커스를 가진 채 사라지면 지금 눌린 "지도에서 고르기"로 포커스를 옮긴다
+  const onSearchFocusLost = useSearchFocusRecovery(searchApi, () => mapButtonRef.current)
+
+  const choose = (next: LocationMethod) => {
+    onMethodChange(next)
+    if (next === 'map') onPickOnMap()                       // mobile: 지도 화면으로
+  }
 
   return (
     <div className="field step" role="group" aria-labelledby={labelId} data-done={location !== null}>
       <span id={labelId} className="field__label step__title">
         위치
       </span>
-      {location ? (
-        <>
-          <div className="location__selected">
-            <span ref={summaryRef} className="location__value" tabIndex={-1}>
-              <Icon name="map-pin" size={14} />
-              선택됨 · <span className="mono">{location.lat}, {location.lng}</span>
-            </span>
-            <button type="button" className="button-ghost" disabled={disabled} onClick={onPickOnMap}>
-              다시 선택
-            </button>
-          </div>
+      {location && (
+        <div ref={summaryRef} className="location__selected" tabIndex={-1}>
+          <span className="location__value">
+            <Icon name="map-pin" size={14} />
+            선택됨
+            {!hasAddress && (
+              <>
+                {' · '}
+                <span className="mono">
+                  {location.lat}, {location.lng}
+                </span>
+              </>
+            )}
+          </span>
           {address}
-        </>
-      ) : (
-        <div className="location__empty">
-          <button type="button" className="button button--secondary" disabled={disabled} onClick={onPickOnMap}>
-            <Icon name="map-pin" />
-            지도에서 위치 선택
-          </button>
+          {hasAddress && (
+            <p className="location__coords">
+              <button
+                type="button"
+                className="location__coords-toggle"
+                aria-expanded={coordsOpen}
+                aria-controls={coordsId}
+                onClick={() => setCoordsOpen((v) => !v)}
+              >
+                <span className="chevron" data-open={coordsOpen}>
+                  <Icon name="chevron-right" size={14} />
+                </span>
+                좌표
+              </button>
+              {/* 접혀 있어도 id 대상은 남긴다(aria-controls) */}
+              <span id={coordsId} className="mono" hidden={!coordsOpen}>
+                {location.lat}, {location.lng}
+              </span>
+            </p>
+          )}
         </div>
       )}
       {error}
-      {searchApi && (
-        <AddressSearch
-          api={searchApi}
-          disabled={disabled}
-          onSelect={selectFromSearch}
-          onFocusLost={onSearchFocusLost}
-        />
-      )}
-      <button
-        ref={manualToggleRef}
-        type="button"
-        className="button-ghost button-ghost--small"
-        aria-expanded={manualOpen}
-        aria-controls={manualId}
+      <LocationMethodSwitch
+        value={shown}
+        addressReady={searchApi !== null}
         disabled={disabled}
-        onClick={() => setManualOpen((v) => !v)}
-      >
-        <span className="chevron" data-open={manualOpen}>
-          <Icon name="chevron-right" />
-        </span>
-        좌표 직접 입력
-      </button>
-      {manualOpen && (
-        <CoordinateForm id={manualId} initial={location} disabled={disabled} onSubmit={onLocationInput} />
-      )}
+        onChange={choose}
+        mapButtonRef={mapButtonRef}
+      />
+      <div ref={bodyRef} id={methodId} className="location__method-body">
+        {shown === 'map' && (
+          <p className="field__hint">
+            {location ? '지도를 다시 누르면 그 자리로 바뀝니다.' : '지도를 눌러 위치를 고르세요.'}
+          </p>
+        )}
+        {shown === 'address' && searchApi && (
+          <AddressSearch
+            api={searchApi}
+            disabled={disabled}
+            onSelect={selectFromSearch}
+            onFocusLost={onSearchFocusLost}
+            embedded
+          />
+        )}
+        {shown === 'coords' && (
+          <CoordinateForm id={`${methodId}-coords`} initial={location} disabled={disabled} onSubmit={onLocationInput} />
+        )}
+      </div>
     </div>
   )
 }

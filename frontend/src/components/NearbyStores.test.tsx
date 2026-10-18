@@ -152,3 +152,47 @@ describe('NearbyStores — 두 위치 비교 중 기준 위치 (5차-B5)', () =>
     expect(screen.getByRole('list', { name: 'PC방 점포 목록' })).toBeInTheDocument()
   })
 })
+
+describe('NearbyStores — 점포 거리 띠 (P7)', () => {
+  const strip = () => document.querySelector('.nearby__strip')!
+
+  it('점포 1개 = 점 1개(접힌 목록과 무관하게 전체), 위치는 distance_m / 반경, 점은 장식이다', () => {
+    renderList({ status: 'success', data: NEARBY })
+    const dots = [...strip().querySelectorAll<HTMLElement>('.nearby__dot')]
+    expect(dots).toHaveLength(NEARBY.count)
+    expect(dots.map((d) => d.style.left)).toEqual(NEARBY.stores.map((s) => `${(s.distance_m / 500) * 100}%`))
+    expect(strip()).toHaveAttribute('aria-hidden', 'true')
+    expect(document.querySelector('.nearby__axis')).toHaveTextContent('분석 지점250m500m')
+  })
+
+  it('텍스트 대체는 반경보다 짧은 구간만, 수는 distance_m 그대로 센다', () => {
+    renderList({ status: 'success', data: NEARBY })
+    const n = (m: number) => NEARBY.stores.filter((s) => s.distance_m <= m).length
+    expect(screen.getByText(`100m 안 ${n(100)}곳 · 300m 안 ${n(300)}곳`)).toBeInTheDocument()
+  })
+
+  it('반경 300m면 100m 구간만, 0곳이면 띠를 그리지 않는다', () => {
+    const { rerender } = render(
+      <NearbyStores state={{ status: 'success', data: NEARBY }} bizName="PC방" radiusM={300} expectedCount={12}
+        show onShowChange={() => {}} activeId={null} onSelect={() => {}} onRetry={() => {}} />,
+    )
+    expect(document.querySelector('.nearby__bands')).toHaveTextContent(/^100m 안 \d+곳$/)
+    expect(document.querySelector('.nearby__axis')).toHaveTextContent('분석 지점150m300m')
+    rerender(
+      <NearbyStores state={{ status: 'success', data: { ...NEARBY, count: 0, stores: [] } }} bizName="PC방" radiusM={300}
+        expectedCount={0} show onShowChange={() => {}} activeId={null} onSelect={() => {}} onRetry={() => {}} />,
+    )
+    expect(document.querySelector('.nearby__strip')).toBeNull()
+  })
+
+  it('선택한 점포의 점만 강조한다', () => {
+    const id = NEARBY.stores[3]!.id
+    render(
+      <NearbyStores state={{ status: 'success', data: NEARBY }} bizName="PC방" radiusM={500} expectedCount={12}
+        show onShowChange={() => {}} activeId={id} onSelect={() => {}} onRetry={() => {}} />,
+    )
+    const active = strip().querySelectorAll('.nearby__dot[data-active]')
+    expect(active).toHaveLength(1)
+    expect([...strip().children].indexOf(active[0]!)).toBe(3)
+  })
+})

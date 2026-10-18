@@ -156,6 +156,81 @@
   box-shadow: 0 20px 50px rgba(0, 0, 0, 0.45);
 }
 
+/* 패널 접기 줄 (P9): tablet(640~1100px)에서만. 접으면 패널이 56px 띠(위치 · 반경 · 점포 수)가 되고 지도가 넓게 보인다 */
+.panel__fold {
+  display: none;
+}
+
+@media (min-width: 640px) and (max-width: 1100px) {
+  .panel__fold {
+    flex: none;
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    min-height: 44px;
+    padding: 0 6px 0 20px;
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .panel[data-folded] {
+    bottom: auto;
+  }
+
+  .panel[data-folded] .panel__fold {
+    min-height: 56px;
+    border-bottom: 0;
+  }
+
+  .panel[data-folded] > :not(.panel__fold) {
+    display: none;
+  }
+}
+
+.panel__fold-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  font: var(--text-small);
+  font-weight: 600;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--color-text-secondary);
+}
+
+.panel[data-folded] .panel__fold-label {
+  color: var(--color-text-primary);
+}
+
+.panel__fold-button {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 10px;
+  background: none;
+  font: var(--text-small);
+  font-weight: 600;
+  color: var(--color-accent);
+  cursor: pointer;
+}
+
+.panel__fold-button:hover {
+  background: var(--color-surface-muted);
+}
+
+/* 펼친 상태 "접기" = 위, 접힌 상태 "펼치기" = 아래 */
+.panel__fold-icon {
+  display: inline-flex;
+  transform: rotate(-90deg);
+}
+
+.panel[data-folded] .panel__fold-icon {
+  transform: rotate(90deg);
+}
+
 .workspace__panel {
   position: relative; /* visually-hidden(absolute)이 스크롤 패널 밖 높이를 늘리지 않게 */
   flex: 1;
