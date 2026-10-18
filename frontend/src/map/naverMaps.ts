@@ -38,6 +38,8 @@ export interface NaverMap {
   setZoom(zoom: number, effect?: boolean): void
   /** 범위 맞춤(8-B1): setCenter → setZoom(z, false) → panBy. 세 호출 모두 동기로 끝난다(8-B0) */
   setCenter(latlng: NaverLatLng): void
+  /** 지도 중심 — 테마 전환으로 지도를 다시 만들 때 이어받는다(묶음 A). GL은 init 전에 부르면 오류일 수 있어 init 뒤에만 */
+  getCenter?(): NaverLatLng
   panBy(offset: unknown): void
   getBounds(): NaverBounds
   /** 지도 옵션 읽기. 'renderMode' = 1 래스터 / 2 GL (GL을 요청해도 지원 안 되면 1) */
@@ -61,7 +63,10 @@ export interface NaverCircle extends NaverOverlay {
   setRadius(radius: number): void
 }
 
-export type NaverPolygon = NaverOverlay
+export interface NaverPolygon extends NaverOverlay {
+  /** 선 색 등 옵션 변경(구 경계 줌 단계, 묶음 A). 없으면 다시 만들지 않고 그대로 둔다 */
+  setOptions?(options: Record<string, unknown>): void
+}
 
 /** 정보창 (동종 점포 상호·주소·거리, 4차). content는 DOM 요소로 넘긴다(문자열 HTML을 만들지 않는다). */
 export interface NaverInfoWindow {

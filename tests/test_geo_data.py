@@ -4,6 +4,7 @@ data/geo — 행정동 경계와 2024→2026 crosswalk 의 무결성·키 정합
   원본 data/geo/raw/   git 제외. 있으면 매니페스트 해시 검사, 없으면 SKIP (가공 파일 검사는 계속)
   SGIS 입력 data/geo/SGIS_*.geojson  commit. 공식 경계 geometry(UTM-K) + provenance. 구월1동/구월3동 교정 근거 (D-017)
   가공 data/geo/*      commit. 매니페스트 해시 + runtime panel 158개 행정동과 정확히 일치
+  시군구 경계·외곽선 인천_시군구경계_2026.geojson  행정동 경계 union (구 11 + 외곽선 1, docs/spikes/9A-geo-theme s1 규칙)
 매니페스트를 새 출력으로 덮어써서 통과시키지 않는다. 경계 교체는 새 결정(DECISIONS)과 함께만.
 """
 import csv
@@ -14,6 +15,7 @@ import pandas as pd
 import pytest
 from shapely import STRtree
 from shapely.geometry import shape
+from shapely.ops import unary_union
 
 from helpers import ROOT, RUNTIME_DIR, M
 import build_geo as B  # noqa: E402  (helpers 가 scripts/ 를 sys.path 에 넣는다)
@@ -22,6 +24,12 @@ GEO_DIR = os.path.join(ROOT, "data", "geo")
 GEO_MANIFEST = os.path.join(ROOT, "tests", "manifests", "geo.sha256.json")
 BOUNDARY = os.path.join(GEO_DIR, "인천_행정동경계_2026.geojson")
 CROSSWALK = os.path.join(GEO_DIR, "행정동_crosswalk_2024_2026.csv")
+GU_OUTLINE = os.path.join(GEO_DIR, "인천_시군구경계_2026.geojson")
+# 시군구 경계·외곽선은 표시용으로 단순화(구 1e-4°·외곽 2e-4°)·정리(작은 구멍·조각 제거)한 것이라 행정동 union 과 정확히 같지 않다.
+# 2026-10-19 실측(대칭차 면적 / union 면적): 구 최대 2.92e-3(옹진군)·2.79e-3(제물포구), 외곽선 2.33e-3; 구끼리 겹침 최대 3.3e-4.
+GU_SIMPLIFY_TOL = 5e-3      # 대칭차 면적 ≤ 0.5 % × union 면적
+GU_OVERLAP_TOL = 1e-3       # 구끼리 겹침 면적 ≤ 0.1 % × 작은 쪽 면적
+GU_POINT_TOL_DEG = 1e-4     # 행정동 대표점 ↔ 구 polygon 허용 거리 (단순화 폭, 실측 0)
 
 with open(GEO_MANIFEST, encoding="utf-8") as _f:
     MANIFEST_FILES = json.load(_f)["files"]
@@ -197,3 +205,91 @@ def test_crosswalk_new_side_matches_boundary(features, crosswalk):
     for r in crosswalk:
         p = b[r["신_행정동코드"]]
         assert (r["신_시군구명"], r["신_행정동명"]) == (p["시군구명"], p["경계_행정동명"]), r
+
+
+# ── 시군구 경계·외곽선 (행정동 union, 9A s1) ───────────────
+@pytest.fixture(scope="module")
+def gu_outline_fc():
+    with open(GU_OUTLINE, encoding="utf-8") as f:
+        return json.load(f)
+
+
+@pytest.fixture(scope="module")
+def gu_geoms(gu_outline_fc):
+    return {f["properties"]["시군구코드"]: shape(f["geometry"])
+            for f in gu_outline_fc["features"] if f["properties"]["kind"] == "gu"}
+
+
+@pytest.fixture(scope="module")
+def dong_unions(features):
+    """구별 행정동 union (단순화 전 기준값). 파일의 구 geometry 와 이 값의 차이가 단순화 허용 안이어야 한다."""
+    by_gu = {}
+    for f in features:
+        by_gu.setdefault(f["properties"]["시군구코드"], []).append(shape(f["geometry"]))
+    return {code: unary_union(geoms).buffer(0) for code, geoms in by_gu.items()}
+
+
+def test_gu_outline_file_shape(gu_outline_fc, features):
+    """feature 12개: 시군구코드 오름차순 구 11개 → 외곽선 1개. 속성 계약·MultiPolygon·CRS84·소수 5자리·끝 개행."""
+    assert gu_outline_fc["type"] == "FeatureCollection" and gu_outline_fc["name"] == "인천_시군구경계_2026"
+    assert gu_outline_fc["crs"] == {"type": "name", "properties": {"name": "urn:ogc:def:crs:OGC:1.3:CRS84"}}
+    feats = gu_outline_fc["features"]
+    assert len(feats) == 12
+    gu_names = {}
+    for f in features:
+        gu_names[f["properties"]["시군구코드"]] = f["properties"]["시군구명"]
+    assert len(gu_names) == 11
+    assert [f["properties"] for f in feats[:11]] == [
+        {"kind": "gu", "시군구코드": code, "시군구명": gu_names[code], "경계_출처": B.GU_OUTLINE_SOURCE}
+        for code in sorted(gu_names)]
+    assert feats[11]["properties"] == {"kind": "outline", "name": "인천광역시", "경계_출처": B.GU_OUTLINE_SOURCE}
+    for f in feats:
+        assert f["type"] == "Feature" and f["geometry"]["type"] == "MultiPolygon"
+        g = shape(f["geometry"])
+        assert g.is_valid and not g.is_empty, f["properties"]
+        for poly in f["geometry"]["coordinates"]:
+            for ring in poly:
+                for lng, lat in ring:
+                    assert round(lng, 5) == lng and round(lat, 5) == lat
+                    assert 124 < lng < 127.5 and 36.8 < lat < 38.1, (lng, lat)
+    with open(GU_OUTLINE, "rb") as f:
+        raw = f.read()
+    assert raw.endswith(b"\n") and b"\r" not in raw
+
+
+def test_gu_matches_dong_union_within_simplify_tol(gu_geoms, dong_unions):
+    assert set(gu_geoms) == set(dong_unions)
+    for code, u in dong_unions.items():
+        assert gu_geoms[code].symmetric_difference(u).area <= GU_SIMPLIFY_TOL * u.area, code
+
+
+def test_gu_polygons_do_not_overlap(gu_geoms):
+    codes = sorted(gu_geoms)
+    for i, a in enumerate(codes):
+        for b in codes[i + 1:]:
+            ga, gb = gu_geoms[a], gu_geoms[b]
+            assert ga.intersection(gb).area <= GU_OVERLAP_TOL * min(ga.area, gb.area), (a, b)
+
+
+def test_outline_matches_gu_union_within_simplify_tol(gu_outline_fc, dong_unions):
+    outline = shape(gu_outline_fc["features"][11]["geometry"])
+    whole = unary_union(list(dong_unions.values())).buffer(0)
+    assert outline.symmetric_difference(whole).area <= GU_SIMPLIFY_TOL * whole.area
+
+
+def test_dong_representative_points_inside_their_gu(features, gu_geoms, gu_outline_fc):
+    outline = shape(gu_outline_fc["features"][11]["geometry"])
+    for f in features:
+        pt = shape(f["geometry"]).representative_point()
+        gu = gu_geoms[f["properties"]["시군구코드"]]
+        assert gu.distance(pt) <= GU_POINT_TOL_DEG, f["properties"]["행정동코드"]
+        assert outline.distance(pt) <= GU_POINT_TOL_DEG, f["properties"]["행정동코드"]
+
+
+def test_gu_outline_reproduces_from_boundary_file():
+    """raw 없이도 재현: 커밋된 행정동 경계 → build_gu_outline → 직렬화가 커밋된 파일과 바이트 동일."""
+    with open(BOUNDARY, encoding="utf-8") as f:
+        boundary = json.load(f)
+    got = json.dumps(B.build_gu_outline(boundary), ensure_ascii=False, separators=(",", ":")) + "\n"
+    with open(GU_OUTLINE, encoding="utf-8", newline="") as f:
+        assert f.read() == got

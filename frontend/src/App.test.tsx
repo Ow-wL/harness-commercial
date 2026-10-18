@@ -50,6 +50,7 @@ vi.mock('./components/MapView.tsx', () => ({
       data-compare-guide={props.compare?.guide ?? undefined}
       data-store-context={props.storeContext}
       data-layout-key={props.layoutKey}
+      data-theme={props.theme}
     >
       <button type="button" onClick={() => props.interactive && props.onSelect({ lat: 37.4894, lng: 126.7246 })}>
         지도 클릭: 부평역
@@ -3243,5 +3244,35 @@ describe('모바일 지도 sheet — 주의 요약 띠 첫 줄 (8-C1a)', () => {
     await findScoreTable()
     const sheet = document.querySelector<HTMLElement>('.map-sheet')!
     expect(within(sheet).getByText('종합 계산 구성이 다릅니다 · A 5개 관점, B 4개(안정성 미산출)')).toBeInTheDocument()
+  })
+})
+
+describe('테마 전환 (묶음 A, DESIGN.md §19.7)', () => {
+  afterEach(() => {
+    window.localStorage.clear()
+    delete document.documentElement.dataset.theme
+  })
+
+  it('첫 방문은 시스템 설정을 따르고, 버튼을 누르면 반대 테마로 바꿔 저장하며 MapView에 넘긴다', async () => {
+    mockApi()
+    vi.stubGlobal('matchMedia', (q: string) => ({ matches: q === '(prefers-color-scheme: dark)', media: q }))
+    render(<App />)
+    expect(document.documentElement.dataset.theme).toBe('dark')
+    expect(screen.getByTestId('map')).toHaveAttribute('data-theme', 'dark')
+    const button = screen.getByRole('button', { name: '라이트 모드로 전환' })
+    fireEvent.click(button)
+    expect(document.documentElement.dataset.theme).toBe('light')
+    expect(screen.getByTestId('map')).toHaveAttribute('data-theme', 'light')
+    expect(window.localStorage.getItem('theme')).toBe('light')
+    expect(screen.getByRole('button', { name: '다크 모드로 전환' })).toBeInTheDocument()
+  })
+
+  it('저장된 선택이 있으면 시스템 설정보다 우선한다', async () => {
+    mockApi()
+    window.localStorage.setItem('theme', 'light')
+    vi.stubGlobal('matchMedia', (q: string) => ({ matches: q === '(prefers-color-scheme: dark)', media: q }))
+    render(<App />)
+    expect(document.documentElement.dataset.theme).toBe('light')
+    expect(screen.getByRole('button', { name: '다크 모드로 전환' })).toBeInTheDocument()
   })
 })

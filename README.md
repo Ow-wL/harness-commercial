@@ -56,7 +56,7 @@ NAVER 콘솔 Web 서비스 URL에 접속 주소(로컬 `http://localhost:8080`, 
 
 | 파일 | 용도 | 키 |
 |---|---|---|
-| `frontend/.env` | 지도 표시 (필수) | `VITE_NAVER_MAP_CLIENT_ID` — NAVER Maps Client ID만. Client Secret은 넣지 않는다. 선택: `BACKEND_URL` (dev proxy 대상), `VITE_NAVER_MAP_GL=1`(제품 지도를 GL로 띄우는 검수용, 기본 끔), `VITE_NAVER_MAP_STYLE_ID`(NAVER Style Editor My Style ID — 설정하면 제품 지도의 GL 다크 스타일에 적용, 미설정 또는 스타일 실패 시 밝은 지도 사용) |
+| `frontend/.env` | 지도 표시 (필수) | `VITE_NAVER_MAP_CLIENT_ID` — NAVER Maps Client ID만. Client Secret은 넣지 않는다. 선택: `BACKEND_URL` (dev proxy 대상), `VITE_NAVER_MAP_GL=1`(제품 지도를 GL로 띄우는 검수용, 기본 끔), `VITE_NAVER_MAP_STYLE_ID`(NAVER Style Editor My Style ID — 다크 테마 지도의 GL 다크 스타일, 미설정 또는 스타일 실패 시 밝은 지도 사용), `VITE_NAVER_MAP_LIGHT_STYLE_ID`(선택 — 라이트 테마 지도의 GL 라이트 스타일, 없으면 NAVER 기본 밝은 지도. 묶음 A, `DESIGN.md` §19.7) |
 | 루트 `.env` | SGIS 유지보수·검증 스크립트 전용 (`scripts/fetch_sgis_boundary.py`, `scripts/verify_guwol_admin_dong.py`). 앱 실행에는 필요 없다 | `SGIS_CONSUMER_KEY`, `SGIS_CONSUMER_SECRET` |
 
 템플릿은 `frontend/.env.example`, `.env.example` (빈 값). 두 `.env`는 `.gitignore` 대상이다.

@@ -17,6 +17,9 @@ data/geo 가공 파일 생성 — 원본 행정동 경계(geojson)에서 인천 
   인천_행정동경계_2026.geojson   resolver 용. 2026 경계 158개, 동 이름은 runtime panel 표기.
       좌표는 원본 그대로이고, SGIS_CORRECTIONS 의 행정동만 SGIS 공식 경계로 교정한다 (D-017, 아래). 출처는 feature 의 `경계_출처`
   행정동_crosswalk_2024_2026.csv  검증용. 2024 행정동 → 2026 행정동 (면적 겹침 비율로 기계적으로 판정, 교정 전 원본끼리)
+  인천_시군구경계_2026.geojson   지도 표시용. 위 행정동 경계(교정 후) 158개를 시군구코드별 union 한 구 11개 + 11개 union 인천 외곽선 1개.
+      규칙은 docs/spikes/9A-geo-theme (s1): 구멍 20,000 m² 미만·조각 2,000 m² 미만 제거, 단순화 구 1e-4°·외곽 2e-4°, 소수 5자리.
+      자체 구 라벨은 쓰지 않기로 해 라벨 기준점 속성은 없다.
 
 SGIS 교정 (docs/DECISIONS.md D-017): donor 행정동 영역 중 SGIS 공식 target polygon 안에 있는 부분만 target 으로 옮긴다.
   새 donor = donor − SGIS target,  새 target = target ∪ (donor ∩ SGIS target).
@@ -39,7 +42,8 @@ import numpy as np
 import pandas as pd
 import shapely
 from shapely import STRtree
-from shapely.geometry import MultiPolygon, mapping, shape
+from shapely.geometry import MultiPolygon, Polygon, mapping, shape
+from shapely.ops import unary_union
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 GEO_DIR = os.path.join(ROOT, "data", "geo")
@@ -60,6 +64,18 @@ CROSSWALK_COLUMNS = ["구_행정동코드", "구_시군구명", "구_행정동�
                      "관계", "구기준_겹침비율", "신기준_겹침비율"]
 SAME = 0.995          # 겹침 비율이 이 이상이면 같은 영역으로 본다
 NOISE = 0.001         # 이 미만의 겹침은 경계선 공유로 보고 무시한다
+
+# 시군구 경계·외곽선 (docs/spikes/9A-geo-theme/union_spike.py 와 같은 값)
+GU_OUTLINE_OUT = "인천_시군구경계_2026.geojson"
+GU_OUTLINE_NAME = "인천_시군구경계_2026"
+OUTLINE_NAME = "인천광역시"
+GU_OUTLINE_SOURCE = f"{BOUNDARY_OUT} 시군구코드별 union (교정 적용 후 행정동 경계 158개, 9A s1 규칙)"
+K_M2 = 111_000 * 111_000 * math.cos(math.radians(37.5))   # deg² → m² (인천 위도 근사, 정리 기준에만 쓴다)
+MIN_HOLE_M2 = 20_000       # 이 미만 면적의 구멍은 지운다 (union 뒤 면적 0 m² 부동소수 잡음 포함)
+MIN_PART_M2 = 2_000        # 이 미만 면적의 조각은 지운다
+GU_SIMPLIFY_DEG = 1e-4     # 구 경계 단순화 (약 10 m)
+OUTLINE_SIMPLIFY_DEG = 2e-4  # 외곽선 단순화 (약 20 m)
+COORD_DECIMALS = 5         # 좌표 소수 자리 (≈1 m)
 
 # SGIS 공식 경계 교정 (D-017). SGIS 행정동은 이름(adm_nm)으로만 확인한다 — SGIS adm_cd(23050xxx)는 통계용 코드라
 # runtime panel 코드(28200xxx)와 체계가 다르다.
@@ -279,18 +295,88 @@ def build_crosswalk(old: list[dict], new: list[dict]) -> list[dict]:
     return out
 
 
-def write_outputs(boundary: dict, crosswalk: list[dict]) -> list[str]:
+def clean_union(geom, tol: float):
+    """union 결과 정리 (9A s1): 작은 조각·구멍 제거 → 단순화(preserve_topology). 항상 MultiPolygon 을 돌려준다."""
+    parts = [geom] if geom.geom_type == "Polygon" else list(geom.geoms)
+    kept = []
+    for p in parts:
+        if p.geom_type != "Polygon":
+            raise ValueError(f"union 결과에 Polygon 이 아닌 조각: {p.geom_type}")
+        if p.area * K_M2 < MIN_PART_M2:
+            continue
+        rings = [r for r in p.interiors if Polygon(r).area * K_M2 >= MIN_HOLE_M2]
+        kept.append(Polygon(p.exterior, rings))
+    if not kept:
+        raise ValueError("정리 뒤 남은 조각이 없다")
+    out = shapely.simplify(MultiPolygon(kept), tol, preserve_topology=True)
+    if out.geom_type == "Polygon":
+        out = MultiPolygon([out])
+    if out.geom_type != "MultiPolygon" or not out.is_valid or out.is_empty:
+        raise ValueError(f"정리·단순화 결과가 유효한 MultiPolygon 이 아니다: {out.geom_type}")
+    return out
+
+
+def rounded_geometry(geom) -> dict:
+    """shapely geometry → GeoJSON geometry dict, 좌표 소수 COORD_DECIMALS 자리. 반올림 뒤에도 유효해야 한다."""
+    gj = json.loads(json.dumps(mapping(geom)), parse_float=lambda x: round(float(x), COORD_DECIMALS))
+    back = shape(gj)
+    if not back.is_valid or back.is_empty:
+        raise ValueError("좌표 반올림 뒤 geometry 가 유효하지 않다")
+    return gj
+
+
+def build_gu_outline(boundary_fc: dict) -> dict:
+    """인천_행정동경계_2026 FeatureCollection → 시군구 경계 11개(시군구코드 오름차순) + 인천 외곽선 1개.
+    구 = 그 구 행정동 unary_union → buffer(0) → clean_union(1e-4°); 외곽선 = 11개 구 union → buffer(0) → clean_union(2e-4°)."""
+    by_gu: dict[str, dict] = {}
+    for feat in boundary_fc["features"]:
+        p = feat["properties"]
+        entry = by_gu.setdefault(p["시군구코드"], {"name": p["시군구명"], "geoms": []})
+        if entry["name"] != p["시군구명"]:
+            raise ValueError(f"시군구코드 {p['시군구코드']} 에 이름이 둘: {entry['name']} / {p['시군구명']}")
+        entry["geoms"].append(shape(feat["geometry"]))
+    features, unions = [], []
+    for code in sorted(by_gu):
+        u = unary_union(by_gu[code]["geoms"]).buffer(0)
+        if not u.is_valid or u.is_empty:
+            raise ValueError(f"{code} union 결과가 유효하지 않거나 비어 있다")
+        unions.append(u)
+        features.append({"type": "Feature",
+                         "properties": {"kind": "gu", "시군구코드": code, "시군구명": by_gu[code]["name"],
+                                        "경계_출처": GU_OUTLINE_SOURCE},
+                         "geometry": rounded_geometry(clean_union(u, GU_SIMPLIFY_DEG))})
+    outline = unary_union(unions).buffer(0)
+    if not outline.is_valid or outline.is_empty:
+        raise ValueError("외곽선 union 결과가 유효하지 않거나 비어 있다")
+    features.append({"type": "Feature",
+                     "properties": {"kind": "outline", "name": OUTLINE_NAME, "경계_출처": GU_OUTLINE_SOURCE},
+                     "geometry": rounded_geometry(clean_union(outline, OUTLINE_SIMPLIFY_DEG))})
+    return {"type": "FeatureCollection", "name": GU_OUTLINE_NAME,
+            "crs": {"type": "name", "properties": {"name": "urn:ogc:def:crs:OGC:1.3:CRS84"}},
+            "features": features}
+
+
+def write_geojson(path: str, fc: dict) -> None:
+    with open(path, "w", encoding="utf-8", newline="\n") as f:
+        json.dump(fc, f, ensure_ascii=False, separators=(",", ":"))
+        f.write("\n")
+
+
+def write_outputs(boundary: dict, crosswalk: list[dict], gu_outline: dict | None = None) -> list[str]:
     os.makedirs(GEO_DIR, exist_ok=True)
     bpath = os.path.join(GEO_DIR, BOUNDARY_OUT)
-    with open(bpath, "w", encoding="utf-8", newline="\n") as f:
-        json.dump(boundary, f, ensure_ascii=False, separators=(",", ":"))
-        f.write("\n")
+    write_geojson(bpath, boundary)
     cpath = os.path.join(GEO_DIR, CROSSWALK_OUT)
     with open(cpath, "w", encoding="utf-8-sig", newline="") as f:
         w = csv.DictWriter(f, fieldnames=CROSSWALK_COLUMNS, lineterminator="\n")
         w.writeheader()
         w.writerows(crosswalk)
-    return [bpath, cpath]
+    paths = [bpath, cpath]
+    if gu_outline is not None:
+        gpath = os.path.join(GEO_DIR, GU_OUTLINE_OUT)
+        write_geojson(gpath, gu_outline)
+        paths.append(gpath)
+    return paths
 
 
 def manifest_entries() -> dict:
@@ -298,9 +384,10 @@ def manifest_entries() -> dict:
     for version, (fn, url) in RAW.items():
         files[f"raw/{fn}"] = {"sha256": sha256(os.path.join(RAW_DIR, fn)), "url": url, "git": False}
     files[SGIS_BOUNDARY] = {"sha256": sha256(os.path.join(GEO_DIR, SGIS_BOUNDARY)), "source": SGIS_SOURCE, "git": True}
-    for fn in (BOUNDARY_OUT, CROSSWALK_OUT):
+    for fn in (BOUNDARY_OUT, CROSSWALK_OUT, GU_OUTLINE_OUT):
         files[fn] = {"sha256": sha256(os.path.join(GEO_DIR, fn)), "git": True}
-    return {"description": "data/geo 원본(raw, git 제외)·SGIS 공식 경계 입력·가공 파일 해시. scripts/build_geo.py 로 재생성",
+    return {"description": "data/geo 원본(raw, git 제외)·SGIS 공식 경계 입력·가공 파일 해시. scripts/build_geo.py 로 재생성. "
+                           "인천_시군구경계_2026.geojson 은 행정동 경계 union(구 11 + 외곽선 1, 9A s1 규칙)",
             "source": "github.com/vuski/admdongkor (원천 통계청 SGIS, 공공누리 1유형 / 가공 CC BY 4.0) "
                       f"+ 통계청 SGIS OpenAPI 행정경계 {SGIS_YEAR} (구월1동·구월3동 교정, D-017)",
             "files": files}
@@ -313,9 +400,12 @@ def main() -> int:
     panel = load_panel()
     boundary = build_boundary(apply_sgis_corrections(new, load_sgis(), panel), panel)
     crosswalk = build_crosswalk(old, new)          # 2024 ↔ 2026 원본끼리 (개편 관계 기록용, 교정 전)
-    write_outputs(boundary, crosswalk)
+    gu_outline = build_gu_outline(boundary)        # 교정 적용 후 행정동 경계의 union
+    write_outputs(boundary, crosswalk, gu_outline)
     rel = pd.Series([r["관계"] for r in crosswalk]).value_counts().to_dict()
     print(f"2024 {len(old)}개 → 2026 {len(new)}개, crosswalk {len(crosswalk)}행 {rel}, SGIS 교정 {len(SGIS_CORRECTIONS)}쌍")
+    parts = [len(f["geometry"]["coordinates"]) for f in gu_outline["features"]]
+    print(f"시군구 경계 {len(parts) - 1}개(조각 {sum(parts[:-1])}) + 외곽선 1개(조각 {parts[-1]})")
 
     entries = manifest_entries()
     if "--manifest" in sys.argv:

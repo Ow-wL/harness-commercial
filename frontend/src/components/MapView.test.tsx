@@ -4,6 +4,7 @@ import { NAVER_SCRIPT_ID, resetNaverMapsLoaderForTest, type NaverMapsApi } from 
 import { findDongRings } from '../map/dongBoundary.ts'
 import { boxToRect, circleBox, insideUsable, satisfiesSingle, usableArea } from '../map/mapFit.ts'
 import { MapView, type MapCompare, type MapStore, type MapViewProps } from './MapView.tsx'
+import { resetStyleStatusForTest } from '../map/styleStatus.ts'
 
 // 행정동 경계 파일(약 600KB) 대신 동마다 작은 사각형 하나 — 어떤 동을 요청했는지와 polygon 생성·제거만 본다
 vi.mock('../map/dongBoundary.ts', () => ({
@@ -13,6 +14,20 @@ vi.mock('../map/dongBoundary.ts', () => ({
     { lat: 37.49, lng: 126.73 },
   ]]]),
 }))
+
+// 구 경계·외곽선 파일(약 160KB) 대신 외곽 1개·구 2개 사각형 — 줌 단계 규칙(boundaryTier)은 실제 모듈 것을 쓴다 (묶음 A)
+vi.mock('../map/guBoundary.ts', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../map/guBoundary.ts')>()
+  const square = (lat: number, lng: number) => [[
+    { lat, lng },
+    { lat: lat + 0.05, lng },
+    { lat: lat + 0.05, lng: lng + 0.05 },
+  ]]
+  return {
+    ...actual,
+    loadGuBoundaries: vi.fn(async () => ({ outline: [square(37.3, 126.5)], gu: [square(37.4, 126.6), square(37.45, 126.7)] })),
+  }
+})
 
 // NAVER SDK 경계 계약만 본다 — 실제 SDK 대신 window.naver.maps에 fake를 둔다(로더는 이미 로드된 SDK를 그대로 쓴다).
 class FakeLatLng {
@@ -63,6 +78,7 @@ class FakeMap {
   setZoom = vi.fn((...[z]: [zoom: number, effect?: boolean]) => (this.zoom = z))
   getZoom = vi.fn(() => this.zoom)
   setCenter = vi.fn((c: FakeLatLng) => (this.center = c))
+  getCenter = vi.fn(() => this.center)
   /** panBy(+x, +y): 보이는 영역을 오른쪽·아래로 → 중심 px가 그만큼 이동 */
   panBy = vi.fn((p: FakePoint) => {
     const c = toPx(this.center.lat(), this.center.lng(), this.zoom)
@@ -86,8 +102,8 @@ class FakeMap {
   }
 }
 // SDK 오버레이는 `new`로 만든다 — 화살표 함수가 아닌 생성 가능한 함수
-const overlay = function () {
-  return { setMap: vi.fn(), setPosition: vi.fn(), setIcon: vi.fn(), setCenter: vi.fn(), setRadius: vi.fn() }
+const overlay = function (options?: Record<string, unknown>) {
+  return { options, setMap: vi.fn(), setPosition: vi.fn(), setIcon: vi.fn(), setCenter: vi.fn(), setRadius: vi.fn(), setOptions: vi.fn() }
 }
 type FakeInfo = { open: Mock; close: Mock; setContent: Mock; setOptions: Mock; getContentElement: () => HTMLElement; content: HTMLElement }
 let infos: FakeInfo[] = []
@@ -825,7 +841,9 @@ describe('MapView — 두 위치 비교 A/B 표시 (5차-B4, COMPARE_DESIGN.md 4
   const markerObjs = () => vi.mocked(fakeSdk.Marker).mock.results.map((r) => r.value)
   const circleOpts = () => vi.mocked(fakeSdk.Circle).mock.calls.map(([o]) => o as Opts)
   const circleObjs = () => vi.mocked(fakeSdk.Circle).mock.results.map((r) => r.value)
-  const polygonObjs = () => vi.mocked(fakeSdk.Polygon).mock.results.map((r) => r.value)
+  // 행정동 경계 polygon만 (구 경계·외곽선은 zIndex를 가진다 — 묶음 A)
+  const polygonObjs = () =>
+    vi.mocked(fakeSdk.Polygon).mock.results.map((r) => r.value).filter((p) => (p as { options?: { zIndex?: unknown } }).options?.zIndex === undefined)
   const lastIcon = (m: { setIcon: Mock }) => (m.setIcon.mock.calls.at(-1)![0] as { content: string }).content
   /** 마커 i의 지금 아이콘: 마지막 setIcon, 없으면 만들 때 아이콘 */
   const currentIcon = (i: number) =>
@@ -859,6 +877,7 @@ describe('MapView — 두 위치 비교 A/B 표시 (5차-B4, COMPARE_DESIGN.md 4
       'A 반경 500m',
       'B 반경 500m',
       '분석된 행정동 경계',
+      '인천·구 경계',
     ])
     expect(screen.getByText(GUIDE)).toHaveClass('map__guide')
     expect(maps).toHaveLength(1)
@@ -1408,6 +1427,7 @@ describe('MapView — A3 다크 지도 스타일과 밝은 지도 복구 (8-DK, 
     entries = []
     observerCallbacks = []
     visibility = 'visible'
+    resetStyleStatusForTest()
     vi.mocked(fakeSdk.Circle).mockClear()
     vi.stubEnv('VITE_NAVER_MAP_STYLE_ID', 'test-style-id')
     // 대기 tick(setInterval)과 그리기 확인(requestAnimationFrame)만 가짜로 — SDK 로드 Promise·waitFor는 그대로
@@ -1547,12 +1567,13 @@ describe('MapView — A3 다크 지도 스타일과 밝은 지도 복구 (8-DK, 
     expect(maps).toHaveLength(2)
   })
 
-  it('지도 영역이 0×0(mobile 패널 화면)이면 세지 않고, 보이면 그 크기로 setSize 한 뒤 센다', async () => {
+  it('지도 영역이 0×0(mobile 패널 화면)이면 스타일 지도를 만들지 않고 기다리다, 보이면 만들고 그 크기로 setSize 한 뒤 센다', async () => {
     const view = await mountStyled({}, null)
     tick(20_000)
-    expect(maps).toHaveLength(1)
-    expect(maps[0]!.setSize).not.toHaveBeenCalled()
+    expect(maps).toHaveLength(0)                                         // 묶음 A: 숨김 중 GL 생성은 래스터로 떨어진다 — 보일 때 만든다
     layout.set(view.section, { w: 375, h: 400 })
+    tick(250)
+    expect(maps).toHaveLength(1)
     tick(250)
     expect(maps[0]!.setSize).toHaveBeenLastCalledWith(new FakeSize(375, 400))
     styleResponse(200)
@@ -1592,5 +1613,215 @@ describe('MapView — A3 다크 지도 스타일과 밝은 지도 복구 (8-DK, 
     expect(document.documentElement.dataset.mapTone).toBe('light')
     expect(view.onSdkState).toHaveBeenLastCalledWith(expect.objectContaining({ status: 'ready' }))
     expect(fakeSdk.Circle).toHaveBeenCalled()
+  })
+
+  it('숨겨진 지도 영역(0×0, mobile 패널 화면)에서는 스타일 지도를 만들지 않고 보일 때 만든다 — 숨김 중 GL은 래스터로 init 돼 스타일 실패로 보인다', async () => {
+    const view = await mountStyled({ selected: A }, null)
+    tick(2_000)
+    expect(maps).toHaveLength(0)                                         // 보일 때까지 기다린다
+    expect(screen.getByText('지도를 불러오는 중…')).toBeInTheDocument()
+    layout.set(view.section, { w: 375, h: 500 })
+    tick(250)                                                            // INIT_TICK_MS
+    expect(maps).toHaveLength(1)
+    expect(maps[0]!.options).toMatchObject({ gl: true, customStyleId: 'test-style-id' })
+    styleResponse(200)
+    fireOn(maps[0]!, 'init')
+    expect(document.documentElement.dataset.mapTone).toBe('dark')
+  })
+
+  it('숨겨진 채 기다리는 동안 언마운트하면 지도를 만들지 않는다', async () => {
+    const view = await mountStyled({ selected: A }, null)
+    view.unmount()
+    layout.clear()
+    tick(5_000)
+    expect(maps).toHaveLength(0)
+  })
+
+  // ── 테마 전환 (묶음 A, DESIGN.md §19.7): 테마는 의도, 지도 톤은 실제 렌더 결과 ──
+  it('라이트 테마는 다크 스타일 ID가 있어도 NAVER 기본 밝은 지도로 만든다(customStyleId 없음, 톤 light)', async () => {
+    const view = await mountStyled({ selected: A, theme: 'light' })
+    expect(maps).toHaveLength(1)
+    expect(maps[0]!.options.customStyleId).toBeUndefined()
+    expect(maps[0]!.options.gl).toBeUndefined()
+    expect(document.documentElement.dataset.mapTone).toBe('light')
+    expect(view.onSdkState).toHaveBeenLastCalledWith(expect.objectContaining({ status: 'ready' }))
+  })
+
+  it('라이트 스타일 ID가 있으면 라이트 테마도 GL + 그 스타일로 만들고, 성공하면 톤 light·실패하면 밝은 지도로 복구한다', async () => {
+    vi.stubEnv('VITE_NAVER_MAP_LIGHT_STYLE_ID', 'light-style-id')
+    vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const view = await mountStyled({ selected: A, theme: 'light' })
+    expect(maps[0]!.options).toMatchObject({ gl: true, customStyleId: 'light-style-id' })
+    styleResponse(200)
+    fireOn(maps[0]!, 'init')
+    expect(document.documentElement.dataset.mapTone).toBe('light')
+    expect(view.section.dataset.renderMode).toBe('2')
+    expect(maps).toHaveLength(1)
+    // 실패 경로: 새 마운트에서 스타일 400 → 밝은 지도 1회
+    cleanup()
+    maps = []
+    await mountStyled({ selected: A, theme: 'light' })
+    styleResponse(400)
+    expect(maps).toHaveLength(2)
+    expect(maps[0]!.destroy).toHaveBeenCalled()
+    expect(maps[1]!.options.customStyleId).toBeUndefined()
+    fireOn(maps[1]!, 'init')
+    expect(document.documentElement.dataset.mapTone).toBe('light')
+  })
+
+  it('다크 → 라이트 전환: 스타일 지도를 정리하고 밝은 지도를 새로 만들며, 보던 중심·줌(GL −1 환산)을 이어받고 다시 맞추지 않는다', async () => {
+    const view = await mountStyled({ selected: A, theme: 'dark' })
+    styleResponse(200)
+    fireOn(maps[0]!, 'init')
+    expect(document.documentElement.dataset.mapTone).toBe('dark')
+    // 사용자가 보던 범위: GL zoom 15(래스터 16), 중심은 A에서 조금 떨어진 곳
+    const dark = maps[0]!
+    dark.zoom = 15
+    dark.center = new FakeLatLng(37.5, 126.73)
+    const circlesBefore = vi.mocked(fakeSdk.Circle).mock.calls.length
+    view.rerender(<MapView {...props({ selected: A, theme: 'light', onSdkState: view.onSdkState })} />)
+    await act(async () => {})
+    expect(dark.destroy).toHaveBeenCalled()
+    expect(maps).toHaveLength(2)
+    const light = maps[1]!
+    expect(light.options.customStyleId).toBeUndefined()
+    expect(light.options.gl).toBeUndefined()
+    expect(light.options.zoom).toBe(16)                                 // 래스터 기준으로 환산해 이어받는다
+    expect((light.options.center as FakeLatLng).lat()).toBeCloseTo(37.5)
+    expect((light.options.center as FakeLatLng).lng()).toBeCloseTo(126.73)
+    expect(document.documentElement.dataset.mapTone).toBe('light')
+    fireOn(light, 'init')
+    // 좌표가 그대로이므로 새 위치 맞춤(setCenter/setZoom)을 돌리지 않는다 — 보던 범위 유지
+    expect(light.setCenter).not.toHaveBeenCalled()
+    expect(light.setZoom).not.toHaveBeenCalled()
+    expect(vi.mocked(fakeSdk.Circle).mock.calls.length).toBe(circlesBefore + 1)   // 반경 원은 새 지도에 다시 그린다
+    expect(view.onSdkState).toHaveBeenLastCalledWith(expect.objectContaining({ status: 'ready' }))
+  })
+
+  it('라이트 → 다크 전환: 밝은 지도를 정리하고 스타일 지도를 만든 뒤, 스타일 확인 전에는 내놓지 않고 확인 뒤 다크 톤으로 내놓는다', async () => {
+    const view = await mountStyled({ selected: A, theme: 'light' })
+    const light = maps[0]!
+    fireOn(light, 'init')                                               // init 뒤 단일 맞춤이 돈다 — 그 다음 사용자가 본 줌
+    light.zoom = 14
+    view.rerender(<MapView {...props({ selected: A, theme: 'dark', onSdkState: view.onSdkState })} />)
+    await act(async () => {})
+    expect(light.destroy).toHaveBeenCalled()
+    expect(maps).toHaveLength(2)
+    expect(maps[1]!.options).toMatchObject({ gl: true, customStyleId: 'test-style-id', zoom: 13 })   // 래스터 14 → GL 13
+    expect(screen.getByText('지도를 불러오는 중…')).toBeInTheDocument()
+    expect(document.documentElement.dataset.mapTone).toBeUndefined()
+    styleResponse(200)
+    fireOn(maps[1]!, 'init')
+    expect(document.documentElement.dataset.mapTone).toBe('dark')
+    expect(maps[1]!.setZoom).not.toHaveBeenCalled()
+  })
+
+  it('다시 만든 스타일 지도가 스타일을 새로 요청하지 않아도(SDK 캐시) 이 페이지에서 본 200으로 다크로 내놓는다 — 실제 GL이 아니면 여전히 밝은 지도', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const view = await mountStyled({ selected: A, theme: 'dark' })
+    styleResponse(200)
+    fireOn(maps[0]!, 'init')
+    expect(document.documentElement.dataset.mapTone).toBe('dark')
+    // 라이트 → 다크: 새 스타일 지도는 요청 없이 init만 온다
+    view.rerender(<MapView {...props({ selected: A, theme: 'light', onSdkState: view.onSdkState })} />)
+    await act(async () => {})
+    view.rerender(<MapView {...props({ selected: A, theme: 'dark', onSdkState: view.onSdkState })} />)
+    await act(async () => {})
+    expect(maps).toHaveLength(3)
+    fireOn(maps[2]!, 'init')
+    expect(document.documentElement.dataset.mapTone).toBe('dark')
+    expect(maps).toHaveLength(3)
+    // 같은 상황에서 SDK가 래스터로 init 하면(GL 못 엶) 스타일 실패로 보고 밝은 지도로 복구한다
+    view.rerender(<MapView {...props({ selected: A, theme: 'light', onSdkState: view.onSdkState })} />)
+    await act(async () => {})
+    view.rerender(<MapView {...props({ selected: A, theme: 'dark', onSdkState: view.onSdkState })} />)
+    await act(async () => {})
+    maps[4]!.renderMode = 1
+    fireOn(maps[4]!, 'init')
+    expect(maps).toHaveLength(6)
+    fireOn(maps[5]!, 'init')
+    expect(document.documentElement.dataset.mapTone).toBe('light')
+  })
+
+  it('비교 중 테마 전환: A·B가 그대로면 panTo·B 맞춤을 다시 돌리지 않는다', async () => {
+    const B = { lat: 37.4482, lng: 126.7035 }
+    const compare: MapCompare = { location: B, tone: 'selected', dong: null, guide: null }
+    const view = await mountStyled({ selected: A, compare, theme: 'light' })
+    fireOn(maps[0]!, 'init')
+    const first = maps[0]!
+    view.rerender(<MapView {...props({ selected: A, compare, theme: 'dark', onSdkState: view.onSdkState })} />)
+    await act(async () => {})
+    styleResponse(200)
+    fireOn(maps[1]!, 'init')
+    expect(first.destroy).toHaveBeenCalled()
+    expect(maps[1]!.panTo).not.toHaveBeenCalled()
+    expect(maps[1]!.setZoom).not.toHaveBeenCalled()
+  })
+})
+
+describe('MapView — 인천 외곽선·구 경계 (묶음 A, DESIGN.md §19.3 위계·줌 단계)', () => {
+  const A = { lat: 37.4894, lng: 126.7246 }
+  type Poly = { options: Record<string, unknown>; setMap: Mock; setOptions: Mock }
+  const polygons = () => vi.mocked(fakeSdk.Polygon).mock.results.map((r) => r.value as Poly)
+  const byZ = (z: number) => polygons().filter((p) => p.options.zIndex === z)
+
+  beforeEach(() => vi.mocked(fakeSdk.Polygon).mockClear())
+
+  it('지도가 준비되면 외곽선(2px, z2)과 구 경계(1px, z1)를 클릭 불가 polygon으로 그리고 범례에 "인천·구 경계"를 둔다', async () => {
+    const { map } = await mount(props({ selected: A }))
+    map.zoom = 13
+    await waitFor(() => expect(byZ(2)).toHaveLength(1))
+    expect(byZ(1)).toHaveLength(2)
+    expect(byZ(2)[0]!.options).toMatchObject({ strokeWeight: 2, fillOpacity: 0, clickable: false })
+    expect(byZ(1)[0]!.options).toMatchObject({ strokeWeight: 1, fillOpacity: 0, clickable: false })
+    expect(screen.getByRole('list', { name: '지도 범례' })).toHaveTextContent('인천·구 경계')
+  })
+
+  it('줌 단계: ≤11 구 경계 숨김(외곽선만) · 12~14 구 경계 · ≥15 구 경계 흐리게 — zoom_changed 때 옵션만 바꾸고 다시 만들지 않는다', async () => {
+    const { map } = await mount(props({ selected: A }))
+    await waitFor(() => expect(byZ(1)).toHaveLength(2))
+    const gu = byZ(1)
+    const made = polygons().length
+    map.zoom = 11
+    fireMap('zoom_changed')
+    expect(gu.every((p) => p.setMap.mock.lastCall?.[0] === null)).toBe(true)
+    map.zoom = 13
+    fireMap('zoom_changed')
+    expect(gu.every((p) => p.setMap.mock.lastCall?.[0] === map)).toBe(true)
+    const optionCalls = gu[0]!.setOptions.mock.calls.length
+    map.zoom = 14
+    fireMap('zoom_changed')
+    expect(gu[0]!.setOptions.mock.calls.length).toBe(optionCalls)       // 같은 단계(12~14) 안에서는 바꾸지 않는다
+    map.zoom = 16
+    fireMap('zoom_changed')
+    expect(gu.every((p) => p.setMap.mock.lastCall?.[0] === map)).toBe(true)
+    expect(gu[0]!.setOptions.mock.calls.length).toBe(optionCalls + 1)   // 흐린 선 색(토큰 --color-map-gu-stroke-faint)으로 바꾼다
+    expect(gu[0]!.setOptions.mock.lastCall?.[0]).toHaveProperty('strokeColor')
+    expect(polygons().length).toBe(made)                                // polygon을 새로 만들지 않는다
+    expect(byZ(2)[0]!.setMap).not.toHaveBeenCalledWith(null)           // 외곽선은 모든 단계에서 보인다
+  })
+
+  it('GL(renderMode 2)은 같은 축척에서 zoom이 1 낮으므로 래스터 기준으로 환산해 단계를 정한다 (GL 11 = 래스터 12 → 구 경계 표시)', async () => {
+    const view = render(<MapView {...props({ selected: A })} />)
+    const section = view.container.querySelector('section.map')!
+    layout.set(section, { w: 955, h: 365 })
+    await waitFor(() => expect(observed).toHaveLength(1))
+    const map = maps[0]!
+    map.renderMode = 2
+    fireMap('init')
+    await waitFor(() => expect(byZ(1)).toHaveLength(2))
+    map.zoom = 11
+    fireMap('zoom_changed')
+    expect(byZ(1).every((p) => p.setMap.mock.lastCall?.[0] === map)).toBe(true)
+    map.zoom = 10
+    fireMap('zoom_changed')
+    expect(byZ(1).every((p) => p.setMap.mock.lastCall?.[0] === null)).toBe(true)
+  })
+
+  it('언마운트하면 경계 polygon을 모두 지운다', async () => {
+    const view = await mount(props({ selected: A }))
+    await waitFor(() => expect(polygons().length).toBeGreaterThanOrEqual(3))
+    view.unmount()
+    expect(polygons().every((p) => p.setMap.mock.lastCall?.[0] === null)).toBe(true)
   })
 })

@@ -4,6 +4,18 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>우리동네 상권분석 매니저</title>
+    <!-- 테마를 첫 그리기 전에 건다(깜빡임 방지). 규칙은 src/lib/theme.ts와 같다: 저장된 선택 > 시스템 설정 > 다크 -->
+    <script>
+      (function () {
+        var theme = 'dark'
+        try {
+          var saved = window.localStorage.getItem('theme')
+          if (saved === 'light' || saved === 'dark') theme = saved
+          else if (window.matchMedia && !window.matchMedia('(prefers-color-scheme: dark)').matches) theme = 'light'
+        } catch (e) {}
+        document.documentElement.setAttribute('data-theme', theme)
+      })()
+    </script>
   </head>
   <body>
     <div id="root"></div>

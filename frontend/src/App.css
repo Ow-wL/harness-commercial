@@ -138,6 +138,26 @@
   background: var(--color-accent-subtle);
 }
 
+/* 테마 전환 버튼(묶음 A): 조건 바 끝의 아이콘 버튼. 칩과 같은 높이·테두리·그림자 */
+.bar__theme {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--a3-bar-h);
+  height: var(--a3-bar-h);
+  margin-left: auto;
+  border: 1px solid var(--color-map-ui-edge);
+  border-radius: 12px;
+  background: var(--color-surface);
+  box-shadow: var(--shadow-map-ui);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+
+.bar__theme:hover {
+  color: var(--color-accent);
+}
+
 /* ─── 결과 패널 (오른쪽에 떠 있음) ─── */
 .panel {
   position: absolute;
@@ -153,7 +173,7 @@
   border-top: 2px solid var(--color-accent-subtle);
   border-radius: 18px;
   background: var(--color-surface);
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.45);
+  box-shadow: var(--shadow-panel);
 }
 
 /* 패널 접기 줄 (P9): tablet(640~1100px)에서만. 접으면 패널이 56px 띠(위치 · 반경 · 점포 수)가 되고 지도가 넓게 보인다 */

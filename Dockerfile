@@ -13,19 +13,20 @@ WORKDIR /build/frontend
 COPY frontend/package.json frontend/package-lock.json ./
 RUN npm ci
 COPY frontend/ ./
-# 행정동 경계는 data/geo 원본을 그대로 asset 으로 쓴다 (src/map/dongBoundary.ts 의 ../../../data/geo 경로)
-COPY ["data/geo/인천_행정동경계_2026.geojson", "/build/data/geo/"]
+# 행정동 경계·구 경계(묶음 A)는 data/geo 원본을 그대로 asset 으로 쓴다 (src/map/dongBoundary.ts·guBoundary.ts 의 ../../../data/geo 경로)
+COPY ["data/geo/인천_행정동경계_2026.geojson", "data/geo/인천_시군구경계_2026.geojson", "/build/data/geo/"]
 ARG VITE_NAVER_MAP_CLIENT_ID
 RUN test -n "$VITE_NAVER_MAP_CLIENT_ID" || { echo "build arg VITE_NAVER_MAP_CLIENT_ID 가 필요하다"; exit 1; }
 # 선택: NAVER 다크 지도 스타일 My Style ID(8-DK, DESIGN.md §19.3.1). 없으면 밝은 지도. commit 하지 않는다
 ARG VITE_NAVER_MAP_STYLE_ID=
 # 번들만 만든다. 타입 검사(tsc -b)는 테스트 파일·tests/golden 까지 보므로 scripts/check(npm run check)에서 한다
 RUN npx vite build
-# build 에 행정동 GeoJSON asset 이 정확히 1개, data/geo 원본과 같은 바이트로 들어갔는지 확인한다
+# build 에 GeoJSON asset 이 정확히 2개(행정동·구 경계)이고, 각각 data/geo 원본과 같은 바이트인지(해시 집합 일치) 확인한다
 RUN set -e; \
-    n=$(find dist/assets -name '*.geojson' | wc -l); test "$n" -eq 1 || { echo "geojson asset $n 개"; exit 1; }; \
-    test "$(sha256sum < "$(find dist/assets -name '*.geojson')")" = "$(sha256sum < /build/data/geo/인천_행정동경계_2026.geojson)" \
-      || { echo "geojson asset 이 data/geo 원본과 다르다"; exit 1; }
+    n=$(find dist/assets -name '*.geojson' | wc -l); test "$n" -eq 2 || { echo "geojson asset $n 개"; exit 1; }; \
+    got=$(find dist/assets -name '*.geojson' -exec sha256sum {} \; | awk '{print $1}' | sort); \
+    src=$(for f in /build/data/geo/*.geojson; do sha256sum < "$f"; done | awk '{print $1}' | sort); \
+    test "$got" = "$src" || { echo "geojson asset 이 data/geo 원본과 다르다"; exit 1; }
 
 # ── 2) runtime ──────────────────────────────────────────────
 FROM python:3.10-slim

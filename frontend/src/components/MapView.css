@@ -248,6 +248,14 @@
   background: var(--color-map-dong-fill);
 }
 
+/* 인천 외곽(2px 실선) 안에 구 경계(1px 실선)가 있는 모양 (묶음 A, §19.3 위계) */
+.map__legend-gu {
+  width: 12px;
+  height: 10px;
+  border: 2px solid var(--color-map-outline-stroke);
+  background: linear-gradient(var(--color-map-gu-stroke), var(--color-map-gu-stroke)) center / 1px 100% no-repeat;
+}
+
 /* 선택 지점 핀 (§19.3): 지름 16px, 지도 톤 링 3px + 후광 — 맨 위 위계. NAVER 지도가 만든 DOM에 붙으므로 전역 클래스.
    다크 지도: #7AA2FF + 어두운 링, 밝은 지도: #2F5BDB + 흰 링(tokens-a3.css) */
 .map-marker {

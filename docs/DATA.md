@@ -35,9 +35,11 @@
 | `SGIS_행정동경계_2025_남동구_구월.geojson` | commit | utf-8 | **SGIS 공식 경계 입력** (D-017). SGIS OpenAPI `boundary/hadmarea.geojson` year=2025·adm_cd=23050(남동구)·low_search=1 응답 중 구월1동·구월3동 2개 Polygon. 좌표는 응답 그대로 UTM-K(EPSG:5179). feature 속성은 `adm_cd`(SGIS 통계용 코드)·`adm_nm`만, `provenance`에 API·연도·요청 인자·CRS. 인증값·token·응답 메타 없음. 5,299 bytes. 받기: `python scripts/fetch_sgis_boundary.py`(인증 필요, 기존 파일과 바이트 비교만 하고 덮어쓰지 않음) |
 | `인천_행정동경계_2026.geojson` | commit | utf-8 | 인천 158개 MultiPolygon, WGS84(CRS84). 속성 `행정동코드`(8자리, panel 키), `행정기관코드`(10자리), `시군구코드`, `시군구명`, `행정동명`(panel 표기), `경계_행정동명`(원문), `경계_출처`. 156개는 vuski 2026 원본 좌표 그대로(`경계_출처` = `vuski/admdongkor ver20260701`), 구월1동·구월3동 2개는 SGIS 공식 경계로 교정(`경계_출처` = `… + SGIS hadmarea 2025 구월1동/구월3동 경계 교정 (D-017)`) |
 | `행정동_crosswalk_2024_2026.csv` | commit | utf-8-sig | 158행. `구_행정동코드·구_시군구명·구_행정동명 → 신_행정동코드·신_시군구명·신_행정동명`, `관계`(1:1 154 / 분동 4), `구기준_겹침비율`, `신기준_겹침비율` |
+| `인천_시군구경계_2026.geojson` | commit | utf-8 | **표시용**(frontend `src/map/guBoundary.ts`, 묶음 A — D-025). `인천_행정동경계_2026.geojson` 158개를 시군구코드별 union한 구 11개 + 전체 union 외곽선 1개, 모두 MultiPolygon, 좌표 소수 5자리. 속성 `kind`(`gu`/`outline`), 구는 `시군구코드`·`시군구명`, 외곽선은 `name`, 공통 `경계_출처`. 면적 0 구멍·2,000 m² 미만 조각 제거, 표시용 단순화(구 1e-4°≈10 m, 외곽 2e-4°≈20 m). 약 165KB. backend는 읽지 않는다(행정동 판정은 158개 파일) |
 
 - 출처: `인천_행정동경계_2026.geojson` = [github.com/vuski/admdongkor](https://github.com/vuski/admdongkor) ver20260701 (원천 통계청 SGIS, 공공누리 1유형 / 가공본 CC BY 4.0, 다운로드 2026-10-05) **+ 통계청 SGIS OpenAPI 행정경계 2025의 구월1동·구월3동** (받은 날 2026-10-06, 2025가 최신 제공 연도). 다운로드 URL·sha256은 매니페스트.
-- 재생성: 원본을 `data/geo/raw/`에 받고 `python scripts/build_geo.py` → 매니페스트와 같으면 "재현됨". SGIS 입력은 commit돼 있어 재생성에 네트워크·인증이 필요 없다. 매니페스트는 `--manifest`로 최초 1회만 생성(덮어쓰기 거부). 2026-10-06 D-017 교정으로 `인천_행정동경계_2026.geojson` 해시와 SGIS 입력 항목을 결정 기록과 함께 갱신했다.
+- 재생성: 원본을 `data/geo/raw/`에 받고 `python scripts/build_geo.py` → 매니페스트와 같으면 "재현됨". SGIS 입력은 commit돼 있어 재생성에 네트워크·인증이 필요 없다. 매니페스트는 `--manifest`로 최초 1회만 생성(덮어쓰기 거부). 2026-10-06 D-017 교정으로 `인천_행정동경계_2026.geojson` 해시와 SGIS 입력 항목을 결정 기록과 함께 갱신했다. 2026-10-19 묶음 A에서 `인천_시군구경계_2026.geojson`(행정동 union, 새 다운로드 없음)을 산출물·매니페스트에 추가했다 — 기존 두 파일의 해시는 그대로다.
+- 시군구 경계·외곽선: `python scripts/build_geo.py`가 행정동 경계와 함께 `인천_시군구경계_2026.geojson`을 만들고 매니페스트와 비교한다(별도 입력·네트워크 없음, 규칙은 `docs/spikes/9A-geo-theme` s1). 단순화 때문에 행정동 union과 정확히 같지 않다(대칭차 ≤ 0.5% 면적, 실측 최대 0.29%·구끼리 겹침 ≤ 1e-3, `tests/test_geo_data.py`). raw가 없는 환경에서도 커밋된 행정동 경계만으로 바이트 재현된다. 자체 구 라벨은 쓰지 않으므로 라벨 기준점 속성은 없다(9A s2, D-025).
 - SGIS 교정 (D-017): 2차 가공 구월1동 영역 중 SGIS 공식 구월3동 polygon 안 부분(약 1.055km²)만 구월3동으로 옮긴다 — `새 구월1동 = 구월1동 − SGIS 구월3동`, `새 구월3동 = 구월3동 ∪ (구월1동 ∩ SGIS 구월3동)`. 두 동 합집합(= 이웃 동과의 바깥 경계)은 그대로다. UTM-K → WGS84는 `build_geo.utmk_to_wgs84`(Krüger 6차 급수, SGIS transcoord와 차이 ≤ 2e-13°). 좌표·bbox·점 기반 예외는 없다. crosswalk는 교정 전 원본끼리 만든다(개편 관계 기록용).
 - 변환: 인천(`sido=28`)만 추출. 2026 경계의 `adm_cd2[:8]`이 panel `행정동코드`와 158/158 일치. crosswalk는 2024↔2026 polygon 면적 겹침으로 기계적으로 판정(겹침 ≥ 0.995만 같은 영역, 0.001 미만은 경계선 공유로 무시). 추정 매핑 없음. 통합·경계 변경·이름 변경이 나오면 스크립트가 오류로 멈춘다.
 - 결과: 1:1 154개(코드만 변경), 분동 2건 = 중구 운서동 → 영종구 운서1동·운서2동, 서구 아라동 → 검단구 아라1동·아라2동. 158개 polygon은 유효하고 서로 겹치지 않는다(최대 겹침 비율 ~1e-14, 교정 후 관교동↔구월1·3동 접점에 1e-7m² 수준 부동소수 잡음). 교정 후 구월1동은 본체 + 점포 없는 작은 조각 2개(39,050m²·3,869m²)로 된 MultiPolygon이다 — SGIS 구월3동이 아닌 영역이라 옮기지 않았다(SGIS상 간석1동/구월2동이거나 SGIS 남동구 밖인 가장자리, D-017).
@@ -49,5 +51,11 @@
 비어 있음. 향후 비교 모집단(reference) 디스크 캐시 위치. 캐시 키와 무효화 규칙은 `docs/ARCHITECTURE.md` 5장.
 캐시 파일은 생성물이므로 commit하지 않는다 (`.gitignore`).
 
-## 데이터 갱신 (향후)
-데이터를 새 시점으로 바꾸면 점수가 바뀐다 = golden이 깨진다. 이는 정상이며, 새 데이터 버전 + 새 golden 버전으로 다룬다 (`docs/DECISIONS.md` D-006). v0.3 데이터와 golden은 보존한다.
+## 데이터 갱신 — 데이터 버전 (묶음 C, `docs/DATA_VERSIONING.md`)
+데이터를 새 시점으로 바꾸면 점수가 바뀐다. 이는 정상이며 **엔진 버전과 다른 축**으로 다룬다(D-006 개정 제안, 사용자 결정 2026-10-19):
+`data/runtime/`(= 데이터 버전 `2026-06`, 매니페스트 없음)은 그대로 두고 v0.3·v0.4 golden도 이 데이터로 계속 통과시킨다.
+새 자료는 `data/versions/<id>/`에 런타임 파일 8개 + `manifest.json`(역할 키 → 파일명·sha256·출처·기준일·ETL 해시·검증·스냅샷)으로 두고
+환경변수 `DATA_VERSION`(id 또는 디렉터리)으로 고른다. 로더(`scoring_engine/runtime.py`)는 역할 키(`shops`, `panel`, `market_panel`,
+`stability_pc`, `stability_food`, `stations`, `schools`, `rent`)로 파일을 찾고, 읽기 호출은 버전과 무관하게 같다.
+자료 기준일은 `RuntimeData.as_of(역할)` → `GET /health data.as_of`, `/nearby-stores as_of`.
+만들기·검증·비교: `scripts/etl/build_version.py` → `validate_version.py`(7단계) → `diff_report.py`(부평역 29업종). 적용은 새 이미지·새 리비전.

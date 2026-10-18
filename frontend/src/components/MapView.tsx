@@ -1,5 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent } from 'react'
 import { findDongRings } from '../map/dongBoundary.ts'
+import { boundaryTier, loadGuBoundaries, type BoundaryTier } from '../map/guBoundary.ts'
+import { lastStyleStatus, styleStatusSince } from '../map/styleStatus.ts'
 import {
   boxToRect,
   circleBox,
@@ -113,6 +115,12 @@ export type MapViewProps = {
    * 같은 크기로 숨김 → 보임이 한 프레임 안에 끝나면 ResizeObserver가 알리지 않으므로 이 신호로 미룬 정보창을 처리한다
    */
   layoutKey?: string
+  /**
+   * 화면 테마(묶음 A, §19.7). 바뀌면 지도를 그 테마에 맞게 다시 만든다 — 다크: `VITE_NAVER_MAP_STYLE_ID`(GL 다크 스타일),
+   * 라이트: `VITE_NAVER_MAP_LIGHT_STYLE_ID`가 있으면 GL 라이트 스타일, 없으면 NAVER 기본 밝은 지도. 둘 다 스타일 실패 시 밝은 지도로
+   * 복구한다(§19.3.1). 중심·줌·오버레이·선택은 새 지도로 이어진다. 생략하면 다크
+   */
+  theme?: 'light' | 'dark'
 }
 
 /** 인천 중심 초기 화면 (인천광역시청 부근) */
@@ -128,21 +136,8 @@ const MAP_GL = import.meta.env.VITE_NAVER_MAP_GL === '1'
  */
 export const MAP_INIT_TIMEOUT_MS = 8_000
 const INIT_TICK_MS = 250
-/** NAVER 커스텀 스타일 요청 (스파이크 실측: 잘못된 ID → 400, 정상 → 200) */
-const STYLE_REQUEST = /\/v3\/styler\/props/
-
 /** 지도 톤 (§19.3): 다크 = 실제 GL + 그 지도의 스타일 요청 200 + init. 그 밖은 밝은 지도 + 밝은 대체 팔레트 */
 export type MapTone = 'dark' | 'light'
-
-type ResourceEntry = { name: string; startTime: number; responseStatus?: number }
-
-/** t0 이후 시작한 스타일 요청의 응답 상태(마지막 것). 브라우저가 상태를 주지 않으면 null — 다크로 보지 않는다 */
-function styleStatusSince(t0: number): number | null {
-  let status: number | null = null
-  const entries = (typeof performance.getEntriesByType === 'function' ? performance.getEntriesByType('resource') : []) as ResourceEntry[]
-  for (const e of entries) if (STYLE_REQUEST.test(e.name) && e.startTime >= t0 && e.responseStatus) status = e.responseStatus
-  return status
-}
 
 /** 지도 톤을 문서에 건다 — 지도 오버레이·정보창 색 토큰(tokens-a3.css)이 이 값으로 바뀐다 */
 function applyMapTone(tone: MapTone | null) {
@@ -225,6 +220,61 @@ function useDongPolygons(api: NaverMapsApi | null, map: NaverMap | null, guCode?
       polygons.forEach((p) => p.setMap(null))
     }
   }, [api, map, guCode, dongName])
+}
+
+/**
+ * 인천 외곽선 + 구 경계 (묶음 A, §19.3 위계: 외곽 2px 실선 › 구 1px 실선 › 분석 행정동 점선). 지도가 준비되면 1회 받아 그리고,
+ * 줌 단계(래스터 기준 ≤11 외곽선만 / 12~14 구 경계 / ≥15 구 경계 흐리게)는 zoom_changed·idle 때 옵션만 바꾼다.
+ * 색은 지도 톤 토큰(§19.3)에서 그릴 때 읽는다 — 톤·테마가 바뀌면 지도가 새로 만들어져 다시 그린다. 클릭을 받지 않는다
+ */
+function useGuBoundaries(api: NaverMapsApi | null, map: NaverMap | null, renderModeRef: { current: number | null }) {
+  useEffect(() => {
+    if (!api || !map) return
+    let cancelled = false
+    const outline: NaverPolygon[] = []
+    const gu: NaverPolygon[] = []
+    const listeners: unknown[] = []
+    let tier: BoundaryTier | null = null
+    const apply = () => {
+      const next = boundaryTier(rasterZoom(map.getZoom(), renderModeRef.current))
+      if (next === tier) return
+      tier = next
+      for (const p of gu) {
+        if (next === 'outline') {
+          p.setMap(null)
+          continue
+        }
+        p.setOptions?.({ strokeColor: token(next === 'gu' ? '--color-map-gu-stroke' : '--color-map-gu-stroke-faint') })
+        p.setMap(map)
+      }
+    }
+    const make = (rings: { lat: number; lng: number }[][][], options: Record<string, unknown>) =>
+      rings.map(
+        (polygon) =>
+          new api.Polygon({
+            map,
+            paths: polygon.map((ring) => ring.map((p) => new api.LatLng(p.lat, p.lng))),
+            fillOpacity: 0,
+            strokeOpacity: 1,
+            clickable: false,
+            ...options,
+          }),
+      )
+    loadGuBoundaries()
+      .then((b) => {
+        if (cancelled) return
+        outline.push(...make(b.outline, { strokeColor: token('--color-map-outline-stroke'), strokeWeight: 2, zIndex: 2 }))
+        gu.push(...make(b.gu, { strokeColor: token('--color-map-gu-stroke'), strokeWeight: 1, zIndex: 1 }))
+        apply()
+        listeners.push(api.Event.addListener(map, 'zoom_changed', apply), api.Event.addListener(map, 'idle', apply))
+      })
+      .catch((e: unknown) => console.error('[map] 구 경계를 불러오지 못했습니다', e))
+    return () => {
+      cancelled = true
+      listeners.forEach((l) => api.Event.removeListener(l))
+      for (const p of [...outline, ...gu]) p.setMap(null)
+    }
+  }, [api, map, renderModeRef])
 }
 
 /** 동종 점포 마커 아이콘 (지름 10px, 선택되면 14px + 테두리, §8.11) */
@@ -426,6 +476,7 @@ export function MapView({
   storeContext,
   onSdkState,
   layoutKey,
+  theme = 'dark',
 }: MapViewProps) {
   const sectionRef = useRef<HTMLElement>(null)
   /** React가 그리는 지도 자리. SDK 지도 요소(canvas)는 세대마다 이 안에 새로 만든다(8-DK) */
@@ -455,6 +506,14 @@ export function MapView({
   const runFitRef = useRef<(action: FitAction) => void>(() => {})
   /** 실제 그리기 방식(1 래스터 / 2 GL) — 비교 기준 zoom 13을 래스터 기준으로 환산할 때 쓴다 */
   const renderModeRef = useRef<number | null>(null)
+  /**
+   * 테마 전환으로 지도를 다시 만들 때 이어받는 보기(중심·래스터 기준 zoom, 묶음 A). 이전 세대를 정리하기 직전에 적고,
+   * 새 지도를 내놓을 때 지운다. 이어받아 만든 지도(restoredMapRef)에서는 "새 위치"·"B 선택" 맞춤을 다시 돌리지 않는다 —
+   * 좌표가 그대로이므로 보던 범위를 유지한다(스타일 실패 복구도 같은 경로)
+   */
+  const carryRef = useRef<{ lat: number; lng: number; zoomRaster: number } | null>(null)
+  const restoredMapRef = useRef<NaverMap | null>(null)
+  const liveMapRef = useRef<NaverMap | null>(null)
 
   // 최신 콜백·상태를 클릭 핸들러가 읽는다 (지도를 다시 만들지 않기 위해)
   const onSelectRef = useRef(onSelect)
@@ -489,12 +548,17 @@ export function MapView({
     // 모두 정리하고 밝은 지도를 한 번만 다시 만든다. 이전 세대의 늦은 이벤트·타이머·스타일 요청 결과는 세대 번호가 달라 버린다
     let gen = 0
     let disposeAttempt: (() => void) | null = null
-    const styleId = import.meta.env.VITE_NAVER_MAP_STYLE_ID ?? ''
+    // 테마별 커스텀 스타일(묶음 A): 다크는 §19.4 스타일, 라이트는 선택(없으면 NAVER 기본 밝은 지도). 스타일이 성공하면 그 테마의 톤
+    const styleId = (theme === 'dark' ? import.meta.env.VITE_NAVER_MAP_STYLE_ID : import.meta.env.VITE_NAVER_MAP_LIGHT_STYLE_ID) ?? ''
+    const styledTone: MapTone = theme
 
     /** 지도를 화면에 내놓는다(오버레이·맞춤·주소 기능이 이 지도로 돈다). 톤을 먼저 걸어 오버레이가 맞는 색으로 그려지게 한다 */
     const expose = (loaded: NaverMapsApi, map: NaverMap, tone: MapTone) => {
       applyMapTone(tone)
       if (sectionRef.current) sectionRef.current.dataset.mapTone = tone
+      restoredMapRef.current = carryRef.current ? map : null
+      carryRef.current = null
+      liveMapRef.current = map
       setApi(loaded)
       setMap(map)
       // 지도는 준비됐다. Geocoder는 지금 상태를 올리고, 뒤에 정해지면(ready/unavailable) 다시 올린다
@@ -537,10 +601,13 @@ export function MapView({
       canvasRef.current = canvas
       const gl = kind === 'styled' || (kind === 'plain' && MAP_GL)
       const t0 = typeof performance.now === 'function' ? performance.now() : 0
+      // 테마 전환이면 이전 지도의 보기(중심·래스터 기준 zoom)를 이어받는다. GL은 같은 축척에서 zoom이 1 작다(래스터 11 = GL 10)
+      const carry = carryRef.current
+      const center = carry ?? INCHEON_CENTER
+      const zoomRaster = carry ? carry.zoomRaster : INITIAL_ZOOM
       const map = new loaded.Map(canvas, {
-        center: new loaded.LatLng(INCHEON_CENTER.lat, INCHEON_CENTER.lng),
-        // GL은 같은 축척에서 zoom이 1 작다(래스터 11 = GL 10)
-        zoom: gl ? INITIAL_ZOOM - 1 : INITIAL_ZOOM,
+        center: new loaded.LatLng(center.lat, center.lng),
+        zoom: gl ? zoomRaster - 1 : zoomRaster,
         ...(gl ? { gl: true } : {}),
         ...(kind === 'styled' ? { customStyleId: styleId } : {}),
         // 확대·축소는 지도에 보이는 영역 오른쪽 아래의 우리 버튼(.map__controls, A3 §19.1) — 지도가 화면 전체라 SDK 오른쪽
@@ -596,16 +663,17 @@ export function MapView({
         settled = true
         stopWaiting()
         if (kind === 'styled') {
-          const status = styleStatusSince(t0)
-          const dark = outcome === 'init' && status === 200 && map.get?.('renderMode') === 2
-          if (dark) {
+          // 이 세대의 요청이 없으면(SDK 캐시) 이 페이지에서 마지막으로 본 결과로 본다
+          const status = styleStatusSince(t0) ?? lastStyleStatus()
+          const styled = outcome === 'init' && status === 200 && map.get?.('renderMode') === 2
+          if (styled) {
             markInited(map)
-            expose(loaded, map, 'dark')
+            expose(loaded, map, styledTone)
             return
           }
           // 스타일 실패(요청 200 아님·시간 초과·GL 아님) → 이 세대를 정리하고 밝은 지도를 한 번만 다시 만든다.
           // 선택 위치·반경·결과는 props 그대로이고, 오버레이·맞춤은 새 지도를 내놓은 뒤 effect가 다시 그린다
-          console.warn(`[map] 다크 지도 스타일을 쓰지 못해 밝은 지도로 바꿉니다 (${outcome}${status ? `, 스타일 요청 ${status}` : ''})`)
+          console.warn(`[map] ${styledTone === 'dark' ? '다크' : '라이트'} 지도 스타일을 쓰지 못해 기본 밝은 지도로 바꿉니다 (${outcome}${status ? `, 스타일 요청 ${status}` : ''})`)
           disposeAttempt?.()
           disposeAttempt = null
           attempt(loaded, 'fallback')
@@ -675,10 +743,31 @@ export function MapView({
       }
     }
 
-    loadNaverMaps(import.meta.env.VITE_NAVER_MAP_CLIENT_ID, { gl: MAP_GL || styleId !== '' })
+    /**
+     * 스타일(GL) 지도는 지도 영역이 보일 때만 만든다. 숨겨진(0×0, mobile 패널 화면) 컨테이너에 만들면 SDK가 GL을 못 열어 래스터로
+     * init 하고, 그러면 스타일 실패로 보여 밝은 지도로 복구돼 버린다(묶음 A 검수에서 테마 전환 시 재현). 보일 때까지 기다렸다 만든다 —
+     * 그동안 지도 상태는 비어 있고(로딩 표시), 보이는 순간 만든다. 기본 지도(plain)는 지금처럼 바로 만든다
+     */
+    let waitVisible: ReturnType<typeof setInterval> | null = null
+    const sectionVisible = () => {
+      const el = sectionRef.current
+      return !!el && el.clientWidth > 0 && el.clientHeight > 0
+    }
+    const start = (loaded: NaverMapsApi, kind: 'plain' | 'styled') => {
+      if (kind === 'plain' || sectionVisible()) return attempt(loaded, kind)
+      waitVisible = setInterval(() => {
+        if (cancelled || !sectionVisible()) return
+        if (waitVisible) clearInterval(waitVisible)
+        waitVisible = null
+        attempt(loaded, kind)
+      }, INIT_TICK_MS)
+    }
+    // GL 서브모듈은 어느 테마든 스타일 ID가 하나라도 있으면 처음부터 불러온다(로더는 한 번만 붙는다 — 뒤에 테마를 바꿔도 다시 받지 않는다)
+    const anyStyle = (import.meta.env.VITE_NAVER_MAP_STYLE_ID ?? '') !== '' || (import.meta.env.VITE_NAVER_MAP_LIGHT_STYLE_ID ?? '') !== ''
+    loadNaverMaps(import.meta.env.VITE_NAVER_MAP_CLIENT_ID, { gl: MAP_GL || anyStyle })
       .then((loaded) => {
         if (cancelled) return
-        attempt(loaded, styleId ? 'styled' : 'plain')
+        start(loaded, styleId ? 'styled' : 'plain')
       })
       .catch((e: unknown) => {
         if (cancelled) return
@@ -691,6 +780,16 @@ export function MapView({
       cancelled = true
       unsubscribe()
       unsubscribeGeocoder?.()
+      // 테마 전환(theme 변경으로 다시 도는 effect): 내놓은 지도의 보기를 적어 두고 새 지도가 이어받는다. init 전이면 적지 않는다
+      const live = liveMapRef.current
+      const c = live && initedRef.current ? live.getCenter?.() : undefined
+      const liveMode = live?.get?.('renderMode')
+      carryRef.current = c
+        ? { lat: c.lat(), lng: c.lng(), zoomRaster: rasterZoom(live!.getZoom(), typeof liveMode === 'number' ? liveMode : null) }
+        : null
+      liveMapRef.current = null
+      if (waitVisible) clearInterval(waitVisible)
+      waitVisible = null
       disposeAttempt?.()
       disposeAttempt = null
       applyMapTone(null)
@@ -698,7 +797,7 @@ export function MapView({
       pendingFitRef.current = null
       setMap(null)
     }
-  }, [])
+  }, [theme])
 
   // 바깥 .map 크기가 바뀌면 지도 크기를 맞춘다 (mobile 화면 전환·tablet 높이 변경·창 크기 변경).
   // canvas가 아니라 바깥 section을 본다 — SDK가 canvas에 inline px 크기를 넣어서 canvas는 레이아웃을 따라가지 않는다.
@@ -845,11 +944,18 @@ export function MapView({
   // 바뀌면 그대로. 비교 중에는 A가 고정이라 A 좌표가 바뀌지 않는다(바뀌면 지금처럼 panTo)
   const selectedLat = selected?.lat
   const selectedLng = selected?.lng
+  const lastSelectedKeyRef = useRef<string | null>(null)
   useEffect(() => {
+    if (selectedLat === undefined || selectedLng === undefined) lastSelectedKeyRef.current = null
     if (!api || !map || selectedLat === undefined || selectedLng === undefined) {
-      pendingFitRef.current = null
+      pendingFitRef.current = null                        // 지도 교체 중(map null)에는 좌표 기록을 지우지 않는다 — 이어받기 판정용
       return
     }
+    // 테마 전환으로 이어받은 지도 + 같은 좌표: 보던 범위를 유지한다(맞춤·panTo 없음). 좌표가 바뀌면 지금처럼
+    const key = `${selectedLat},${selectedLng}`
+    const restored = restoredMapRef.current === map && lastSelectedKeyRef.current === key
+    lastSelectedKeyRef.current = key
+    if (restored) return
     if (comparingRef.current) {
       map.panTo(new api.LatLng(selectedLat, selectedLng))
       return
@@ -952,8 +1058,14 @@ export function MapView({
 
   // B를 고르면(순위 5, 잠금 해제) 두 원이 함께 들어가는 zoom이 래스터 기준 13 이상이면 A∪B, 아니면 B 원을 맞춘다.
   // B를 지울 때(다시 고르기)는 옮기지 않는다
+  const lastBKeyRef = useRef<string | null>(null)
   useEffect(() => {
+    if (bLat === undefined || bLng === undefined) lastBKeyRef.current = null
     if (!api || !map || bLat === undefined || bLng === undefined) return
+    const key = `${bLat},${bLng}`
+    const restored = restoredMapRef.current === map && lastBKeyRef.current === key   // 테마 전환: 같은 B면 보던 범위 유지
+    lastBKeyRef.current = key
+    if (restored) return
     lockedRef.current = false
     runFitRef.current({ t: 'b-select' })
   }, [api, map, bLat, bLng])
@@ -1113,6 +1225,8 @@ export function MapView({
     [map],
   )
 
+  // 인천 외곽선·구 경계(묶음 A): 지도마다 1회, 줌 단계별 표시
+  useGuBoundaries(api, map, renderModeRef)
   // 분석된 행정동 경계 강조: A, 그리고 성공한 B. B가 A와 같은 동이면 다시 그리지 않는다
   useDongPolygons(api, map, dong?.guCode, dong?.dongName)
   const bDong = compare?.dong ?? null
@@ -1193,6 +1307,10 @@ export function MapView({
           <li>
             <span className="map__legend-dong" aria-hidden="true" />
             분석된 행정동 경계
+          </li>
+          <li>
+            <span className="map__legend-gu" aria-hidden="true" />
+            인천·구 경계
           </li>
           {stores && stores.length > 0 && (
             <li>

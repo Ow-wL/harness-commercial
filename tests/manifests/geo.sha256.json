@@ -1,5 +1,5 @@
 {
-  "description": "data/geo 원본(raw, git 제외)·SGIS 공식 경계 입력·가공 파일 해시. scripts/build_geo.py 로 재생성",
+  "description": "data/geo 원본(raw, git 제외)·SGIS 공식 경계 입력·가공 파일 해시. scripts/build_geo.py 로 재생성. 인천_시군구경계_2026.geojson 은 행정동 경계 union(구 11 + 외곽선 1, 9A s1 규칙)",
   "source": "github.com/vuski/admdongkor (원천 통계청 SGIS, 공공누리 1유형 / 가공 CC BY 4.0) + 통계청 SGIS OpenAPI 행정경계 2025 (구월1동·구월3동 교정, D-017)",
   "files": {
     "raw/HangJeongDong_ver20241231.geojson": {
@@ -23,6 +23,10 @@
     },
     "행정동_crosswalk_2024_2026.csv": {
       "sha256": "2383716eb4d4dbd699c323e62ba6934cf0e6dd1aec7676d5430b58baaa1d6dca",
+      "git": true
+    },
+    "인천_시군구경계_2026.geojson": {
+      "sha256": "da9c11e325a4307516c9c21cce54720a610bfde143d40c5431d3293a4c5944f3",
       "git": true
     }
   }

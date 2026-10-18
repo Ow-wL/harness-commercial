@@ -42,6 +42,7 @@ import { singleBand } from './lib/attentionBand.ts'
 import { ResultCache } from './lib/resultCache.ts'
 import { useNearbyRequest, type RadiusProblem } from './lib/useNearbyRequest.ts'
 import { useReferenceAddress } from './lib/useReferenceAddress.ts'
+import { useTheme } from './lib/theme.ts'
 import './App.css'
 
 /**
@@ -158,6 +159,8 @@ function App() {
   // NAVER SDK 상태 (7-B2, docs/ADDRESS_DESIGN.md §5.1): MapView가 onSdkState로 올린다. 참고 주소는 ready + geocoder ready일 때만 조회한다.
   // 로더를 여기서 다시 부르거나 SDK를 다시 넣지 않는다
   const [sdk, setSdk] = useState<SdkState>({ status: 'loading' })
+  // 화면 테마(묶음 A, DESIGN.md §19.7): 저장된 선택 > 시스템 설정 > 다크. 지도 톤은 MapView가 실제 렌더 결과로 따로 정한다
+  const { theme, setPreference: setThemePreference } = useTheme()
   // 위치 입력 방법 (P2·P3): 조건 패널과 mobile 지도 sheet의 segmented가 같이 쓴다. sheet에서 주소·좌표를 고르면
   // 패널 화면으로 가서 그 폼의 첫 입력칸으로 포커스(methodFocus를 올린다, B5)
   const [locationMethod, setLocationMethod] = useState<LocationMethod>('map')
@@ -1107,6 +1110,7 @@ function App() {
     >
       <div className="app__map" ref={mapRef}>
         <MapView
+          theme={theme}
           onSdkState={setSdk}
           // mobile 지도↔패널 전환 신호: 크기 알림 없이 지도 화면으로 돌아와도 크기 맞춤·미룬 정보창 처리 (6-4)
           // tablet 패널 접기도 같은 신호 — 지도 크기는 그대로라 zoom은 바꾸지 않고 컨트롤 띠·미룬 정보창만 다시 본다(D-022 순위 8)
@@ -1136,6 +1140,16 @@ function App() {
         </span>
         {barCondition}
         {radiusInBar && radiusControl}
+        {/* 테마 전환(묶음 A, §19.7): 누르면 그 선택을 저장하고 패널·지도가 함께 바뀐다. 아이콘은 "바뀔 테마"가 아니라 지금 상태 반대 행동 */}
+        <button
+          type="button"
+          className="bar__theme"
+          aria-label={theme === 'dark' ? '라이트 모드로 전환' : '다크 모드로 전환'}
+          title={theme === 'dark' ? '라이트 모드로 전환' : '다크 모드로 전환'}
+          onClick={() => setThemePreference(theme === 'dark' ? 'light' : 'dark')}
+        >
+          <Icon name={theme === 'dark' ? 'sun' : 'moon'} size={20} />
+        </button>
       </header>
       <div className="panel" data-map-obstacle data-folded={panelFolded || undefined}>
         {/* tablet(640~1100px)에서만 보인다 — 패널을 접어 지도를 넓게 본다 (P9) */}
