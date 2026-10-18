@@ -1,0 +1,6 @@
+# 데이터 버전의 런타임 파일(약 38MB)·원본 다운로드는 commit 하지 않는다. manifest.json 과 snapshot/ 만 commit (docs/DATA_VERSIONING.md).
+*/*
+!*/manifest.json
+!*/snapshot/
+!*/snapshot/**
+_raw/

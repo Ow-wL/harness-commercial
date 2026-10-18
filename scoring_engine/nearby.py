@@ -19,10 +19,11 @@ from typing import Optional
 import numpy as np
 
 from . import config as C, radius_demand
-from .runtime import RuntimeData
+from .runtime import LEGACY_AS_OF, RuntimeData
 
-# 상가(상권)정보 기준일 — sources/team_v0.3/00_README.md 데이터 표, docs/DATA.md. 데이터를 바꾸면 함께 바꾼다.
-SHOPS_AS_OF = "2026-06-30"
+# 상가(상권)정보 기준일 — 매니페스트 없는 data/runtime(데이터 버전 2026-06)의 값 (runtime.LEGACY_AS_OF, docs/DATA.md).
+# 실제 응답 값은 NearbyStoreFinder.as_of = RuntimeData.as_of("shops") — 데이터 버전 매니페스트가 있으면 그 값 (docs/DATA_VERSIONING.md).
+SHOPS_AS_OF = LEGACY_AS_OF["shops"]
 
 
 @dataclass(frozen=True)
@@ -48,6 +49,7 @@ class NearbyStoreFinder:
     def __init__(self, rt: RuntimeData):
         shops = rt.shops
         self._shops = shops
+        self.as_of = rt.as_of("shops")      # 점포 목록의 자료 기준일 (데이터 버전을 따른다)
         # radius_profile 과 같은 열·같은 값(.values)으로 거리·업종을 판정한다
         self._lat = shops["위도"].values
         self._lng = shops["경도"].values

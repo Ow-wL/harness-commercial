@@ -19,6 +19,9 @@ FastAPI backend (TASKS 3-1, docs/DECISIONS.md D-012).
 분석 반경(8-D2, D-024): /analyze·/nearby-stores 의 선택 필드 radius_m(생략 = config.RADIUS_M 500). 엔진이 받는 값
           (scoring_engine.RADIUS_OPTIONS_M — v0.3 은 500 하나, v0.4 는 300·500·1,000)만, 그 밖은 422 invalid_radius.
           GET /health 의 engine.radius_options 로 광고한다(프런트는 2개 이상일 때만 반경 선택을 보인다).
+데이터 버전(묶음 C, docs/DATA_VERSIONING.md): GET /health 의 data = {version, as_of: {역할 키: 자료 기준일}} — 이 프로세스가 읽은
+          RuntimeData 의 버전 메타(환경변수 DATA_VERSION, 기본 data/runtime = 2026-06). /nearby-stores 의 as_of 도 같은 메타(shops)에서 온다.
+          /analyze 응답 스키마는 바꾸지 않는다(프런트 Zod strict).
 frontend: frontend_dist(또는 환경변수 FRONTEND_DIST)를 주면 Vite build 를 같은 origin 에서 서빙한다 — API route 다음에
           붙어서 API 가 항상 우선, 나머지 GET 은 SPA fallback (backend/app/frontend.py, D-018). 주지 않으면 API 만.
 오류 계약: backend/app/errors.py (3-5) — 사용자 입력·분석 불가 422, 내부 오류 500 + request_id
@@ -37,7 +40,8 @@ from pydantic import BaseModel, Field, StrictFloat, StrictInt, StrictStr
 
 from scoring_engine import ENGINE_VERSION, RADIUS_OPTIONS_M, config as C, scoring
 from scoring_engine.location import ContextBuilder, InvalidCoordinate, LocationOutside, NoDataNearby
-from scoring_engine.nearby import SHOPS_AS_OF, NearbyStoreFinder
+from scoring_engine.nearby import NearbyStoreFinder
+from scoring_engine.runtime import resolve_data_version
 
 from .errors import (ERROR_RESPONSES, INVALID_ANALYSIS_OPTIONS, INVALID_BUSINESS, INVALID_COORDINATE,
                      INVALID_RADIUS, LOCATION_OUTSIDE, NO_DATA_NEARBY, ApiError, install_error_handlers)
@@ -121,7 +125,7 @@ class NearbyStoresResponse(BaseModel):
     lng: float
     biz_code: str
     radius_m: int                    # 쓴 분석 반경 (요청 radius_m, 생략이면 config.RADIUS_M)
-    as_of: str                       # 상가(상권)정보 기준일
+    as_of: str                       # 상가(상권)정보 자료 기준일 (데이터 버전 메타 — RuntimeData.as_of("shops"))
     count: int                       # == len(stores) == 같은 조건 /analyze 의 경쟁성.raw.동종점포수
     stores: list[NearbyStore]        # 가까운 순
 
@@ -265,6 +269,13 @@ def create_app(service: Optional[AnalysisService] = None, warm_biz: Optional[Ite
         except NoDataNearby as e:
             raise ApiError(NO_DATA_NEARBY) from e
 
+    def data_health() -> dict:
+        """이 프로세스의 데이터 버전 메타. service 가 RuntimeData 를 들고 있으면 그 버전, 아니면(시작 전·주입된 가짜 service)
+        같은 규칙(DATA_VERSION)으로 결정한 버전 — 파일을 읽지 않는다."""
+        rt = getattr(app.state.service, "rt", None)
+        version = getattr(rt, "version", None)
+        return (version or resolve_data_version()).health()
+
     @app.get("/health")
     def health() -> dict:
         warm = app.state.warm
@@ -273,6 +284,8 @@ def create_app(service: Optional[AnalysisService] = None, warm_biz: Optional[Ite
                 # 8-D2: 이 서버 엔진이 받는 분석 반경. 프런트는 radius_options 가 2개 이상일 때만 반경 선택을 보인다
                 "engine": {"version": ENGINE_VERSION, "radius_options": list(RADIUS_OPTIONS_M),
                            "default_radius_m": C.RADIUS_M},
+                # 묶음 C: 데이터 버전과 역할별 자료 기준일 (docs/DATA_VERSIONING.md §4)
+                "data": data_health(),
                 "warm": warm.snapshot() if warm is not None else
                 {"completed": 0, "total": len(biz_codes), "done": False, "failed": False, "error": None}}
 
@@ -309,9 +322,10 @@ def create_app(service: Optional[AnalysisService] = None, warm_biz: Optional[Ite
             raise ApiError(INVALID_BUSINESS)
         radius = resolve_radius(req.radius_m)
         ctx = resolve_context(req.lat, req.lng)
-        stores = nearby_finder().find(ctx.lat, ctx.lng, req.biz_code, radius_m=radius)
+        finder = nearby_finder()
+        stores = finder.find(ctx.lat, ctx.lng, req.biz_code, radius_m=radius)
         return NearbyStoresResponse(lat=ctx.lat, lng=ctx.lng, biz_code=req.biz_code, radius_m=radius,
-                                    as_of=SHOPS_AS_OF, count=len(stores),
+                                    as_of=finder.as_of, count=len(stores),
                                     stores=[NearbyStore(**vars(s)) for s in stores])
 
     if frontend_dist:   # API route 를 모두 등록한 뒤에 붙인다 — route 순서상 API 가 먼저 매칭된다
