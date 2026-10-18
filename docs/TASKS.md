@@ -2,6 +2,15 @@
 
 각 작업은 끝날 때 `scripts/check` 전체 통과가 조건이다. 위에서부터 순서대로.
 
+## 추가 UI 간소화 (사용자 직접 확인 후 요청)
+
+- [x] 기본 결과의 정보량 축소 — **검증 완료(2026-10-19) · 커밋 전 · 운영 미배포**. Codex 구현·자체 검증 → Claude 실제 브라우저 검토(단일·네일숍·비교 1440·375, 펼친 상태 포함) 뒤 mobile 결과 지도 시트만 보완(헤드라인·결과 참고 주소 숨김, CSS만) → Codex가 그 보완을 검수(관련 테스트 25건·production build) → Claude 로컬 전체 check 9단계 1회 통과(아래).
+  - 이력(Codex 실행): 위치·점수·다섯 관점 중심, 근거·위치 정보·전체 주의사항은 펼침. 병목·신뢰도·미산출 표시는 유지한다. 전체 check 1회차 주소 표시 위치 테스트 4건 실패 → 수정 후 2회차 9단계 PASS(SKIP 없음, frontend 645건). 최종 production build 통과.
+  - 최종 전체 check(Claude 로컬, 2026-10-19 04:17~04:24): 지도 시트 보완을 포함한 최종 코드로 `scripts/check.sh` 9단계 **1회 통과, 재실행 없음, SKIP 없음**(v0.3 303 · v0.4 61 · backend 133 · frontend 27파일 646건). 다른 프로그램이 CPU를 쓰는 동안은 기다렸다가(CPU 평균 30% 미만 3회 연속 뒤 시작, 사용자 프로그램 종료 안 함) 실행, 로그 `.gstack/check-logs/quiet-check-full.log`(git 제외). 프런트 전체를 따로 먼저 돌리려던 대기 작업은 시작 전에 정리했다(전체 check에 포함). 이후 코드 변경 없음(문서만). Codex는 이 전체 check를 재실행하지 않았다
+  - 미검증: 실제 모바일 기기·Safari·Firefox·스크린리더
+- 설계 조정·검증 범위·Claude 전달문: [UI_SIMPLIFICATION_REVIEW.md](UI_SIMPLIFICATION_REVIEW.md). 기존 UI 완료 기록과 별개의 추가 변경이다. Claude 독립 검토 완료나 운영 배포 승인을 뜻하지 않는다.
+- 8-D2c·Docker·Cloud Run·운영 배포 보류는 유지한다.
+
 ## 완료
 - [x] H-0 하네스: 원본 보호(해시), canonical 엔진, 런타임 데이터 분리, adapter, golden regression(29/29), check 스크립트, 문서
 
