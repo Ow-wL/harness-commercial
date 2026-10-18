@@ -369,3 +369,37 @@ describe('AnalysisResult — 근거 줄·행 chip 통합·충족 1줄 (8-C1b, do
     expect(coverageItems()[1]).toBe('가중치 사용자(중요도 1~5)')
   })
 })
+
+describe('AnalysisResult — 8-C1d 한글화·[이 점수는?]', () => {
+  it('상세 근거: 계산 단위는 화면 말("구 단위"), 특이사항은 한글 라벨 + 설명, 해상도 flag는 빼고 원문은 원시값 보기에 그대로', () => {
+    renderResult()
+    openTab(EVIDENCE_TAB)
+    fireEvent.click(document.getElementById('detail-toggle-market')!)
+    const panel = document.getElementById('detail-toggle-market')!.closest('.detail')!
+    expect(panel).toHaveTextContent('계산 단위구 단위')
+    expect(panel).not.toHaveTextContent('gugu')
+    const flags = within(panel as HTMLElement).getByRole('heading', { name: '특이사항' }).parentElement!
+    expect(flags).toHaveTextContent('영업시간대 유입 집중 — 24시간 균등 기준(1.0) 대비 값이라 인천 대부분 구에서 붙습니다')
+    expect(flags).not.toHaveTextContent('해상도')
+    expect(flags).not.toHaveTextContent('영업시간대_유입_집중')
+    fireEvent.click(within(panel as HTMLElement).getByRole('button', { name: '원시값 보기' }))
+    const raw = within(panel as HTMLElement).getByRole('table', { name: '원시값' })
+    expect(within(raw).getByRole('row', { name: /^fallback/ })).toHaveTextContent('gugu')
+    expect(within(raw).getByRole('row', { name: /^flags/ })).toHaveTextContent('영업시간대_유입_집중, 해상도_시군구')
+  })
+
+  it('[이 점수는?]는 접혀 있고, 펼치면 "가장 높음·낮음"의 뜻이 첫 줄, 가중평균·순위 아님, 예측 아님 3항목', () => {
+    renderResult()
+    const toggle = screen.getByRole('button', { name: '이 점수는?' })
+    expect(toggle).toHaveAttribute('aria-expanded', 'false')
+    fireEvent.click(toggle)
+    expect(toggle).toHaveAttribute('aria-expanded', 'true')
+    const items = within(screen.getByRole('list', { name: '이 점수는?' })).getAllByRole('listitem')
+    expect(items).toHaveLength(3)
+    expect(items[0]).toHaveTextContent('이 위치에서 산출한 관점 점수끼리 비교한 표현입니다. 다른 위치와 비교한 순위가 아닙니다.')
+    expect(items[1]).toHaveTextContent('종합 적합도는 산출된 관점 점수에 적용 가중치를 반영한 가중평균입니다. 인천 내 순위나 "상위 N%"가 아닙니다.')
+    expect(items[1]).not.toHaveTextContent(/다섯 관점|업종 그룹 가중치/)   // 부분 미산출·사용자 가중치에서도 맞는 표현
+    expect(items[2]).toHaveTextContent('창업 성공 확률이나 매출·수익을 예측하지 않습니다')
+    expect(toggle).toHaveAttribute('aria-controls', screen.getByRole('list', { name: '이 점수는?' }).id)
+  })
+})

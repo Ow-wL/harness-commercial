@@ -334,3 +334,18 @@
   }
 }
 
+
+/* 패널(360~400px) 안 표: 칸 여백을 줄이고 첫 열(지표·항목 이름)은 최소 폭을 둬 한 글자씩 꺾이지 않게 — 넘치면 표만 가로 스크롤 */
+.workspace__panel .data-table th,
+.workspace__panel .data-table td {
+  padding: 8px 6px;
+}
+
+.workspace__panel .data-table tr > :first-child {
+  min-width: 7.5em;
+  word-break: keep-all;
+}
+
+.workspace__panel .data-table thead th {
+  white-space: nowrap;
+}

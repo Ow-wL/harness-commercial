@@ -110,8 +110,8 @@ export function NearbyStores({
         <>
           <p className="result-section__note">
             {place && `${place} · `}
-            {bizName} {state.data.count}곳 · {state.data.count > 0 && '가까운 순 · 거리는 분석 지점에서의 직선거리 · '}
-            상가정보 {state.data.as_of} 기준 (이후 개업·폐업은 반영되지 않음)
+            {bizName} {state.data.count}곳 · {state.data.count > 0 && '가까운 순 · 분석 지점에서 직선거리 · '}
+            상가정보 {state.data.as_of} 기준(이후 개업·폐업 미반영)
           </p>
           {state.data.count !== expectedCount && (
             <p className="nearby__mismatch" role="status">

@@ -110,9 +110,8 @@ export function AnalysisResult({
               group={result.meta.업종그룹}
               access={result.초보자_접근성}
             />
-            <p className="result__hint">
-              "가장 높음·낮음"은 이 위치 안 다섯 관점끼리의 비교입니다. 관점을 누르면 근거를 자세히 볼 수 있습니다.
-            </p>
+            {/* "가장 높음·낮음"의 뜻은 [이 점수는?]이 맡는다(8-C1d 중복 축약) */}
+            <p className="result__hint">관점을 누르면 근거를 자세히 볼 수 있습니다.</p>
             <p className="result__disclaimer">{SERVICE_DISCLAIMER}</p>
           </TabPanel>
           <TabPanel tab="stores" selected={tab} idBase={idBase}>

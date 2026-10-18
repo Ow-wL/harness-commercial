@@ -60,6 +60,33 @@
   color: var(--color-text-muted);
 }
 
+.overall__help-toggle {
+  margin-top: 2px;
+  padding: 2px 0;
+  border: 0;
+  background: none;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-accent);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+/* 펼친 [이 점수는?]: 점 목록 3줄, 패널 2 바탕 */
+.overall__help {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 10px 0 0;
+  padding: 10px 12px 10px 28px;
+  border-radius: 10px;
+  background: var(--color-surface-muted);
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--color-text-secondary);
+}
+
 .overall__weights {
   margin: 8px 0 0;
   font: var(--text-small);
@@ -86,8 +113,15 @@
   }
 }
 
+/* 아주 좁은 폰: 설명 2줄은 숨기고(제목은 스크린리더에 남는다) [이 점수는?]만 둔다 */
 @media (max-width: 380px) {
-  .overall__cap {
-    display: none;
+  .overall__caption,
+  .overall__note {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
   }
 }

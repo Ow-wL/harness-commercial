@@ -1,13 +1,18 @@
+import { useId, useState } from 'react'
 import type { EngineResult } from '../api/schemas.ts'
 import { formatScore } from '../lib/format.ts'
+import { SCORE_HELP } from '../lib/scoreHelp.ts'
 import './OverallScore.css'
 
 /**
- * 종합 점수 (DESIGN.md §8.1, A3 §19.1): 큰 숫자 + "/ 100", 오른쪽에 "종합 적합도 · 다섯 관점 가중평균 · 순위 아님".
+ * 종합 점수 (DESIGN.md §8.1, A3 §19.1): 큰 숫자 + "/ 100", 오른쪽에 "종합 적합도 · 다섯 관점 가중평균 · 순위 아님"과
+ * [이 점수는?](8-C1d, 접힘 — 펼치면 SCORE_HELP 3항목, 자세한 내용은 상세 근거의 "점수 읽는 법").
  * 숫자에 색을 입히지 않는다. 종합 null이면 "산출 불가". 가장 높은·낮은 관점은 헤드라인이 맡는다(8-C1a, 중복 요약 정리).
  */
 export function OverallScore({ summary }: { summary: EngineResult['종합'] }) {
   const userWeighted = summary.가중치_출처 !== '기본(업종그룹)'
+  const [helpOpen, setHelpOpen] = useState(false)
+  const helpId = useId()
 
   return (
     <section className="overall" aria-labelledby="overall-caption">
@@ -28,8 +33,24 @@ export function OverallScore({ summary }: { summary: EngineResult['종합'] }) {
           <p className="overall__note">
             {summary.점수 === null ? '점수를 낸 관점이 없어 계산하지 않음' : '다섯 관점 가중평균 · 순위 아님'}
           </p>
+          <button
+            type="button"
+            className="overall__help-toggle"
+            aria-expanded={helpOpen}
+            aria-controls={helpId}
+            onClick={() => setHelpOpen((v) => !v)}
+          >
+            이 점수는?
+          </button>
         </div>
       </div>
+      {helpOpen && (
+        <ul id={helpId} className="overall__help" aria-label="이 점수는?">
+          {SCORE_HELP.map((t) => (
+            <li key={t}>{t}</li>
+          ))}
+        </ul>
+      )}
       {userWeighted && (
         <p className="overall__weights">
           사용자 가중치 적용({summary.가중치_출처})

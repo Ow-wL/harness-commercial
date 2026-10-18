@@ -83,7 +83,7 @@ export function CompareResult({
               <h1 id={COMPARE_IDS.title} className="compare__title" tabIndex={-1}>
                 두 위치 비교 · {biz}
               </h1>
-              <span> · 같은 업종 · 반경 {formatRadius(radiusM)}</span>
+              <span> · 반경 {formatRadius(radiusM)}</span>
             </div>
             <span className="result__eyebrow-actions">
               <button type="button" className="link-button" onClick={onChangeConditions}>

@@ -74,8 +74,7 @@ export function DataSources({ meta, disclaimer }: { meta: EngineResult['meta']; 
       </div>
       <h3 className="result-section__subtitle">점수 비교 대상</h3>
       <p className="result-section__note">
-        관점마다 비교 대상이 다릅니다. 세부지표 점수는 비교 대상 대비 백분위이고, 관점·종합 점수는 그 가중평균이라
-        인천 내 순위가 아닙니다.
+        관점마다 비교 대상이 다릅니다. 관점·종합 점수는 백분위의 가중평균이라 인천 내 순위가 아닙니다.
       </p>
       <div className="table-scroll">
         <table className="data-table">

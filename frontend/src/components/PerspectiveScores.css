@@ -184,3 +184,7 @@ button.perspective__button:hover .perspective__label {
   min-width: 0;
   font-variant-numeric: tabular-nums;
 }
+
+.perspective__evidence-part {
+  white-space: nowrap;
+}

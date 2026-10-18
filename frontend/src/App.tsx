@@ -17,6 +17,7 @@ import { CompareDetail, CompareResult, StoreSideSwitch } from './components/Comp
 import { ConditionPanel, type BusinessesState } from './components/ConditionPanel.tsx'
 import { ErrorBlock } from './components/ErrorBlock.tsx'
 import { MapView, type LatLng, type MapCompare, type MapStore } from './components/MapView.tsx'
+import { MoreBelow } from './components/MoreBelow.tsx'
 import { NearbyStores } from './components/NearbyStores.tsx'
 import { RadiusControl } from './components/RadiusControl.tsx'
 import { ReferenceAddress } from './components/ReferenceAddress.tsx'
@@ -627,6 +628,8 @@ function App() {
   }
 
   const mapRef = useRef<HTMLDivElement>(null)
+  /** 패널(펼친 시트) 스크롤 영역 — "아래에 더 있어요" 표시가 본다 */
+  const panelScrollRef = useRef<HTMLElement>(null)
   const pickOnMap = () => {
     setMobileScreen('map')
     mapRef.current?.scrollIntoView?.({ block: 'nearest' })
@@ -1096,9 +1099,11 @@ function App() {
         {radiusInBar && radiusControl}
       </header>
       <div className="panel" data-map-obstacle>
-        <main className="workspace__panel" aria-label={panelLabel}>
+        <main ref={panelScrollRef} className="workspace__panel" aria-label={panelLabel}>
           {radiusNotes}
           {panelBody}
+          {/* 결과·비교 화면에서만 (분석 전 패널은 아래 고정 "분석하기"가 같은 자리) */}
+          {result && <MoreBelow key={panelLabel} scrollerRef={panelScrollRef} />}
         </main>
         {panelFoot}
       </div>

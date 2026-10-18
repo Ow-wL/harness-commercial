@@ -1,5 +1,6 @@
 import { useId, useLayoutEffect, useState } from 'react'
 import type { EngineResult } from '../api/schemas.ts'
+import { calcUnitLabel, flagItems } from '../lib/flags.ts'
 import { confidenceLabel, formatRatio, formatScore, notComputedText, type Indicator } from '../lib/format.ts'
 import { Chip } from './Chip.tsx'
 import { Icon } from './Icon.tsx'
@@ -78,6 +79,7 @@ export function IndicatorDetails({
             key={ind.key}
             indicator={ind}
             summary={summary}
+            radiusM={meta.분석반경_m}
             open={open.has(ind.key)}
             onToggle={() => toggle(ind.key)}
           />
@@ -90,11 +92,13 @@ export function IndicatorDetails({
 function IndicatorAccordion({
   indicator: ind,
   summary,
+  radiusM,
   open,
   onToggle,
 }: {
   indicator: Indicator
   summary: EngineResult['종합']
+  radiusM: number
   open: boolean
   onToggle: () => void
 }) {
@@ -136,22 +140,40 @@ function IndicatorAccordion({
             </div>
             <div>
               <dt>계산 단위</dt>
-              {ind.score === null ? <dd>산출하지 않음</dd> : <dd className="mono">{ind.fallback}</dd>}
+              <dd>{calcUnitLabel(ind, radiusM)}</dd>
             </div>
           </dl>
           <PerspectiveGuide indicator={ind} summary={summary} />
           <BreakdownTable indicator={ind} />
-          {ind.flags.length > 0 && (
-            <div className="detail__flags">
-              <span className="detail__flags-label">flags</span>
-              {ind.flags.map((f) => (
-                <Chip key={f}>{f}</Chip>
-              ))}
-            </div>
-          )}
-          <RawData raw={ind.raw} />
+          <FlagList indicator={ind} />
+          <RawData raw={ind.raw} fallback={ind.fallback} flags={ind.flags} />
         </div>
       )}
+    </div>
+  )
+}
+
+/** 특이사항 (8-C1d, UX_REDESIGN 2.4): 엔진 flag를 한글 라벨 + 한 줄 설명으로. 해상도 flag는 빼고, 모르는 flag는 원문 그대로 */
+function FlagList({ indicator: ind }: { indicator: Indicator }) {
+  const items = flagItems(ind)
+  if (items.length === 0) return null
+  return (
+    <div className="detail__flags">
+      <h4 className="detail__flags-label">특이사항</h4>
+      <ul className="detail__flags-list">
+        {items.map((item) =>
+          item.kind === 'known' ? (
+            <li key={item.flag}>
+              <strong>{item.text.label}</strong>
+              <span className="detail__flags-note"> — {item.text.note}</span>
+            </li>
+          ) : (
+            <li key={item.flag}>
+              <span className="mono">{item.flag}</span>
+            </li>
+          ),
+        )}
+      </ul>
     </div>
   )
 }
@@ -206,8 +228,11 @@ function rawValue(value: unknown): string {
   return String(value)
 }
 
-/** Raw Data Disclosure "원시값 보기" (§8.10). 첫 화면에서는 보이지 않는다. */
-function RawData({ raw }: { raw: Indicator['raw'] }) {
+/**
+ * Raw Data Disclosure "원시값 보기" (§8.10). 첫 화면에서는 보이지 않는다.
+ * 엔진 원문을 그대로 둔다 — raw 값과 함께 계산 단위(fallback)·flags 원문(8-C1d: 위에서는 한글로 보인다)
+ */
+function RawData({ raw, fallback, flags }: { raw: Indicator['raw']; fallback: string; flags: readonly string[] }) {
   const [open, setOpen] = useState(false)
   const rawId = useId()
 
@@ -236,6 +261,14 @@ function RawData({ raw }: { raw: Indicator['raw'] }) {
                   <td className={typeof v === 'number' ? 'num' : undefined}>{rawValue(v)}</td>
                 </tr>
               ))}
+              <tr>
+                <th scope="row">fallback</th>
+                <td className="mono">{fallback}</td>
+              </tr>
+              <tr>
+                <th scope="row">flags</th>
+                <td className="mono">{flags.length === 0 ? '없음' : flags.join(', ')}</td>
+              </tr>
             </tbody>
           </table>
         </div>

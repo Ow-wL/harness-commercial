@@ -1,3 +1,4 @@
+import { Fragment } from 'react'
 import type { EngineResult } from '../api/schemas.ts'
 import { evidenceLine } from '../lib/evidence.ts'
 import { BOTTLENECK_WARN_BELOW, formatScore, notComputedText, type Indicator } from '../lib/format.ts'
@@ -131,7 +132,21 @@ function PerspectiveRow({
       {(tags.length > 0 || evidence) && (
         <span className="perspective__sub perspective__evidence">
           {tags}
-          {evidence && <span className="perspective__evidence-text">{evidence}</span>}
+          {evidence && (
+            // " · " 조각 안에서는 줄을 바꾸지 않는다(숫자와 단위가 다음 줄로 떨어지지 않게) — 줄바꿈은 조각 사이에서만
+            <span className="perspective__evidence-text">
+              {evidence.split(' · ').map((part, i, all) => (
+                <Fragment key={i}>
+                  {/* 구분점은 앞 조각 끝에 붙이고 공백은 밖에 둔다 — 줄이 "·"로 시작하지 않게 */}
+                  <span className="perspective__evidence-part">
+                    {part}
+                    {i < all.length - 1 && ' ·'}
+                  </span>
+                  {i < all.length - 1 && ' '}
+                </Fragment>
+              ))}
+            </span>
+          )}
         </span>
       )}
     </>
