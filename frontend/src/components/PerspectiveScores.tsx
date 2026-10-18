@@ -1,11 +1,6 @@
 import type { EngineResult } from '../api/schemas.ts'
-import {
-  BOTTLENECK_WARN_BELOW,
-  formatScore,
-  notComputedText,
-  resolutionLabel,
-  type Indicator,
-} from '../lib/format.ts'
+import { evidenceLine } from '../lib/evidence.ts'
+import { BOTTLENECK_WARN_BELOW, formatScore, notComputedText, type Indicator } from '../lib/format.ts'
 import { Chip } from './Chip.tsx'
 import { Icon } from './Icon.tsx'
 import './PerspectiveScores.css'
@@ -16,13 +11,21 @@ import './PerspectiveScores.css'
  * 관점 점수는 세부지표 백분위의 가중평균이라 인천 내 순위가 아니다 — 50 기준선은 0~100 척도의 중간일 뿐
  * "인천 중앙"이 아니다 (docs/SCORE_EXPLANATION_AUDIT.md 3장).
  * 막대는 aria-hidden이고 같은 값을 숫자 텍스트로 준다(§15: "시장성 61.6점").
+ * 막대 아래 한 줄(8-C1b): 짧은 라벨(가장 높음 / 가장 낮음 / 병목) + 신뢰도 낮음 chip + 근거 줄(raw 값 포맷만, lib/evidence.ts).
+ * 해상도 chip("시군구 단위 데이터")은 근거 줄 끝 "· 구 단위"로 합쳤다(docs/UX_REDESIGN.md 2.5).
  */
 export function PerspectiveScores({
   indicators,
   summary,
+  guName,
+  business,
 }: {
   indicators: readonly Indicator[]
   summary: EngineResult['종합']
+  /** 근거 줄의 시장성 "{구} 하루 유입" — API context의 시군구 */
+  guName: string
+  /** 근거 줄의 경쟁성 "반경 500m {업종} N곳" — meta.업종 */
+  business: string
 }) {
   const bottleneck = indicators.find((i) => i.key === summary.병목_지표)
   const bottleneckWarn =
@@ -47,6 +50,7 @@ export function PerspectiveScores({
             isStrongest={ind.key === summary.최고_지표}
             isBottleneck={ind.key === summary.병목_지표}
             bottleneckWarn={bottleneckWarn}
+            evidence={evidenceLine(ind, guName, business)}
           />
         ))}
       </ul>
@@ -65,15 +69,16 @@ function PerspectiveRow({
   isStrongest,
   isBottleneck,
   bottleneckWarn,
+  evidence,
 }: {
   indicator: Indicator
   isStrongest: boolean
   isBottleneck: boolean
   bottleneckWarn: boolean
+  evidence: string | null
 }) {
-  const resolution = resolutionLabel(ind)
   const lowConfidence = ind.confidence === 'low'
-  const hasTags = isStrongest || isBottleneck || lowConfidence || resolution !== null
+  const hasLine = isStrongest || isBottleneck || lowConfidence || evidence !== null
   const trackClass = [
     'perspective__track',
     ind.score === null && 'perspective__track--missing',
@@ -105,28 +110,24 @@ function PerspectiveRow({
       {ind.score === null && (
         <p className="perspective__sub perspective__missing-note">{notComputedText(ind)}</p>
       )}
-      {hasTags && (
-        <div className="perspective__sub perspective__tags">
-          {isStrongest && <span className="perspective__strongest">가장 강한 관점</span>}
+      {hasLine && (
+        <p className="perspective__sub perspective__evidence">
+          {isStrongest && <span className="perspective__strongest">가장 높음</span>}
           {isBottleneck &&
             (bottleneckWarn ? (
               <Chip tone="warning" icon="alert-triangle">
                 병목
               </Chip>
             ) : (
-              <Chip>가장 낮은 관점</Chip>
+              <span className="perspective__lowest">가장 낮음</span>
             ))}
           {lowConfidence && (
             <Chip tone="warning" icon="alert-triangle">
               신뢰도 낮음
             </Chip>
           )}
-          {resolution && (
-            <Chip tone="info" icon="info">
-              {resolution}
-            </Chip>
-          )}
-        </div>
+          {evidence && <span className="perspective__evidence-text">{evidence}</span>}
+        </p>
       )}
     </li>
   )

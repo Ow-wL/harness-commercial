@@ -3,7 +3,7 @@
  * 두 위치 비교(5차)에서 위치별로 같은 규칙을 쓰기 위해 lib로 export한다 (docs/COMPARE_DESIGN.md 5.5).
  */
 import type { AnalyzeResponse } from '../api/schemas.ts'
-import { BOTTLENECK_WARN_BELOW, confidenceLabel, formatScore, resolutionLabel } from './format.ts'
+import { BOTTLENECK_WARN_BELOW, confidenceLabel, formatScore } from './format.ts'
 
 export type Notice = { tone: 'warning' | 'info'; text: string }
 
@@ -18,8 +18,7 @@ export function dataLimits({ context, result }: AnalyzeResponse): Notice[] {
     if (ind.confidence === 'low') {
       notices.push({ tone: 'warning', text: `${ind.label}: 신뢰도 ${confidenceLabel(ind.confidence)}` })
     }
-    const resolution = resolutionLabel(ind)              // 점수가 산출된 관점만 (미산출 관점은 엔진 경고 "계산 불가 지표"가 안내)
-    if (resolution) notices.push({ tone: 'info', text: `${ind.label}: ${resolution}로 계산했습니다.` })
+    // 해상도 안내("…단위로 계산했습니다")는 8-C1b부터 막대 아래 근거 줄 끝 "· 구 단위"로 옮겼다(docs/UX_REDESIGN.md 2.2·2.5)
   }
   // rent_area=null → 안정성 S4(상권 임대료) 제외 (backend README: 일반 좌표는 항상 null).
   // 안정성 점수가 산출됐을 때만 "제외하고 계산했다"고 쓴다 — 미산출이면 엔진 경고 "계산 불가 지표"가 안내한다

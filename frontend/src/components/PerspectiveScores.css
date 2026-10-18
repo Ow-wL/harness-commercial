@@ -149,16 +149,31 @@
   color: var(--color-text-muted);
 }
 
-.perspective__tags {
+/* 막대 아래 한 줄 (8-C1b): 짧은 라벨 + 신뢰도 낮음 chip + 근거 줄(raw 값). 좁은 폭에서는 줄바꿈 */
+.perspective__evidence {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: var(--space-2);
-}
-
-.perspective__strongest {
+  gap: var(--space-1) var(--space-2);
   font: var(--text-small);
   color: var(--color-text-secondary);
+}
+
+/* "가장 높음"은 주색 글자, "가장 낮음"은 중립(§19.2 — 경고색은 병목 chip에만) */
+.perspective__strongest {
+  font-weight: 600;
+  color: var(--color-accent);
+}
+
+.perspective__lowest {
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+.perspective__evidence-text {
+  min-width: 0;
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
 }
 
 .perspectives__bottleneck-note {

@@ -40,8 +40,18 @@ export function AnalysisResult({
       <AttentionBand lines={singleBand(analysis)} moreTarget="warnings" />
       <div className="result__summary">
         <OverallScore summary={result.종합} indicators={result.지표} />
-        <PerspectiveScores summary={result.종합} indicators={result.지표} />
-        <CoverageMeta summary={result.종합} indicators={result.지표} />
+        <PerspectiveScores
+          summary={result.종합}
+          indicators={result.지표}
+          guName={context.gu_name}
+          business={result.meta.업종}
+        />
+        <CoverageMeta
+          summary={result.종합}
+          indicators={result.지표}
+          group={result.meta.업종그룹}
+          access={result.초보자_접근성}
+        />
       </div>
       <WarningPanel analysis={analysis} />
       <BeginnerAccess access={result.초보자_접근성} />

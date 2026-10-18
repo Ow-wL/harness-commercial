@@ -34,21 +34,6 @@ export const BOTTLENECK_WARN_BELOW = 25
 /** 관점 점수 산출 기준 = 엔진 config.MIN_COVERAGE. 계산된 세부지표 가중치 비율이 이보다 작으면 관점 점수는 null. */
 export const MIN_COVERAGE = 0.5
 
-/**
- * 해상도 한계 flag → 칩 문구 (DESIGN.md §8.4). 단위 이름은 엔진 FALLBACK_LADDER 정의를 따른다.
- * 점수가 산출된 관점에만 붙인다 — 엔진은 산출하지 못한 관점에도 폴백 flag(예: `해상도_저하__incheon_avg`)를
- * 남기므로, 그 flag는 "그 단위로 계산했다"는 뜻이 아니다 (docs/SCORE_EXPLANATION_AUDIT.md 4장).
- * 해상도 flag가 없거나 점수가 null이면 null.
- */
-export function resolutionLabel(ind: Indicator): string | null {
-  if (ind.score === null) return null
-  const { flags } = ind
-  if (flags.includes('해상도_시군구') || flags.includes('해상도_저하__gugu_sobun')) return '시군구 단위 데이터'
-  if (flags.includes('해상도_저하__incheon_avg')) return '인천 전체 업종평균 데이터'
-  if (flags.includes('해상도_저하__dong_jung')) return '업종 중분류 데이터'
-  return null
-}
-
 /** 관점 점수가 null인 이유를 score·coverage로만 쓴다 (엔진 note의 "…단위로 계산했습니다"는 쓰지 않는다). */
 export function notComputedText(ind: Indicator): string {
   const excluded = '점수를 내지 않았고, 종합점수에서 제외했습니다'

@@ -3,7 +3,8 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: var(--space-2) var(--space-4);
+  gap: var(--space-1) var(--space-2);
+  margin: 0;
   padding: var(--space-3) var(--space-4);
   border-radius: var(--radius-md);
   background: var(--color-surface-muted);
@@ -15,6 +16,15 @@
   display: inline-flex;
   align-items: center;
   gap: var(--space-1);
+}
+
+/* 충족 1줄의 조각 구분 "·" (8-C1b): 앞 조각 끝에 붙여, 좁은 폭에서 접혀도 줄이 "·"로 시작하지 않게 한다.
+   장식 — 조각은 각자 span이라 스크린리더에서도 끊어 읽힌다 */
+.coverage__item:not(:last-child)::after {
+  content: "·";
+  content: "·" / "";                                     /* 대체 글자 빈 문자열 — 지원 브라우저에서는 읽지 않는다 */
+  margin-left: var(--space-1);
+  color: var(--color-text-muted);
 }
 
 .coverage__item strong {

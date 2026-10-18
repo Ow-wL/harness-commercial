@@ -135,7 +135,8 @@ describe('CompareResult — 해석 안내', () => {
     expect(b).not.toHaveTextContent('인천 하위')
     expect(b).toHaveTextContent('PC방은(는) 학교 주변 입지 규제 업종이고, 이 지점 300m 안에 초·중·고 1곳이 있습니다.')
     expect(within(b).getByRole('heading', { level: 4, name: '데이터 한계' })).toBeInTheDocument()
-    expect(b).toHaveTextContent('시장성: 시군구 단위 데이터로 계산했습니다.')
+    expect(b).toHaveTextContent('지표를 제외하고 계산했습니다')                      // 임대료 제외 줄은 그대로
+    expect(b).not.toHaveTextContent('단위 데이터로 계산했습니다')                  // 해상도 줄은 근거 줄로 옮김(8-C1b)
   })
 
   it('어느 사례에서도 위치의 우열·순위를 단정하는 표현이 없다', () => {

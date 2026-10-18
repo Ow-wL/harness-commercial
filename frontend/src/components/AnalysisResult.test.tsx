@@ -76,9 +76,9 @@ describe('AnalysisResult — 실제 /analyze 응답(부평역 · PC방)', () => 
     const rows = perspectiveRows()
     const customer = rows.find((r) => r.dataset.key === fixture.result.종합.최고_지표)!
     const competition = rows.find((r) => r.dataset.key === fixture.result.종합.병목_지표)!
-    expect(within(customer).getByText('가장 강한 관점')).toBeInTheDocument()
-    // 병목 30.2 ≥ 25 → 중립 톤 "가장 낮은 관점" (DESIGN.md §8.3)
-    expect(within(competition).getByText('가장 낮은 관점')).toBeInTheDocument()
+    // 8-C1b: 막대 아래 짧은 라벨 "가장 높음" / "가장 낮음"(병목 30.2 ≥ 25 → 중립, DESIGN.md §8.3)
+    expect(within(customer).getByText('가장 높음')).toBeInTheDocument()
+    expect(within(competition).getByText('가장 낮음')).toBeInTheDocument()
 
     const summary = within(screen.getByRole('region', { name: '종합 적합도' }))
     expect(summary.getByText('병목').nextSibling).toHaveTextContent('경쟁성 30.2')
@@ -129,13 +129,14 @@ describe('AnalysisResult — 실제 /analyze 응답(부평역 · PC방)', () => 
     expect(perspectives).not.toHaveTextContent('인천 중앙')
   })
 
-  it('산출된 안정성에는 해상도 칩과 "시군구 단위 데이터로 계산" 안내를 붙인다', () => {
+  it('산출된 안정성의 해상도는 근거 줄 끝 "· 구 단위" 한 번 — 행 chip·주의할 점 해상도 줄은 없다 (8-C1b)', () => {
     renderResult()
     expect(FIXTURE.result.지표[4].score).not.toBeNull()
     const stability = perspectiveRows().find((r) => r.dataset.key === 'stability')!
-    expect(within(stability).getByText('시군구 단위 데이터')).toBeInTheDocument()
-    const warnings = within(screen.getByRole('region', { name: '주의할 점' }))
-    expect(warnings.getByText('안정성: 시군구 단위 데이터로 계산했습니다.')).toBeInTheDocument()
+    expect(stability).toHaveTextContent('3년 생존율 52.3% · 인천 업종평균 55.2% · 구 단위')
+    expect(stability).not.toHaveTextContent('시군구 단위 데이터')
+    const warnings = screen.getByRole('region', { name: '주의할 점' })
+    expect(warnings).not.toHaveTextContent('단위 데이터로 계산했습니다')
   })
 
   it('데이터 출처는 정규화_기준 한 줄 대신 관점별 비교 대상을 보여 준다', () => {
@@ -285,5 +286,64 @@ describe('AnalysisResult — 헤드라인·주의 요약 띠 (8-C1a)', () => {
     ])
     const warnings = screen.getByRole('region', { name: '주의할 점' })
     expect(warnings).toHaveTextContent('계산 불가 지표: 안정성')               // 원문은 섹션에 그대로
+  })
+})
+
+describe('AnalysisResult — 근거 줄·행 chip 통합·충족 1줄 (8-C1b, docs/UX_REDESIGN.md 2.5)', () => {
+  const rowOf = (key: string) => perspectiveRows().find((r) => r.dataset.key === key)!
+  /** 충족 1줄 조각(구분 "·"은 CSS 장식이라 글자에 없다) */
+  const coverageItems = () =>
+    [...document.querySelectorAll('.coverage .coverage__item')].map((el) => el.textContent)
+
+  it('삭제: "시군구 단위 데이터"·"가장 강한 관점"·"가장 낮은 관점" chip, 충족 줄의 신뢰도 개수·"신뢰도 낮은 관점 있음"', () => {
+    renderResult()
+    const perspectives = screen.getByRole('region', { name: '5대 관점' })
+    for (const gone of ['시군구 단위 데이터', '가장 강한 관점', '가장 낮은 관점']) {
+      expect(perspectives).not.toHaveTextContent(gone)
+    }
+    expect(document.querySelector('.coverage')).not.toHaveTextContent('신뢰도')
+  })
+
+  it('유지·합침: 막대 아래 한 줄 = 짧은 라벨 + 근거 줄(raw), 해상도는 줄 끝 "· 구 단위"', () => {
+    renderResult()
+    expect(rowOf('customer').querySelector('.perspective__evidence')).toHaveTextContent(
+      '가장 높음타겟 연령 거주 5,290명 · 비중 15.4%',
+    )
+    expect(rowOf('competition').querySelector('.perspective__evidence')).toHaveTextContent(
+      '가장 낮음반경 500m PC방 12곳 · 점포당 잠재수요 4,433명',
+    )
+    expect(rowOf('market').querySelector('.perspective__evidence')).toHaveTextContent('부평구 하루 유입 679,748명 · 구 단위')
+    expect(rowOf('location').querySelector('.perspective__evidence')).toHaveTextContent('부평역까지 직선거리 85m')
+  })
+
+  it('충족 1줄: "데이터 충족 100% · 가중치 기본(목적방문형) · 진입장벽 중간"', () => {
+    renderResult()
+    expect(coverageItems()).toEqual(['데이터 충족 100%', '가중치 기본(목적방문형)', '진입장벽 중간'])
+  })
+
+  it('부평역 네일숍: 병목 chip은 유지(경고 톤) + 근거 줄, 미산출 안정성은 근거 줄 없이 미산출 안내만', () => {
+    render(<AnalysisResult analysis={AnalyzeResponseSchema.parse(nailShopFixture)} />)
+    const competition = rowOf('competition')
+    expect(within(competition).getByText('병목')).toBeInTheDocument()
+    expect(competition).toHaveTextContent('반경 500m 네일숍 125곳 · 점포당 잠재수요 426명')
+    const stability = rowOf('stability')
+    expect(stability.querySelector('.perspective__evidence-text')).toBeNull()
+    expect(stability).toHaveTextContent('점수를 내지 않았고, 종합점수에서 제외했습니다')
+    expect(coverageItems()).toEqual(['데이터 충족 80%', '가중치 기본(고객밀착형)', '진입장벽 높음'])
+  })
+
+  it('"신뢰도 낮음" chip은 유지한다(산출된 관점, 표시 테스트 전용 변형)', () => {
+    const r = structuredClone(FIXTURE)
+    ;(r.result.지표[0] as { confidence: string }).confidence = 'low'
+    render(<AnalysisResult analysis={r} />)
+    expect(within(rowOf('market')).getByText('신뢰도 낮음')).toBeInTheDocument()
+    expect(rowOf('market')).toHaveTextContent('부평구 하루 유입 679,748명 · 구 단위')
+  })
+
+  it('사용자 가중치면 충족 줄에 출처 원문(표시 테스트 전용 변형)', () => {
+    const r = structuredClone(FIXTURE)
+    ;(r.result.종합 as { 가중치_출처: string }).가중치_출처 = '사용자(중요도 1~5)'
+    render(<AnalysisResult analysis={r} />)
+    expect(coverageItems()[1]).toBe('가중치 사용자(중요도 1~5)')
   })
 })
