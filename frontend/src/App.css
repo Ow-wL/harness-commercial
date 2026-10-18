@@ -548,6 +548,13 @@
     color: var(--color-text-secondary);
   }
 
+  /* UI 간소화: 결과 지도 시트는 점수 · 위치 · 주의 첫 줄(병목 등) · 행동만. 헤드라인은 패널의 "설명 함께 보기",
+     참고 주소는 패널의 "위치 정보"에서 본다(분석 전 시트의 참고 주소는 그대로) */
+  .map-sheet__headline,
+  .map-sheet:has(.map-sheet__score) .reference-address {
+    display: none;
+  }
+
   .map-sheet__actions {
     display: flex;
     gap: 10px;

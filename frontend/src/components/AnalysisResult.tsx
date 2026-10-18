@@ -15,13 +15,15 @@ import { TabRevealContext, useResultTabs, useTabIdBase, type TabDef } from '../l
 import { TabList, TabPanel } from './ResultTabs.tsx'
 import { WarningPanel } from './WarningPanel.tsx'
 import './AnalysisResult.css'
+import './ResultQuiet.css'
 
 type ResultTab = 'summary' | 'stores' | 'evidence'
 
 /**
  * 분석 결과 패널 (A3, DESIGN.md §19.1·§19.5, docs/UX_REDESIGN.md 2.1).
- * 머리(항상 보임): 분석 반경 · 위치 제목 · 최근접역·참고 주소 · 종합 점수 · 헤드라인 · 주의 요약 띠
- * 탭: 요약(다섯 관점 막대 + 근거 줄 + 충족 1줄 — 관점을 누르면 상세 근거의 그 관점) · 주변 점포 · 상세 근거
+ * 기본 머리: 위치 제목 · 종합 점수 · 접힌 주의 요약. 역·주소는 위치 정보에서 펼친다.
+ * 요약은 다섯 관점 막대 중심. 설명 함께 보기를 켜면 헤드라인·근거 줄·충족 정보가 나온다.
+ * 탭: 요약(관점을 누르면 상세 근거의 그 관점) · 주변 점포 · 상세 근거
  * (관점별 근거 · 주의할 점 · 초보자 접근성 · 위치 · 데이터 출처와 엔진 면책 원문).
  * 입력은 AnalyzeResponseSchema로 검증된 값만 받는다. 엔진 값은 그대로 보여 준다.
  */
@@ -38,7 +40,7 @@ export function AnalysisResult({
   nearby?: ReactNode
   /** 주변 점포 탭의 개수 표시 (목록을 받았을 때만) */
   nearbyCount?: number | null
-  /** 머리의 참고 주소 줄 (7-B2, 이 응답 context 좌표의 ReferenceAddress) */
+  /** 접힌 위치 정보의 참고 주소 (이 응답 context 좌표의 ReferenceAddress) */
   address?: ReactNode
   /** 두 위치 비교의 전체 결과 화면에서 "A"·"B" (제목 "B · 남동구 구월3동 · PC방 분석") */
   titlePrefix?: string
@@ -46,6 +48,7 @@ export function AnalysisResult({
   eyebrowAction?: ReactNode
 }) {
   const { context, result } = analysis
+  const [explanations, setExplanations] = useState(false)
   const { tab, setTab, reveal } = useResultTabs<ResultTab>('summary')
   const idBase = useTabIdBase()
   const station = nearestStation(result.지표)
@@ -63,7 +66,7 @@ export function AnalysisResult({
 
   return (
     <TabRevealContext.Provider value={reveal}>
-      <article className="result">
+      <article className={`result result--quiet${explanations ? ' result--explained' : ''}`}>
         <div className="result__head">
           <p className="result__eyebrow">
             <span>분석 결과 · 반경 {formatRadius(result.meta.분석반경_m)}</span>
@@ -80,14 +83,17 @@ export function AnalysisResult({
             {locationName(context)}{' '}
             <span className="visually-hidden">· {result.meta.업종} 분석</span>
           </h1>
-          <div className="result__sub">
-            {station && (
-              <span>
-                {station.name}까지 직선거리 {formatDistance(station.distanceM)}
-              </span>
-            )}
-            {address}
-          </div>
+          <details className="result__location">
+            <summary>위치 정보</summary>
+            <div className="result__sub">
+              {station && (
+                <span>
+                  {station.name}까지 직선거리 {formatDistance(station.distanceM)}
+                </span>
+              )}
+              {address}
+            </div>
+          </details>
           <OverallScore summary={result.종합} />
           <p className="result__headline">
             <HeadlineText text={headline(result)} />
@@ -97,6 +103,17 @@ export function AnalysisResult({
         <TabList label="결과 보기" tabs={tabs} selected={tab} onSelect={setTab} idBase={idBase} />
         <div className="result__body">
           <TabPanel tab="summary" selected={tab} idBase={idBase}>
+            <div className="result__section-head">
+              <span>다섯 관점</span>
+              <button
+                type="button"
+                className="result__explain"
+                aria-expanded={explanations}
+                onClick={() => setExplanations((v) => !v)}
+              >
+                {explanations ? '간단히 보기' : '설명 함께 보기'}
+              </button>
+            </div>
             <PerspectiveScores
               summary={result.종합}
               indicators={result.지표}
@@ -104,15 +121,17 @@ export function AnalysisResult({
               business={result.meta.업종}
               onOpen={openDetail}
             />
-            <CoverageMeta
-              summary={result.종합}
-              indicators={result.지표}
-              group={result.meta.업종그룹}
-              access={result.초보자_접근성}
-            />
-            {/* "가장 높음·낮음"의 뜻은 [이 점수는?]이 맡는다(8-C1d 중복 축약) */}
-            <p className="result__hint">관점을 누르면 근거를 자세히 볼 수 있습니다.</p>
-            <p className="result__disclaimer">{SERVICE_DISCLAIMER}</p>
+            <div className="result__secondary">
+              <CoverageMeta
+                summary={result.종합}
+                indicators={result.지표}
+                group={result.meta.업종그룹}
+                access={result.초보자_접근성}
+              />
+              <p className="result__hint">관점을 누르면 근거를 자세히 볼 수 있습니다.</p>
+              <p className="result__disclaimer">{SERVICE_DISCLAIMER}</p>
+            </div>
+            <p className="result__brief-note">참고 지표 · 순위나 성공 확률이 아닙니다.</p>
           </TabPanel>
           <TabPanel tab="stores" selected={tab} idBase={idBase}>
             {nearby ?? <p className="result-section__empty">점포 목록이 없습니다.</p>}

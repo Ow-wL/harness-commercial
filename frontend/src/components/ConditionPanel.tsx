@@ -83,7 +83,7 @@ export function ConditionPanel({
           어디에, 어떤 가게를 열까요?
         </h1>
         <p className="conditions__lead">
-          인천 158개 행정동 공공데이터로 그 자리를 다섯 관점에서 살펴봅니다. 매출이나 성공 확률을 예측하지는 않습니다.
+          위치와 업종을 고르면, 다섯 관점으로 살펴봅니다.
         </p>
       </div>
       <LocationField

@@ -218,6 +218,7 @@ describe('CompareResult — 비교 주의 요약 띠 (8-C1a)', () => {
   it('A 부평역 · B 강화읍: † 계산 구성 차이 첫 줄, 각 줄은 비교 섹션 제목으로 이동', () => {
     renderCompare(A, NO_STABILITY)
     const band = screen.getByRole('region', { name: '주의 요약' })
+    fireEvent.click(band.querySelector('summary')!)
     const links = within(band).getAllByRole('link')
     expect(links[0]).toHaveAccessibleName('계산 구성: 종합 계산 구성이 다릅니다 · A 5개 관점, B 4개(안정성 미산출)')
     expect(links.map((a) => a.getAttribute('href'))).toEqual([
@@ -237,6 +238,7 @@ describe('CompareResult — 비교 주의 요약 띠 (8-C1a)', () => {
     many.result.경고 = [...many.result.경고, '테스트 경고 1', '테스트 경고 2']     // 표시 테스트 전용
     renderCompare(A, many)
     const band = screen.getByRole('region', { name: '주의 요약' })
+    fireEvent.click(band.querySelector('summary')!)
     expect(within(band).getAllByRole('listitem')).toHaveLength(5)
     const more = within(band).getByRole('link', { name: /주의 \d+건 더 보기/ })
     expect(more).toHaveAttribute('href', '#compare-warnings-title')

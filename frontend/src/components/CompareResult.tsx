@@ -64,6 +64,7 @@ export function CompareResult({
   addresses?: Partial<Record<CompareSide, ReactNode>>
 }) {
   const biz = a.result.meta.업종
+  const [explanations, setExplanations] = useState(false)
   const radiusM = a.result.meta.분석반경_m
   const { tab, setTab, reveal } = useResultTabs<CompareTab>('summary')
   const idBase = useTabIdBase()
@@ -76,7 +77,7 @@ export function CompareResult({
 
   return (
     <TabRevealContext.Provider value={reveal}>
-      <section className="compare" aria-labelledby={COMPARE_IDS.title}>
+      <section className={`compare result--quiet${explanations ? ' result--explained' : ''}`} aria-labelledby={COMPARE_IDS.title}>
         <div className="result__head">
           <div className="result__eyebrow">
             <div className="compare__eyebrow-title">
@@ -95,25 +96,44 @@ export function CompareResult({
             </span>
           </div>
           <div className="compare__sites">
-            <SiteRow side="A" analysis={a} address={addresses?.A} onShowDetail={onShowDetail} />
-            <SiteRow side="B" analysis={b} address={addresses?.B} onShowDetail={onShowDetail} />
+            <SiteRow side="A" analysis={a} onShowDetail={onShowDetail} />
+            <SiteRow side="B" analysis={b} onShowDetail={onShowDetail} />
           </div>
-          <p className="compare__distance">
-            두 지점 직선거리 {overlap.distanceM.toLocaleString('ko-KR')}m ·{' '}
-            {overlap.overlaps ? '분석 반경이 겹침' : '분석 반경 겹침 없음'}
-          </p>
+          <details className="result__location">
+            <summary>위치 정보</summary>
+            <SiteLocation side="A" analysis={a} address={addresses?.A} />
+            <SiteLocation side="B" analysis={b} address={addresses?.B} />
+            <p className="compare__distance">
+              두 지점 직선거리 {overlap.distanceM.toLocaleString('ko-KR')}m ·{' '}
+              {overlap.overlaps ? '분석 반경이 겹침' : '분석 반경 겹침 없음'}
+            </p>
+          </details>
           <AttentionBand lines={compareBand(a, b)} moreTarget="compare-warnings" />
         </div>
         <TabList label="비교 보기" tabs={tabs} selected={tab} onSelect={setTab} idBase={idBase} />
         <div className="result__body">
           <TabPanel tab="summary" selected={tab} idBase={idBase}>
+            <div className="result__section-head">
+              <span>A ● · B ○</span>
+              <button
+                type="button"
+                className="result__explain"
+                aria-expanded={explanations}
+                onClick={() => setExplanations((v) => !v)}
+              >
+                {explanations ? '간단히 보기' : '설명 함께 보기'}
+              </button>
+            </div>
             <CompareRows a={a} b={b} onOpen={() => reveal(COMPARE_IDS.scoreTitle)} />
-            <p className="result__hint">
-              <span className="compare__legend-a" aria-hidden="true" /> A{' '}
-              <span className="compare__legend-b" aria-hidden="true" /> B · 두 점 사이 거리는 표시용 차이일 뿐, 어느
-              위치가 낫다는 판정이나 순위가 아닙니다.
-            </p>
-            <p className="result__disclaimer">{SERVICE_DISCLAIMER}</p>
+            <div className="result__secondary">
+              <p className="result__hint">
+                <span className="compare__legend-a" aria-hidden="true" /> A{' '}
+                <span className="compare__legend-b" aria-hidden="true" /> B · 두 점 사이 거리는 표시용 차이일 뿐, 어느
+                위치가 낫다는 판정이나 순위가 아닙니다.
+              </p>
+              <p className="result__disclaimer">{SERVICE_DISCLAIMER}</p>
+            </div>
+            <p className="result__brief-note">참고 지표 · 두 위치의 우열을 뜻하지 않습니다.</p>
           </TabPanel>
           <TabPanel tab="stores" selected={tab} idBase={idBase}>
             {nearby ?? <p className="result-section__empty">점포 목록이 없습니다.</p>}
@@ -134,19 +154,16 @@ export function CompareResult({
 
 const SIDE_TITLE: Record<CompareSide, string> = { A: 'A 기준 위치', B: 'B 비교 위치' }
 
-/** 비교 머리의 위치 줄: 글자 핀 · 행정동 · 최근접역·참고 주소 · 종합 점수 · › (누르면 그 위치 전체 결과) */
+/** 비교 머리는 글자 핀 · 행정동 · 종합 점수만. 역·주소는 별도 위치 정보에서 펼친다. */
 function SiteRow({
   side,
   analysis,
-  address,
   onShowDetail,
 }: {
   side: CompareSide
   analysis: AnalyzeResponse
-  address?: ReactNode
   onShowDetail: (side: CompareSide) => void
 }) {
-  const station = nearestStation(analysis.result.지표)
   const score = analysis.result.종합.점수
   return (
     <section className="compare__site" aria-label={SIDE_TITLE[side]}>
@@ -168,11 +185,19 @@ function SiteRow({
           ›
         </span>
       </button>
-      <p className="compare__site-sub">
-        {station && `${station.name}까지 직선거리 ${formatDistance(station.distanceM)}`}
-        {address}
-      </p>
     </section>
+  )
+}
+
+function SiteLocation({ side, analysis, address }: { side: CompareSide; analysis: AnalyzeResponse; address?: ReactNode }) {
+  const station = nearestStation(analysis.result.지표)
+  return (
+    <div className="compare__site-sub">
+      <span>
+        {side} · {station ? `${station.name}까지 직선거리 ${formatDistance(station.distanceM)}` : locationName(analysis.context)}
+      </span>
+      {address}
+    </div>
   )
 }
 

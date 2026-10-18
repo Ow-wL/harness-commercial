@@ -280,6 +280,7 @@ describe('AnalysisResult — 헤드라인·주의 요약 띠 (8-C1a)', () => {
     const head = document.querySelector<HTMLElement>('.result__headline')!
     expect(head).toHaveTextContent('고객성이 가장 높고, 경쟁성이 가장 낮습니다')
     const band = screen.getByRole('region', { name: '주의 요약' })
+    fireEvent.click(band.querySelector('summary')!)
     const overall = screen.getByRole('region', { name: '종합 적합도' })
     const tabs = screen.getByRole('tablist', { name: '결과 보기' })
     expect(title.compareDocumentPosition(overall) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
@@ -294,13 +295,16 @@ describe('AnalysisResult — 헤드라인·주의 요약 띠 (8-C1a)', () => {
 
   it('띠 줄을 누르면 그 섹션 제목으로 포커스가 옮겨 간다', () => {
     renderResult()
-    fireEvent.click(within(screen.getByRole('region', { name: '주의 요약' })).getByRole('link'))
+    const band = screen.getByRole('region', { name: '주의 요약' })
+    fireEvent.click(band.querySelector('summary')!)
+    fireEvent.click(within(band).getByRole('link'))
     expect(document.activeElement).toBe(document.getElementById('access-title'))
   })
 
   it('부평역 네일숍: 병목 → 미산출 → 기타 3줄, 주의할 점 섹션 문장은 그대로', () => {
     render(<AnalysisResult analysis={AnalyzeResponseSchema.parse(nailShopFixture)} />)
     const band = screen.getByRole('region', { name: '주의 요약' })
+    fireEvent.click(band.querySelector('summary')!)
     expect(within(band).getAllByRole('link').map((a) => a.getAttribute('aria-label'))).toEqual([
       '경고: 경쟁성 1.2점 · 병목 기준(25점 미만) — 종합과 별개 위험 요인',
       '경고: 안정성 미산출 · 종합에서 제외 · 신뢰도 낮음',

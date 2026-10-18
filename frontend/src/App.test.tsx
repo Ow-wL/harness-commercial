@@ -1636,7 +1636,16 @@ describe('비교 A/B 참고 주소 (7-B3, docs/ADDRESS_DESIGN.md §5.2 C·§5.3)
   const bCard = () => within(panel()).getByRole('region', { name: 'B 비교 위치' })
   const aCard = () => within(panel()).getByRole('region', { name: 'A 기준 위치' })
   const addressLines = () => screen.queryAllByTestId('reference-address')
-  const lineIn = (el: HTMLElement) => within(el).queryByTestId('reference-address')
+  // 결과에서는 주소를 A/B 카드 아래의 접힌 위치 정보로 옮겼다. 선택·오류 카드는 기존 위치다.
+  const addressScope = (el: HTMLElement) => {
+    if (!el.classList.contains('compare__site')) return el
+    const side = el.getAttribute('aria-label')?.slice(0, 1)
+    const location = [...panel().querySelectorAll<HTMLElement>('.compare__site-sub')]
+      .find((node) => node.querySelector('span')?.textContent?.startsWith(`${side} · `))
+    expect(location, `${side} 위치 정보가 있어야 한다`).toBeDefined()
+    return location!
+  }
+  const lineIn = (el: HTMLElement) => within(addressScope(el)).queryByTestId('reference-address')
   const sideButton = (name: RegExp) => within(getInTab(STORES_TAB, 'group', { name: '점포 기준 위치' })).getByRole('button', { name })
   const ok = (body: unknown) => ({ status: 200, body })
   const pending = () => {
@@ -1708,11 +1717,11 @@ describe('비교 A/B 참고 주소 (7-B3, docs/ADDRESS_DESIGN.md §5.2 C·§5.3)
     await act(async () => b.respond(ok(guwolFixture)))
     await findScoreTable()
 
-    // 비교 요약: A 카드는 A context 좌표, B 카드는 B context 좌표 — 선택 단계와 같은 키라 추가 조회 없음
+    // 비교 위치 정보: A context 주소와 B context 주소 — 선택 단계와 같은 키라 추가 조회 없음
     expect(lineIn(aCard())).toHaveTextContent(`참고 주소 · ${A_ADDR} (NAVER 지도)`)
-    expect(aCard()).not.toHaveTextContent(B1_ADDR)
+    expect(addressScope(aCard())).not.toHaveTextContent(B1_ADDR)
     expect(lineIn(bCard())).toHaveTextContent(`참고 주소 · ${B1_ADDR} (NAVER 지도)`)
-    expect(bCard()).not.toHaveTextContent(A_ADDR)
+    expect(addressScope(bCard())).not.toHaveTextContent(A_ADDR)
     expect(aCard()).toHaveTextContent('부평구 부평1동')                              // 행정동·최근접역은 그대로
     expect(bCard()).toHaveTextContent('남동구 구월3동')
     expect(screen.getByRole('group', { name: '비교 조건' })).not.toHaveTextContent('참고 주소')   // 조건 바에는 없음

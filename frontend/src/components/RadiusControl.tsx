@@ -89,7 +89,10 @@ export function RadiusControl({
           </button>
         )}
       </div>
-      <p className="radius-control__help">{RADIUS_HELP}</p>
+      <details className="radius-control__explanation">
+        <summary>반경에 따라 달라지는 것</summary>
+        <p className="radius-control__help">{RADIUS_HELP}</p>
+      </details>
       {narrowHint && <p className="radius-control__help">{narrowHint}</p>}
       <p className="radius-control__status" role="status">
         {status ?? ''}

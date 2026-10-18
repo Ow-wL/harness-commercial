@@ -1,0 +1,118 @@
+/* 기본 화면은 판단에 필요한 숫자 중심. 설명은 사용자가 요청할 때 펼친다. */
+.result--quiet .result__head {
+  gap: 0;
+  padding-top: 20px;
+}
+
+.result--quiet .result__title {
+  margin-top: 10px;
+  font-size: 24px;
+  letter-spacing: -0.04em;
+}
+
+.result__location {
+  margin-top: 8px;
+  color: var(--color-text-muted);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.result__location > summary {
+  width: fit-content;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.result__location > summary::-webkit-details-marker,
+.band__summary::-webkit-details-marker { display: none; }
+.result__location > summary::after { content: '+'; }
+.result__location[open] > summary::after { content: '−'; }
+.result__location[open] { padding-bottom: 10px; }
+
+.result--quiet .overall { margin-top: 0; }
+.result--quiet .overall__note { display: none; }
+.result--quiet .result__headline {
+  margin-top: 0;
+  font-size: 14px;
+  line-height: 1.65;
+}
+
+.result__section-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-top: 12px;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.result__explain {
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--color-accent);
+  font: inherit;
+  cursor: pointer;
+}
+
+.result--quiet:not(.result--explained) .perspective__evidence-text,
+.result--quiet:not(.result--explained) .perspective__strongest,
+.result--quiet:not(.result--explained) .perspective__lowest,
+.result--quiet:not(.result--explained) .perspective__missing-note,
+.result--quiet:not(.result--explained) .result__headline,
+.result--quiet:not(.result--explained) .perspectives__scale,
+.result--quiet:not(.result--explained) .result__secondary {
+  display: none;
+}
+
+/* 남아 있는 병목·신뢰도 경고만 한 줄로. 숨긴 라벨 뒤의 구분점은 만들지 않는다. */
+.result--quiet:not(.result--explained) .perspective__evidence > :not(:last-child)::after { content: none; }
+.result--quiet:not(.result--explained) .perspective__bottleneck + .perspective__low-confidence { margin-left: 8px; }
+.result--quiet:not(.result--explained) .perspective__evidence:not(:has(.perspective__bottleneck, .perspective__low-confidence)) { display: none; }
+.result--quiet .perspective__button { min-height: 56px; padding-block: 16px; }
+.result--quiet .perspective__track { height: 4px; }
+.result--quiet .perspective__marker { display: none; }
+.result--quiet .perspective__score { font-size: 20px; font-weight: 500; }
+.result--quiet .perspective__label { font-size: 14px; font-weight: 500; }
+.result--quiet .perspective__button:has(.perspective__missing) { grid-template-columns: 64px minmax(0, 1fr) 64px; }
+.result--quiet .perspective__missing { white-space: nowrap; }
+.result--quiet .perspectives__scale { margin-top: 4px; }
+.result__brief-note { margin: 24px 0 6px; color: var(--color-text-muted); font-size: 11px; line-height: 1.6; }
+.result--explained .result__brief-note { display: none; }
+
+.band--disclosure {
+  border-block: 1px solid var(--color-border);
+  margin-top: 12px;
+}
+.band__summary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 48px;
+  cursor: pointer;
+  list-style: none;
+  font-size: 12px;
+}
+.band__summary-label { flex: none; font-weight: 600; color: var(--color-text-secondary); }
+.band__summary-topics { flex: 1; color: var(--color-text-muted); line-height: 1.6; }
+.band__summary-arrow { color: var(--color-text-muted); }
+.band--disclosure:has(details[open]) .band__summary-arrow { transform: rotate(180deg); }
+.band--disclosure:has(details[open]) { padding-bottom: 12px; }
+.band--disclosure .band__item { background: none; box-shadow: none; padding-inline: 0; }
+.result--quiet .compare-row { min-height: 48px; }
+
+@media (max-width: 639px) {
+  .result--quiet .result__head { padding-top: 20px; }
+  .result--quiet .result__title { font-size: 21px; margin-top: 4px; }
+  .result--quiet .perspective__button { min-height: 48px; padding-block: 12px; }
+  .compare.result--quiet .result__head { padding-top: 14px; }
+  .compare.result--quiet .result__location { margin-top: 0; }
+  .compare.result--quiet .band { margin-top: 4px; }
+  .compare.result--quiet .tabs { margin-top: 8px; }
+}

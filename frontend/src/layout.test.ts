@@ -174,3 +174,13 @@ describe('위치 입력 방법 segmented (P2·P3)', () => {
     expect(css).toContain('.location-method__button[aria-pressed="true"] {')
   })
 })
+
+describe('UI 간소화 — 결과 지도 시트 (mobile)', () => {
+  it('헤드라인과 결과 참고 주소는 시트에서 숨기고(패널의 설명 함께 보기·위치 정보로), 분석 전 시트의 참고 주소는 건드리지 않는다', () => {
+    const rule = mobileRule('.map-sheet__headline,\n  .map-sheet:has(.map-sheet__score) .reference-address')
+    expect(rule).toMatch(/display: none;/)
+    // 숨기는 대상은 이 둘뿐 — 주의 첫 줄(BandPeek)·점수·위치·행동은 이 규칙에 없다
+    const selectors = rule.slice(0, rule.indexOf('{')).split(',').map((x) => x.trim())
+    expect(selectors).toEqual(['.map-sheet__headline', '.map-sheet:has(.map-sheet__score) .reference-address'])
+  })
+})

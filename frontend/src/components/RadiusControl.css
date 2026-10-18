@@ -1,4 +1,13 @@
 /* 분석 반경 선택 (8-D3, D-024). 모양은 점포 기준 전환(compare__store-switch)과 같은 묶음 버튼 */
+.radius-control__explanation > summary {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
 .radius-control {
   display: flex;
   flex-direction: column;
