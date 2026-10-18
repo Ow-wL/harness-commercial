@@ -1,0 +1,137 @@
+/*
+ * A3 블루안 다크 토큰 (8-DK, DESIGN.md §19.2·§19.3, D-023). tokens.css(§17) 뒤에 불러와 색 토큰만 덮는다.
+ * 테마 전환 기능은 없다 — 화면은 항상 이 다크 UI다. 지도 톤만 실제 렌더 결과로 정한다(§19.3):
+ *   :root[data-map-tone="dark"]  = GL + 커스텀 스타일 요청 200 + init (MapView가 정한다)
+ *   그 밖(기본)                    = NAVER 기본 밝은 지도 + 밝은 대체 팔레트
+ * 크기·글꼴·간격 토큰은 §17 그대로다.
+ */
+
+:root {
+  color-scheme: dark;
+
+  /* neutral & surface (§19.2 배경 / 패널 / 패널 2·3) */
+  --color-bg: #0A1226;
+  --color-surface: #0F1A33;
+  --color-surface-muted: #15223F;
+  --color-surface-sunken: #1D2D52;
+  --color-border: rgba(140, 165, 220, 0.16);       /* 패널 테두리(§19.2 .11)보다 조금 진하게 — 구분선·카드 경계 */
+  --color-border-strong: #5B6E98;                   /* 입력·secondary 버튼 경계: surface 대비 3.4, surface-muted 3.1 (WCAG 1.4.11) */
+  --color-text-primary: #EEF2FA;
+  --color-text-secondary: #C7D1E4;
+  --color-text-muted: #95A3BD;
+  --color-text-disabled: #6F7D98;
+  --color-text-inverse: #FFFFFF;
+  --color-text-on-data: #0A1226;                    /* 데이터 막대색(#8B9DBB) 위 글자: 6.8 */
+
+  /* accent: 선·글자 #7AA2FF, 버튼 채움은 따로(흰 글자 대비) */
+  --color-accent: #7AA2FF;
+  --color-accent-hover: #9BBBFF;
+  --color-accent-active: #B5CCFF;
+  --color-accent-subtle: rgba(122, 162, 255, 0.14);
+  --color-accent-border: rgba(122, 162, 255, 0.45);
+  --color-focus-ring: #7AA2FF;
+  /* §19.2 버튼 #3B6EF0 + 흰 글자는 4.49로 AA(4.5)에 조금 못 미쳐 한 단계 진하게: 4.98 / hover 5.77 / active 6.9 */
+  --color-accent-fill: #3566E8;
+  --color-accent-fill-hover: #2F5BDB;
+  --color-accent-fill-active: #2A51C4;
+  --color-focus-halo: rgba(122, 162, 255, 0.3);
+
+  /* data — 다섯 관점 막대는 한 색(§19.2) */
+  --color-data-bar: #8B9DBB;
+  --color-data-bar-muted: #5A6A88;
+  --color-data-track: #1D2D52;
+  --color-data-reference: #C7D1E4;
+  --color-data-missing: #3A4A6E;
+
+  /* 관점 식별색(이름 옆 보조) */
+  --color-persp-market: #7FA6FF;
+  --color-persp-customer: #4FD1B0;
+  --color-persp-competition: #B7A2FF;
+  --color-persp-location: #9AD46F;
+  --color-persp-stability: #E6CB7A;
+
+  /* status — 실제 경고·병목은 로즈, 정보 알림은 민트(§19.2). 성공도 민트 계열 */
+  --color-success: #45D3B0;
+  --color-success-subtle: rgba(69, 211, 176, 0.12);
+  --color-success-border: rgba(69, 211, 176, 0.4);
+  --color-warning: #FF6F91;
+  --color-warning-subtle: rgba(255, 111, 145, 0.13);
+  --color-warning-border: rgba(255, 111, 145, 0.45);
+  --color-danger: #FF6F91;
+  --color-danger-subtle: rgba(255, 111, 145, 0.13);
+  --color-danger-border: rgba(255, 111, 145, 0.55);
+  --color-info: #45D3B0;
+  --color-info-subtle: rgba(69, 211, 176, 0.12);
+  --color-info-border: rgba(69, 211, 176, 0.4);
+
+  /* elevation — 어두운 바탕에서는 그림자를 진하게 */
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.45);
+  --shadow-overlay: 0 12px 32px rgba(0, 0, 0, 0.4), 0 2px 6px rgba(0, 0, 0, 0.3);
+
+  /* map — 밝은 대체 지도 팔레트(§19.3 오른쪽 열, 검수 통과 2026-10-14). 다크 지도는 아래에서 덮는다 */
+  --color-map-marker: #2F5BDB;
+  --color-map-marker-ring: #FFFFFF;
+  --color-map-marker-halo: rgba(47, 91, 219, 0.3);
+  --color-map-marker-text: #FFFFFF;
+  --color-map-b: #6B4FD8;
+  --color-map-b-halo: rgba(107, 79, 216, 0.28);
+  --color-map-b-text: #FFFFFF;
+  --color-map-radius-stroke: #2F5BDB;
+  --color-map-radius-fill: rgba(59, 110, 240, 0.1);
+  --color-map-b-radius-stroke: #6B4FD8;
+  --color-map-b-radius-fill: rgba(107, 79, 216, 0.1);
+  --map-radius-stroke-width: 2.5;
+  --color-map-dong-stroke: rgba(74, 90, 122, 0.8);
+  --color-map-dong-fill: rgba(0, 0, 0, 0);
+  --color-map-invalid-marker: #656F7C;
+  --color-map-store: #066B54;
+  --color-map-store-edge: #FFFFFF;
+  --color-map-store-outline: rgba(10, 18, 38, 0.45);
+  --color-map-store-ring: #0A1226;
+  --color-map-info-bg: #FFFFFF;
+  --color-map-info-text: #0A1226;
+  --color-map-info-text-2: #4A5A7A;
+  --color-map-info-border: rgba(10, 18, 38, 0.25);
+  --color-map-info-action: #2F5BDB;
+  --color-map-info-action-subtle: rgba(47, 91, 219, 0.1);
+  --color-map-band: rgba(255, 255, 255, 0.86);
+  --map-band-pad-x: 8px;
+  --map-band-pad-top: 3px;
+  /* 밝은 지도 위 떠 있는 다크 UI(범례·안내·점포 막대)·패널 경계: 테두리·그림자를 키워 지도와 분리(§19.3 "패널 분리") */
+  --color-map-ui-edge: rgba(10, 18, 38, 0.42);
+  --shadow-map-ui: 0 10px 28px rgba(10, 18, 38, 0.34), 0 2px 6px rgba(10, 18, 38, 0.22);
+}
+
+/* 다크 지도(§19.3 왼쪽 열) */
+:root[data-map-tone="dark"] {
+  --color-map-marker: #7AA2FF;
+  --color-map-marker-ring: #0A1226;
+  --color-map-marker-halo: rgba(122, 162, 255, 0.32);
+  --color-map-marker-text: #0A1226;
+  --color-map-b: #B7A2FF;
+  --color-map-b-halo: rgba(183, 162, 255, 0.3);
+  --color-map-b-text: #0A1226;
+  --color-map-radius-stroke: #7AA2FF;
+  --color-map-radius-fill: rgba(122, 162, 255, 0.1);
+  --color-map-b-radius-stroke: #B7A2FF;
+  --color-map-b-radius-fill: rgba(183, 162, 255, 0.1);
+  --map-radius-stroke-width: 2;
+  --color-map-dong-stroke: rgba(175, 192, 218, 0.55);
+  --color-map-invalid-marker: #95A3BD;
+  --color-map-store: #45D3B0;
+  --color-map-store-edge: #0A1226;
+  --color-map-store-outline: rgba(69, 211, 176, 0.35);
+  --color-map-store-ring: #EEF2FA;
+  --color-map-info-bg: #15223F;
+  --color-map-info-text: #EEF2FA;
+  --color-map-info-text-2: #95A3BD;
+  --color-map-info-border: rgba(140, 165, 220, 0.25);
+  --color-map-info-action: #7AA2FF;
+  --color-map-info-action-subtle: rgba(122, 162, 255, 0.14);
+  /* SDK 저작권 글자(#444)·로고는 다크 스타일에서도 그대로 — 흰색보다 덜 튀는 옅은 회청색 띠(실측 글자 6.65·로고 2.02) */
+  --color-map-band: rgba(222, 229, 240, 0.94);
+  --map-band-pad-x: 4px;
+  --map-band-pad-top: 2px;
+  --color-map-ui-edge: rgba(140, 165, 220, 0.22);
+  --shadow-map-ui: var(--shadow-sm);
+}

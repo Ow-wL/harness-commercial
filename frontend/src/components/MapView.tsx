@@ -33,6 +33,7 @@ import {
   type NaverInfoWindow,
   type NaverMap,
   type NaverMapsApi,
+  type NaverMapEvent,
   type NaverMarker,
   type NaverPolygon,
 } from '../map/naverMaps.ts'
@@ -119,8 +120,35 @@ const INCHEON_CENTER: LatLng = { lat: 37.4563, lng: 126.7052 }
 const INITIAL_ZOOM = 11
 /** 기본 분석 반경 = 엔진 config.RADIUS_M (meta.분석반경_m). 반경 선택(8-D3)이 있으면 radiusM prop */
 export const RADIUS_M = 500
-/** GL 벡터 지도(검수용 선택, 기본 끔 — `VITE_NAVER_MAP_GL=1`). 커스텀 스타일은 제품에 아직 적용하지 않는다(8-B1) */
+/** GL 벡터 지도(검수용 선택, 기본 끔 — `VITE_NAVER_MAP_GL=1`). 다크 스타일 ID가 있으면 이 값과 무관하게 GL로 먼저 만든다(8-DK) */
 const MAP_GL = import.meta.env.VITE_NAVER_MAP_GL === '1'
+/**
+ * 다크 스타일 지도·밝은 대체 지도의 init 대기 시간 (DESIGN.md §19.3.1, 8-DK). **화면이 보이는 동안만** 센다 —
+ * 문서가 숨겨졌거나 지도 영역 크기가 0이면(mobile 패널 화면) 멈추고, 다시 보이면 처음부터 센다
+ */
+export const MAP_INIT_TIMEOUT_MS = 8_000
+const INIT_TICK_MS = 250
+/** NAVER 커스텀 스타일 요청 (스파이크 실측: 잘못된 ID → 400, 정상 → 200) */
+const STYLE_REQUEST = /\/v3\/styler\/props/
+
+/** 지도 톤 (§19.3): 다크 = 실제 GL + 그 지도의 스타일 요청 200 + init. 그 밖은 밝은 지도 + 밝은 대체 팔레트 */
+export type MapTone = 'dark' | 'light'
+
+type ResourceEntry = { name: string; startTime: number; responseStatus?: number }
+
+/** t0 이후 시작한 스타일 요청의 응답 상태(마지막 것). 브라우저가 상태를 주지 않으면 null — 다크로 보지 않는다 */
+function styleStatusSince(t0: number): number | null {
+  let status: number | null = null
+  const entries = (typeof performance.getEntriesByType === 'function' ? performance.getEntriesByType('resource') : []) as ResourceEntry[]
+  for (const e of entries) if (STYLE_REQUEST.test(e.name) && e.startTime >= t0 && e.responseStatus) status = e.responseStatus
+  return status
+}
+
+/** 지도 톤을 문서에 건다 — 지도 오버레이·정보창 색 토큰(tokens-a3.css)이 이 값으로 바뀐다 */
+function applyMapTone(tone: MapTone | null) {
+  if (tone) document.documentElement.dataset.mapTone = tone
+  else delete document.documentElement.dataset.mapTone
+}
 /** 사용 영역 U의 여백 (D-022) */
 const FIT_PAD = 8
 /**
@@ -148,19 +176,23 @@ function pointIcon(api: NaverMapsApi, kind: 'single' | 'A' | 'B', tone: 'selecte
   return { content: `<div class="${cls}">${kind}</div>`, anchor: new api.Point(10, 10) }
 }
 
-/** 반경 원 선 모양: A 짧은 대시, B 점 — 같은 반경을 선 모양으로 구분한다 (COMPARE_DESIGN.md 4.2) */
+/** 반경 원 선 모양: A 짧은 대시, B 점 — 같은 반경을 선 모양으로 구분한다 (COMPARE_DESIGN.md 4.2). 색도 A/B로 다르다(§19.3) */
 const RADIUS_STROKE = { A: 'shortdash', B: 'dot' } as const
+const RADIUS_TOKENS = {
+  A: { stroke: '--color-map-radius-stroke', fill: '--color-map-radius-fill' },
+  B: { stroke: '--color-map-b-radius-stroke', fill: '--color-map-b-radius-fill' },
+} as const
 
-/** 분석 반경 원 (§8.11, 기본 500m) */
+/** 분석 반경 원 (§8.11, 기본 500m). 색·두께는 지도 톤 토큰(§19.3: 다크 2px, 밝은 지도 2.5px) */
 function radiusCircle(api: NaverMapsApi, map: NaverMap, center: unknown, which: 'A' | 'B', radius: number): NaverCircle {
   return new api.Circle({
     map,
     center,
     radius,
-    fillColor: token('--color-map-radius-fill'),
+    fillColor: token(RADIUS_TOKENS[which].fill),
     fillOpacity: 1,
-    strokeColor: token('--color-map-radius-stroke'),
-    strokeWeight: 1.5,
+    strokeColor: token(RADIUS_TOKENS[which].stroke),
+    strokeWeight: Number.parseFloat(token('--map-radius-stroke-width')) || 2,
     strokeStyle: RADIUS_STROKE[which],
     clickable: false,
   })
@@ -184,6 +216,7 @@ function useDongPolygons(api: NaverMapsApi | null, map: NaverMap | null, guCode?
               fillOpacity: 1,
               strokeColor: token('--color-map-dong-stroke'),
               strokeWeight: 1.5,
+              strokeStyle: 'shortdash',                    // 흐린 점선 — 위계: 핀 → 반경 원 → 점포 → 경계(§19.3)
               clickable: false,
             }),
           )
@@ -225,9 +258,24 @@ function storeInfoContent(store: MapStore, onClose: () => void): HTMLElement {
   return root
 }
 
+/** SDK 컨트롤(로고·축척·저작권·확대 버튼) 사각형: z-index 100인 요소 중 바깥쪽 것만 본다(8-B0 스파이크와 같은 방식) */
+function sdkControlRects(section: HTMLElement, canvas: HTMLElement | null): Rect[] {
+  if (!canvas) return []
+  const m = section.getBoundingClientRect()
+  const out: Rect[] = []
+  for (const el of canvas.querySelectorAll<HTMLElement>('*')) {
+    if (getComputedStyle(el).zIndex !== '100') continue
+    if (el.parentElement && getComputedStyle(el.parentElement).zIndex === '100') continue
+    const b = el.getBoundingClientRect()
+    if (b.width < 1 || b.height < 1 || b.width >= m.width) continue
+    out.push({ x: b.left - m.left, y: b.top - m.top, w: b.width, h: b.height })
+  }
+  return out
+}
+
 /**
  * 사용 영역 U의 장애물(지도 section 기준 사각형): 우리 오버레이(범례·안내 칩·점포 막대) + SDK 컨트롤.
- * SDK 컨트롤은 z-index 100인 요소 중 바깥쪽 것만 본다(8-B0 스파이크와 같은 방식). 못 찾으면 실측 크기로 대신한다
+ * SDK 컨트롤을 못 찾으면 실측 크기로 대신한다
  */
 function mapObstacles(section: HTMLElement, canvas: HTMLElement | null): Rect[] {
   const m = section.getBoundingClientRect()
@@ -237,19 +285,41 @@ function mapObstacles(section: HTMLElement, canvas: HTMLElement | null): Rect[] 
     const b = el.getBoundingClientRect()
     if (b.width > 0 && b.height > 0) out.push(rel(b))
   }
-  let sdk = 0
-  if (canvas) {
-    for (const el of canvas.querySelectorAll<HTMLElement>('*')) {
-      if (getComputedStyle(el).zIndex !== '100') continue
-      if (el.parentElement && getComputedStyle(el.parentElement).zIndex === '100') continue
-      const b = el.getBoundingClientRect()
-      if (b.width < 1 || b.height < 1 || b.width >= m.width) continue
-      out.push(rel(b))
-      sdk++
-    }
-  }
-  if (sdk === 0) out.push(...SDK_CONTROL_FALLBACK(section.clientWidth, section.clientHeight))
+  const sdk = sdkControlRects(section, canvas)
+  out.push(...(sdk.length > 0 ? sdk : SDK_CONTROL_FALLBACK(section.clientWidth, section.clientHeight)))
   return out
+}
+
+/** 지도 아래 끝에 붙은 SDK 표기 줄(로고·축척·저작권)로 보는 범위 */
+const BAND_EDGE_PX = 48
+
+/**
+ * 저작권 줄 배경 띠 (§19.3, 8-DK): SDK 표기 줄(로고·축척·지도 데이터 저작권)의 실제 크기에 맞춘다. SDK 요소는 건드리지 않고
+ * 그 아래(지도 타일·오버레이 위)에 띠만 깐다 — SDK 글자색(#444)·로고는 다크 스타일에서도 그대로라 밝은 띠가 필요하다.
+ * 축척 길이가 zoom마다 바뀌므로 idle·크기 맞춤마다 다시 잰다. 표기를 못 찾으면 숨긴다
+ */
+function syncControlBand(band: HTMLElement | null, section: HTMLElement | null, canvas: HTMLElement | null) {
+  if (!band || !section) return
+  const w = section.clientWidth
+  const h = section.clientHeight
+  const rects = sdkControlRects(section, canvas).filter((r) => r.y + r.h >= h - BAND_EDGE_PX && r.h < BAND_EDGE_PX)
+  if (w === 0 || h === 0 || rects.length === 0) {
+    if (!band.hidden) band.hidden = true                   // 바뀔 때만 쓴다(idle·크기 맞춤마다 불린다)
+    return
+  }
+  const left = Math.min(...rects.map((r) => r.x))
+  const right = Math.max(...rects.map((r) => r.x + r.w))
+  const top = Math.min(...rects.map((r) => r.y))
+  const padX = Number.parseFloat(token('--map-band-pad-x')) || 4
+  const padTop = Number.parseFloat(token('--map-band-pad-top')) || 2
+  // 표기 묶음이 오른쪽이면 오른쪽 끝에, 왼쪽이면 왼쪽 끝에 붙인다
+  const onRight = left + right > w
+  band.style.left = onRight ? 'auto' : '0px'
+  band.style.right = onRight ? '0px' : 'auto'
+  band.style.width = `${Math.ceil(onRight ? w - left + padX : right + padX)}px`
+  band.style.height = `${Math.ceil(h - top + padTop)}px`
+  band.dataset.side = onRight ? 'right' : 'left'
+  band.hidden = false
 }
 
 /**
@@ -325,6 +395,10 @@ const MESSAGES: Record<MapLoadErrorKind, { title: string; body: string }> = {
     title: '지도 인증에 실패했습니다',
     body: 'NAVER Cloud Platform 콘솔에서 Client ID와 서비스 URL(현재 주소)을 확인하세요. 패널의 좌표 입력으로도 위치를 고를 수 있습니다.',
   },
+  init: {
+    title: '지도를 준비하지 못했습니다',
+    body: '잠시 뒤 새로고침해 주세요. 패널의 좌표 입력으로도 위치를 고를 수 있습니다.',
+  },
 }
 
 /**
@@ -347,7 +421,12 @@ export function MapView({
   layoutKey,
 }: MapViewProps) {
   const sectionRef = useRef<HTMLElement>(null)
-  const canvasRef = useRef<HTMLDivElement>(null)
+  /** React가 그리는 지도 자리. SDK 지도 요소(canvas)는 세대마다 이 안에 새로 만든다(8-DK) */
+  const hostRef = useRef<HTMLDivElement>(null)
+  /** 지금 세대의 SDK 지도 요소 */
+  const canvasRef = useRef<HTMLDivElement | null>(null)
+  /** 저작권 줄 배경 띠 (§19.3) */
+  const bandRef = useRef<HTMLDivElement>(null)
   const [api, setApi] = useState<NaverMapsApi | null>(null)
   const [map, setMap] = useState<NaverMap | null>(null)
   const [error, setError] = useState<MapLoadErrorKind | null>(null)
@@ -385,9 +464,6 @@ export function MapView({
   // SDK 로드 + 지도 생성 (StrictMode에서 effect가 두 번 돌아도 script는 loader가 한 번만 붙인다)
   useEffect(() => {
     let cancelled = false
-    let created: NaverMap | null = null
-    let clickListener: unknown = null
-    let maps: NaverMapsApi | null = null
     // SDK 상태를 App에 올린다 (7-B1). failed는 끝 상태 — 뒤늦은 인증 실패 뒤 Geocoder 준비 알림이 ready로 되돌리지 못한다
     let sdkState: SdkState = { status: 'loading' }
     const report = (event: SdkEvent) => {
@@ -402,46 +478,199 @@ export function MapView({
       report({ type: 'auth-failed' })
     })
 
-    let mapListeners: unknown[] = []
-    loadNaverMaps(import.meta.env.VITE_NAVER_MAP_CLIENT_ID, { gl: MAP_GL })
+    // 지도 세대 (DESIGN.md §19.3.1, 8-DK): 지도 하나와 그 지도에 붙인 리스너·타이머·스타일 관찰. 다크 스타일이 실패하면 이 세대를
+    // 모두 정리하고 밝은 지도를 한 번만 다시 만든다. 이전 세대의 늦은 이벤트·타이머·스타일 요청 결과는 세대 번호가 달라 버린다
+    let gen = 0
+    let disposeAttempt: (() => void) | null = null
+    const styleId = import.meta.env.VITE_NAVER_MAP_STYLE_ID ?? ''
+
+    /** 지도를 화면에 내놓는다(오버레이·맞춤·주소 기능이 이 지도로 돈다). 톤을 먼저 걸어 오버레이가 맞는 색으로 그려지게 한다 */
+    const expose = (loaded: NaverMapsApi, map: NaverMap, tone: MapTone) => {
+      applyMapTone(tone)
+      if (sectionRef.current) sectionRef.current.dataset.mapTone = tone
+      setApi(loaded)
+      setMap(map)
+      // 지도는 준비됐다. Geocoder는 지금 상태를 올리고, 뒤에 정해지면(ready/unavailable) 다시 올린다
+      report({ type: 'map-ready', api: loaded, geocoder: getGeocoderAvailability() })
+      unsubscribeGeocoder = onGeocoderAvailability((geocoder) => report({ type: 'geocoder', geocoder }))
+    }
+
+    /** init 뒤 공통: 실제 그리기 방식(1 래스터 / 2 GL — GL을 요청해도 지원 안 되면 1)을 남기고 미룬 맞춤을 돈다 */
+    const markInited = (map: NaverMap) => {
+      if (initedRef.current) return
+      initedRef.current = true
+      const mode = map.get?.('renderMode')
+      renderModeRef.current = typeof mode === 'number' ? mode : null
+      if (sectionRef.current && mode != null) sectionRef.current.dataset.renderMode = String(mode)
+      const pending = pendingFitRef.current
+      pendingFitRef.current = null
+      if (pending) runFitRef.current(pending)
+    }
+
+    /**
+     * 지도 한 세대를 만든다. kind:
+     * - plain: 스타일 ID 없음 — 지금까지와 같다(바로 내놓고 init 뒤 맞춤, 밝은 지도)
+     * - styled: GL + 다크 스타일. init + 이 세대의 스타일 요청 200 + 실제 GL일 때만 다크로 내놓는다. 아니면 fallback
+     * - fallback: 스타일 실패 뒤 한 번만 — `gl: false`, 스타일 없음. init 뒤에 밝은 팔레트로 내놓고, 이것도 실패하면 지도 오류
+     */
+    const attempt = (loaded: NaverMapsApi, kind: 'plain' | 'styled' | 'fallback') => {
+      const host = hostRef.current
+      if (cancelled || !host) return
+      const g = ++gen
+      const live = () => !cancelled && g === gen
+      const listeners: unknown[] = []
+      let tick: ReturnType<typeof setInterval> | null = null
+      let raf = 0
+      let observer: PerformanceObserver | null = null
+      let onVisibility: (() => void) | null = null
+      // SDK가 컨테이너에 inline 스타일·자식을 남기므로 세대마다 새 요소를 쓴다(React가 그리는 host 안)
+      const canvas = document.createElement('div')
+      canvas.className = 'map__canvas'
+      host.appendChild(canvas)
+      canvasRef.current = canvas
+      const gl = kind === 'styled' || (kind === 'plain' && MAP_GL)
+      const t0 = typeof performance.now === 'function' ? performance.now() : 0
+      const map = new loaded.Map(canvas, {
+        center: new loaded.LatLng(INCHEON_CENTER.lat, INCHEON_CENTER.lng),
+        // GL은 같은 축척에서 zoom이 1 작다(래스터 11 = GL 10)
+        zoom: gl ? INITIAL_ZOOM - 1 : INITIAL_ZOOM,
+        ...(gl ? { gl: true } : {}),
+        ...(kind === 'styled' ? { customStyleId: styleId } : {}),
+        zoomControl: true,
+        zoomControlOptions: { position: loaded.Position.TOP_RIGHT, style: loaded.ZoomControlStyle?.SMALL },
+        scaleControl: true,
+        // 지도 데이터 저작권 표기(D-023 D7): 로고·축척과 같은 오른쪽 아래 줄에 두고 배경 띠를 깐다(syncControlBand).
+        // §19.1의 왼쪽 아래 배치는 레이아웃 개편 단위에서 범례 자리와 함께 옮긴다
+        mapDataControl: true,
+        mapDataControlOptions: { position: loaded.Position.BOTTOM_RIGHT },
+      })
+      const stopWaiting = () => {
+        if (tick) clearInterval(tick)
+        tick = null
+        if (raf) cancelAnimationFrame(raf)
+        raf = 0
+        observer?.disconnect()
+        observer = null
+        if (onVisibility) document.removeEventListener('visibilitychange', onVisibility)
+        onVisibility = null
+      }
+      disposeAttempt = () => {
+        stopWaiting()
+        for (const l of listeners) loaded.Event.removeListener(l)
+        listeners.length = 0
+        map.destroy?.()
+        canvas.remove()
+        if (canvasRef.current === canvas) canvasRef.current = null
+      }
+      const on = (type: string, handler: (e: NaverMapEvent) => void) =>
+        listeners.push(loaded.Event.addListener(map, type, (e) => live() && handler(e)))
+      on('click', (e) => {
+        if (!interactiveRef.current) return
+        onSelectRef.current({ lat: round(e.coord.lat()), lng: round(e.coord.lng()) })
+      })
+      on('zooming', () => (lockedRef.current = true))
+      on('dragstart', () => (lockedRef.current = true))
+      on('idle', () => syncControlBand(bandRef.current, sectionRef.current, canvasRef.current))
+
+      if (kind === 'plain') {
+        on('init', () => markInited(map))
+        expose(loaded, map, 'light')
+        return
+      }
+
+      // init 대기: 보이는 동안(문서 보임 + 지도 영역 크기 > 0)만 센다. 숨겨지면 0으로 되돌려 다시 보이면 처음부터 센다.
+      // 숨김 중 만든 지도는 크기 0이라 init이 오지 않을 수 있어, 보이면 setSize 한다(크기 맞춤 effect는 내놓은 뒤에만 돈다)
+      let settled = false
+      let elapsed = 0
+      let lastSize = ''
+      const finish = (outcome: 'init' | 'timeout' | 'style-failed') => {
+        if (settled || !live()) return
+        settled = true
+        stopWaiting()
+        if (kind === 'styled') {
+          const status = styleStatusSince(t0)
+          const dark = outcome === 'init' && status === 200 && map.get?.('renderMode') === 2
+          if (dark) {
+            markInited(map)
+            expose(loaded, map, 'dark')
+            return
+          }
+          // 스타일 실패(요청 200 아님·시간 초과·GL 아님) → 이 세대를 정리하고 밝은 지도를 한 번만 다시 만든다.
+          // 선택 위치·반경·결과는 props 그대로이고, 오버레이·맞춤은 새 지도를 내놓은 뒤 effect가 다시 그린다
+          console.warn(`[map] 다크 지도 스타일을 쓰지 못해 밝은 지도로 바꿉니다 (${outcome}${status ? `, 스타일 요청 ${status}` : ''})`)
+          disposeAttempt?.()
+          disposeAttempt = null
+          attempt(loaded, 'fallback')
+          return
+        }
+        if (outcome === 'init') {
+          markInited(map)
+          expose(loaded, map, 'light')
+          return
+        }
+        // 밝은 대체 지도도 준비되지 않았다 — 다시 시도하지 않는다(좌표 입력 등 지도 없는 경로는 그대로)
+        disposeAttempt?.()
+        disposeAttempt = null
+        setError('init')
+        report({ type: 'map-failed', kind: 'init' })
+      }
+      const visible = () => {
+        const el = sectionRef.current
+        return document.visibilityState !== 'hidden' && !!el && el.clientWidth > 0 && el.clientHeight > 0
+      }
+      // 실제로 그려지는지: 문서가 visible이어도 앞에 나와 있지 않은 탭·창은 프레임을 그리지 않아 GL init이 오지 않는다
+      // (검수 브라우저에서 확인 2026-10-18). 직전 tick 뒤 프레임이 하나라도 그려졌을 때만 센다. rAF가 없으면 그린다고 본다
+      const hasRaf = typeof requestAnimationFrame === 'function'
+      let painted = !hasRaf
+      const frame = () => {
+        painted = true
+        if (!settled && live()) raf = requestAnimationFrame(frame)
+      }
+      if (hasRaf) raf = requestAnimationFrame(frame)
+      tick = setInterval(() => {
+        if (!live() || settled) return
+        const drawn = painted
+        painted = !hasRaf
+        if (!visible() || !drawn) {
+          elapsed = 0
+          return
+        }
+        const el = sectionRef.current!
+        const size = `${el.clientWidth}x${el.clientHeight}`
+        if (size !== lastSize) {
+          lastSize = size
+          map.setSize(new loaded.Size(el.clientWidth, el.clientHeight))
+        }
+        elapsed += INIT_TICK_MS
+        if (elapsed >= MAP_INIT_TIMEOUT_MS) finish('timeout')
+      }, INIT_TICK_MS)
+      onVisibility = () => {
+        if (document.visibilityState === 'hidden') elapsed = 0
+      }
+      document.addEventListener('visibilitychange', onVisibility)
+      on('init', () => finish('init'))
+      if (kind === 'styled') {
+        // 스타일 요청이 200이 아니면 SDK는 init 없이 "인증 실패" 무늬만 그린다(스파이크 실측) — 바로 실패로 본다
+        const check = () => {
+          const status = styleStatusSince(t0)
+          if (status !== null && status !== 200) finish('style-failed')
+        }
+        if (typeof PerformanceObserver === 'function') {
+          try {
+            observer = new PerformanceObserver(() => live() && check())
+            observer.observe({ type: 'resource', buffered: false })
+          } catch {
+            observer = null                                   // 관찰을 못 하면 시간 초과로 판정한다
+          }
+        }
+        check()
+      }
+    }
+
+    loadNaverMaps(import.meta.env.VITE_NAVER_MAP_CLIENT_ID, { gl: MAP_GL || styleId !== '' })
       .then((loaded) => {
-        if (cancelled || !canvasRef.current) return
-        maps = loaded
-        created = new loaded.Map(canvasRef.current, {
-          center: new loaded.LatLng(INCHEON_CENTER.lat, INCHEON_CENTER.lng),
-          // GL은 같은 축척에서 zoom이 1 작다(래스터 11 = GL 10)
-          zoom: MAP_GL ? INITIAL_ZOOM - 1 : INITIAL_ZOOM,
-          ...(MAP_GL ? { gl: true } : {}),
-          zoomControl: true,
-          zoomControlOptions: { position: loaded.Position.TOP_RIGHT, style: loaded.ZoomControlStyle?.SMALL },
-          scaleControl: true,
-          mapDataControl: false,
-        })
-        const map = created
-        clickListener = loaded.Event.addListener(created, 'click', (e) => {
-          if (!interactiveRef.current) return
-          onSelectRef.current({ lat: round(e.coord.lat()), lng: round(e.coord.lng()) })
-        })
-        mapListeners = [
-          loaded.Event.addListener(created, 'init', () => {
-            if (initedRef.current) return
-            initedRef.current = true
-            // 실제 그리기 방식(1 래스터 / 2 GL)을 남긴다 — GL을 요청해도 지원 안 되면 1. 검수·측정용
-            const mode = map.get?.('renderMode')
-            renderModeRef.current = typeof mode === 'number' ? mode : null
-            if (sectionRef.current && mode != null) sectionRef.current.dataset.renderMode = String(mode)
-            const pending = pendingFitRef.current
-            pendingFitRef.current = null
-            if (pending) runFitRef.current(pending)
-          }),
-          loaded.Event.addListener(created, 'zooming', () => (lockedRef.current = true)),
-          loaded.Event.addListener(created, 'dragstart', () => (lockedRef.current = true)),
-        ]
-        setApi(loaded)
-        setMap(created)
-        // 지도는 준비됐다. Geocoder는 지금 상태를 올리고, 뒤에 정해지면(ready/unavailable) 다시 올린다
-        report({ type: 'map-ready', api: loaded, geocoder: getGeocoderAvailability() })
-        unsubscribeGeocoder = onGeocoderAvailability((geocoder) => report({ type: 'geocoder', geocoder }))
+        if (cancelled) return
+        attempt(loaded, styleId ? 'styled' : 'plain')
       })
       .catch((e: unknown) => {
         if (cancelled) return
@@ -454,11 +683,11 @@ export function MapView({
       cancelled = true
       unsubscribe()
       unsubscribeGeocoder?.()
-      if (maps && clickListener) maps.Event.removeListener(clickListener)
-      if (maps) for (const l of mapListeners) maps.Event.removeListener(l)
+      disposeAttempt?.()
+      disposeAttempt = null
+      applyMapTone(null)
       initedRef.current = false
       pendingFitRef.current = null
-      created?.destroy?.()
       setMap(null)
     }
   }, [])
@@ -472,6 +701,7 @@ export function MapView({
     const fit = () => {
       const visible = el.clientWidth > 0 && el.clientHeight > 0
       if (visible) map.setSize(new api.Size(el.clientWidth, el.clientHeight))
+      syncControlBand(bandRef.current, el, canvasRef.current)
       setSized(visible)
       // 숨김 복귀(순위 4): 미뤄 둔 맞춤만 실제 크기로 1회. 크기만 바뀐 것은 zoom을 바꾸지 않는다(순위 8)
       if (visible && pendingFitRef.current) {
@@ -818,8 +1048,9 @@ export function MapView({
       infoRef.current = new api.InfoWindow({
         content,
         borderWidth: 1,
-        borderColor: token('--color-border'),
-        backgroundColor: token('--color-surface'),
+        borderColor: token('--color-map-info-border'),          // 지도 톤 색(§19.3 정보창) — 패널 색이 아니다
+        backgroundColor: token('--color-map-info-bg'),
+        anchorColor: token('--color-map-info-bg'),
         anchorSize: new api.Size(10, 8),
         disableAnchor: false,
       })
@@ -881,7 +1112,9 @@ export function MapView({
       tabIndex={-1}
       onKeyDown={onMapKeyDown}
     >
-      <div ref={canvasRef} className="map__canvas" />
+      <div ref={hostRef} className="map__canvas-host" />
+      {/* 저작권 줄 배경 띠: SDK 표기(z 100) 아래, 지도 타일·오버레이 위. 크기·위치는 syncControlBand가 정한다 */}
+      <div ref={bandRef} className="map__ctlband" aria-hidden="true" hidden />
       {/* SDK 정보창 밖에서도 키보드로 닫을 수 있는 조작 (DESIGN.md §8.14). 지도 위 우리 DOM이라 탭 순서에 들어간다 */}
       {activeStore && (
         <div className="map__store-bar" role="group" aria-label="선택한 점포">

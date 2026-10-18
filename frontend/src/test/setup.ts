@@ -2,6 +2,10 @@ import '@testing-library/jest-dom/vitest'
 import { cleanup } from '@testing-library/react'
 import { afterEach } from 'vitest'
 
+// 로컬 frontend/.env의 다크 스타일 ID가 테스트에 들어오지 않게 한다 — 기본은 스타일 없음(밝은 지도, 8-DK 이전과 같은 경로).
+// 다크 경로는 MapView.test.tsx가 vi.stubEnv로 켠다
+import.meta.env.VITE_NAVER_MAP_STYLE_ID = ''
+
 afterEach(() => {
   cleanup()
 })

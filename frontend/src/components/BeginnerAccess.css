@@ -29,7 +29,7 @@
 
 .access__segment--on {
   background: var(--color-data-bar);
-  color: var(--color-text-inverse);
+  color: var(--color-text-on-data);
 }
 
 .access__level-text {

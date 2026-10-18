@@ -18,16 +18,16 @@
 }
 
 .button--primary {
-  background: var(--color-accent);
+  background: var(--color-accent-fill);
   color: var(--color-text-inverse);
 }
 
 .button--primary:hover {
-  background: var(--color-accent-hover);
+  background: var(--color-accent-fill-hover);
 }
 
 .button--primary:active {
-  background: var(--color-accent-active);
+  background: var(--color-accent-fill-active);
 }
 
 .button--secondary {
@@ -59,7 +59,7 @@
 .button[aria-busy="true"],
 .button[aria-busy="true"]:hover {
   border-color: transparent;
-  background: var(--color-accent);
+  background: var(--color-accent-fill);
   color: var(--color-text-inverse);
   cursor: progress;
 }
@@ -180,7 +180,7 @@
 .input:focus-visible,
 .select:focus-visible {
   border-color: var(--color-accent);
-  outline: 2px solid rgba(29, 91, 191, 0.25);
+  outline: 2px solid var(--color-focus-halo);
   outline-offset: 0;
 }
 

@@ -17,6 +17,8 @@ COPY frontend/ ./
 COPY ["data/geo/인천_행정동경계_2026.geojson", "/build/data/geo/"]
 ARG VITE_NAVER_MAP_CLIENT_ID
 RUN test -n "$VITE_NAVER_MAP_CLIENT_ID" || { echo "build arg VITE_NAVER_MAP_CLIENT_ID 가 필요하다"; exit 1; }
+# 선택: NAVER 다크 지도 스타일 My Style ID(8-DK, DESIGN.md §19.3.1). 없으면 밝은 지도. commit 하지 않는다
+ARG VITE_NAVER_MAP_STYLE_ID=
 # 번들만 만든다. 타입 검사(tsc -b)는 테스트 파일·tests/golden 까지 보므로 scripts/check(npm run check)에서 한다
 RUN npx vite build
 # build 에 행정동 GeoJSON asset 이 정확히 1개, data/geo 원본과 같은 바이트로 들어갔는지 확인한다

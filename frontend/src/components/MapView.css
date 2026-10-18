@@ -27,10 +27,34 @@
   pointer-events: none;
 }
 
-/* NAVER SDK가 컨테이너에 inline `position: relative`를 넣으므로 inset이 아니라 크기로 채운다 */
+/* NAVER SDK가 컨테이너에 inline `position: relative`를 넣으므로 inset이 아니라 크기로 채운다.
+   SDK 지도 요소(.map__canvas)는 세대마다 host 안에 새로 만든다(다크 스타일 실패 → 밝은 지도, 8-DK) */
+.map__canvas-host,
 .map__canvas {
   width: 100%;
   height: 100%;
+}
+
+/* 저작권 줄 배경 띠 (DESIGN.md §19.3, 8-DK): SDK 표기(z-index 100)와 지도 타일·오버레이 사이. SDK 요소는 건드리지 않는다.
+   색·여백은 지도 톤 토큰(다크: 옅은 회청색, 밝은 지도: 반투명 흰색). 바깥쪽 위 모서리만 둥글게 */
+.map__ctlband {
+  position: absolute;
+  bottom: 0;
+  z-index: 50;
+  background: var(--color-map-band);
+  pointer-events: none;
+}
+
+.map__ctlband[data-side="right"] {
+  border-radius: var(--radius-lg) 0 0 0;
+}
+
+.map__ctlband[data-side="left"] {
+  border-radius: 0 var(--radius-lg) 0 0;
+}
+
+.map__ctlband[hidden] {
+  display: none;
 }
 
 /* 로딩·오류: 지도 자리 가운데 (카드 아님, DESIGN.md §10) */
@@ -71,9 +95,9 @@
   position: absolute;
   z-index: 1;
   margin: 0;
-  border: 1px solid var(--color-border);
+  border: 1px solid var(--color-map-ui-edge);
   background: var(--color-surface);
-  box-shadow: var(--shadow-sm);
+  box-shadow: var(--shadow-map-ui);
 }
 
 /* 미선택 안내: 지도 아래쪽 가운데 surface 칩 (§8.12) */
@@ -130,44 +154,48 @@
 .map__legend-radius {
   width: 12px;
   height: 12px;
-  border: 1.5px dashed var(--color-map-radius-stroke);
+  border: 2px dashed var(--color-map-radius-stroke);
   border-radius: 50%;
   background: var(--color-map-radius-fill);
 }
 
-/* 비교 범례: A 채운 원 / B 흰 원 + 파랑 테두리, B 반경은 점선(지도 원의 'dot'과 같은 모양) */
+/* 비교 범례: A 기준색 / B 라벤더(§19.3), B 반경은 점선(지도 원의 'dot'과 같은 모양) */
 .map__legend-marker--b {
-  box-sizing: border-box;
-  border: 2px solid var(--color-map-marker);
-  background: var(--color-surface);
+  background: var(--color-map-b);
 }
 
 .map__legend-radius--b {
   border-style: dotted;
+  border-color: var(--color-map-b-radius-stroke);
+  background: var(--color-map-b-radius-fill);
 }
 
 .map__legend-dong {
   width: 12px;
   height: 10px;
-  border: 1.5px solid var(--color-map-dong-stroke);
+  border: 1.5px dashed var(--color-map-dong-stroke);
   background: var(--color-map-dong-fill);
 }
 
-/* 선택 지점 마커: 지름 16px, 흰 2px 외곽선 + 바깥 1px (§8.11). NAVER 지도가 만든 DOM에 붙으므로 전역 클래스 */
+/* 선택 지점 핀 (§19.3): 지름 16px, 지도 톤 링 3px + 후광 — 맨 위 위계. NAVER 지도가 만든 DOM에 붙으므로 전역 클래스.
+   다크 지도: #7AA2FF + 어두운 링, 밝은 지도: #2F5BDB + 흰 링(tokens-a3.css) */
 .map-marker {
   width: 16px;
   height: 16px;
-  border: 2px solid var(--color-surface);
   border-radius: 50%;
-  box-shadow: 0 0 0 1px rgba(23, 32, 43, 0.2);
+  box-shadow:
+    0 0 0 3px var(--color-map-marker-ring),
+    0 0 0 9px var(--color-map-marker-halo);
   background: var(--color-map-marker);
 }
 
+/* 분석 불가: 회색, 후광 없음(반경 원도 없다) */
 .map-marker--invalid {
+  box-shadow: 0 0 0 3px var(--color-map-marker-ring);
   background: var(--color-map-invalid-marker);
 }
 
-/* 두 위치 비교 중 글자 마커 20px (5차-B4, COMPARE_DESIGN.md 4.2·D7): 새 색 토큰 없이 모양·글자로 A/B 구분 */
+/* 두 위치 비교 중 글자 마커 20px (5차-B4, COMPARE_DESIGN.md 4.2·D7): 글자 A/B + 색(A 기준색, B 라벤더 — §19.2)으로 구분 */
 .map-marker--letter {
   display: flex;
   align-items: center;
@@ -177,41 +205,42 @@
   font: 700 11px/1 var(--font-sans);
 }
 
-/* A = 채운 파랑 + 흰 글자 (흰 2px 외곽선은 .map-marker) */
 .map-marker--a {
-  color: var(--color-surface);
+  color: var(--color-map-marker-text);
 }
 
-/* B = 흰 채움 + 파랑 2px 테두리 + 파랑 글자 */
 .map-marker--b {
-  border-color: var(--color-map-marker);
-  background: var(--color-surface);
-  color: var(--color-map-marker);
+  box-shadow:
+    0 0 0 3px var(--color-map-marker-ring),
+    0 0 0 9px var(--color-map-b-halo);
+  background: var(--color-map-b);
+  color: var(--color-map-b-text);
 }
 
 /* 분석 불가 B: 같은 모양, 회색 (반경 원 없음) */
 .map-marker--b.map-marker--invalid {
-  border-color: var(--color-map-invalid-marker);
-  background: var(--color-surface);
-  color: var(--color-map-invalid-marker);
+  box-shadow: 0 0 0 3px var(--color-map-marker-ring);
+  background: var(--color-map-invalid-marker);
+  color: var(--color-map-marker-ring);
 }
 
-/* 동종 점포 마커 (4차, §8.11): 선택 지점보다 작게, 선택되면 커지고 진한 테두리 */
+/* 동종 점포 점 (§19.3): 선택 지점보다 작게. 다크 민트 + 어두운 테두리 / 밝은 지도 진녹색 + 흰 테두리·바깥선 */
 .map-store-marker {
   width: 10px;
   height: 10px;
-  border: 1.5px solid var(--color-surface);
+  border: 1.5px solid var(--color-map-store-edge);
   border-radius: 50%;
-  box-shadow: 0 0 0 1px rgba(23, 32, 43, 0.25);
+  box-shadow: 0 0 0 1px var(--color-map-store-outline);
   background: var(--color-map-store);
   cursor: pointer;
 }
 
+/* 선택(정보창 열림): 14px, 테두리 2px, 바깥 링 2px */
 .map-store-marker--active {
   width: 14px;
   height: 14px;
-  border: 2px solid var(--color-surface);
-  box-shadow: 0 0 0 2px var(--color-text-primary);
+  border: 2px solid var(--color-map-store-edge);
+  box-shadow: 0 0 0 2px var(--color-map-store-ring);
 }
 
 .map__legend-store {
@@ -234,10 +263,10 @@
   width: max-content; /* left: 50%라 남은 폭(절반)에 갇혀 상호가 잘리지 않게 — 내용 폭, 최대값까지 */
   max-width: calc(100% - 2 * var(--space-16));
   padding: var(--space-1) var(--space-1) var(--space-1) var(--space-3);
-  border: 1px solid var(--color-border);
+  border: 1px solid var(--color-map-ui-edge);
   border-radius: var(--radius-md);
   background: var(--color-surface);
-  box-shadow: var(--shadow-sm);
+  box-shadow: var(--shadow-map-ui);
   transform: translateX(-50%);
   font: var(--text-small);
   color: var(--color-text-primary);
@@ -288,7 +317,7 @@
   }
 }
 
-/* 정보창 내용 (NAVER InfoWindow 안) */
+/* 정보창 내용 (NAVER InfoWindow 안) — 지도 톤 색(§19.3: 다크 #15223F 바탕, 밝은 지도 흰 바탕) */
 .map-store-info {
   display: flex;
   flex-direction: column;
@@ -296,12 +325,12 @@
   max-width: 240px;
   padding: var(--space-3);
   font: var(--text-small);
-  color: var(--color-text-secondary);
+  color: var(--color-map-info-text-2);
 }
 
 .map-store-info__name {
   font: var(--text-label);
-  color: var(--color-text-primary);
+  color: var(--color-map-info-text);
 }
 
 .map-store-info__text {
@@ -316,8 +345,12 @@
   background: none;
   font: var(--text-small);
   font-weight: 600;
-  color: var(--color-accent);
+  color: var(--color-map-info-action);
   cursor: pointer;
+}
+
+.map-store-info__close:hover {
+  background: var(--color-map-info-action-subtle);
 }
 
 @media (max-width: 639px) {

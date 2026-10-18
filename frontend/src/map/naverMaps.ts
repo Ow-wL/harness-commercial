@@ -112,7 +112,8 @@ declare global {
   }
 }
 
-export type MapLoadErrorKind = 'config' | 'load' | 'auth'
+/** init: 지도를 만들었지만 준비(init)되지 않음 — 다크 스타일 실패 뒤 밝은 대체 지도까지 실패(8-DK, DESIGN.md §19.3.1) */
+export type MapLoadErrorKind = 'config' | 'load' | 'auth' | 'init'
 
 export class MapLoadError extends Error {
   readonly kind: MapLoadErrorKind

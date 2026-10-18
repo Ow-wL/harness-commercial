@@ -81,6 +81,7 @@ class FakeMap {
   options: Record<string, unknown>
   constructor(_el: unknown, options: Record<string, unknown>) {
     this.options = options
+    this.renderMode = options.gl ? 2 : 1                                // GL 요청은 GL로 그려진다고 본다(다크 경로 테스트)
     maps.push(this)
   }
 }
@@ -115,7 +116,7 @@ const fakeSdk = {
   Circle: vi.fn(overlay),
   Polygon: vi.fn(overlay),
   InfoWindow: vi.fn(infoWindow),
-  Position: { TOP_RIGHT: 'TOP_RIGHT' },
+  Position: { TOP_RIGHT: 'TOP_RIGHT', BOTTOM_RIGHT: 'BOTTOM_RIGHT' },
   ZoomControlStyle: { SMALL: 'SMALL', LARGE: 'LARGE' },
   Event: {
     addListener: vi.fn((target: unknown, type: string, handler: () => void) => {
@@ -1372,5 +1373,210 @@ describe('MapView — 분석 반경 (8-D3, D-022 순위 3)', () => {
     expect(screen.getByRole('list', { name: '지도 범례' })).toHaveTextContent('A 반경 300m')
     expect(screen.getByRole('list', { name: '지도 범례' })).toHaveTextContent('B 반경 300m')
     expect(view.map.setZoom).toHaveBeenCalled()
+  })
+})
+
+describe('MapView — A3 다크 지도 스타일과 밝은 지도 복구 (8-DK, DESIGN.md §19.3.1)', () => {
+  const A = { lat: 37.4894, lng: 126.7246 }
+  /** 스타일 요청 기록(PerformanceResourceTiming 대역). 지도를 만든 뒤에 시작한 것만 그 세대의 결과다 */
+  let entries: { name: string; startTime: number; responseStatus?: number }[] = []
+  let observerCallbacks: (() => void)[] = []
+  const styleResponse = (status: number) => {
+    entries.push({ name: 'https://oapi.map.naver.com/v3/styler/props?id=x', startTime: performance.now() + 1, responseStatus: status })
+    act(() => observerCallbacks.forEach((cb) => cb()))
+  }
+  const fireOn = (map: FakeMap, type: string) =>
+    act(() => listeners.filter((l) => l.type === type && l.target === map).forEach((l) => l.handler()))
+  const tick = (ms: number) => act(() => void vi.advanceTimersByTime(ms))
+  let visibility: DocumentVisibilityState = 'visible'
+
+  beforeEach(() => {
+    entries = []
+    observerCallbacks = []
+    visibility = 'visible'
+    vi.mocked(fakeSdk.Circle).mockClear()
+    vi.stubEnv('VITE_NAVER_MAP_STYLE_ID', 'test-style-id')
+    // 대기 tick(setInterval)과 그리기 확인(requestAnimationFrame)만 가짜로 — SDK 로드 Promise·waitFor는 그대로
+    vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval', 'requestAnimationFrame', 'cancelAnimationFrame'] })
+    vi.spyOn(performance, 'getEntriesByType').mockImplementation(() => entries as unknown as PerformanceEntryList)
+    vi.stubGlobal(
+      'PerformanceObserver',
+      class {
+        constructor(cb: () => void) {
+          observerCallbacks.push(cb)
+        }
+        observe() {}
+        disconnect() {}
+      },
+    )
+    vi.spyOn(document, 'visibilityState', 'get').mockImplementation(() => visibility)
+  })
+
+  afterEach(() => {
+    cleanup()
+    vi.useRealTimers()
+    vi.unstubAllEnvs()
+    delete document.documentElement.dataset.mapTone
+  })
+
+  /** 스타일 지도를 만든다(아직 내놓지 않음). 지도 영역은 보이는 크기 */
+  async function mountStyled(p: Partial<MapViewProps> = {}, size: { w: number; h: number } | null = { w: 955, h: 365 }) {
+    const onSdkState = vi.fn()
+    const view = render(<MapView {...props({ onSdkState, ...p })} />)
+    const section = view.container.querySelector<HTMLElement>('section.map')!
+    if (size) layout.set(section, size)
+    await act(async () => {})                                           // SDK 로드(이미 로드된 fake) → 지도 생성
+    return { ...view, section, onSdkState }
+  }
+
+  it('스타일 ID가 있으면 GL + customStyleId로 만들고, init과 그 지도의 스타일 요청 200을 확인한 뒤에만 다크로 내놓는다', async () => {
+    const view = await mountStyled({ selected: A })
+    expect(maps).toHaveLength(1)
+    expect(maps[0]!.options).toMatchObject({ gl: true, customStyleId: 'test-style-id', mapDataControl: true })
+    // 판정 전: 지도를 내놓지 않는다(로딩 표시, 오버레이 없음, ready 알림 없음)
+    expect(screen.getByText('지도를 불러오는 중…')).toBeInTheDocument()
+    expect(fakeSdk.Circle).not.toHaveBeenCalled()
+    expect(view.onSdkState).not.toHaveBeenCalled()
+
+    styleResponse(200)
+    fireOn(maps[0]!, 'init')
+    expect(document.documentElement.dataset.mapTone).toBe('dark')
+    expect(view.section.dataset.mapTone).toBe('dark')
+    expect(view.section.dataset.renderMode).toBe('2')
+    expect(screen.queryByText('지도를 불러오는 중…')).not.toBeInTheDocument()
+    expect(fakeSdk.Circle).toHaveBeenCalled()                           // 선택 지점 반경 원을 이 지도에 그린다
+    expect(view.onSdkState).toHaveBeenLastCalledWith(expect.objectContaining({ status: 'ready' }))
+    expect(maps).toHaveLength(1)
+  })
+
+  it('스타일 요청이 200이 아니면(잘못된 ID → 400) init을 기다리지 않고 지도를 정리한 뒤 밝은 지도를 한 번만 다시 만든다', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const view = await mountStyled({ selected: A })
+    const firstCanvas = view.section.querySelector('.map__canvas')
+    styleResponse(400)
+    expect(maps).toHaveLength(2)
+    expect(maps[0]!.destroy).toHaveBeenCalled()
+    expect(firstCanvas!.isConnected).toBe(false)                        // 실패한 지도 요소는 새 요소로 바꾼다
+    expect(view.section.querySelectorAll('.map__canvas')).toHaveLength(1)
+    expect(maps[1]!.options.gl).toBeUndefined()
+    expect(maps[1]!.options.customStyleId).toBeUndefined()
+    // 밝은 팔레트는 밝은 지도의 init 뒤에
+    expect(document.documentElement.dataset.mapTone).toBeUndefined()
+    fireOn(maps[1]!, 'init')
+    expect(document.documentElement.dataset.mapTone).toBe('light')
+    expect(fakeSdk.Circle).toHaveBeenCalled()
+    // 이전 세대의 늦은 init·스타일 결과는 버린다
+    fireOn(maps[0]!, 'init')
+    styleResponse(200)
+    expect(document.documentElement.dataset.mapTone).toBe('light')
+    expect(maps).toHaveLength(2)
+  })
+
+  it('init은 왔지만 스타일 200을 확인하지 못하면(상태 미확인) 다크로 보지 않고 밝은 지도로 바꾼다', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {})
+    await mountStyled()
+    fireOn(maps[0]!, 'init')
+    expect(maps).toHaveLength(2)
+    expect(document.documentElement.dataset.mapTone).toBeUndefined()
+    fireOn(maps[1]!, 'init')
+    expect(document.documentElement.dataset.mapTone).toBe('light')
+  })
+
+  it('스타일 지도 init 시간 초과(8초, 보이는 동안만)도 밝은 지도로 복구한다', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {})
+    await mountStyled()
+    tick(7_750)
+    expect(maps).toHaveLength(1)
+    tick(250)
+    expect(maps).toHaveLength(2)
+    expect(maps[0]!.destroy).toHaveBeenCalled()
+  })
+
+  it('문서가 숨겨진 동안은 세지 않고, 다시 보이면 8초를 처음부터 센다', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {})
+    await mountStyled()
+    tick(5_000)
+    visibility = 'hidden'
+    act(() => void document.dispatchEvent(new Event('visibilitychange')))
+    tick(30_000)
+    expect(maps).toHaveLength(1)                                        // 숨김 중 조기 시간 초과 없음
+    visibility = 'visible'
+    act(() => void document.dispatchEvent(new Event('visibilitychange')))
+    tick(7_750)
+    expect(maps).toHaveLength(1)                                        // 숨기기 전 5초를 이어 세지 않는다
+    tick(250)
+    expect(maps).toHaveLength(2)
+  })
+
+  it('문서가 visible이어도 프레임을 그리지 않는 동안(앞에 나와 있지 않은 탭)은 세지 않는다 — GL init이 올 수 없으므로', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {})
+    let pending: FrameRequestCallback | null = null
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      pending = cb
+      return 1
+    })
+    vi.stubGlobal('cancelAnimationFrame', () => {})
+    await mountStyled()
+    tick(30_000)
+    expect(maps).toHaveLength(1)                                        // 그리기가 멈춘 동안 조기 시간 초과 없음
+    const painted = (ms: number) => {
+      for (let t = 0; t < ms; t += 250) {
+        const cb = pending
+        pending = null
+        cb?.(0)                                                         // 프레임 하나를 그렸다
+        tick(250)
+      }
+    }
+    painted(7_750)
+    expect(maps).toHaveLength(1)
+    painted(250)
+    expect(maps).toHaveLength(2)
+  })
+
+  it('지도 영역이 0×0(mobile 패널 화면)이면 세지 않고, 보이면 그 크기로 setSize 한 뒤 센다', async () => {
+    const view = await mountStyled({}, null)
+    tick(20_000)
+    expect(maps).toHaveLength(1)
+    expect(maps[0]!.setSize).not.toHaveBeenCalled()
+    layout.set(view.section, { w: 375, h: 400 })
+    tick(250)
+    expect(maps[0]!.setSize).toHaveBeenLastCalledWith(new FakeSize(375, 400))
+    styleResponse(200)
+    fireOn(maps[0]!, 'init')
+    expect(document.documentElement.dataset.mapTone).toBe('dark')
+  })
+
+  it('밝은 대체 지도도 준비되지 않으면 지도 오류로 끝내고 다시 시도하지 않는다', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const view = await mountStyled()
+    styleResponse(400)
+    tick(8_000)
+    expect(maps).toHaveLength(2)
+    expect(maps[1]!.destroy).toHaveBeenCalled()
+    expect(screen.getByRole('alert')).toHaveTextContent('지도를 준비하지 못했습니다')
+    expect(view.onSdkState).toHaveBeenLastCalledWith({ status: 'failed', kind: 'init' })
+    tick(60_000)
+    expect(maps).toHaveLength(2)
+    expect(document.documentElement.dataset.mapTone).toBeUndefined()
+  })
+
+  it('언마운트하면 대기 타이머·지도를 정리하고 지도 톤을 지운다', async () => {
+    const view = await mountStyled()
+    view.unmount()
+    expect(maps[0]!.destroy).toHaveBeenCalled()
+    tick(60_000)
+    expect(maps).toHaveLength(1)
+    expect(document.documentElement.dataset.mapTone).toBeUndefined()
+  })
+
+  it('스타일 ID가 없으면 지금처럼 바로 밝은 지도로 내놓고, 저작권 표기를 로고·축척과 같은 오른쪽 아래에 켠다', async () => {
+    vi.stubEnv('VITE_NAVER_MAP_STYLE_ID', '')
+    const view = await mountStyled({ selected: A })
+    expect(maps[0]!.options.gl).toBeUndefined()
+    expect(maps[0]!.options.customStyleId).toBeUndefined()
+    expect(maps[0]!.options).toMatchObject({ mapDataControl: true, mapDataControlOptions: { position: 'BOTTOM_RIGHT' } })
+    expect(document.documentElement.dataset.mapTone).toBe('light')
+    expect(view.onSdkState).toHaveBeenLastCalledWith(expect.objectContaining({ status: 'ready' }))
+    expect(fakeSdk.Circle).toHaveBeenCalled()
   })
 })

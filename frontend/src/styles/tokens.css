@@ -1,4 +1,5 @@
-/* DESIGN.md §17 Design Tokens — 그대로 옮긴 것. 값을 바꾸려면 DESIGN.md를 먼저 갱신한다. */
+/* DESIGN.md §17 Design Tokens — 그대로 옮긴 것. 값을 바꾸려면 DESIGN.md를 먼저 갱신한다.
+   8-DK부터 색 토큰은 tokens-a3.css(§19.2 블루안 다크)가 덮는다 — 여기 색은 기준값으로 남긴다. */
 
 :root {
   /* color — neutral & surface */
@@ -13,6 +14,7 @@
   --color-text-muted: #656F7C;
   --color-text-disabled: #9AA3AE;
   --color-text-inverse: #FFFFFF;
+  --color-text-on-data: #FFFFFF;            /* 8-DK: 데이터 막대 위 글자 */
 
   /* color — accent (Harbor Blue, 행동·선택 전용) */
   --color-accent: #1D5BBF;
@@ -21,6 +23,11 @@
   --color-accent-subtle: #EAF1FC;
   --color-accent-border: #A8C3EC;
   --color-focus-ring: #1D5BBF;
+  /* 8-DK: 버튼 채움을 글자·선 accent와 나눈다(다크에서 값이 다르다) */
+  --color-accent-fill: #1D5BBF;
+  --color-accent-fill-hover: #174CA0;
+  --color-accent-fill-active: #123E84;
+  --color-focus-halo: rgba(29, 91, 191, 0.25);
 
   /* color — data (점수·차트 전용) */
   --color-data-bar: #4A6B94;
