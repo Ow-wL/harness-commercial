@@ -539,7 +539,8 @@
 - 반경 500m 원: `--color-map-radius-fill` + 1.5px 점선 `--color-map-radius-stroke`.
 - 분석 불가 지점: `--color-map-invalid-marker` 회색, 반경 원 없음.
 - 두 위치 비교 중(§8.15): A = 지름 20px 채운 `--color-map-marker` + 흰 "A"(700 11px), B = 20px 흰 채움 + `--color-map-marker` 2px 테두리 + 같은 색 "B". B를 고르기 전에도 A는 글자 마커. 분석 불가 B는 같은 모양에 `--color-map-invalid-marker` 테두리·글자, 반경 원 없음. B 반경 500m는 A와 같은 채움·색, 선 모양만 점(`dot`, A는 `shortdash`). 범례 "A 기준 위치 · B 비교 위치 · A 반경 500m · B 반경 500m · 분석된 행정동 경계".
-- 동종 점포(§8.14): 지름 10px 원 `--color-map-store` + 흰 1.5px 외곽선, 누를 수 있다(선택 지점보다 작게). 선택되면 14px + `--color-text-primary` 2px 링. 범례에 "같은 업종 점포"(마커가 있을 때만). 누르면 정보창(상호·주소·직선거리·닫기, `--color-surface` + 1px `--color-border`). 정보창은 지도의 사용 영역 안에 열고 **선택 지점 마커를 가리지 않는다**(가리면 점포 아래·옆으로 옮기고, 그래도 안 되면 zoom을 바꾸지 않고 지도를 조금 옮긴다 — D-022). 정보창 내용은 DOM `textContent`로 만든다(상호명을 HTML로 해석하지 않는다). 마커를 눌러도 지도 클릭(새 위치 선택)으로 번지지 않는다.
+- 동종 점포(§8.14): 지름 10px 원 `--color-map-store` + 흰 1.5px 외곽선, 누를 수 있다(선택 지점보다 작게). 선택되면 14px + `--color-text-primary` 2px 링. 범례에 "같은 업종 점포"(마커가 있을 때만). 누르면 정보창(상호·주소·직선거리·닫기, `--color-surface` + 1px `--color-border`).
+  - **업종 글리프 마커(묶음 B, D-026, 2026-10-19)**: 같은 원 안에 업종 글리프(Lucide, §13 — `src/lib/storeIcons.ts` 29업종 → 12글리프 + 폴백 `store`)를 테두리색(`--color-map-store-edge`)으로 그린다. 표현은 **래스터 기준 줌**(GL은 +1 환산)과 개수로 정한다: ≥15 아이콘 24px(글리프 14px, stroke 2) / 13~14 아이콘 16px(글리프 10px, stroke 2.5) / ≤12 점 10px(지금 모양). 같은 줌에서 **N ≥ 80이면 점**(클러스터링 없음). 선택 점포는 같은 크기 + 바깥 링 2px `--color-map-store-ring` + `zIndex` 최상(1000). 마커 `title`은 상호. 범례 swatch는 지금 표현 그대로(점 / 글리프 원 14px), 문구는 "같은 업종 점포". A·B 핀은 글자 마커라 모양으로 구분된다(색만으로 구분하지 않는다). 전환은 `zoom_changed`·`idle`에서 아이콘(`setIcon`)만 바꾼다 — 마커를 다시 만들지 않는다. 정보창은 지도의 사용 영역 안에 열고 **선택 지점 마커를 가리지 않는다**(가리면 점포 아래·옆으로 옮기고, 그래도 안 되면 zoom을 바꾸지 않고 지도를 조금 옮긴다 — D-022). 정보창 내용은 DOM `textContent`로 만든다(상호명을 HTML로 해석하지 않는다). 마커를 눌러도 지도 클릭(새 위치 선택)으로 번지지 않는다.
 - 현재 위치(사용자 GPS)를 쓰게 되면: 지름 12px `--color-info` + 반투명 정확도 원 — 선택 지점과 모양이 달라야 한다.
 
 ### 8.12 Map Selection State
@@ -572,6 +573,7 @@
   - 포커스: 목록에서 닫으면 그 항목에 그대로 남는다. 지도 위 막대·정보창 안 버튼으로 닫으면 그 버튼이 사라지므로 지도 영역(`section.map`, `tabIndex=-1`)으로 옮긴다.
   - mobile 패널 화면(지도 숨김)에서 고른 점포는 선택·막대만 바뀌고, 정보창은 "지도 보기"로 지도가 보이고 크기가 맞춰진 뒤 연다(숨긴 지도에서 열면 SDK가 폭을 0으로 재서 접힌다 — 6-4). 처리 시점은 지도 크기 알림 또는 지도 화면 전환(크기 알림이 없어도) 중 먼저 오는 쪽.
   - 닫기 버튼(막대·정보창 안)은 최소 44×44px. 닫아도 분석 결과·목록·나머지 마커·지도 중심·줌은 그대로다(선택만 지운다).
+- **네이버·구글 연결 (묶음 B, D-026, 2026-10-19)**: 데이터에 두 서비스의 장소 ID가 없으므로(상가업소번호는 그 ID가 아니다) **검색 결과 링크**만 만든다(`src/lib/storeLinks.ts`). **선택한 점포에만** 정보창(거리 아래 "네이버 지도 · 구글 지도" `--color-map-info-action`)과 목록의 선택 항목 아래 줄(`.nearby__links`, 버튼 밖 — 중첩 인터랙티브 금지, 선택 띠와 같은 왼쪽 띠)에 둔다. 둘 다 `target=_blank rel="noopener noreferrer"`, 아래 11px 문구 "검색 결과로 열립니다(같은 가게가 아닐 수 있음)". 검색어는 상호 → 주소(도로명 우선) 순, 상호가 없으면 주소만, 둘 다 없으면 링크 줄 없음(좌표로 검색하지 않는다). 구글 `https://www.google.com/maps/search/?api=1&query=<상호>,<주소>`(URL 인코딩, 2,048자 안으로 끝을 자름). 네이버는 **사용자 실측 전 기본값 = 공식 앱 스킴** `nmap://search?query=<상호 주소>&appname=<origin>`; 웹 `map.naver.com/p/search/<검색어>`(비공식)는 `NAVER_WEB_SEARCH_VERIFIED`를 true로 바꿔야 쓴다. 정보창 링크는 DOM 속성(`a.href`)으로 붙인다(문자열 HTML 아님).
 
 ### 8.15 두 위치 비교 (5차, D-020)
 - 설계·결정·구현 기록은 `docs/COMPARE_DESIGN.md`(같은 업종 두 위치, 기존 `/analyze` 재사용). 이 절은 화면에 들어간 규칙만 요약한다.
@@ -678,8 +680,9 @@
 ## 13. Iconography
 
 - **line icon 한 세트만**: 1.5px stroke, 둥근 끝, 기본 16px(텍스트 옆) / 20px(오류·빈 상태) / 24px(빈 상태 대표 1개). 색은 주변 글자색을 따른다(`currentColor`).
-- 라이브러리는 아직 정하지 않는다(4-1에서 결정). 정할 때 이 규칙(line, 1.5px, 24 grid)에 맞는 세트 하나만 쓰고 혼용하지 않는다.
-- 쓰는 곳: map-pin(위치), store(업종), alert-triangle(warning), info(info), x-circle(danger), check(완료·선택), chevron(펼침), copy(request_id), plus/minus(지도 확대), crosshair(현재 위치).
+- **세트 결정(묶음 B, 2026-10-19, D-026): Lucide(ISC) 하나.** 라이브러리 패키지는 넣지 않고 필요한 글리프의 24 grid path만 inline SVG로 옮긴다(`src/lib/storeIcons.ts` 점포 글리프 13개 — 원본 lucide-static v0.544.0, 고지 `frontend/THIRD_PARTY_NOTICES.md`). UI 아이콘 8개(`components/Icon.tsx`)는 Lucide와 같은 규칙(24 grid, 1.5px, 둥근 끝)의 자체 path로 두되 새 아이콘을 더할 때는 Lucide에서 가져온다. 다른 세트와 혼용하지 않는다.
+- stroke 1.5px은 16·20·24px로 그리는 UI 아이콘 기준이다. 지도 점포 마커처럼 글리프를 14·10px로 그릴 때는 24 grid 기준 stroke 2·2.5(렌더 약 1.2·1px)로 올린다(§8.11) — 예외는 이 한 곳.
+- 쓰는 곳: map-pin(위치), store(업종), alert-triangle(warning), info(info), x-circle(danger), check(완료·선택), chevron(펼침), copy(request_id), plus/minus(지도 확대), crosshair(현재 위치), sun/moon(테마 전환), 점포 업종 글리프 12종(§8.11).
 - 장식 아이콘(섹션 제목 앞 아이콘 나열, 관점별 그림 아이콘) 금지. 관점 구분은 §2.4 식별색 사각으로 충분하다.
 - 아이콘만 있는 버튼은 `aria-label` 필수 + desktop hover tooltip(`--text-caption`, surface + `--shadow-overlay`).
 - 이모지를 UI 요소로 쓰지 않는다.
@@ -952,7 +955,8 @@ UI를 만들거나 고치기 전에:
 | 반경 원 | 선 `#7AA2FF` 2px, 채움 10% | 선 `#2F5BDB` 2.5px, 채움 `#3B6EF0` 10% |
 | 비교 B | `#B7A2FF` | `#6B4FD8` |
 | 점포(비선택) | `#45D3B0`, 테두리 `#0A1226` 1.5px | `#066B54`, 흰 테두리 1.5px + 바깥선 `rgba(10,18,38,.45)` |
-| 점포(선택, 정보창 열림) | 14px, 테두리 2px, 바깥 링 `#EEF2FA` 2px | 14px, 흰 테두리 2px, 바깥 링 `#0A1226` 2px |
+| 점포 글리프(줌 ≥13, N < 80 — 묶음 B) | 같은 원 24px/16px, 글리프 `#0A1226`(테두리색) | 같은 원, 글리프 흰색(테두리색) |
+| 점포(선택, 정보창 열림) | 점 14px, 테두리 2px, 바깥 링 `#EEF2FA` 2px (글리프면 같은 크기 + 링) | 점 14px, 흰 테두리 2px, 바깥 링 `#0A1226` 2px (글리프면 같은 크기 + 링) |
 | 정보창 | `#15223F` 바탕, `#EEF2FA` 글자 | 흰 바탕, `#0A1226` 글자, 보조 `#4A5A7A` |
 | 행정동 경계 | `rgba(175,192,218,.55)` 점선 | `#4A5A7A` 점선 .8 |
 | 저작권 줄 배경 띠 | 옅은 회청색 `rgba(222,229,240,.94)`, 여백 오른쪽 4px·위 2px (SDK 글자색 `#444`·로고는 다크 스타일에서도 그대로라 밝은 띠가 필요. 실측 1:1: 글자 6.65·로고 2.02, 흰 띠 6.94·1.90) | `rgba(255,255,255,.86)`, 여백 8px·3px |
@@ -1014,3 +1018,19 @@ UI를 만들거나 고치기 전에:
 - 밖 영역 dim(§2.6 `--color-map-outside-dim`)은 쓰지 않는다 — 다크 지도에서 효과가 약하고 외곽선만으로 범위가 분명했다(스파이크 s1).
 
 **미검증(묶음 A)**: 1440 이상 폭의 1:1 시각 확인(앱 내 브라우저가 416px 폭이라 축소 캡처만 — 모바일 폭은 실제 크기로 확인), 실제 모바일 기기, Safari·Firefox, 스크린리더, 라이트 스타일(`VITE_NAVER_MAP_LIGHT_STYLE_ID`) 실제 발행본(단위 테스트만), Docker 이미지 빌드(Dockerfile의 geojson asset 2개 검사는 수정했으나 빌드는 미실행).
+
+### 19.8 점포 레이어 — 업종 글리프와 외부 지도 연결 (묶음 B, 2026-10-19 — 저장소 반영, 운영 미배포)
+계획 `docs/IMPROVEMENT_PLAN_2026-10.md` 2-3·2-4, 결정 D-026. 규칙 본문은 §8.11(글리프·줌/개수 전환·선택 강조), §8.14(링크), §13(아이콘 세트).
+
+| 요소 | 다크 지도 | 밝은 지도 | 비고 |
+|---|---|---|---|
+| 글리프 원 | 채움 `--color-map-store` `#45D3B0`, 테두리·글리프 `--color-map-store-edge` `#0A1226` | 채움 `#066B54`, 테두리·글리프 흰색 + 바깥선 `--color-map-store-outline` | 24px(줌 ≥15) / 16px(13~14), 점 10px(≤12 또는 N ≥ 80) |
+| 선택 | + 바깥 링 `--color-map-store-ring` `#EEF2FA` 2px, zIndex 1000 | + 링 `#0A1226` 2px | 같은 크기, 정보창 열림 |
+| 범례 swatch | 글리프 원 14px(아이콘 표현) / 점(점 표현) | 같음 | 문구 "같은 업종 점포" |
+| 정보창 링크 | `--color-map-info-action` `#7AA2FF` | `#2F5BDB` | "네이버 지도 · 구글 지도", 안내 11px `--color-map-info-text-2` |
+| 목록 링크 줄 | `--color-accent`, 바탕 `--color-surface-muted`, 왼쪽 띠 `--color-map-store` | 같은 토큰 | 선택 항목 아래, 버튼 밖 |
+
+- 업종 → 글리프 표(12 + 폴백): 카페 `coffee` / 빵·디저트(빵/도넛·토스트/샌드위치/샐러드·아이스크림/빙수) `croissant` / 식당(김밥/만두/분식·백반/한정식·중국집·일식 회/초밥·양식) `utensils` / 치킨·피자·버거 `pizza` / 주점(생맥주·일반 유흥·요리 주점) `beer` / 편의점·슈퍼 `shopping-basket` / 미용·네일·피부 `scissors` / 학원·독서실(입시·교과학원·독서실/스터디 카페) `book-open` / 오락(PC방·전자 게임장·당구장·노래방) `gamepad-2` / 운동(요가/필라테스) `dumbbell` / 세탁 `washing-machine` / 약국 `pill` / 그 밖 `store`. 테스트가 엔진 29코드 전부를 대조한다(`lib/storeIcons.test.ts`).
+- 네이버 링크는 공식 앱 스킴(`nmap://`)이다(사용자 결정 2026-10-19 — 글리프 12묶음과 함께 이대로 확정). 웹 검색 URL은 비공식이라 쓰지 않으며, 나중에 쓰려면 사용자 브라우저 실측 뒤 `NAVER_WEB_SEARCH_VERIFIED`로 켠다.
+- 검증(2026-10-19, 앱 내 브라우저 800×600, 실제 GPU, backend v0.3·반경 500m): 다크(GL 스타일)·라이트(래스터) 두 톤에서 카페 111곳 → 점(N ≥ 80), PC방 12곳 → 글리프 24px(래스터 15)·16px(14), 선택 링·zIndex·정보창 링크(nmap·google)·목록 선택 항목 링크, 범례 swatch 전환. 단위 테스트: storeIcons 11·storeLinks 7·MapView 102(+7)·NearbyStores 18(+2).
+- **미검증(묶음 B)**: 1km 반경(로컬 backend가 v0.3이라 500m만 — 1km 카페 수백 곳은 N ≥ 80 규칙으로 점이 된다), 1440 이상 폭 1:1·실제 모바일 기기(nmap 앱 열림)·Safari·Firefox·스크린리더, 네이버 웹 URL 실측, 두 톤 글리프 대비 수치 측정(토큰 조합은 §19.3 점포 색 그대로).

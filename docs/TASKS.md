@@ -8,7 +8,7 @@
 - [ ] 후속 UI: 모바일 결과 지도 시트의 참고 주소가 production 압축 CSS에서는 한 줄 남는다. 개발 화면·원본 CSS 계약 테스트만으로 완료하지 말고 실제 production build에서 분석 전 주소 유지·결과 주소 숨김을 확인한다. 이번 배포의 분석·반경 기능을 막는 결함은 아니다.
 - 8-D2c의 정식 반복·동시 부하 성능 연구는 완료하지 않았다. 이번 배포에는 사용자 요청에 따라 Docker·Cloud Run 실측을 각 1회 수행했다. 아래의 과거 운영 미배포·변경 보류 표기는 해당 작업 당시 기록이다.
 
-## 9. 개선 계획 2026-10 (사용자 승인 2026-10-19, `docs/IMPROVEMENT_PLAN_2026-10.md`) — 묶음 A·C 저장소 반영 · 운영 미배포
+## 9. 개선 계획 2026-10 (사용자 승인 2026-10-19, `docs/IMPROVEMENT_PLAN_2026-10.md`) — 묶음 A·C·B 커밋(master) · 운영 미배포
 
 순서: **A 지도 기반·테마 → (C 데이터 버전 구조 병행) → B 점포 레이어 → D 온보딩 → E AI Q&A**. 검증은 묶음 단위(T0 작업 중 관련 테스트 / T1 묶음 끝 전체 check 1회·검수 1회 / T2 리비전 배포). 각 묶음의 완료 기준은 계획 문서 §4·§5.
 
@@ -17,9 +17,18 @@
 - [x] 9-A1 구 경계·외곽선 데이터(별도 세션, 2026-10-19): `scripts/build_geo.py`가 `data/geo/인천_시군구경계_2026.geojson`(구 11 + 외곽선 1, MultiPolygon, 소수 5자리, 약 165KB)을 함께 만들고 매니페스트·`tests/test_geo_data.py`가 보호한다. 기존 두 산출물 해시 불변.
 - [x] 9-A2 테마 전환(2026-10-19): `src/lib/theme.ts`(저장 > 시스템 > 다크, `data-theme`), `index.html` 인라인 적용(깜빡임 방지), 조건 바 토글(`.bar__theme`, 해/달 아이콘, `aria-label`), `tokens-a3.css`를 다크 스코프로(라이트는 §17 토큰), MapView `theme` prop — 지도 재생성(세대·복구 경로 재사용)에 중심·줌·오버레이·선택 이어받기, 숨긴 지도에서 스타일 지도 생성 보류, SDK 스타일 캐시 때 마지막 요청 결과로 판정(`src/map/styleStatus.ts`), 선택 `VITE_NAVER_MAP_LIGHT_STYLE_ID`.
 - [x] 9-A3 경계 레이어(2026-10-19): `src/map/guBoundary.ts` + MapView `useGuBoundaries` — 외곽 2px › 구 1px › 행정동 점선, 줌 단계 ≤11/12~14/≥15(래스터 기준, GL +1 환산), 범례 "인천·구 경계", 톤별 토큰 3개. Dockerfile geojson asset 검사 1개 → 2개(해시 집합).
-- [x] 9-A4 검증(2026-10-19, Claude 로컬): 단위 테스트(theme 6·MapView 95·App 153), 앱 내 브라우저(416px 폭, 실제 GPU) — 첫 방문 시스템 다크 → 토글 라이트(래스터) → 다크(GL) 왕복·저장 유지, 결과 화면에서 전환 시 결과·핀·원·행정동 경계 유지, 줌 11·13·16 경계 단계, 분석 흐름 정상. **전체 check 9단계 1회 통과, SKIP 없음**(`scripts/check.sh`, 묶음 A·C 코드 포함: v0.3 354 · v0.4 61 · backend 137 · frontend 28파일 666, 로그 `.gstack/check-logs/bundle-A-full-check.log`, git 제외). 보호 경로 변경 0. 미검증: 1440 이상 폭 1:1(앱 내 브라우저가 416px이라 축소 캡처만), 실제 기기·Safari·Firefox·스크린리더, Docker 이미지 빌드, Codex 독립 검수. 커밋 전.
+- [x] 9-A4 검증(2026-10-19, Claude 로컬): 단위 테스트(theme 6·MapView 95·App 153), 앱 내 브라우저(416px 폭, 실제 GPU) — 첫 방문 시스템 다크 → 토글 라이트(래스터) → 다크(GL) 왕복·저장 유지, 결과 화면에서 전환 시 결과·핀·원·행정동 경계 유지, 줌 11·13·16 경계 단계, 분석 흐름 정상. **전체 check 9단계 1회 통과, SKIP 없음**(`scripts/check.sh`, 묶음 A·C 코드 포함: v0.3 354 · v0.4 61 · backend 137 · frontend 28파일 666, 로그 `.gstack/check-logs/bundle-A-full-check.log`, git 제외). 보호 경로 변경 0. 미검증: 1440 이상 폭 1:1(앱 내 브라우저가 416px이라 축소 캡처만), 실제 기기·Safari·Firefox·스크린리더, Docker 이미지 빌드. 커밋 `dfb8392`(묶음 A)·`a99632d`(묶음 C). Codex 검수는 9-R1에서(지적 4건 수정 → 재검수 통과).
 - [ ] 9-A5 사용자 작업: Style Editor에서 다크 스타일 시·구·동 지명 색 밝게 재발행(목표 §19.7 L1 수준 `#C7D1E4`~`#EEF2FA` + halo) → `DESIGN.md` §19.4 값 갱신. 라이트 스타일 발행은 선택.
 - [ ] 9-A6 운영 반영: 이미지 빌드(`VITE_NAVER_MAP_STYLE_ID`, 선택 `VITE_NAVER_MAP_LIGHT_STYLE_ID`) → 무트래픽 리비전 → `/health`·smoke → 전환(사용자 승인), `docs/DEPLOYMENT_*.md` 기록.
+
+### 9-R1 Codex 검수 수정 (묶음 A·C·B, 2026-10-19 — **Codex 재검수 통과**: 지적 4건 수정 확인, 이번 검수 범위에서 추가 결함 없음)
+- [x] `scripts/etl/diff_report.py`: 종합 None 수만 세던 판정에 (업종, 관점)별 미산출 비교를 더해 새로 미산출된 관점이 있으면 FAIL(기존부터 미산출·정상 점수 변화는 PASS). `counts.persp_none`·`newly_none`, 보고서 문구. 회귀 테스트 `tests/test_etl_scripts.py`(수정 전 실패 확인 → 수정 후 3건 통과), Codex 재현 `repro_diff.py` FAIL 판정 확인.
+- [x] `src/map/styleStatus.ts`: 스타일 요청 결과 기억을 요청한 스타일 ID별 Map으로(다른 스타일 400이 정상 다크 200을 덮지 않음). MapView는 `styleStatusSince(t0, styleId)`·`lastStyleStatus(styleId)`. 단위 테스트 3건(`styleStatus.test.ts`, ID 오염 테스트는 수정 전 실패 확인) + MapView 이관 테스트.
+- [x] `MapView.tsx`: 세대 정리(cleanup)에서 `error`를 지워 테마 전환으로 만든 새 세대가 이전 오류 안내를 물려받지 않게. 이전 세대의 늦은 실패는 cancelled·세대 번호·구독 해제로 차단(이관 테스트가 60초 뒤까지 확인). effect 본문 setState는 lint(`react-hooks/set-state-in-effect`) 때문에 cleanup에 둠.
+- [x] Codex 재현 테스트 2건을 `MapView.test.tsx` 다크 스타일 describe로 옮김(임시 사본 전체는 추가하지 않음). 수정 전 2건 실패 → 수정 후 통과.
+- [x] Dockerfile: `ARG VITE_NAVER_MAP_LIGHT_STYLE_ID=` 선택 build arg(값 미커밋, ARG는 같은 단계 RUN의 환경변수로 vite build에 전달).
+- [x] 검증 기록(Claude 로컬, 2026-10-19): 관련 테스트(diff_report 3·styleStatus 3·MapView 97·App 153·theme 6)·lint·타입 검사 통과. production build(`npm run build`) 통과(GeoJSON asset 2개). 전체 check: **1회차는 로그 파일 리다이렉션(상대 경로)이 실패해 check가 시작되지 않음** → 절대 경로로 **2회차 9단계 통과, SKIP 없음**(v0.3 355 · v0.4 61 · backend 137 · frontend 31파일 696, `.gstack/check-logs/review-9R1-full-check.log`). 브라우저 재확인은 하지 않음.
+- [x] 검증 주체 구분(2026-10-19 재검수): **Codex 직접** — 프런트 696건, 타입 검사·lint·production build, diff_report 회귀 3건과 기존 재현 스크립트 통과, Dockerfile 인자 추가 확인, 보호 경로 변경 없음, `git diff --check` 통과. **Claude 실행** — 전체 check 9단계 통과(최초 리다이렉션 실패로 check가 시작되지 않았던 이력은 위와 같이 유지). **Codex 미실행** — 전체 check·브라우저·Docker 빌드. 운영 배포 승인이 아니다.
 
 ### 9-C 데이터 버전 구조 (묶음 C, D-006 개정 — `docs/DATA_VERSIONING.md`)
 - [x] 9-C1 구조(2026-10-19, 별도 세션): 역할 키 로더(`DATA_VERSION`, 매니페스트 없으면 `data/runtime` 동작 바이트 동일), `/health data`, `/nearby-stores as_of` 데이터 메타, `scripts/etl/`(원본 ETL 실행 사본 7개 + `validate_version.py`·`build_version.py`·`diff_report.py`·`run_etl.py`), 테스트 48건. 그 세션의 전체 check 통과(v0.3 347·v0.4 61·backend 137·frontend 646). 운영 미반영.
@@ -28,8 +37,14 @@
 - [ ] 9-C4 프런트(묶음 A 뒤): `/health data.version`을 결과 캐시 키·A/B 대조에 추가, 데이터 출처 표·점포 안내·`scoreGuide.ts` 날짜를 API 값으로(정적 날짜 제거 테스트), "데이터 YYYY-MM 기준" 표시.
 - [ ] 9-C5 반자동화: 월 1회 수집 알림(상가 분기 등록 후), 검증·보고서 자동 실행. 포털 약관·봇 차단 확인 전에는 다운로드 자동화 없음.
 
-### 9-B·9-D·9-E (미착수)
-- [ ] 9-B 점포 레이어: 업종 아이콘(Lucide, 줌·개수 기반 아이콘↔점) + 네이버·구글 검색 링크(선택 점포만, 네이버 웹 URL은 사용자 실측 뒤 결정).
+### 9-B 점포 레이어 (묶음 B, D-026, `DESIGN.md` §19.8) — 커밋(master, 9-R1 수정과 함께) · 운영 미배포
+- [x] 9-B1 업종 글리프(2026-10-19): `src/lib/storeIcons.ts` 29업종 → 12글리프 + 폴백(Lucide ISC v0.544.0 inline, 고지 `frontend/THIRD_PARTY_NOTICES.md`), 표현 규칙(래스터 기준 ≥15 24px / 13~14 16px / ≤12 점, N ≥ 80 점), `MapView` 줌 추적(`useRasterZoom`, zoom_changed·idle)·`setIcon`만 교체·선택 링 + `setZIndex`·범례 swatch, `storeGlyph` prop(App이 점포 응답 `biz_code`로), `components/StoreGlyphIcon.tsx`. 색은 지도 톤 토큰만.
+- [x] 9-B2 외부 링크(2026-10-19): `src/lib/storeLinks.ts`(상호·주소 검색어, 구글 Maps URLs 2,048자 자름, 네이버 앱 스킴 기본·웹 URL은 `NAVER_WEB_SEARCH_VERIFIED`), 정보창(`storeInfoContent`, DOM 속성)·목록 선택 항목 아래 줄(`.nearby__links`), 문구 "검색 결과로 열립니다(같은 가게가 아닐 수 있음)".
+- [x] 9-B3 검증(2026-10-19, Claude 로컬): 단위 storeIcons 11·storeLinks 7·MapView +7·NearbyStores +2, 앱 내 브라우저(800×600, 다크 GL·라이트 래스터) 카페 111곳 점 / PC방 12곳 글리프 24·16px / 선택·정보창 링크·목록 링크. **전체 check 9단계 1회 통과, SKIP 없음**(`scripts/check.sh`, v0.3 354 · v0.4 61 · backend 137 · frontend 30파일 691, 로그 `.gstack/check-logs/bundle-B-full-check.log`, git 제외). 보호 경로 변경 0. 미검증: 1km 반경(로컬 backend v0.3), 실기기(nmap 앱 열림)·Safari·Firefox·스크린리더, 네이버 웹 URL 실측. Codex 검수는 9-R1(묶음 A·C·B 범위, 재검수 통과).
+- [x] 9-B4 사용자 확인(2026-10-19): 업종→글리프 12묶음 초안(§19.8 표)과 **네이버 공식 앱 스킴 기본값을 이대로 둔다**. 네이버 웹 검색 URL(`map.naver.com/p/search/…`, 비공식)은 쓰지 않는다 — 나중에 쓰려면 사용자 실측 뒤 `NAVER_WEB_SEARCH_VERIFIED=true`.
+- [ ] 9-B5 운영 반영: 묶음 A와 같은 리비전 절차(9-A6).
+
+### 9-D·9-E (미착수)
 - [ ] 9-D 온보딩: 코치마크 3단계 + 결과 첫 표시 1줄, 건너뛰기·다시 보기, P1 문장 재사용.
 - [ ] 9-E AI Q&A: `/ask`(현재 분석만, 외부 검색 없음), 모델·월 예산·로그 정책은 착수 전 결정. TASKS 보류 "AI 설명" 해제 필요.
 

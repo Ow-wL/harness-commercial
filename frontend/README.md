@@ -58,6 +58,8 @@ src/
   components/ReferenceAddress.tsx  "참고 주소 · … (NAVER 지도)" 한 줄 (성공일 때만). 단일: 위치 필드·mobile sheet·결과 패널, 비교: B 카드·A/B 카드·전체 결과
   lib/keepFocusInView.ts  늦게 생긴 주소 줄이 아래의 포커스 요소를 화면 밖으로 밀었을 때만 밀린 만큼 되돌림 (7-B3)
   components/AddressSearch.tsx  주소로 찾기(단일 위치 7-B4, 비교 B 7-B5 — labelPrefix "B "): 펼침 버튼·폼·aria-live 상태·결과 목록 → onSelect({lat,lng}). 요청 번호로 늦은 응답 폐기
+  lib/storeIcons.ts     점포 업종 글리프(묶음 B, D-026): 29업종 → 12 Lucide 글리프 + 폴백(inline SVG, ISC 고지 THIRD_PARTY_NOTICES.md), 줌·개수 표현 규칙, 마커 HTML
+  lib/storeLinks.ts     선택 점포의 네이버(앱 스킴 기본)·구글 검색 링크 — 장소 ID가 없어 검색 결과 링크만. 웹 네이버 URL은 NAVER_WEB_SEARCH_VERIFIED
   lib/useSearchFocusRecovery.ts  SDK 실패로 검색이 포커스를 가진 채 사라지면 남은 기본 조작(좌표 직접 입력 / B 위도·B 카드 제목)으로
   lib/addressSearch.ts  검색 기준점(인천시청)·결과 수(10, 처음 5)·인천 먼저 정렬
   map/dongBoundary.ts   분석된 행정동 경계: data/geo 원본을 ?url로 참조(복사하지 않음), context의 (gu_code, dong_name)으로 찾음
