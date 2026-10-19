@@ -322,11 +322,61 @@
   box-shadow: 0 0 0 2px var(--color-map-store-ring);
 }
 
+/* 업종 글리프 마커 (묶음 B, §8.11·§13): 같은 원(점포색 채움·테두리) 안에 Lucide 글리프를 테두리색으로. 래스터 기준 줌 ≥15 24px,
+   13~14 16px. 선택은 같은 크기 + 바깥 링(점과 같은 색). 글리프 stroke는 작은 크기에서 보이게 24 grid 기준 2(24px) / 2.5(16px) —
+   §13 1.5px 규칙의 "stroke 조정" 예외(아이콘이 14·10px로 그려진다) */
+.map-store-marker--icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  color: var(--color-map-store-edge);
+}
+
+.map-store-marker--icon svg {
+  width: 14px;
+  height: 14px;
+  stroke-width: 2;
+}
+
+.map-store-marker--icon.map-store-marker--active {
+  width: 24px;
+  height: 24px;
+}
+
+.map-store-marker--icon-small,
+.map-store-marker--icon-small.map-store-marker--active {
+  width: 16px;
+  height: 16px;
+}
+
+.map-store-marker--icon-small svg {
+  width: 10px;
+  height: 10px;
+  stroke-width: 2.5;
+}
+
 .map__legend-store {
   width: 10px;
   height: 10px;
   border-radius: 50%;
   background: var(--color-map-store);
+}
+
+/* 범례의 글리프 원: 마커와 같은 모양을 14px로 */
+.map__legend-store--icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  border: 1px solid var(--color-map-store-edge);
+  color: var(--color-map-store-edge);
+}
+
+.map__legend-store--icon svg {
+  stroke-width: 2.5;
 }
 
 /* 선택한 점포 막대 (4차 보완, §8.14): SDK 밖에서 키보드로 닫는 조작. desktop·tablet은 위쪽 가운데
@@ -412,6 +462,29 @@
 
 .map-store-info__text {
   margin: 0;
+}
+
+/* 네이버·구글 검색 링크 (묶음 B, 2-4): 정보창 색 토큰. 아래 한 줄 "검색 결과로 열립니다(같은 가게가 아닐 수 있음)" */
+.map-store-info__links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-3);
+  margin: var(--space-1) 0 0;
+}
+
+.map-store-info__links a {
+  min-height: 24px;
+  font-weight: 600;
+  color: var(--color-map-info-action);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.map-store-info__caption {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--color-map-info-text-2);
 }
 
 .map-store-info__close {

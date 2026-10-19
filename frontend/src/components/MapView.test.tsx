@@ -103,7 +103,7 @@ class FakeMap {
 }
 // SDK 오버레이는 `new`로 만든다 — 화살표 함수가 아닌 생성 가능한 함수
 const overlay = function (options?: Record<string, unknown>) {
-  return { options, setMap: vi.fn(), setPosition: vi.fn(), setIcon: vi.fn(), setCenter: vi.fn(), setRadius: vi.fn(), setOptions: vi.fn() }
+  return { options, setMap: vi.fn(), setPosition: vi.fn(), setIcon: vi.fn(), setZIndex: vi.fn(), setCenter: vi.fn(), setRadius: vi.fn(), setOptions: vi.fn() }
 }
 type FakeInfo = { open: Mock; close: Mock; setContent: Mock; setOptions: Mock; getContentElement: () => HTMLElement; content: HTMLElement }
 let infos: FakeInfo[] = []
@@ -492,6 +492,120 @@ describe('MapView — 동종 점포 마커 (4차, DESIGN.md §8.11·§8.14)', ()
     expect(clicks()).toHaveLength(0)
     expect(infos[0]!.close).toHaveBeenCalled()
     expect(maps).toHaveLength(1)
+  })
+})
+
+describe('MapView — 점포 업종 아이콘·줌/개수 전환·선택 강조 (묶음 B, 계획 2-3, D-026)', () => {
+  const LINKS = { naver: 'nmap://search?query=a&appname=x', google: 'https://www.google.com/maps/search/?api=1&query=a' }
+  const STORES: MapStore[] = [
+    { id: 'a', name: '별다방', address: '인천 부평구 1', distance: '직선거리 115m', lat: 37.4888, lng: 126.7235, links: LINKS },
+    { id: 'b', name: '콩다방', address: '주소 정보 없음', distance: '직선거리 221m', lat: 37.49, lng: 126.726, links: null },
+  ]
+  const many = (n: number): MapStore[] =>
+    Array.from({ length: n }, (_, i) => ({ id: `s${i}`, name: `점포${i}`, address: '-', distance: '-', lat: 37.48 + i * 1e-4, lng: 126.72, links: null }))
+  type IconArg = { content: string; anchor: FakePoint }
+  const storeMarkers = (n: number) => vi.mocked(fakeSdk.Marker).mock.results.slice(-n).map((r) => r.value)
+  /** 마커의 지금 아이콘: setIcon이 불렸으면 마지막 값, 아니면 생성 옵션 */
+  const iconOf = (m: ReturnType<typeof storeMarkers>[number]): IconArg =>
+    m.setIcon.mock.calls.length > 0 ? (m.setIcon.mock.calls.at(-1)![0] as IconArg) : (m.options!.icon as IconArg)
+  const setZoom = (map: FakeMap, z: number) => {
+    map.zoom = z
+    fireMap('zoom_changed')
+  }
+
+  it('기본 줌(11)은 점, 래스터 기준 13~14는 글리프 16px, ≥15는 글리프 24px — 마커를 다시 만들지 않고 아이콘만 바꾼다', async () => {
+    const view = await mount(props({ stores: STORES, storeGlyph: 'coffee' }))
+    const [a] = storeMarkers(2)
+    expect(iconOf(a!).content).toBe('<div class="map-store-marker"></div>')
+    expect(iconOf(a!).anchor).toEqual(new FakePoint(5, 5))
+
+    setZoom(view.map, 14)
+    expect(iconOf(a!).content).toContain('map-store-marker--icon-small')
+    expect(iconOf(a!).content).toContain('<svg ')
+    expect(iconOf(a!).anchor).toEqual(new FakePoint(8, 8))
+
+    setZoom(view.map, 15)
+    expect(iconOf(a!).content).toMatch(/^<div class="map-store-marker map-store-marker--icon"><svg /)
+    expect(iconOf(a!).content).toContain('M16 8a1 1 0 0 1 1 1v8a4 4 0 0 1-4 4H7')   // coffee 글리프
+    expect(iconOf(a!).anchor).toEqual(new FakePoint(12, 12))
+
+    setZoom(view.map, 12)
+    expect(iconOf(a!).content).toBe('<div class="map-store-marker"></div>')
+    expect(vi.mocked(fakeSdk.Marker)).toHaveBeenCalledTimes(2)                       // 점포 마커 2개만 (핀 없음)
+    expect(maps).toHaveLength(1)
+  })
+
+  it('GL(renderMode 2)은 래스터 기준 +1: zoom 14가 아이콘 24px', async () => {
+    const view = await mount(props({ stores: STORES, storeGlyph: 'pill' }), { w: 955, h: 365 }, { init: false })
+    view.map.renderMode = 2                                              // 실제 그리기 방식은 init 때 읽는다
+    fireMap('init')
+    setZoom(view.map, 14)
+    const [a] = storeMarkers(2)
+    expect(iconOf(a!).content).toMatch(/^<div class="map-store-marker map-store-marker--icon"><svg /)
+    expect(iconOf(a!).anchor).toEqual(new FakePoint(12, 12))
+  })
+
+  it('같은 줌에서 점포가 80곳 이상이면 점으로 내린다', async () => {
+    const view = await mount(props({ stores: many(80), storeGlyph: 'coffee' }))
+    setZoom(view.map, 16)
+    expect(iconOf(storeMarkers(80)[0]!).content).toBe('<div class="map-store-marker"></div>')
+    view.rerender(<MapView {...props({ stores: many(79), storeGlyph: 'coffee' })} />)
+    expect(iconOf(storeMarkers(79)[0]!).content).toContain('map-store-marker--icon')
+  })
+
+  it('선택 점포: 아이콘 + --active(바깥 링) + zIndex 최상, 나머지는 기본 zIndex. 점 표현에서는 14px 점', async () => {
+    const view = await mount(props({ stores: STORES, storeGlyph: 'coffee' }))
+    setZoom(view.map, 16)
+    view.rerender(<MapView {...props({ stores: STORES, storeGlyph: 'coffee', activeStoreId: 'a' })} />)
+    const [a, b] = storeMarkers(2)
+    expect(iconOf(a!).content).toMatch(/^<div class="map-store-marker map-store-marker--icon map-store-marker--active"><svg /)
+    expect(iconOf(a!).anchor).toEqual(new FakePoint(12, 12))
+    expect(a!.setZIndex).toHaveBeenLastCalledWith(1000)
+    expect(iconOf(b!).content).not.toContain('--active')
+    expect(b!.setZIndex).toHaveBeenLastCalledWith(undefined)
+
+    setZoom(view.map, 11)
+    expect(iconOf(a!).content).toBe('<div class="map-store-marker map-store-marker--active"></div>')
+    expect(iconOf(a!).anchor).toEqual(new FakePoint(7, 7))
+  })
+
+  it('마커 title은 상호, 글리프를 생략하면 폴백 store', async () => {
+    const view = await mount(props({ stores: STORES }))
+    setZoom(view.map, 16)
+    const calls = vi.mocked(fakeSdk.Marker).mock.calls.map(([o]) => o as { title: string })
+    expect(calls.map((o) => o.title)).toEqual(['별다방', '콩다방'])
+    expect(iconOf(storeMarkers(2)[0]!).content).toContain('M15 21v-5a1 1 0 0 0-1-1h-4')  // store 글리프
+  })
+
+  it('정보창: 링크가 있는 점포는 "네이버 지도"·"구글 지도"(새 탭·noopener) + 안내 문구, 없는 점포는 링크 줄이 없다', async () => {
+    const view = await mount(props({ stores: STORES }))
+    view.rerender(<MapView {...props({ stores: STORES, activeStoreId: 'a' })} />)
+    const content = infos[0]!.content
+    const anchors = [...content.querySelectorAll('a')]
+    expect(anchors.map((a) => a.textContent)).toEqual(['네이버 지도', '구글 지도'])
+    expect(anchors.map((a) => a.getAttribute('href'))).toEqual([LINKS.naver, LINKS.google])
+    for (const a of anchors) {
+      expect(a).toHaveAttribute('target', '_blank')
+      expect(a.rel.split(' ')).toContain('noopener')
+    }
+    expect(content).toHaveTextContent('검색 결과로 열립니다(같은 가게가 아닐 수 있음)')
+    // 닫기는 그대로 마지막 버튼
+    expect(content.querySelector('button')!.textContent).toBe('닫기')
+
+    view.rerender(<MapView {...props({ stores: STORES, activeStoreId: 'b' })} />)
+    expect(infos[0]!.content.querySelectorAll('a')).toHaveLength(0)
+    expect(infos[0]!.content).not.toHaveTextContent('검색 결과로 열립니다')
+  })
+
+  it('범례: 점 표현이면 점, 아이콘 표현이면 업종 글리프 원 — 문구는 "같은 업종 점포"', async () => {
+    const view = await mount(props({ stores: STORES, storeGlyph: 'beer' }))
+    const legend = () => screen.getByRole('list', { name: '지도 범례' })
+    expect(legend()).toHaveTextContent('같은 업종 점포')
+    expect(legend().querySelector('.map__legend-store--icon')).toBeNull()
+    setZoom(view.map, 15)
+    const swatch = legend().querySelector('.map__legend-store--icon')!
+    expect(swatch).not.toBeNull()
+    expect(swatch.querySelector('svg')!.innerHTML).toContain('M17 11h1a3 3 0 0 1 0 6h-1')   // beer 글리프
   })
 })
 
@@ -1741,6 +1855,49 @@ describe('MapView — A3 다크 지도 스타일과 밝은 지도 복구 (8-DK, 
     expect(maps).toHaveLength(6)
     fireOn(maps[5]!, 'init')
     expect(document.documentElement.dataset.mapTone).toBe('light')
+  })
+
+  it('다른 스타일(라이트 400)의 실패가 캐시된 정상 다크 스타일 판정을 오염시키지 않는다 (Codex 검수 2026-10-19)', async () => {
+    vi.stubEnv('VITE_NAVER_MAP_LIGHT_STYLE_ID', 'bad-light-style')
+    vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const view = await mountStyled({ selected: A, theme: 'dark' })
+    styleResponse(200)
+    fireOn(maps[0]!, 'init')
+    expect(document.documentElement.dataset.mapTone).toBe('dark')
+    view.rerender(<MapView {...props({ selected: A, theme: 'light' })} />)
+    await act(async () => {})
+    styleResponse(400)                                                  // 라이트 스타일 실패 → 밝은 지도 복구
+    fireOn(maps[2]!, 'init')
+    expect(document.documentElement.dataset.mapTone).toBe('light')
+    view.rerender(<MapView {...props({ selected: A, theme: 'dark' })} />)
+    await act(async () => {})
+    const cachedDark = maps[3]!
+    entries = []                                                        // SDK 캐시: 새 스타일 요청 없음 → 다크 ID의 기억(200)으로 판정
+    fireOn(cachedDark, 'init')
+    expect(document.documentElement.dataset.mapTone).toBe('dark')
+    expect(cachedDark.destroy).not.toHaveBeenCalled()
+    expect(maps).toHaveLength(4)
+  })
+
+  it('다크·대체 지도가 모두 실패한 뒤 라이트로 전환해 성공하면 이전 오류 안내가 사라지고 범례·컨트롤이 돌아온다 (Codex 검수 2026-10-19)', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const view = await mountStyled({ selected: A, theme: 'dark' })
+    styleResponse(400)
+    tick(8_500)                                                         // 밝은 대체 지도 init 시간 초과 → 지도 오류
+    expect(screen.getByRole('alert')).toHaveTextContent('지도를 준비하지 못했습니다')
+    expect(view.onSdkState).toHaveBeenLastCalledWith({ status: 'failed', kind: 'init' })
+    view.rerender(<MapView {...props({ selected: A, theme: 'light', onSdkState: view.onSdkState })} />)
+    await act(async () => {})
+    fireOn(maps[2]!, 'init')
+    expect(document.documentElement.dataset.mapTone).toBe('light')
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(screen.getByRole('list', { name: '지도 범례' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '지도 확대' })).toBeInTheDocument()
+    expect(view.onSdkState).toHaveBeenLastCalledWith(expect.objectContaining({ status: 'ready' }))
+    // 이전 세대의 늦은 실패(타이머)는 새 지도를 다시 오류로 만들지 않는다
+    tick(60_000)
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(maps).toHaveLength(3)
   })
 
   it('비교 중 테마 전환: A·B가 그대로면 panTo·B 맞춤을 다시 돌리지 않는다', async () => {

@@ -81,6 +81,33 @@
   white-space: nowrap;
 }
 
+/* 선택 항목 아래 네이버·구글 검색 링크 (묶음 B, 2-4): 버튼 밖(중첩 인터랙티브 금지), 선택 테두리와 같은 왼쪽 띠 */
+.nearby__links {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-1) var(--space-3);
+  margin: 0;
+  padding: 0 var(--space-3) var(--space-2);
+  border-left: 3px solid var(--color-map-store);
+  background: var(--color-surface-muted);
+  font: var(--text-small);
+  color: var(--color-text-secondary);
+}
+
+.nearby__links a {
+  min-height: 24px;
+  font-weight: 600;
+  color: var(--color-accent);
+  text-underline-offset: 2px;
+}
+
+.nearby__links-note {
+  flex-basis: 100%;
+  font-size: 11px;
+  color: var(--color-text-muted);
+}
+
 .nearby__error,
 .nearby__mismatch {
   display: flex;

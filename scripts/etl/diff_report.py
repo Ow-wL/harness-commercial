@@ -5,7 +5,8 @@
   예:  python scripts/etl/diff_report.py data/runtime 2026-09 --out docs/reports/data_2026-09_diff.md --snapshot
 
 - 분석 지점은 golden 과 같은 BUPYEONG_STATION(rent_area="부평", 엔진 context.py). 엔진은 이 프로세스의 SCORING_ENGINE_VERSION 하나.
-- 점수가 바뀌는 것은 정상이다. **실패 판정**은 B 에서 오류·미산출(score None)·NaN 이 A 보다 늘었을 때, 업종이 빠졌을 때.
+- 점수가 바뀌는 것은 정상이다. **실패 판정**은 B 에서 오류·종합 미산출(score None)·NaN 이 A 보다 늘었을 때, 업종이 빠졌을 때,
+  그리고 A 에서 산출되던 (업종, 관점)이 B 에서 미산출이 됐을 때(관점별 비교 — 총수가 같아도 잡는다).
 - --snapshot: B 의 29업종 스냅샷을 <B>/snapshot/부평역_29업종.json 에 쓰고 B manifest.snapshot 에 경로·sha256·엔진·반경을 기록
   (B 에 매니페스트가 있을 때만). 스냅샷은 데이터+엔진의 파생물이라 다시 만들면 덮어쓴다.
 - 두 버전을 한 프로세스에서 차례로 계산한다 (RuntimeData 2벌, 약 2×(4s 로드 + 60s reference)).
@@ -68,6 +69,11 @@ def compute(data_dir: str, radius_m: int) -> dict:
     return snapshot_of(results, rt.version.id, radius_m, errors)
 
 
+def _perspective_none(snap: dict) -> set:
+    """미산출(score None)인 (업종코드, 관점) 집합."""
+    return {(code, k) for code, v in snap["businesses"].items() for k, score in v["관점"].items() if score is None}
+
+
 def _rank(snap: dict) -> dict:
     rows = sorted(snap["businesses"].items(), key=lambda kv: -(kv[1]["종합"] if kv[1]["종합"] is not None else -1))
     return {code: i + 1 for i, (code, _) in enumerate(rows)}
@@ -81,10 +87,17 @@ def compare(a: dict, b: dict) -> dict:
     none_b = sum(1 for v in b["businesses"].values() if v["종합"] is None)
     nan_a = sum(v["nan"] for v in a["businesses"].values())
     nan_b = sum(v["nan"] for v in b["businesses"].values())
+    # 관점별 미산출(score None)은 업종·관점 단위로 본다 — 총수가 같아도 새로 미산출된 (업종, 관점)이 있으면 실패 (Codex 검수 2026-10-19).
+    # A 에서 이미 미산출이던 관점은 허용한다(기존부터 데이터가 없는 조합).
+    pnone_a = _perspective_none(a)
+    pnone_b = _perspective_none(b)
+    newly_none = [list(x) for x in sorted(pnone_b - pnone_a)]      # JSON 친화(리스트) — 보고서·스냅샷에 그대로 들어간다
     if len(b["errors"]) > len(a["errors"]):
         problems.append(f"오류 업종 {len(a['errors'])} → {len(b['errors'])}: {sorted(b['errors'])}")
     if none_b > none_a:
         problems.append(f"종합 미산출 업종 {none_a} → {none_b}")
+    if newly_none:
+        problems.append("관점 미산출 증가 " + ", ".join(f"{code}/{k}" for code, k in newly_none))
     if nan_b > nan_a:
         problems.append(f"NaN 값 {nan_a} → {nan_b}")
     missing = sorted(set(a["businesses"]) - set(b["businesses"]))
@@ -105,16 +118,19 @@ def compare(a: dict, b: dict) -> dict:
                      "병목_A": va["병목"], "병목_B": vb["병목"]})
     return {"a": a["version"], "b": b["version"], "engine": b["engine"], "radius_m": b["radius_m"],
             "verdict": "fail" if problems else "pass", "problems": problems,
-            "counts": {"errors": [len(a["errors"]), len(b["errors"])], "none": [none_a, none_b], "nan": [nan_a, nan_b]},
+            "counts": {"errors": [len(a["errors"]), len(b["errors"])], "none": [none_a, none_b],
+                       "persp_none": [len(pnone_a), len(pnone_b)], "newly_none": newly_none, "nan": [nan_a, nan_b]},
             "rows": rows}
 
 
 def render_md(rep: dict) -> str:
     out = [f"# 데이터 버전 차이 보고서 — {rep['a']} → {rep['b']}", "",
            f"- 엔진 {rep['engine']}, 분석 반경 {rep['radius_m']}m, 지점 부평역(BUPYEONG_STATION, golden 과 같은 지점)",
-           f"- 판정: **{rep['verdict'].upper()}**" + (" — " + "; ".join(rep["problems"]) if rep["problems"] else " (오류·미산출·NaN 증가 없음)"),
+           f"- 판정: **{rep['verdict'].upper()}**" + (" — " + "; ".join(rep["problems"]) if rep["problems"] else " (오류·종합/관점 미산출·NaN 증가 없음)"),
            f"- 오류 업종 {rep['counts']['errors'][0]} → {rep['counts']['errors'][1]}, 종합 미산출 {rep['counts']['none'][0]} → {rep['counts']['none'][1]}, "
-           f"NaN {rep['counts']['nan'][0]} → {rep['counts']['nan'][1]}", "",
+           f"관점 미산출 {rep['counts']['persp_none'][0]} → {rep['counts']['persp_none'][1]}"
+           + (" (새로 미산출: " + ", ".join(f"{c}/{k}" for c, k in rep["counts"]["newly_none"]) + ")" if rep["counts"]["newly_none"] else "")
+           + f", NaN {rep['counts']['nan'][0]} → {rep['counts']['nan'][1]}", "",
            "| 업종 | 종합 A | 종합 B | Δ | 순위 A→B | 시장성 Δ | 고객성 Δ | 경쟁성 Δ | 입지성 Δ | 안정성 Δ | 동종점포 A→B | 병목 A→B |",
            "|---|---|---|---|---|---|---|---|---|---|---|---|"]
     fmt = lambda x: "-" if x is None else (f"{x:+.1f}" if isinstance(x, (int, float)) and not isinstance(x, bool) else str(x))  # noqa: E731

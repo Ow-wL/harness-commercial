@@ -196,3 +196,48 @@ describe('NearbyStores — 점포 거리 띠 (P7)', () => {
     expect([...strip().children].indexOf(active[0]!)).toBe(3)
   })
 })
+
+describe('NearbyStores — 선택 항목의 네이버·구글 검색 링크 (묶음 B, 계획 2-4)', () => {
+  const renderActive = (data: NearbyStoresResponse, activeId: string | null) =>
+    render(
+      <NearbyStores
+        state={{ status: 'success', data }}
+        bizName="PC방"
+        radiusM={500}
+        expectedCount={data.count}
+        show
+        onShowChange={() => {}}
+        activeId={activeId}
+        onSelect={() => {}}
+        onRetry={() => {}}
+      />,
+    )
+
+  it('선택한 항목 아래에만 "네이버 지도"·"구글 지도"(새 탭·noopener)와 안내 문구가 있고, 버튼 안에는 넣지 않는다', () => {
+    const first = NEARBY.stores[0]!
+    renderActive(NEARBY, first.id)
+    const row = screen.getByLabelText(`${first.name} 외부 지도 검색`)
+    const links = within(row).getAllByRole('link')
+    expect(links.map((a) => a.textContent)).toEqual(['네이버 지도', '구글 지도'])
+    expect(links[1]).toHaveAttribute('href', expect.stringContaining('https://www.google.com/maps/search/?api=1&query='))
+    expect(links[1]!.getAttribute('href')).toContain(encodeURIComponent(first.name!))
+    for (const a of links) {
+      expect(a).toHaveAttribute('target', '_blank')
+      expect((a as HTMLAnchorElement).rel.split(' ')).toContain('noopener')
+    }
+    expect(row).toHaveTextContent('검색 결과로 열립니다(같은 가게가 아닐 수 있음)')
+    expect(screen.getAllByRole('link')).toHaveLength(2)                              // 다른 항목에는 없다
+    const item = within(screen.getByRole('list', { name: 'PC방 점포 목록' })).getAllByRole('button')[0]!
+    expect(item.querySelector('a')).toBeNull()
+  })
+
+  it('선택이 없으면 링크가 없고, 상호·주소가 모두 없는 점포는 선택해도 링크 줄이 없다', () => {
+    const { unmount } = renderActive(NEARBY, null)
+    expect(screen.queryAllByRole('link')).toHaveLength(0)
+    unmount()
+    const bare = { ...NEARBY.stores[0]!, name: null, road_address: null, jibun_address: null }
+    renderActive({ ...NEARBY, count: 1, stores: [bare] }, bare.id)
+    expect(screen.queryAllByRole('link')).toHaveLength(0)
+    expect(screen.queryByText(/검색 결과로 열립니다/)).not.toBeInTheDocument()
+  })
+})

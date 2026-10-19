@@ -2,6 +2,7 @@ import { useId, useState, type KeyboardEvent, type ReactNode } from 'react'
 import type { ApiFailure } from '../api/client.ts'
 import type { NearbyStoresResponse } from '../api/schemas.ts'
 import { formatDistance, formatRadius, storeAddress, storeName } from '../lib/format.ts'
+import { buildStoreLinks, STORE_LINKS_NOTE } from '../lib/storeLinks.ts'
 import { Icon } from './Icon.tsx'
 import './NearbyStores.css'
 
@@ -17,6 +18,7 @@ export const NEARBY_PREVIEW = 5
  * 반경 안 같은 업종 점포 (4차, DESIGN.md §8.14). 분석과 별도 요청이라 실패해도 분석 결과는 그대로다.
  * 목록 항목은 버튼 — 누르면 지도 마커를 강조하고 정보창을 연다(지도 마커를 누르는 것과 같은 기능, 키보드 대안).
  * 목록 영역에서 Escape를 누르면 선택과 정보창을 닫는다.
+ * 선택한 항목 아래에만 네이버·구글 검색 링크(묶음 B, lib/storeLinks — 정확한 가게 연결이 아니라 검색 결과)를 둔다.
  */
 export function NearbyStores({
   state,
@@ -137,6 +139,7 @@ export function NearbyStores({
                       <span className="nearby__address">{storeAddress(s)}</span>
                       <span className="nearby__distance">직선거리 {formatDistance(s.distance_m)}</span>
                     </button>
+                    {s.id === activeId && <StoreLinksRow store={s} />}
                   </li>
                 ))}
               </ol>
@@ -156,6 +159,26 @@ export function NearbyStores({
         </>
       )}
     </section>
+  )
+}
+
+/**
+ * 선택 점포의 외부 링크 줄 (묶음 B, 2-4): "네이버 지도 · 구글 지도" 새 탭(noopener) + 안내 문구. 상호·주소가 모두 없으면 없다.
+ * 버튼 안에 넣지 않는다(중첩 인터랙티브 요소 금지) — 항목 아래 별도 줄
+ */
+function StoreLinksRow({ store }: { store: NearbyStoresResponse['stores'][number] }) {
+  const links = buildStoreLinks(store)
+  if (!links) return null
+  return (
+    <p className="nearby__links" aria-label={`${storeName(store)} 외부 지도 검색`}>
+      <a href={links.naver} target="_blank" rel="noopener noreferrer">
+        네이버 지도
+      </a>
+      <a href={links.google} target="_blank" rel="noopener noreferrer">
+        구글 지도
+      </a>
+      <span className="nearby__links-note">{STORE_LINKS_NOTE}</span>
+    </p>
   )
 }
 

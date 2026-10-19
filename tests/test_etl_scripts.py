@@ -284,3 +284,40 @@ def test_diff_report_snapshot_and_compare(bupyeong_results, tmp_path):
 def test_diff_report_rejects_unsupported_radius():
     from scoring_engine import RADIUS_OPTIONS_M
     assert DR.main([RUNTIME_DIR, RUNTIME_DIR, "--radius", str(max(RADIUS_OPTIONS_M) + 1)]) == 2
+
+
+def test_diff_report_flags_newly_uncomputed_perspective_but_allows_existing_and_score_changes(bupyeong_results):
+    """Codex 검수(2026-10-19): 종합이 아니라 개별 관점만 새로 미산출돼도 FAIL. 원래 미산출이던 관점과 정상 점수 변화는 PASS."""
+    from scoring_engine import config as C
+    a = DR.snapshot_of(bupyeong_results, "2026-06", C.RADIUS_M)
+    # 기준 A 에서 이미 미산출인 관점 하나를 더 만든다 (치킨 안정성). golden 에는 안정성 미산출 업종이 원래 있다(음식·PC방 외)
+    a["businesses"]["I21006"]["관점"]["stability"] = None
+    base = len({(c, k) for c, v in a["businesses"].items() for k, sc in v["관점"].items() if sc is None})
+    assert base >= 1
+
+    # (1) 정상 점수 변화 + 기존 미산출 유지 → PASS
+    b = json.loads(json.dumps(a))
+    b["version"] = "2026-09"
+    b["businesses"]["R10406"]["종합"] = 70.0
+    b["businesses"]["R10406"]["관점"]["competition"] = 55.5
+    rep = DR.compare(a, b)
+    assert rep["verdict"] == "pass", rep["problems"]
+    assert rep["counts"]["persp_none"] == [base, base] and rep["counts"]["newly_none"] == []
+
+    # (2) 종합은 그대로인데 관점 하나가 새로 미산출 → FAIL (수정 전에는 종합 None 만 세어 PASS 였다)
+    c = json.loads(json.dumps(a))
+    c["version"] = "2026-09"
+    c["businesses"]["R10406"]["관점"]["competition"] = None
+    rep = DR.compare(a, c)
+    assert rep["verdict"] == "fail"
+    assert any("관점 미산출" in p and "R10406" in p and "competition" in p for p in rep["problems"]), rep["problems"]
+    assert rep["counts"]["persp_none"] == [base, base + 1] and rep["counts"]["newly_none"] == [["R10406", "competition"]]
+    assert "관점 미산출" in DR.render_md(rep)
+
+    # (3) 같은 수의 미산출이라도 다른 업종·관점으로 옮겨가면 새로 미산출된 쪽을 FAIL 로 잡는다 (총수 비교가 아니라 업종·관점별 비교)
+    d = json.loads(json.dumps(a))
+    d["businesses"]["I21006"]["관점"]["stability"] = 40.0
+    d["businesses"]["R10406"]["관점"]["location"] = None
+    rep = DR.compare(a, d)
+    assert rep["verdict"] == "fail" and rep["counts"]["persp_none"] == [base, base]
+    assert rep["counts"]["newly_none"] == [["R10406", "location"]]

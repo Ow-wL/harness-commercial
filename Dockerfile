@@ -3,6 +3,7 @@
 #   Node/Vite 는 build 단계에서만 쓴다. runtime process 는 FastAPI/uvicorn 하나 — API + frontend dist 를 같은 origin 에서 서빙.
 #
 #   docker build --build-arg VITE_NAVER_MAP_CLIENT_ID=<Client ID> -t harness-commercial .
+#   선택 build arg: VITE_NAVER_MAP_STYLE_ID(다크 스타일), VITE_NAVER_MAP_LIGHT_STYLE_ID(라이트 스타일) — ARG 는 이 단계의 RUN(vite build) 환경변수로 전달된다
 #   docker run --rm -p 8080:8080 harness-commercial
 #
 # NAVER Maps Client ID 는 브라우저 번들에 그대로 들어가는 공개 값이다(Client Secret 아님). build arg 로만 받고 commit 하지 않는다.
@@ -19,6 +20,8 @@ ARG VITE_NAVER_MAP_CLIENT_ID
 RUN test -n "$VITE_NAVER_MAP_CLIENT_ID" || { echo "build arg VITE_NAVER_MAP_CLIENT_ID 가 필요하다"; exit 1; }
 # 선택: NAVER 다크 지도 스타일 My Style ID(8-DK, DESIGN.md §19.3.1). 없으면 밝은 지도. commit 하지 않는다
 ARG VITE_NAVER_MAP_STYLE_ID=
+# 선택: 라이트 테마 지도 스타일 My Style ID(묶음 A, DESIGN.md §19.7). 없으면 라이트 테마는 NAVER 기본 밝은 지도. commit 하지 않는다
+ARG VITE_NAVER_MAP_LIGHT_STYLE_ID=
 # 번들만 만든다. 타입 검사(tsc -b)는 테스트 파일·tests/golden 까지 보므로 scripts/check(npm run check)에서 한다
 RUN npx vite build
 # build 에 GeoJSON asset 이 정확히 2개(행정동·구 경계)이고, 각각 data/geo 원본과 같은 바이트인지(해시 집합 일치) 확인한다

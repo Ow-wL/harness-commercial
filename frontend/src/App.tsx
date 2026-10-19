@@ -40,6 +40,8 @@ import {
 import { headline } from './lib/headline.ts'
 import { singleBand } from './lib/attentionBand.ts'
 import { ResultCache } from './lib/resultCache.ts'
+import { storeGlyphFor } from './lib/storeIcons.ts'
+import { buildStoreLinks } from './lib/storeLinks.ts'
 import { useNearbyRequest, type RadiusProblem } from './lib/useNearbyRequest.ts'
 import { useReferenceAddress } from './lib/useReferenceAddress.ts'
 import { useTheme } from './lib/theme.ts'
@@ -745,10 +747,13 @@ function App() {
             distance: `직선거리 ${formatDistance(s.distance_m)}`,
             lat: s.lat,
             lng: s.lng,
+            links: buildStoreLinks(s),                    // 정보창의 네이버·구글 검색 링크 (묶음 B)
           }))
         : null,
     [visibleNearby, storesShown],
   )
+  // 점포 마커의 업종 글리프(묶음 B): 보이는 점포 응답의 업종코드로 — 비교 중 A↔B도 같은 업종이라 하나다
+  const storeGlyph = storeGlyphFor(visibleNearby?.status === 'success' ? visibleNearby.data.biz_code : null)
   const selectStore = (id: string | null) => {
     setActiveStoreId(id)
     if (id) (compare.status === 'off' ? setShowStores : setCompareShowStores)(true)
@@ -1125,6 +1130,7 @@ function App() {
           stores={mapStores}
           activeStoreId={activeStoreId}
           onStoreSelect={selectStore}
+          storeGlyph={storeGlyph}
           storeContext={
             comparing && visibleSide
               ? `${visibleSide} ${(visibleSide === 'A' ? result : compared)?.context.dong_name} 주변`

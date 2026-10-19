@@ -40,7 +40,10 @@ import {
   type NaverPolygon,
 } from '../map/naverMaps.ts'
 import { formatRadius } from '../lib/format.ts'
+import { STORE_GLYPH_FALLBACK, STORE_MARKER_SIZE, storeMarkerHtml, storeMarkerMode, type StoreGlyph, type StoreMarkerMode } from '../lib/storeIcons.ts'
+import { STORE_LINKS_NOTE, type StoreLinks } from '../lib/storeLinks.ts'
 import { Icon } from './Icon.tsx'
+import { StoreGlyphIcon } from './StoreGlyphIcon.tsx'
 import './MapView.css'
 
 export type LatLng = { lat: number; lng: number }
@@ -77,8 +80,11 @@ type FitAction =
   | { t: 'b-select' }
   | { t: 'focus'; side: 'A' | 'B'; end?: boolean }
 
-/** 지도에 표시할 동종 점포 (4차). 문구는 표시용으로 만들어 넘긴다(App이 API 응답으로 만든다). */
-export type MapStore = { id: string; name: string; address: string; distance: string; lat: number; lng: number }
+/**
+ * 지도에 표시할 동종 점포 (4차). 문구는 표시용으로 만들어 넘긴다(App이 API 응답으로 만든다).
+ * links: 선택 점포 정보창의 네이버·구글 검색 링크(묶음 B, lib/storeLinks). 생략·null이면 링크 줄 없음(상호·주소 모두 없는 점포)
+ */
+export type MapStore = { id: string; name: string; address: string; distance: string; lat: number; lng: number; links?: StoreLinks | null }
 
 export type MapViewProps = {
   /** 선택 지점. null이면 마커·반경 없음 */
@@ -101,6 +107,11 @@ export type MapViewProps = {
   activeStoreId?: string | null
   /** 점포 마커를 누르거나 정보창을 닫을 때 */
   onStoreSelect?: (id: string | null) => void
+  /**
+   * 점포 업종 글리프(묶음 B, lib/storeIcons — App이 점포 응답의 biz_code로 정한다). 생략하면 폴백 `store`.
+   * 표현(아이콘 24px / 16px / 점)은 줌·개수 규칙으로 MapView가 정한다
+   */
+  storeGlyph?: StoreGlyph
   /** 두 위치 비교 중이면 B 표시 (5차-B4). null·생략이면 단일 분석 표시 그대로 */
   compare?: MapCompare | null
   /** 선택한 점포 막대 앞에 붙는 기준 위치 (비교 중, 예: "B 구월3동 주변", 5차-B5) */
@@ -277,11 +288,33 @@ function useGuBoundaries(api: NaverMapsApi | null, map: NaverMap | null, renderM
   }, [api, map, renderModeRef])
 }
 
-/** 동종 점포 마커 아이콘 (지름 10px, 선택되면 14px + 테두리, §8.11) */
-const storeIcon = (api: NaverMapsApi, active: boolean) => ({
-  content: `<div class="map-store-marker${active ? ' map-store-marker--active' : ''}"></div>`,
-  anchor: active ? new api.Point(7, 7) : new api.Point(5, 5),
-})
+/**
+ * 지금 줌(래스터 기준, GL은 +1 환산 — mapFit.rasterZoom). 지도가 준비되면 읽고 init·zoom_changed·idle 때 갱신한다.
+ * 점포 표현 전환(묶음 B)에만 쓴다 — 값이 같으면 React가 다시 그리지 않는다. 지도가 없으면 0(점 표현)
+ */
+function useRasterZoom(api: NaverMapsApi | null, map: NaverMap | null, renderModeRef: { current: number | null }): number {
+  const [zoom, setZoom] = useState<number>(0)
+  useEffect(() => {
+    if (!api || !map) return
+    const read = () => setZoom(rasterZoom(map.getZoom(), renderModeRef.current))
+    read()
+    const listeners = ['init', 'zoom_changed', 'idle'].map((type) => api.Event.addListener(map, type, read))
+    return () => listeners.forEach((l) => api.Event.removeListener(l))
+  }, [api, map, renderModeRef])
+  return zoom
+}
+
+/**
+ * 동종 점포 마커 아이콘 (§8.11, 묶음 B): 점 10px(선택 14px) 또는 업종 글리프 24px·16px(선택은 같은 크기 + 바깥 링).
+ * 앵커는 마커 가운데(크기는 border 포함, box-sizing: border-box)
+ */
+const storeIcon = (api: NaverMapsApi, mode: StoreMarkerMode, glyph: StoreGlyph, active: boolean) => {
+  const size = STORE_MARKER_SIZE[mode][active ? 'active' : 'normal']
+  return { content: storeMarkerHtml(mode, glyph, active), anchor: new api.Point(size / 2, size / 2) }
+}
+
+/** 선택 점포 마커의 zIndex(다른 점포 위). 일반 점포는 SDK 기본값(undefined)으로 되돌린다 */
+const STORE_ACTIVE_Z_INDEX = 1000
 
 /** 정보창 내용: 상호·주소·직선거리 + 닫기. 문자열 HTML이 아니라 textContent로 만든다(상호명 그대로 표시, 주입 방지) */
 function storeInfoContent(store: MapStore, onClose: () => void): HTMLElement {
@@ -296,6 +329,23 @@ function storeInfoContent(store: MapStore, onClose: () => void): HTMLElement {
   line('strong', store.name, 'map-store-info__name')
   line('p', store.address, 'map-store-info__text')
   line('p', store.distance, 'map-store-info__text')
+  // 네이버·구글 검색 링크(묶음 B, 2-4): 선택 점포에만. href는 DOM 속성으로(문자열 HTML 아님), 새 탭 + noopener
+  if (store.links) {
+    const links = document.createElement('p')
+    links.className = 'map-store-info__links'
+    const anchor = (href: string, text: string) => {
+      const a = document.createElement('a')
+      a.href = href
+      a.target = '_blank'
+      a.rel = 'noopener noreferrer'
+      a.textContent = text
+      links.appendChild(a)
+    }
+    anchor(store.links.naver, '네이버 지도')
+    anchor(store.links.google, '구글 지도')
+    root.appendChild(links)
+    line('p', STORE_LINKS_NOTE, 'map-store-info__caption')
+  }
   const close = document.createElement('button')
   close.type = 'button'
   close.className = 'map-store-info__close'
@@ -472,6 +522,7 @@ export function MapView({
   stores = null,
   activeStoreId = null,
   onStoreSelect,
+  storeGlyph = STORE_GLYPH_FALLBACK,
   compare = null,
   storeContext,
   onSdkState,
@@ -663,8 +714,8 @@ export function MapView({
         settled = true
         stopWaiting()
         if (kind === 'styled') {
-          // 이 세대의 요청이 없으면(SDK 캐시) 이 페이지에서 마지막으로 본 결과로 본다
-          const status = styleStatusSince(t0) ?? lastStyleStatus()
+          // 이 세대의 요청이 없으면(SDK 캐시) 이 페이지에서 **이 스타일 ID**로 마지막에 본 결과로 본다 — 다른 스타일의 실패와 섞지 않는다
+          const status = styleStatusSince(t0, styleId) ?? lastStyleStatus(styleId)
           const styled = outcome === 'init' && status === 200 && map.get?.('renderMode') === 2
           if (styled) {
             markInited(map)
@@ -728,7 +779,7 @@ export function MapView({
       if (kind === 'styled') {
         // 스타일 요청이 200이 아니면 SDK는 init 없이 "인증 실패" 무늬만 그린다(스파이크 실측) — 바로 실패로 본다
         const check = () => {
-          const status = styleStatusSince(t0)
+          const status = styleStatusSince(t0, styleId)
           if (status !== null && status !== 200) finish('style-failed')
         }
         if (typeof PerformanceObserver === 'function') {
@@ -796,6 +847,9 @@ export function MapView({
       initedRef.current = false
       pendingFitRef.current = null
       setMap(null)
+      // 이 세대의 지도 오류는 세대와 함께 지운다 — 테마 전환으로 만드는 새 세대가 이전 오류 안내를 물려받지 않게(Codex 검수 2026-10-19).
+      // 이전 세대의 늦은 실패는 cancelled·세대 번호·구독 해제로 새 세대의 상태를 건드리지 못하고, 새 세대가 실패하면 그때 다시 건다
+      setError(null)
     }
   }, [theme])
 
@@ -1118,7 +1172,15 @@ export function MapView({
     closeStore()
   }
 
-  // 동종 점포 마커 (4차). stores가 바뀌면 이전 마커·클릭 리스너를 모두 지우고 새로 그린다
+  // 점포 표현(묶음 B): 래스터 기준 줌 ≥15 아이콘 24px / 13~14 아이콘 16px / ≤12 점, N ≥ 80이면 점. 줌은 zoom_changed·idle에서 읽는다
+  const rasterZoomNow = useRasterZoom(api, map, renderModeRef)
+  const storeMode: StoreMarkerMode = storeMarkerMode(rasterZoomNow, stores?.length ?? 0)
+  const storeModeRef = useRef(storeMode)
+  useEffect(() => {
+    storeModeRef.current = storeMode                       // 마커를 새로 만들 때 지금 표현으로(아래 effect보다 먼저 선언 → 먼저 실행)
+  })
+
+  // 동종 점포 마커 (4차). stores가 바뀌면 이전 마커·클릭 리스너를 모두 지우고 새로 그린다 (표현·선택이 바뀌면 아이콘만 바꾼다)
   const storeMarkersRef = useRef<Map<string, NaverMarker>>(new Map())
   useEffect(() => {
     if (!api || !map || !stores || stores.length === 0) return
@@ -1128,7 +1190,7 @@ export function MapView({
       const marker = new api.Marker({
         map,
         position: new api.LatLng(store.lat, store.lng),
-        icon: storeIcon(api, false),
+        icon: storeIcon(api, storeModeRef.current, storeGlyph, false),
         clickable: true,
         title: store.name,
       })
@@ -1141,7 +1203,7 @@ export function MapView({
       markers.forEach((m) => m.setMap(null))
       storeMarkersRef.current = new Map()
     }
-  }, [api, map, stores])
+  }, [api, map, stores, storeGlyph])
 
   // 선택한 점포: 마커 강조 + 정보창. 새로 선택했을 때만 그 점포로 지도를 옮긴다 (zoom은 그대로)
   // 정보창은 지도가 보이고 크기가 맞춰진 뒤(`sized`)에만 연다(6-4): SDK는 open 때 내용 크기를 재는데, mobile 패널 화면처럼
@@ -1153,7 +1215,11 @@ export function MapView({
   const pannedStoreRef = useRef<string | null>(null)
   useEffect(() => {
     if (!api || !map) return
-    storeMarkersRef.current.forEach((m, id) => m.setIcon(storeIcon(api, id === activeStoreId)))
+    storeMarkersRef.current.forEach((m, id) => {
+      const active = id === activeStoreId
+      m.setIcon(storeIcon(api, storeMode, storeGlyph, active))
+      m.setZIndex?.(active ? STORE_ACTIVE_Z_INDEX : undefined)
+    })
     const marker = activeStoreId ? storeMarkersRef.current.get(activeStoreId) : undefined
     const store = stores?.find((s) => s.id === activeStoreId)
     if (!marker || !store) {
@@ -1215,7 +1281,7 @@ export function MapView({
       }
     }
     place()
-  }, [api, map, stores, activeStoreId, sized, infoRetry])
+  }, [api, map, stores, storeMode, storeGlyph, activeStoreId, sized, infoRetry])
 
   useEffect(
     () => () => {
@@ -1314,7 +1380,14 @@ export function MapView({
           </li>
           {stores && stores.length > 0 && (
             <li>
-              <span className="map__legend-store" aria-hidden="true" />
+              {/* 지금 표현 그대로: 아이콘이면 업종 글리프 원, 점이면 점 (묶음 B) */}
+              {storeMode === 'dot' ? (
+                <span className="map__legend-store" aria-hidden="true" />
+              ) : (
+                <span className="map__legend-store map__legend-store--icon" aria-hidden="true">
+                  <StoreGlyphIcon glyph={storeGlyph} size={10} />
+                </span>
+              )}
               같은 업종 점포
             </li>
           )}

@@ -56,6 +56,8 @@ export interface NaverOverlay {
 export interface NaverMarker extends NaverOverlay {
   setPosition(latlng: NaverLatLng): void
   setIcon(icon: unknown): void
+  /** 쌓임 순서(선택 점포를 다른 점포 위로, 묶음 B). undefined면 SDK 기본값 */
+  setZIndex?(zIndex: number | undefined): void
 }
 
 export interface NaverCircle extends NaverOverlay {
