@@ -1,0 +1,114 @@
+/* 첫 방문 안내 말풍선 (묶음 D, DESIGN.md §19.9): 붙는 요소 바로 아래 인라인. 화면을 덮지 않고 지도 위에 두지 않는다 */
+.coach {
+  position: relative;
+  max-width: 280px;
+  margin: 10px 0 4px;
+  padding: 10px 12px;
+  border: 1px solid var(--color-map-ui-edge);
+  border-radius: 10px;
+  background: var(--color-surface);
+  box-shadow: var(--shadow-map-ui);
+  font: var(--text-small);
+  color: var(--color-text-primary);
+}
+
+/* 꼬리 8px: 위쪽 요소를 가리킨다 */
+.coach::before {
+  content: "";
+  position: absolute;
+  top: -5px;
+  left: 18px;
+  width: 8px;
+  height: 8px;
+  border-top: 1px solid var(--color-map-ui-edge);
+  border-left: 1px solid var(--color-map-ui-edge);
+  background: var(--color-surface);
+  transform: rotate(45deg);
+}
+
+.coach__text {
+  margin: 0 0 8px;
+}
+
+.coach__index {
+  display: inline-block;
+  margin-right: 6px;
+  padding: 0 6px;
+  border-radius: var(--radius-pill);
+  background: var(--color-accent-subtle);
+  font: var(--text-caption);
+  color: var(--color-accent);
+  vertical-align: 1px;
+}
+
+.coach__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.coach__skip,
+.coach__next {
+  min-height: 32px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 8px;
+  font: var(--text-small);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.coach__skip {
+  background: transparent;
+  color: var(--color-text-muted);
+}
+
+.coach__skip:hover {
+  color: var(--color-text-primary);
+}
+
+.coach__next {
+  background: var(--color-accent-fill);
+  color: var(--color-text-inverse);
+}
+
+.coach__next:hover {
+  background: var(--color-accent-fill-hover);
+}
+
+/* 다시 보기 아이콘 버튼 (조건 머리·결과 머리): 44px 터치 영역, 글자 없음 */
+.help-replay {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  margin: -12px -12px -12px 0;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+
+.help-replay:hover {
+  color: var(--color-accent);
+  background: var(--color-accent-subtle);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .coach {
+    animation: coach-in var(--duration-base) var(--ease-out);
+  }
+}
+
+@keyframes coach-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}

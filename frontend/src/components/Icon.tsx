@@ -41,6 +41,14 @@ const PATHS = {
     </>
   ),
   moon: <path d="M20 14.5A8 8 0 0 1 9.5 4a7 7 0 1 0 10.5 10.5z" />,
+  // 첫 방문 안내 다시 보기(묶음 D)
+  'help-circle': (
+    <>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M9.5 9.5a2.5 2.5 0 0 1 5 0c0 1.5-2.5 2-2.5 3.5" />
+      <path d="M12 17h.01" />
+    </>
+  ),
 } as const
 
 export type IconName = keyof typeof PATHS

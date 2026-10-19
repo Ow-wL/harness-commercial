@@ -45,6 +45,9 @@ import { buildStoreLinks } from './lib/storeLinks.ts'
 import { useNearbyRequest, type RadiusProblem } from './lib/useNearbyRequest.ts'
 import { useReferenceAddress } from './lib/useReferenceAddress.ts'
 import { useTheme } from './lib/theme.ts'
+import { stepIndex, useOnboarding } from './lib/onboarding.ts'
+import { RESULT_TEXT, TOUR_TEXT } from './content/onboarding.ts'
+import { CoachMark, ReplayHelpButton } from './components/CoachMark.tsx'
 import './App.css'
 
 /**
@@ -163,6 +166,8 @@ function App() {
   const [sdk, setSdk] = useState<SdkState>({ status: 'loading' })
   // 화면 테마(묶음 A, DESIGN.md §19.7): 저장된 선택 > 시스템 설정 > 다크. 지도 톤은 MapView가 실제 렌더 결과로 따로 정한다
   const { theme, setPreference: setThemePreference } = useTheme()
+  // 첫 방문 안내(묶음 D, docs/ONBOARDING_DESIGN.md): ①~③은 조건 패널·mobile 시트에, ④ 결과 안내는 결과 머리·결과 시트에 인라인 말풍선
+  const { state: tour, send: sendTour } = useOnboarding()
   // 위치 입력 방법 (P2·P3): 조건 패널과 mobile 지도 sheet의 segmented가 같이 쓴다. sheet에서 주소·좌표를 고르면
   // 패널 화면으로 가서 그 폼의 첫 입력칸으로 포커스(methodFocus를 올린다, B5)
   const [locationMethod, setLocationMethod] = useState<LocationMethod>('map')
@@ -304,6 +309,7 @@ function App() {
     cancelNearby()
     resetCompare()                                         // A가 없으면 비교도 없다
     setCompareReload(null)
+    sendTour({ type: 'conditions-shown' })                 // 결과 안내가 열려 있었으면 닫는다(완료로 치지 않음)
   }
 
   /**
@@ -332,6 +338,7 @@ function App() {
         setMobileScreen('panel')
         showNearbyFromCache(request, cached.nearby)
         checkB(cached.analyze)
+        sendTour({ type: 'analyzed' })
         return
       }
       const current = { seq: ++seq.current, controller: new AbortController() }
@@ -365,10 +372,11 @@ function App() {
           setMobileScreen('panel')
           loadNearby(request)                              // 실패해도 분석 결과는 그대로 둔다
           checkB(r.data)
+          sendTour({ type: 'analyzed' })
         })
         .catch(() => {})                                   // 취소된 요청
     },
-    [cancelNearby, resetCompare, loadNearby, showNearbyFromCache, rejectMixedEngines, setAnalysis, setCompareReload],
+    [cancelNearby, resetCompare, loadNearby, showNearbyFromCache, rejectMixedEngines, setAnalysis, setCompareReload, sendTour],
   )
 
   const runAnalysis = useCallback(() => {
@@ -639,13 +647,41 @@ function App() {
     }
     cancelAnalysis()
     setLocation(point)
+    sendTour({ type: 'location-picked' })
   }
 
   const changeBusiness = (code: string) => {
     if (analyzing) return
     cancelAnalysis()
     setBizCode(code || null)
+    if (code) sendTour({ type: 'business-picked' })
   }
+
+  // 첫 방문 안내 말풍선 (묶음 D): ①~③은 ConditionPanel·mobile 시트가 해당 요소 아래에 그린다. ④는 결과 머리·결과 시트
+  const tourStep = tour.step
+  const conditionCoach =
+    tourStep && tourStep !== 'result'
+      ? {
+          step: tourStep,
+          text: TOUR_TEXT[tourStep],
+          index: stepIndex(tourStep),
+          onNext: () => sendTour({ type: 'next' }),
+          onSkip: () => sendTour({ type: 'skip' }),
+          onDismiss: () => sendTour({ type: 'dismiss' }),
+        }
+      : null
+  const resultCoach =
+    tourStep === 'result' ? (
+      <CoachMark
+        text={radiusEnabled ? RESULT_TEXT.withRadius : RESULT_TEXT.compareOnly}
+        index={null}
+        last
+        onNext={() => sendTour({ type: 'next' })}
+        onSkip={() => sendTour({ type: 'skip' })}
+        onDismiss={() => sendTour({ type: 'dismiss' })}
+      />
+    ) : null
+  const replayHelp = (screen: 'conditions' | 'result') => <ReplayHelpButton onClick={() => sendTour({ type: 'replay', screen })} />
 
   const mapRef = useRef<HTMLDivElement>(null)
   /** 패널(펼친 시트) 스크롤 영역 — "아래에 더 있어요" 표시가 본다 */
@@ -1019,8 +1055,12 @@ function App() {
   } else if (result) {
     panelLabel = '분석 결과'
     panelBody = (
-      <AnalysisResult
+      <>
+        {/* ④ 결과 안내 (묶음 D): 결과 머리 위 인라인 — 반경 버튼(조건 바)·"다른 위치와 비교"(패널 아래)를 글로 가리킨다 */}
+        {resultCoach}
+        <AnalysisResult
         analysis={result}
+        eyebrowAction={replayHelp('result')}
         address={addressOf(result)}
         nearbyCount={nearby?.status === 'success' ? nearby.data.count : null}
         nearby={
@@ -1039,7 +1079,8 @@ function App() {
             />
           )
         }
-      />
+        />
+      </>
     )
     panelFoot = foot(
       <button id={COMPARE_IDS.start} type="button" className="button button--primary" onClick={startCompare}>
@@ -1070,6 +1111,8 @@ function App() {
           methodFocus={methodFocus}
           onMethodChange={setLocationMethod}
           radiusStep={radiusControl}
+          coach={conditionCoach}
+          onReplayHelp={() => sendTour({ type: 'replay', screen: 'conditions' })}
         >
           {compareReload && analysis.status === 'error' && (
             <p className="radius-notice">
@@ -1231,6 +1274,8 @@ function App() {
                   다른 위치와 비교
                 </button>
               </div>
+              {/* ④ 결과 안내 (묶음 D): 버튼 줄 바로 아래 인라인. 패널 화면의 같은 안내와 한 번에 하나만 보인다(화면 전환으로 배타) */}
+              {resultCoach}
             </>
           ) : (
             <>
@@ -1260,6 +1305,22 @@ function App() {
                   setMethodFocus((n) => n + 1)
                 }}
               />
+              {/* ① 위치 안내 (묶음 D): 시트의 segmented 바로 아래. 패널 화면의 같은 단계와 한 번에 하나만 보인다.
+                  "다음"은 ②(업종 select 아래)가 있는 패널 화면으로 함께 간다 — 지도 화면에 남으면 ②가 숨겨진 패널에 있어 안내가 사라진다(9-R2).
+                  지도를 눌러 실제로 위치를 고르는 흐름은 그대로(화면 유지, "이 위치로 계속"으로 패널) */}
+              {conditionCoach?.step === 'location' && (
+                <CoachMark
+                  text={conditionCoach.text}
+                  index={conditionCoach.index}
+                  last={false}
+                  onNext={() => {
+                    conditionCoach.onNext()
+                    setMobileScreen('panel')
+                  }}
+                  onSkip={conditionCoach.onSkip}
+                  onDismiss={conditionCoach.onDismiss}
+                />
+              )}
               <button
                 type="button"
                 className={`button ${location ? 'button--primary' : 'button--secondary'}`}

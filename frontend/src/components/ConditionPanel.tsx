@@ -8,7 +8,18 @@ import { CoordinateForm } from './CoordinateForm.tsx'
 import { Icon } from './Icon.tsx'
 import { LocationMethodSwitch, type LocationMethod } from './LocationMethodSwitch.tsx'
 import type { LatLng } from './MapView.tsx'
+import { CoachMark, ReplayHelpButton } from './CoachMark.tsx'
 import './ConditionPanel.css'
+
+/** 첫 방문 안내 말풍선(묶음 D): 어느 단계 아래에 붙일지와 내용. App이 상태를 들고 넘긴다 */
+export type ConditionCoach = {
+  step: 'location' | 'business' | 'analyze'
+  text: string
+  index: { index: number; total: number } | null
+  onNext: () => void
+  onSkip: () => void
+  onDismiss: () => void
+}
 
 export type BusinessesState =
   | { status: 'loading' }
@@ -40,6 +51,8 @@ export function ConditionPanel({
   methodFocus = 0,
   onMethodChange,
   radiusStep,
+  coach = null,
+  onReplayHelp,
   children,
 }: {
   location: LatLng | null
@@ -67,17 +80,26 @@ export function ConditionPanel({
   onMethodChange: (method: LocationMethod) => void
   /** ③ 분석 반경 (8-D3 RadiusControl — 서버가 반경을 2개 이상 광고할 때만 App이 넘긴다) */
   radiusStep?: ReactNode
+  /** 첫 방문 안내 말풍선 ①~③ (묶음 D). null이면 없음 — 해당 단계 요소 바로 아래 인라인 */
+  coach?: ConditionCoach | null
+  /** "사용 방법 다시 보기"(머리 오른쪽) — 넘기지 않으면 버튼 없음 */
+  onReplayHelp?: () => void
   /** 분석하기 위 안내·진행·오류 (App) */
   children?: ReactNode
 }) {
   const hintId = useId()
   const missing = !location ? '위치를 먼저 선택하세요' : !bizCode ? '업종을 선택하세요' : null
+  const coachAt = (step: ConditionCoach['step']) =>
+    coach && coach.step === step ? (
+      <CoachMark text={coach.text} index={coach.index} last={step === 'analyze'} onNext={coach.onNext} onSkip={coach.onSkip} onDismiss={coach.onDismiss} />
+    ) : null
 
   return (
     <section className="conditions" aria-label="분석 조건">
       <div className="conditions__head">
         <p className="result__eyebrow">
           <span>새 분석</span>
+          {onReplayHelp && <ReplayHelpButton onClick={onReplayHelp} />}
         </p>
         <h1 id="conditions-title" className="conditions__title">
           어디에, 어떤 가게를 열까요?
@@ -99,6 +121,7 @@ export function ConditionPanel({
         onPickOnMap={onPickOnMap}
         onLocationInput={onLocationInput}
       />
+      {coachAt('location')}
       <BusinessSelect
         bizCode={bizCode}
         businesses={businesses}
@@ -107,6 +130,7 @@ export function ConditionPanel({
         onChange={onBizChange}
         onRetry={onRetryBusinesses}
       />
+      {coachAt('business')}
       {radiusStep && <div className="field step">{radiusStep}</div>}
       {children}
       <div className="conditions__submit">
@@ -126,6 +150,7 @@ export function ConditionPanel({
             {missing}
           </p>
         )}
+        {coachAt('analyze')}
       </div>
     </section>
   )

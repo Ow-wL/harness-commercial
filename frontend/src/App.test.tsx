@@ -3276,3 +3276,163 @@ describe('테마 전환 (묶음 A, DESIGN.md §19.7)', () => {
     expect(screen.getByRole('button', { name: '다크 모드로 전환' })).toBeInTheDocument()
   })
 })
+
+describe('첫 방문 안내 (묶음 D, docs/ONBOARDING_DESIGN.md)', () => {
+  const COACH = { name: '사용 방법 안내' }
+  const conditions = () => screen.getByRole('region', { name: '분석 조건' })
+  /** 조건 패널 안의 말풍선(mobile 시트의 같은 단계는 DOM에 따로 있다 — CSS로만 숨김) */
+  const coachInConditions = () => within(conditions()).queryByRole('status', COACH)
+  const sheet = () => document.querySelector('.map-sheet') as HTMLElement
+  const firstVisit = () => {
+    window.localStorage.removeItem('onboarding')
+    window.localStorage.removeItem('onboarding.result')
+  }
+  const analyzeOk = () => mockApi({ analyze: [{ status: 200, body: fixture }], nearby: [{ status: 200, body: nearbyFixture }] })
+  const RESULT_HEADING = { level: 1, name: '부평구 부평1동 · PC방 분석' }
+
+  afterEach(() => window.localStorage.clear())
+
+  it('첫 방문: ①위치 → (위치 선택) ②업종 → (업종 선택) ③분석 → (분석 성공) ④결과 안내 → 확인하면 끝나고 저장된다', async () => {
+    firstVisit()
+    analyzeOk()
+    render(<App />)
+    expect(coachInConditions()).toHaveTextContent('1/3')
+    expect(coachInConditions()).toHaveTextContent('지도를 누르거나 주소·좌표로 위치를 고릅니다')
+    // 기본 화면 글은 그대로다(중복 금지): 기존 안내 문장은 여전히 하나씩
+    expect(within(conditions()).getByText('위치와 업종을 고르면, 다섯 관점으로 살펴봅니다.')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: '지도 클릭: 부평역' }))
+    expect(coachInConditions()).toHaveTextContent('2/3')
+    const select = await screen.findByRole('combobox', { name: '업종' })
+    await waitFor(() => expect(select).toBeEnabled())
+    fireEvent.change(select, { target: { value: 'R10406' } })
+    expect(coachInConditions()).toHaveTextContent('3/3')
+    expect(coachInConditions()).toHaveTextContent('순위·매출 예측이 아닌 참고 지표입니다')
+    expect(within(coachInConditions()!).getByRole('button', { name: '확인' })).toBeInTheDocument()   // 마지막 단계
+
+    fireEvent.click(analyzeButton())
+    await screen.findByRole('heading', RESULT_HEADING)
+    expect(window.localStorage.getItem('onboarding')).toBe('done')
+    const result = screen.getAllByRole('status', COACH).find((el) => el.textContent?.includes('비교'))!
+    expect(result).toHaveTextContent('다른 위치와 비교해 볼 수 있습니다')
+    expect(result).not.toHaveTextContent('반경')                                   // 구버전 서버: 반경 선택 없음
+    fireEvent.click(within(result).getByRole('button', { name: '확인' }))
+    expect(screen.queryByRole('status', COACH)).not.toBeInTheDocument()
+    expect(window.localStorage.getItem('onboarding.result')).toBe('done')
+  })
+
+  it('두 번째 방문(저장됨)에는 아무 안내도 없다', async () => {
+    analyzeOk()
+    render(<App />)
+    expect(screen.queryByRole('status', COACH)).not.toBeInTheDocument()
+    await selectBupyeongPcBang()
+    fireEvent.click(analyzeButton())
+    await screen.findByRole('heading', RESULT_HEADING)
+    expect(screen.queryByRole('status', COACH)).not.toBeInTheDocument()
+  })
+
+  it('건너뛰기는 안내 전체를 끝내지만 결과 안내는 별도 1회 보이고, 반경 선택이 있는 서버면 반경도 안내한다', async () => {
+    firstVisit()
+    mockApi({
+      analyze: [{ status: 200, body: fixture }],
+      nearby: [{ status: 200, body: nearbyFixture }],
+      health: { status: 200, body: { ...OLD_HEALTH, engine: { version: 'mvp-0.4', radius_options: [300, 500, 1000], default_radius_m: 500 } } },
+    })
+    render(<App />)
+    fireEvent.click(within(coachInConditions()!).getByRole('button', { name: '건너뛰기' }))
+    expect(coachInConditions()).toBeNull()
+    expect(window.localStorage.getItem('onboarding')).toBe('done')
+    fireEvent.click(screen.getByRole('button', { name: '지도 클릭: 부평역' }))
+    expect(coachInConditions()).toBeNull()                                          // 건너뛴 뒤에는 행동해도 다시 안 나온다
+    const select = await screen.findByRole('combobox', { name: '업종' })
+    await waitFor(() => expect(select).toBeEnabled())
+    fireEvent.change(select, { target: { value: 'R10406' } })
+    fireEvent.click(analyzeButton())
+    await screen.findByRole('heading', RESULT_HEADING)
+    const result = screen.getAllByRole('status', COACH)[0]!
+    expect(result).toHaveTextContent('반경(300·500m·1km)을 바꾸거나')
+    fireEvent.click(within(result).getByRole('button', { name: '건너뛰기' }))
+    expect(screen.queryByRole('status', COACH)).not.toBeInTheDocument()
+    expect(window.localStorage.getItem('onboarding.result')).toBe('done')
+  })
+
+  it('Escape는 지금 말풍선만 숨기고(저장 안 함) 다음 행동을 하면 다음 단계가 다시 보인다', async () => {
+    firstVisit()
+    mockApi()
+    render(<App />)
+    fireEvent.keyDown(coachInConditions()!, { key: 'Escape' })
+    expect(coachInConditions()).toBeNull()
+    expect(window.localStorage.getItem('onboarding')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: '지도 클릭: 부평역' }))
+    expect(coachInConditions()).toHaveTextContent('2/3')
+  })
+
+  it('다시 보기: 조건 머리 버튼은 ①부터, 결과 머리 버튼은 ④를 다시 연다 — 포커스는 그대로(비모달)', async () => {
+    analyzeOk()
+    render(<App />)
+    const replay = within(conditions()).getByRole('button', { name: '사용 방법 다시 보기' })
+    replay.focus()
+    fireEvent.click(replay)
+    expect(coachInConditions()).toHaveTextContent('1/3')
+    expect(document.activeElement).toBe(replay)
+    fireEvent.click(within(coachInConditions()!).getByRole('button', { name: '건너뛰기' }))
+    await selectBupyeongPcBang()
+    fireEvent.click(analyzeButton())
+    await screen.findByRole('heading', RESULT_HEADING)
+    expect(screen.queryByRole('status', COACH)).not.toBeInTheDocument()
+    const resultArticle = screen.getByRole('heading', RESULT_HEADING).closest('article')!
+    fireEvent.click(within(resultArticle).getByRole('button', { name: '사용 방법 다시 보기' }))
+    expect(screen.getAllByRole('status', COACH)[0]).toHaveTextContent('다른 위치와 비교')
+  })
+
+  it('결과 안내가 열린 채 조건을 바꾸면 닫히고(완료 아님), 다음 결과에서 다시 보인다', async () => {
+    window.localStorage.setItem('onboarding', 'done')
+    window.localStorage.removeItem('onboarding.result')
+    analyzeOk()
+    render(<App />)
+    await selectBupyeongPcBang()
+    fireEvent.click(analyzeButton())
+    await screen.findByRole('heading', RESULT_HEADING)
+    expect(screen.getAllByRole('status', COACH).length).toBeGreaterThan(0)
+    fireEvent.click(screen.getByRole('button', { name: '조건 바꾸기' }))
+    expect(screen.queryByRole('status', COACH)).not.toBeInTheDocument()
+    expect(window.localStorage.getItem('onboarding.result')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: '지도 클릭: 부평역' }))    // 같은 조건 → 캐시 적중으로 다시 결과(요청 없음)
+    fireEvent.click(analyzeButton())
+    await waitFor(() => expect(screen.getAllByRole('status', COACH).length).toBeGreaterThan(0))
+  })
+
+  describe('mobile (<640px)', () => {
+    beforeEach(() => {
+      vi.stubGlobal('matchMedia', (q: string) => ({ matches: q === '(max-width: 639px)', media: q }))
+    })
+
+    it('① 위치 안내는 지도 화면 시트의 segmented 아래에도 붙고, 위치를 고르면 ②는 패널에 있다', async () => {
+      firstVisit()
+      mockApi()
+      render(<App />)
+      const inSheet = within(sheet()).getByRole('status', COACH)
+      expect(inSheet).toHaveTextContent('1/3')
+      // 시트 안 말풍선은 segmented(위치 입력 방법) 바로 다음이다
+      expect(inSheet.previousElementSibling).toBe(within(sheet()).getByRole('group', { name: '위치 입력 방법' }))
+      fireEvent.click(screen.getByRole('button', { name: '지도 클릭: 부평역' }))
+      expect(within(sheet()).queryByRole('status', COACH)).toBeNull()
+      expect(coachInConditions()).toHaveTextContent('2/3')
+    })
+
+    // Codex 검수 지적(9-R2): 시트 ①에서 "다음"을 누르면 상태만 ②가 되고 화면은 지도에 남아 ② 안내·업종 select가 숨겨진 패널에 있었다
+    it('시트 ①에서 "다음"을 누르면 조건 패널 화면으로 가서 ② 안내와 업종 선택이 보인다', () => {
+      firstVisit()
+      mockApi()
+      render(<App />)
+      const app = document.querySelector('.app')!
+      const first = within(sheet()).getByRole('status', COACH)
+      expect(first).toHaveTextContent('1/3')
+      expect(app).toHaveAttribute('data-screen', 'map')
+      fireEvent.click(within(first).getByRole('button', { name: '다음' }))
+      expect(app).toHaveAttribute('data-screen', 'panel')
+      expect(coachInConditions()).toHaveTextContent('2/3')
+      expect(within(conditions()).getByRole('combobox', { name: '업종' })).toBeInTheDocument()
+    })
+  })
+})
