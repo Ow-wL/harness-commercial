@@ -48,8 +48,21 @@
 - [x] 9-B4 사용자 확인(2026-10-19): 업종→글리프 12묶음 초안(§19.8 표)과 **네이버 공식 앱 스킴 기본값을 이대로 둔다**. 네이버 웹 검색 URL(`map.naver.com/p/search/…`, 비공식)은 쓰지 않는다 — 나중에 쓰려면 사용자 실측 뒤 `NAVER_WEB_SEARCH_VERIFIED=true`.
 - [ ] 9-B5 운영 반영: 묶음 A와 같은 리비전 절차(9-A6).
 
-### 9-D·9-E (미착수)
-- [ ] 9-D 온보딩: 코치마크 3단계 + 결과 첫 표시 1줄, 건너뛰기·다시 보기, P1 문장 재사용.
+### 9-E (미착수)
+### 9-D 온보딩 (묶음 D, D-027, `DESIGN.md` §19.9, 설계 `docs/ONBOARDING_DESIGN.md`) — 커밋(master, 9-R2 수정 포함) · 운영 미배포
+- [x] 9-D0 설계안(2026-10-19) 사용자 승인: 결과 안내 별도 1회 · 다시 보기 2곳 · 어미 "~합니다".
+- [x] 9-D1 구현(2026-10-19): `src/lib/onboarding.ts`(순수 전이 + 저장 + 훅), `src/components/CoachMark.tsx`(+css, `ReplayHelpButton`), `src/content/onboarding.ts`, `Icon` `help-circle`. ConditionPanel에 `coach`·`onReplayHelp`(①~③ 각 요소 아래), App에 상태·행동 신호(위치 선택·업종 선택·분석 성공(캐시 적중 포함)·조건 바꾸기)·④ 결과 안내(결과 머리 위·mobile 결과 시트 버튼 줄 아래)·mobile 지도 시트 ①·다시 보기 2곳. 서버·엔진·지도 변경 없음.
+- [x] 9-D2 테스트(2026-10-19): `onboarding.test.ts` 12건, `App.test.tsx` "첫 방문 안내" 8건(첫 방문 전 흐름·두 번째 방문 없음·건너뛰기 + v0.4 반경 문구·Escape·다시 보기 2곳(포커스 유지)·조건 바꾸기 뒤 재표시(캐시 적중)·mobile 시트 자리·mobile 시트 "다음" → 패널 전환(9-R2에서 추가)). 공용 setup은 완료 상태 기본값(기존 테스트 불변). lint·타입 검사 통과.
+- [x] 9-D3 검증(2026-10-19, Claude 로컬): 앱 내 브라우저(800×600 다크 GL) — 첫 방문 ①(위치 필드 아래) → 지도 클릭 ② → 업종 선택 ③("확인") → 분석 성공 ④(결과 머리 위, v0.3 서버라 비교만) → 확인 → 저장(`onboarding`·`onboarding.result` = done) → 결과 머리 다시 보기로 ④ 재표시. 인천 밖 클릭 오류에서는 ③이 그대로(분석 실패는 진행 아님). mobile 375×812 — 시트 segmented 아래 ①, 좌표 입력으로 위치를 고르면 패널에 ②. **전체 check 9단계 1회 통과, SKIP 없음**(v0.3 355 · v0.4 61 · backend 137 · frontend 32파일 715, `.gstack/check-logs/bundle-D-full-check.log`). 보호 경로 변경 0. 미검증: 1440 폭, 실기기·Safari·Firefox·스크린리더(aria-live 실제 낭독), 라이트 테마 말풍선 시각(토큰만 공유, 캡처 없음), Codex 독립 검수. 커밋 전.
+- [ ] 9-D4 운영 반영: 묶음 A·B와 같은 리비전 절차.
+
+### 9-R2 Codex 검수 수정 (묶음 D, 2026-10-19 — **Codex 재검수 통과**: 지적 1건 수정 확인, 이번 검수 범위에서 추가 결함 없음)
+- Codex 1차 검수(2026-10-19): 기존 715건·타입 검사·lint·build 통과, 1440·375 라이트 초기 배치 확인(전체 check는 로그만 확인). 결함 1건 재현: 첫 방문 mobile 지도 시트 ①에서 "다음"을 누르면 상태는 ②가 되지만 `data-screen`이 `map`에 남아 ② 안내와 업종 select가 숨겨진 패널에 있어 안내가 사라짐. 재현 자료 `.gstack/review-onboarding/`(git 제외): `App.onboarding-review.test.tsx`의 REVIEW 테스트 1건, `repro.log`, `mobile-next-hidden.png`.
+- [x] 수정(Claude 로컬): `App.tsx` mobile 시트 ① `CoachMark`의 `onNext`가 `next` 신호와 함께 `setMobileScreen('panel')` — ②가 있는 조건 패널 화면으로 전환. 지도를 눌러 실제로 위치를 고르는 기존 흐름(화면 유지 → "이 위치로 계속")과 "건너뛰기"·Escape는 그대로. 리듀서·저장·desktop 자리 변경 없음. 설계안 §3·`DESIGN.md` §19.9 반영.
+- [x] 테스트: REVIEW 테스트 1건만 `App.test.tsx` "첫 방문 안내 › mobile" describe로 이관(임시 사본 전체는 추가하지 않음) — `data-screen=panel`·패널 ② `2/3`·업종 combobox 존재 확인. 수정 전 실패(`data-screen="map"`) → 수정 후 통과 확인. onboarding 12 + App "첫 방문 안내" 8 = 22건 통과, `eslint`·`tsc --noEmit` 통과. 전체 frontend vitest 32파일 716건: 반복 실행 중 1회 1건 실패가 보였으나 출력을 요약만 남겨 실패 테스트 이름을 잡지 못했고, 같은 상태에서 이어 돌린 실행은 모두 716 통과(아래 전체 check 포함). 간헐 실패로 기록하며 원인 미확인.
+- [x] 브라우저(Claude 로컬, 개발 서버 다크 375×812 에뮬레이션): 첫 방문 시트 segmented 아래 ① → "다음" → `data-screen=panel`, ② 말풍선이 업종 select(활성, 옵션 30) 아래에 보임. 캡처 `.gstack/review-onboarding/mobile-step1-before-next-375.jpg`·`mobile-next-fixed-375.jpg`(git 제외). 지도 클릭 흐름은 에뮬레이션에서 지도가 뜨지 않아 단위 테스트로만 확인(기존 mobile 시트 자리 테스트). `docs/DECISIONS.md` 끝 빈 줄 정리.
+- [x] 전체 check·production build(Claude 로컬, 2026-10-19 18:39~18:46, 수정 코드 기준): `scripts/check.sh` 9단계 **1회 통과, 재실행 없음, SKIP 없음**(v0.3 355 · v0.4 61 · backend 137 · frontend 32파일 716, 로그 `.gstack/check-logs/bundle-D-R2-full-check.log`, git 제외). `npm run build`(tsc -b + vite build) 통과(206 modules, GeoJSON asset 2개, 로그 `bundle-D-R2-build.log`). 보호 경로 변경 0. 전체 frontend vitest 단독 반복 8회: 1회차 1건 실패(이름 미포착) 뒤 7회 연속 716 통과.
+- [x] Codex 재검수 통과(2026-10-19) — 검증 주체 구분: **Codex 직접** — mobile 375×812에서 ① "다음" → 패널 전환 → ② 업종 안내 표시 확인, 프런트 716건·타입 검사·lint·production build·diff check 통과, 보호 경로 변경 없음. **Claude 실행** — 전체 check 9단계 통과(위 로그). Codex는 전체 check 9단계를 재실행하지 않았다. 이전 이름 미확인 간헐 실패는 재검수에서 재현되지 않았으며 원인은 미확인으로 유지한다. 코드·문서 별도 커밋(사용자 지시).
 - [ ] 9-E AI Q&A: `/ask`(현재 분석만, 외부 검색 없음), 모델·월 예산·로그 정책은 착수 전 결정. TASKS 보류 "AI 설명" 해제 필요.
 
 ## 추가 UI 간소화 (사용자 직접 확인 후 요청)
