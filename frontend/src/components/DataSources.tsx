@@ -1,4 +1,4 @@
-import type { EngineResult } from '../api/schemas.ts'
+import { isAreaWeightedEngine, type EngineResult } from '../api/schemas.ts'
 
 /**
  * 데이터 출처·기준시점 표 (DESIGN.md §9 부록). 현재 API에 출처가 없으므로 정적 내용이다.
@@ -15,10 +15,19 @@ const SOURCES = [
   { perspective: '초보자 접근성', name: '법령(식품위생법 등 9개)', asOf: '2026-10-02 확인' },
 ] as const
 
+/** 엔진 v0.5(D-028)만 쓰는 자료 — 반경 인구 면적 배분용 경계(지도·행정동 판정 경계와 별개) */
+const SOURCES_V05 = [
+  {
+    perspective: '고객성 · 경쟁성 (인구 배분)',
+    name: 'SGIS 행정구역 통계 및 경계 (행정동, 2026년 7월 개편 전)',
+    asOf: '2025년 2분기',
+  },
+] as const
+
 /**
  * 관점별 점수 비교 대상 (docs/SCORE_EXPLANATION_AUDIT.md 4장, 엔진 v0.3 코드 기준 정적 내용).
- * 엔진 `meta.정규화_기준`("인천 전체 행정동 백분위")은 고객성에만 맞는 설명이라 화면에 쓰지 않는다.
- * 반경은 응답의 `meta.분석반경_m`을 쓴다.
+ * 엔진 v0.3·v0.4 `meta.정규화_기준`("인천 전체 행정동 백분위")은 고객성에만 맞는 설명이라 화면에 쓰지 않는다.
+ * 반경은 응답의 `meta.분석반경_m`을 쓴다. v0.5 는 comparisonsV05 (고객성도 반경·중심점 기준).
  */
 const comparisons = (radiusM: number) =>
   [
@@ -37,6 +46,26 @@ const comparisons = (radiusM: number) =>
     },
   ] as const
 
+/** 엔진 v0.5 비교 대상 (scoring_engine/v0_5 service·reference): 고객성도 경쟁성과 같은 반경·같은 158개 중심점 비교 분포 */
+const comparisonsV05 = (radiusM: number) => {
+  const [market, , , , stability] = comparisons(radiusM)
+  return [
+    market,
+    {
+      perspective: '고객성',
+      target: '인천 158개 행정동 중심점(동네 평균 지점)에서 같은 반경으로 계산한 값',
+      unit: `지점 반경 ${radiusM}m 인구(행정동 경계 면적 배분), 1인 세대 비중은 행정동 값`,
+    },
+    {
+      perspective: '경쟁성',
+      target: '인천 158개 행정동 중심점(점포당 잠재수요는 같은 업종이 있는 지점만)',
+      unit: `지점 반경 ${radiusM}m (잠재수요 = 거주인구 + 종사자)`,
+    },
+    { perspective: '입지성', target: '인천 158개 행정동 중심점', unit: '지점 좌표' },
+    stability,
+  ] as const
+}
+
 /**
  * 결과 주 화면의 서비스 고정 문장 (DESIGN.md §19.6 P1, 사용자 결정 2026-10-16 — 판단 보조 강조안).
  * 엔진 `면책` 원문은 바꾸지 않고 데이터 출처 섹션의 "엔진 면책 원문" 자리에 그대로 둔다
@@ -46,6 +75,9 @@ export const SERVICE_DISCLAIMER =
 
 /** 데이터 출처 · 엔진 면책 원문 (§9 부록, §19.6). 면책은 엔진 `면책` 원문 그대로(라벨과 한 줄 설명만 붙인다). */
 export function DataSources({ meta, disclaimer }: { meta: EngineResult['meta']; disclaimer: string }) {
+  const v05 = isAreaWeightedEngine(meta.엔진버전)
+  const sources = v05 ? [...SOURCES, ...SOURCES_V05] : SOURCES
+  const rows = v05 ? comparisonsV05(meta.분석반경_m) : comparisons(meta.분석반경_m)
   return (
     <section id="data-sources" className="result-section" aria-labelledby="sources-title">
       <h2 id="sources-title" className="result-section__title">
@@ -62,7 +94,7 @@ export function DataSources({ meta, disclaimer }: { meta: EngineResult['meta']; 
             </tr>
           </thead>
           <tbody>
-            {SOURCES.map((s) => (
+            {sources.map((s) => (
               <tr key={s.name}>
                 <th scope="row">{s.name}</th>
                 <td className="nowrap">{s.asOf}</td>
@@ -75,6 +107,8 @@ export function DataSources({ meta, disclaimer }: { meta: EngineResult['meta']; 
       <h3 className="result-section__subtitle">점수 비교 대상</h3>
       <p className="result-section__note">
         관점마다 비교 대상이 다릅니다. 관점·종합 점수는 백분위의 가중평균이라 인천 내 순위가 아닙니다.
+        {v05 &&
+          ' 고객성·경쟁성·입지성은 인천 158개 행정동 중심점 대비 백분위로, 상업지 후보지끼리의 순위가 아닙니다.'}
       </p>
       <div className="table-scroll">
         <table className="data-table">
@@ -87,7 +121,7 @@ export function DataSources({ meta, disclaimer }: { meta: EngineResult['meta']; 
             </tr>
           </thead>
           <tbody>
-            {comparisons(meta.분석반경_m).map((c) => (
+            {rows.map((c) => (
               <tr key={c.perspective}>
                 <th scope="row" className="nowrap">
                   {c.perspective}
@@ -102,6 +136,7 @@ export function DataSources({ meta, disclaimer }: { meta: EngineResult['meta']; 
       <p className="result-section__note">
         분석 반경 {meta.분석반경_m}m · 업종코드 {meta.업종코드} · 엔진 {meta.엔진버전}
       </p>
+      {v05 && <p className="result-section__note">엔진 비교 기준 원문: {meta.정규화_기준}</p>}
       <h3 className="result-section__subtitle">엔진 면책 원문({meta.엔진버전})</h3>
       <p className="result-section__note">분석 엔진이 결과와 함께 내는 문장을 바꾸지 않고 그대로 옮겼습니다.</p>
       <p className="disclaimer">{disclaimer}</p>

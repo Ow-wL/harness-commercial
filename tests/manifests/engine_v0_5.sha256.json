@@ -1,0 +1,22 @@
+{
+ "engine": "scoring_engine/v0_5",
+ "engine_version": "mvp-0.5",
+ "base": "sources/team_v0.5/04_엔진코드/engine",
+ "note": "팀 전달 v0.5 엔진 13개 파일 사본 + 분석 반경 300·500·1,000m 최소 diff(config.py·scoring.py, D-028). 허용 diff 는 tests/test_engine_v0_5_diff.py",
+ "created": "2026-10-24",
+ "files": {
+  "access.py": "698c6ff1d5b5d43101badc61d72d4808f9aba2b860ea7d4f09a5ba734d38a455",
+  "config.py": "6374b80edce07fec89de839713e1f46a826f4a6a61ebdb3ad3ce25bb852a7a44",
+  "demo.py": "38ed0d85c6c0eed7d91d0d94ffc7a145d8c7c03114137592163d782accc15be7",
+  "etl_boundary.py": "dd66017b6c48e002dcc361b830cad44dac8b50295f7730f11df6056e51abb445",
+  "etl_location.py": "2bd425c7160e1e7e0e5bb79734881104a73e58df6201b878a37d0a6a1d88f732",
+  "etl_rent.py": "f0f25bfb3bfb413b72d2d423cc93aeebbe82e5f4d460ddbbd43e8331adb0eeaa",
+  "etl_sgis.py": "ad5bc70d2c8d41d7f01069e7f08a7bb8f1036a2f520c51743837f6fc15ce3f51",
+  "radius_demand.py": "26d9738baf76e00a1f6b3c6cbd988859e49b20032f72016b0ebf65a82ef5f6af",
+  "scoring.py": "c27a6de2bc169616281b255b94a4673fef510396587cd0f296c8a319ea63c407",
+  "test_access.py": "85e12dbd0a2e7bbae7ddd2de781e45c9c976218b5d0860426071eb2a27a40ef2",
+  "test_agglomeration.py": "3ab566b7c782d56102e57b2fd48df43243e3c0fb5773299ca48549838c081094",
+  "test_v05.py": "a2f93ccc0419832ae2c0ac8d5e8a0a8078fb811900447b962e4b3dc97a639297",
+  "test_weights.py": "0eaa79987bff5819be2cbb9fcd4a304b6d5b5462531cc72d61868f46569cf485"
+ }
+}

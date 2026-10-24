@@ -17,6 +17,7 @@ export function PerspectiveScores({
   summary,
   guName,
   business,
+  radiusM,
   onOpen,
 }: {
   indicators: readonly Indicator[]
@@ -25,6 +26,8 @@ export function PerspectiveScores({
   guName: string
   /** 근거 줄의 경쟁성 "반경 500m {업종} N곳" — meta.업종 */
   business: string
+  /** 근거 줄의 고객성 "반경 {r} 타겟 연령 거주"(v0.5 반경 인구) — meta.분석반경_m */
+  radiusM?: number
   /** 관점 행을 누르면 그 관점 근거로 (상세 근거 탭) */
   onOpen?: (key: string) => void
 }) {
@@ -51,7 +54,7 @@ export function PerspectiveScores({
             isStrongest={ind.key === summary.최고_지표}
             isBottleneck={ind.key === summary.병목_지표}
             bottleneckWarn={bottleneckWarn}
-            evidence={evidenceLine(ind, guName, business)}
+            evidence={evidenceLine(ind, guName, business, radiusM)}
             onOpen={onOpen}
           />
         ))}

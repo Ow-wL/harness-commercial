@@ -5,6 +5,8 @@
  * - 공간 단위는 엔진 해상도 flag가 있을 때만 줄 끝에 한 번 쓴다("· 구 단위"). 행 chip "시군구 단위 데이터"와
  *   주의할 점의 "…단위로 계산했습니다" 줄을 이것으로 합친다.
  * - raw 값이 없는(null) 조각은 빼고, 남는 조각이 없으면 null.
+ * - 엔진 v0.5(D-028): 고객성 인구는 반경 면적 배분 값이라 "반경 {r} 타겟 연령 거주"로, 경쟁성은 정확 일치 동종 수 옆에
+ *   대체업종을 포함한 실효 수("비슷한 업종 포함 약 N곳")와 잠재수요 기준(거주+종사자)을 함께 쓴다 — 두 수를 섞지 않는다.
  */
 import { formatDistance, formatRadius, type Indicator } from './format.ts'
 
@@ -12,6 +14,26 @@ import { formatDistance, formatRadius, type Indicator } from './format.ts'
 const count = (n: number) => Math.round(n).toLocaleString('ko-KR')
 /** 0–1 비율 → 소수 1자리 % (3년 생존율 0.523 → 52.3%) */
 const percent = (r: number) => `${(r * 100).toFixed(1)}%`
+/** 실효 동종 수(소수 1자리일 수 있음) — 엔진 값 그대로, 천 단위 구분만 */
+export const decimal = (n: number) => n.toLocaleString('ko-KR', { maximumFractionDigits: 1 })
+
+/**
+ * v0.5 경쟁성 실효 동종 수(대체업종 × 계수 포함). 정확 일치 수(raw.동종점포수 — 지도 점포 목록과 같은 수)와 다를 때만 값,
+ * v0.3·v0.4·0곳 경로·같을 때는 undefined. 화면은 두 수를 따로 이름 붙여 보인다(섞지 않는다)
+ */
+export function effectiveSameCount(ind: Indicator): number | undefined {
+  if (ind.key !== 'competition' || !('동종점포수_실효(대체업종_포함)' in ind.raw)) return undefined
+  const n = ind.raw['동종점포수_실효(대체업종_포함)']
+  return n !== undefined && n !== ind.raw.동종점포수 ? n : undefined
+}
+
+/** v0.5 고객성 raw.인구_기준 이 반경 배분인지 ("반경 500m 배분") */
+export const isRadiusPopulation = (ind: Indicator) =>
+  ind.key === 'customer' && (ind.raw.인구_기준 ?? '').startsWith('반경')
+
+/** v0.5 경쟁성 잠재수요 구성에 종사자가 들어가는지 ({"총인구":1,"종사자수":1}) */
+export const demandIncludesWorkers = (ind: Indicator) =>
+  ind.key === 'competition' && '잠재수요_구성' in ind.raw && Object.hasOwn(ind.raw.잠재수요_구성 ?? {}, '종사자수')
 
 /**
  * 해상도 flag → 근거 줄 끝 단위. 점수가 산출된 관점만(미산출 관점의 폴백 flag는 "그 단위로 계산했다"는 뜻이 아니다,
@@ -27,7 +49,7 @@ export function evidenceUnit(ind: Indicator): string | null {
 }
 
 /** 근거 줄 조각(단위 제외). 관점별 raw 키는 schemas.ts 그대로 */
-function parts(ind: Indicator, guName: string, business: string): string[] {
+function parts(ind: Indicator, guName: string, business: string, radiusM: number | undefined): string[] {
   const out: string[] = []
   switch (ind.key) {
     case 'market': {
@@ -37,14 +59,19 @@ function parts(ind: Indicator, guName: string, business: string): string[] {
     }
     case 'customer': {
       const { 타겟연령_거주인구: target, 타겟연령_비중: share } = ind.raw
-      if (target !== null) out.push(`타겟 연령 거주 ${count(target)}명`)
+      const where = isRadiusPopulation(ind) && radiusM !== undefined ? `반경 ${formatRadius(radiusM)} ` : ''
+      if (target !== null) out.push(`${where}타겟 연령 거주 ${count(target)}명`)
       if (share !== null) out.push(`비중 ${percent(share)}`)
       break
     }
     case 'competition': {
       const raw = ind.raw
       out.push(`반경 ${formatRadius(raw.반경m)} ${business} ${raw.동종점포수.toLocaleString('ko-KR')}곳`)
-      if (raw.점포당_잠재수요 !== null) out.push(`점포당 잠재수요 ${count(raw.점포당_잠재수요)}명`)
+      const effective = effectiveSameCount(ind)
+      if (effective !== undefined) out.push(`비슷한 업종 포함 약 ${decimal(effective)}곳`)
+      if (raw.점포당_잠재수요 !== null) {
+        out.push(`점포당 잠재수요${demandIncludesWorkers(ind) ? '(거주+종사자)' : ''} ${count(raw.점포당_잠재수요)}명`)
+      }
       break
     }
     case 'location': {
@@ -64,9 +91,9 @@ function parts(ind: Indicator, guName: string, business: string): string[] {
 }
 
 /** 관점 근거 줄. 미산출·조각 없음이면 null */
-export function evidenceLine(ind: Indicator, guName: string, business: string): string | null {
+export function evidenceLine(ind: Indicator, guName: string, business: string, radiusM?: number): string | null {
   if (ind.score === null) return null
-  const body = parts(ind, guName, business)
+  const body = parts(ind, guName, business, radiusM)
   if (body.length === 0) return null
   const unit = evidenceUnit(ind)
   return [...body, ...(unit ? [unit] : [])].join(' · ')

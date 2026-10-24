@@ -2,13 +2,15 @@
  * 주의 요약 띠 (8-C1a, docs/UX_REDESIGN.md 2.2). 판단에 중요한 사실을 헤드라인 바로 아래에 항상 1줄씩 요약한다.
  * 설명은 기존 섹션(주의할 점·세부 분석·초보자 접근성 / 비교의 점수 비교·미산출·주의할 점)에 그대로 있고, 띠는 그 위의 요약이다.
  * 문장은 구조화 필드로 새로 만든다. 병목은 병목_지표·score 로만 — 엔진 병목 원문은 띠에 올리지 않는다(§8.3).
- * 순서: † → 병목 → 미산출 → 학교 → 신뢰도 → 기타 엔진 경고 (→ 비교: 같은 지역·반경 겹침). 최대 5줄, 넘치면 "N건 더 보기".
+ * 순서: 학교구역(v0.5) → † → 병목 → 미산출 → 학교 → 신뢰도 → 기타 엔진 경고 (→ 비교: 같은 지역·반경 겹침). 최대 5줄, 넘치면 "N건 더 보기".
+ * 학교구역(D-028): 엔진 v0.5 가 경고[0]에 넣는 "학교 주변 영업 규제 업종 + 200m 안 초·중·고" 경고를 맨 위에 요약한다.
+ * 주의 안내이며 영업 가능 여부를 확정하지 않는다 — 원문은 주의할 점 섹션에 엔진 순서대로 그대로 있다.
  */
 import type { AnalyzeResponse, EngineResult } from '../api/schemas.ts'
 import type { CompareSide } from './compare.ts'
 import { areaRelation, compareAppliedWeights, radiusOverlap, sharedPerspectives } from './compare.ts'
 import { BOTTLENECK_WARN_BELOW, formatRadius, formatScore } from './format.ts'
-import { displayWarnings } from './warnings.ts'
+import { displayWarnings, isSchoolZoneWarning } from './warnings.ts'
 
 export const BAND_MAX = 5
 
@@ -21,7 +23,15 @@ export type BandTarget =
   | 'compare-not-computed'
   | 'compare-warnings'
 
-export type BandKind = 'composition' | 'bottleneck' | 'not-computed' | 'school' | 'confidence' | 'other' | 'area'
+export type BandKind =
+  | 'school-zone'
+  | 'composition'
+  | 'bottleneck'
+  | 'not-computed'
+  | 'school'
+  | 'confidence'
+  | 'other'
+  | 'area'
 
 export type BandLine = {
   kind: BandKind
@@ -32,7 +42,16 @@ export type BandLine = {
   target: BandTarget
 }
 
-const ORDER: readonly BandKind[] = ['composition', 'bottleneck', 'not-computed', 'school', 'confidence', 'other', 'area']
+const ORDER: readonly BandKind[] = [
+  'school-zone',
+  'composition',
+  'bottleneck',
+  'not-computed',
+  'school',
+  'confidence',
+  'other',
+  'area',
+]
 
 /** 경쟁성 0곳(엔진이 일부러 점수를 내지 않음) */
 const isVacantCompetition = (ind: EngineResult['지표'][number]) =>
@@ -44,7 +63,8 @@ function coveredByBand(warning: string): boolean {
     warning.includes('병목') ||                         // 병목 원문·구조화 문장·가중치 안내 — 병목은 구조화 필드로만
     warning.startsWith('계산 불가 지표') ||               // 미산출 줄
     warning.startsWith('반경 내 동종업종이 0개') ||        // 경쟁성 0곳 미산출 줄
-    warning.includes('학교 주변 입지 규제 업종')           // 학교 줄
+    warning.includes('학교 주변 입지 규제 업종') ||         // 학교 줄
+    isSchoolZoneWarning(warning)                          // 학교구역 줄(v0.5)
   )
 }
 
@@ -55,6 +75,19 @@ function linesOf(analysis: AnalyzeResponse, { side, compare }: Context): BandLin
   const p = side ? `${side} ` : ''
   const t = (single: BandTarget, cmp: BandTarget) => (compare ? cmp : single)
   const lines: BandLine[] = []
+
+  const zone = result.초보자_접근성.학교구역_200m_학교수
+  if (zone !== undefined && result.경고.some(isSchoolZoneWarning)) {
+    lines.push({
+      kind: 'school-zone',
+      tone: 'warning',
+      mark: '!',
+      text: compare
+        ? `${p}학교 200m 안 초·중·고 ${zone}곳 · 학교 주변 영업 규제 업종`
+        : `학교 200m 안 초·중·고 ${zone}곳 · 학교 주변 영업 규제 업종 — 점수와 별개로 영업 가능 여부를 먼저 확인하세요`,
+      target: t('warnings', 'compare-warnings'),
+    })
+  }
 
   const bottleneck = result.지표.find((i) => i.key === result.종합.병목_지표)
   if (bottleneck?.score != null && bottleneck.score < BOTTLENECK_WARN_BELOW) {

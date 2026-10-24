@@ -94,7 +94,7 @@ export function AnalysisResult({
               {address}
             </div>
           </details>
-          <OverallScore summary={result.종합} />
+          <OverallScore summary={result.종합} engineVersion={result.meta.엔진버전} />
           <p className="result__headline">
             <HeadlineText text={headline(result)} />
           </p>
@@ -119,6 +119,7 @@ export function AnalysisResult({
               indicators={result.지표}
               guName={context.gu_name}
               business={result.meta.업종}
+              radiusM={result.meta.분석반경_m}
               onOpen={openDetail}
             />
             <div className="result__secondary">

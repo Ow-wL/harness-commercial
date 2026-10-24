@@ -1,6 +1,7 @@
 import { useId, useState, type KeyboardEvent, type ReactNode } from 'react'
 import type { ApiFailure } from '../api/client.ts'
 import type { NearbyStoresResponse } from '../api/schemas.ts'
+import { decimal } from '../lib/evidence.ts'
 import { formatDistance, formatRadius, storeAddress, storeName } from '../lib/format.ts'
 import { buildStoreLinks, STORE_LINKS_NOTE } from '../lib/storeLinks.ts'
 import { Icon } from './Icon.tsx'
@@ -25,6 +26,7 @@ export function NearbyStores({
   bizName,
   radiusM,
   expectedCount,
+  effectiveCount,
   show,
   onShowChange,
   activeId,
@@ -36,8 +38,10 @@ export function NearbyStores({
   state: NearbyState
   bizName: string
   radiusM: number
-  /** 같은 분석의 경쟁성.raw.동종점포수 — 목록 수와 같아야 한다 */
+  /** 같은 분석의 경쟁성.raw.동종점포수(정확 일치) — 목록 수와 같아야 한다 */
   expectedCount: number
+  /** v0.5 대체업종 포함 실효 동종 수(정확 일치와 다를 때만) — 경쟁성 계산에만 쓰고 목록·지도에는 없다 (D-028) */
+  effectiveCount?: number
   show: boolean
   onShowChange: (show: boolean) => void
   activeId: string | null
@@ -115,6 +119,12 @@ export function NearbyStores({
             {bizName} {state.data.count}곳 · {state.data.count > 0 && '가까운 순 · 분석 지점에서 직선거리 · '}
             상가정보 {state.data.as_of} 기준(이후 개업·폐업 미반영)
           </p>
+          {effectiveCount !== undefined && (
+            <p className="result-section__note nearby__effective">
+              목록·지도에는 업종이 정확히 같은 점포 {state.data.count}곳만 보입니다. 경쟁성은 비슷한 업종을 계수만큼 더한 실효
+              동종 수(약 {decimal(effectiveCount)}곳)로 계산했습니다.
+            </p>
+          )}
           {state.data.count !== expectedCount && (
             <p className="nearby__mismatch" role="status">
               <Icon name="alert-triangle" /> 목록 수({state.data.count}곳)가 분석의 동종 점포 수({expectedCount}곳)와

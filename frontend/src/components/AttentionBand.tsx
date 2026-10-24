@@ -18,7 +18,7 @@ const TARGET_ID: Record<BandTarget, string> = {
 const MARK_LABEL: Record<BandLine['mark'], string> = { '!': '경고', i: '안내', '†': '계산 구성' }
 
 const KIND_LABEL: Record<BandLine['kind'], string> = {
-  composition: '계산 구성 다름', bottleneck: '병목', 'not-computed': '미산출',
+  'school-zone': '학교구역', composition: '계산 구성 다름', bottleneck: '병목', 'not-computed': '미산출',
   school: '학교 주변', confidence: '신뢰도 낮음', other: '추가 확인', area: '같은 지역',
 }
 
@@ -54,7 +54,7 @@ export function AttentionBand({ lines, moreTarget }: { lines: readonly BandLine[
           {shown.map((line) => (
             <li key={`${line.kind}:${line.text}`}>
               <a
-                className={`band__item band__item--${line.tone}`}
+                className={`band__item band__item--${line.tone}${line.kind === 'school-zone' ? ' band__item--priority' : ''}`}
                 href={`#${TARGET_ID[line.target]}`}
                 title={line.text}
                 aria-label={`${MARK_LABEL[line.mark]}: ${line.text}`}

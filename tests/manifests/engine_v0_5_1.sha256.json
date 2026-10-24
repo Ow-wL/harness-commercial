@@ -1,0 +1,22 @@
+{
+ "engine": "scoring_engine/v0_5_1",
+ "engine_version": "mvp-0.5.1",
+ "base": "scoring_engine/v0_5",
+ "note": "v0.5 웹 사본 + 분동 배분 결함 수정(팀 엔진 유래 — 분동 인구비 이중 적용, D-029). 허용 diff 는 tests/test_engine_v0_5_1_diff.py",
+ "created": "2026-10-24",
+ "files": {
+  "access.py": "698c6ff1d5b5d43101badc61d72d4808f9aba2b860ea7d4f09a5ba734d38a455",
+  "config.py": "6374b80edce07fec89de839713e1f46a826f4a6a61ebdb3ad3ce25bb852a7a44",
+  "demo.py": "38ed0d85c6c0eed7d91d0d94ffc7a145d8c7c03114137592163d782accc15be7",
+  "etl_boundary.py": "017cc7a15e5c43bfee9ca5c70aa078d8702a2bb80da7889d811eff0d3e0bbfc4",
+  "etl_location.py": "2bd425c7160e1e7e0e5bb79734881104a73e58df6201b878a37d0a6a1d88f732",
+  "etl_rent.py": "f0f25bfb3bfb413b72d2d423cc93aeebbe82e5f4d460ddbbd43e8331adb0eeaa",
+  "etl_sgis.py": "ad5bc70d2c8d41d7f01069e7f08a7bb8f1036a2f520c51743837f6fc15ce3f51",
+  "radius_demand.py": "26d9738baf76e00a1f6b3c6cbd988859e49b20032f72016b0ebf65a82ef5f6af",
+  "scoring.py": "ed9fa5abba4c049cd0847aebd11e2c8b104116d66e88f25573283895b0a1d629",
+  "test_access.py": "ed85345d274ffe32b804ec73d5683826a98e4d9cff466fb247703e92e69b8bd3",
+  "test_agglomeration.py": "3ab566b7c782d56102e57b2fd48df43243e3c0fb5773299ca48549838c081094",
+  "test_v05.py": "a2f93ccc0419832ae2c0ac8d5e8a0a8078fb811900447b962e4b3dc97a639297",
+  "test_weights.py": "0eaa79987bff5819be2cbb9fcd4a304b6d5b5462531cc72d61868f46569cf485"
+ }
+}

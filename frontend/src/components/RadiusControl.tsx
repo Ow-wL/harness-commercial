@@ -1,10 +1,15 @@
 import { useId } from 'react'
+import { isAreaWeightedEngine } from '../api/schemas.ts'
 import { formatRadius } from '../lib/format.ts'
 import './RadiusControl.css'
 
-/** 반경이 무엇에 영향을 주는지 (docs/UX_REDESIGN.md 4.2 사용자 문구) */
+/** 반경이 무엇에 영향을 주는지 (docs/UX_REDESIGN.md 4.2 사용자 문구) — 엔진 v0.4 */
 export const RADIUS_HELP =
   '반경은 경쟁성과 주변 점포에만 영향을 줍니다. 반경마다 비교 대상(같은 업종이 있는 지점)도 달라집니다. 시장성·고객성·안정성·입지성은 바뀌지 않습니다.'
+
+/** 엔진 v0.5(D-028): 고객성 인구도 같은 반경으로 면적 배분한다 — 고객성·경쟁성·주변 점포가 반경을 따른다 */
+export const RADIUS_HELP_V05 =
+  '반경은 고객성(반경 안 인구)·경쟁성과 주변 점포에 영향을 줍니다. 반경마다 비교 대상(인천 158개 행정동 중심점에서 같은 반경으로 계산한 값)도 달라집니다. 시장성·입지성·안정성은 바뀌지 않습니다.'
 
 /**
  * 분석 반경 선택 (8-D3, D-024, docs/UX_REDESIGN.md 4.2·4.4). 서버가 반경을 2개 이상 광고할 때만 App이 그린다
@@ -20,6 +25,7 @@ export function RadiusControl({
   narrowHint,
   back,
   variant = 'step',
+  engineVersion,
 }: {
   options: readonly number[]
   value: number
@@ -36,7 +42,10 @@ export function RadiusControl({
    * 스크린리더 설명으로 둔다. 바 상태의 진행·좁은 반경 안내는 App이 패널 맨 위에 보인다
    */
   variant?: 'step' | 'bar'
+  /** 결과 meta.엔진버전, 결과 전에는 /health engine.version — 반경 안내 문구를 고른다 */
+  engineVersion?: string | null
 }) {
+  const help = isAreaWeightedEngine(engineVersion) ? RADIUS_HELP_V05 : RADIUS_HELP
   const labelId = useId()
   const helpId = useId()
   if (variant === 'bar') {
@@ -58,7 +67,7 @@ export function RadiusControl({
           </button>
         ))}
         <span id={helpId} className="visually-hidden">
-          {RADIUS_HELP}
+          {help}
         </span>
       </div>
     )
@@ -91,7 +100,7 @@ export function RadiusControl({
       </div>
       <details className="radius-control__explanation">
         <summary>반경에 따라 달라지는 것</summary>
-        <p className="radius-control__help">{RADIUS_HELP}</p>
+        <p className="radius-control__help">{help}</p>
       </details>
       {narrowHint && <p className="radius-control__help">{narrowHint}</p>}
       <p className="radius-control__status" role="status">

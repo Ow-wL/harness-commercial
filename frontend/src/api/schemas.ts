@@ -14,6 +14,12 @@
  *
  * 원칙: 값을 변환하지 않는다(coercion·transform·default 없음). 결측은 엔진이 실제로 내는 `null`만
  * 허용한다. 계약 객체는 strict라 모르는 필드가 오면 실패한다(엔진·API 계약 변경을 조용히 넘기지 않는다).
+ *
+ * 엔진 v0.5(`mvp-0.5`, D-028): raw·접근성에 v0.5 항목이 더해지고 경쟁성 세부지표에 p3(상권 집적도)가 생긴다.
+ * 필드는 한 schema에 선택(optional)으로 두고, 엔진 버전과 맞는지(v0.5는 전부 있음, v0.3·v0.4는 전부 없음)를
+ * EngineResultSchema의 검사(checkVersionFields)가 강제한다 — 버전이 다른 필드가 섞여 오면 계약 오류다.
+ * 근거: tests/golden/v0.5(팀 전달 결과) + r300·r1000, scoring_engine/v0_5/scoring.py.
+ * `mvp-0.5.1`(D-029)은 v0.5 + 분동 배분 결함 수정으로 응답 형태가 v0.5와 같다 — isAreaWeightedEngine 으로 함께 다룬다.
  */
 import { z } from 'zod'
 
@@ -57,7 +63,9 @@ const metaSchema = z.strictObject({
   행정동: z.string(),
   분석반경_m: z.number(),
   정규화_기준: z.string(),
-  엔진버전: z.enum(['mvp-0.3', 'mvp-0.4']),          // 8-D3: v0.4(분석 반경 300·500·1,000m, D-024)도 받는다. 그 밖은 계약 오류
+  // 8-D3: v0.4(분석 반경 300·500·1,000m, D-024), v0.5(팀 v0.5 + 반경, D-028)도 받는다. 그 밖은 계약 오류
+  // v0.5.1(D-029): v0.5 + 분동 배분 결함 수정, 응답 형태는 v0.5와 같다
+  엔진버전: z.enum(['mvp-0.3', 'mvp-0.4', 'mvp-0.5', 'mvp-0.5.1']),
 })
 
 // ─── 종합 ────────────────────────────────────────────────────────────
@@ -146,21 +154,33 @@ const marketRawSchema = z.strictObject({
 
 const customerRawSchema = z.strictObject({
   타겟_정의: z.string(),
-  타겟연령_거주인구: nullableNumber,
+  타겟연령_거주인구: nullableNumber,                 // v0.5: 반경 면적 배분 값(인구_기준), v0.3·v0.4: 행정동 전체
   타겟연령_비중: nullableNumber,
-  종사자수: nullableNumber,
-  '1인세대_비중': nullableNumber,
+  종사자수: nullableNumber,                         // v0.5: 반경 면적 배분 값
+  '1인세대_비중': nullableNumber,                   // 행정동 값(모든 버전)
+  // ── v0.5 ──
+  종사자_민감도: z.number().optional(),              // 0.5 + 0.5 × 직장형 선호
+  '1인가구_민감도': z.number().min(-1).max(1).optional(), // 음수 = 1인가구가 많을수록 불리한 가족형 업종
+  인구_기준: z.string().optional(),                  // "반경 {r}m 배분" | "행정동 전체"
 })
 
 /** 반경 안 동종점포가 있을 때 (일반 경로). */
 const competitionRawSchema = z.strictObject({
   반경m: z.number(),
-  동종점포수: z.number().int().positive(),
+  동종점포수: z.number().int().positive(),           // 정확 일치(소분류가 같은 점포) — 지도 점포 목록 수와 같다
   전체점포수: z.number(),
-  동종업종_비중: z.number(),
-  반경_추정수요: z.number(),
-  점포당_잠재수요: z.number(),
+  동종업종_비중: z.number(),                         // v0.5: 실효 동종 ÷ 전체
+  반경_추정수요: z.number(),                         // v0.5: 반경 거주 + 종사자(면적 배분), v0.3·v0.4: 반경 거주인구(점포 분포 배분)
+  점포당_잠재수요: z.number(),                       // v0.5: 추정수요 ÷ 실효 동종 수
   최근1년_동종_순증감: nullableNumber,
+  // ── v0.5 ──
+  동종점포수_정확일치: z.number().int().positive().optional(),
+  '동종점포수_실효(대체업종_포함)': z.number().positive().optional(),  // 같은 업종 + 대체업종 × 계수 (소수 1자리)
+  대체업종_계수: z.record(z.string(), z.number()).optional(),
+  업종_집적유형: z.enum(['집적형', '중간형', '근린형']).optional(),
+  집적_계수: z.number().optional(),
+  상권_집적도_백분위: scoreSchema.nullable().optional(),  // 반경 전체 점포 수의 백분위 — 상권 우수성·성공 가능성 순위가 아니다
+  잠재수요_구성: z.record(z.string(), z.number()).optional(),
 })
 
 /** 반경 안 동종점포가 0개일 때 — 점수 없이 수요 백분위만 준다 (scoring.score_competition "미개척"). */
@@ -192,8 +212,11 @@ const locationRawSchema = z.strictObject({
   유인시설_기준: z.string(),
   유인시설_근접도: nullableNumber,
   유인시설_종류별: anchorProximitySchema.nullable(),
-  반경500m_해당시설수: nullableNumber,
+  반경500m_해당시설수: nullableNumber,              // 분석 반경과 무관한 엔진 고정 500m
   버스정류장_밀도: nullableNumber,
+  // ── v0.5 ──
+  역_의존도: z.number().min(0).max(1).optional(),
+  학교구역_제외_학교수: z.number().int().nonnegative().nullable().optional(),  // 학교구역 미적용 업종은 null
 })
 
 const stabilityRawSchema = z.strictObject({
@@ -203,6 +226,7 @@ const stabilityRawSchema = z.strictObject({
   '임대료_천원_㎡': nullableNumber,               // 좌표 요청은 rent_area가 null이라 null (backend README)
   임대료_상권: z.string().nullable(),
   인천_업종평균_3년생존율: z.number(),
+  임대료_해석: z.string().nullable().optional(),    // v0.5: 임대료(S4)가 계산됐을 때만 문장, 아니면 null
 })
 
 export const MarketIndicatorSchema = indicatorSchema('market', '시장성', marketRawSchema, ['m1', 'm3', 'm2', 'm4'])
@@ -211,7 +235,7 @@ export const CompetitionIndicatorSchema = indicatorSchema(
   'competition',
   '경쟁성',
   z.union([competitionRawSchema, competitionVacantRawSchema]),
-  ['p2', 'p1', 'p4'],
+  ['p2', 'p1', 'p4', 'p3'],                          // p3 상권 집적도는 v0.5 집적형·중간형 업종만
 )
 export const LocationIndicatorSchema = indicatorSchema('location', '입지성', locationRawSchema, ['l2', 'l3', 'l1', 'l4'])
 export const StabilityIndicatorSchema = indicatorSchema('stability', '안정성', stabilityRawSchema, ['s1', 's2', 's3', 's4'])
@@ -248,9 +272,59 @@ const beginnerAccessSchema = z.strictObject({
   점수_반영: z.literal(false),
   // 입지 규제 업종만 키가 생긴다. 학교 데이터가 없으면 null (access.school_check)
   주변_학교: schoolCheckSchema.nullable().optional(),
+  // v0.5: 입지 규제 업종이고 지점 200m 안에 초·중·고가 있을 때만 (경고[0] 학교구역 경고와 함께)
+  학교구역_200m_학교수: z.number().int().positive().optional(),
 })
 
 // ─── 엔진 결과 ───────────────────────────────────────────────────────
+
+/**
+ * 엔진 v0.5 계열(면적 배분·고객성 반경 입력·v0.5 raw 항목): mvp-0.5(팀 전달), mvp-0.5.1(분동 배분 수정, D-029).
+ * 화면의 v0.5 설명·문구 분기는 모두 이 함수로 판정한다.
+ */
+export const isAreaWeightedEngine = (version: string | null | undefined): boolean =>
+  version === 'mvp-0.5' || version === 'mvp-0.5.1'
+
+/** v0.5에만 있는 raw 키 (관점별). 경쟁성은 동종점포가 있는 일반 경로에서만 (0곳 raw는 버전과 같다). */
+const V05_RAW_KEYS = {
+  customer: ['종사자_민감도', '1인가구_민감도', '인구_기준'],
+  competition: [
+    '동종점포수_정확일치',
+    '동종점포수_실효(대체업종_포함)',
+    '대체업종_계수',
+    '업종_집적유형',
+    '집적_계수',
+    '상권_집적도_백분위',
+    '잠재수요_구성',
+  ],
+  location: ['역_의존도', '학교구역_제외_학교수'],
+  stability: ['임대료_해석'],
+} as const
+
+type RawCheckTarget = { key: string; raw: object; breakdown: readonly { key: string }[] }
+
+/** 엔진 버전과 v0.5 필드가 맞는지: v0.5면 해당 키가 모두 있고, v0.3·v0.4면 하나도 없다. */
+function checkVersionFields(
+  r: { meta: { 엔진버전: string }; 지표: readonly RawCheckTarget[]; 초보자_접근성: object },
+  ctx: z.RefinementCtx,
+) {
+  const v05 = isAreaWeightedEngine(r.meta.엔진버전)
+  for (const [i, ind] of r.지표.entries()) {
+    const keys = (V05_RAW_KEYS as Record<string, readonly string[]>)[ind.key] ?? []
+    const vacant = ind.key === 'competition' && (ind.raw as { 동종점포수?: number }).동종점포수 === 0
+    for (const k of vacant ? [] : keys) {
+      if (Object.hasOwn(ind.raw, k) !== v05) {
+        ctx.addIssue({ code: 'custom', path: ['지표', i, 'raw', k], message: `${r.meta.엔진버전} 응답에 맞지 않는 raw 키` })
+      }
+    }
+    if (!v05 && ind.breakdown.some((b) => b.key === 'p3')) {
+      ctx.addIssue({ code: 'custom', path: ['지표', i, 'breakdown'], message: 'p3(상권 집적도)는 v0.5에만 있다' })
+    }
+  }
+  if (!v05 && Object.hasOwn(r.초보자_접근성, '학교구역_200m_학교수')) {
+    ctx.addIssue({ code: 'custom', path: ['초보자_접근성', '학교구역_200m_학교수'], message: 'v0.5에만 있다' })
+  }
+}
 
 /** AnalysisService.analyze() 반환 dict (= POST /analyze 의 result). */
 export const EngineResultSchema = z.strictObject({
@@ -268,7 +342,7 @@ export const EngineResultSchema = z.strictObject({
   초보자_접근성: beginnerAccessSchema,
   경고: z.array(z.string()),
   면책: z.string(),
-})
+}).superRefine(checkVersionFields)
 
 // ─── POST /analyze ───────────────────────────────────────────────────
 

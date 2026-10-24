@@ -68,7 +68,7 @@ describe('EngineResultSchema — 계약 파손을 잡는다', () => {
     ['알 수 없는 top-level 필드', (r) => (r.extra = 1)],
     ['알 수 없는 raw 필드', (r) => (r.지표[1].raw.새_지표 = 1)],
     ['알 수 없는 세부지표 필드', (r) => (r.지표[0].breakdown[0].비고 = '')],
-    ['알 수 없는 엔진 버전 (mvp-0.3·mvp-0.4만 허용, 8-D3)', (r) => (r.meta.엔진버전 = 'mvp-9.9')],
+    ['알 수 없는 엔진 버전 (mvp-0.3·0.4·0.5만 허용, 8-D3·D-028)', (r) => (r.meta.엔진버전 = 'mvp-9.9')],
     ['관점 순서 변경', (r) => r.지표.reverse()],
     ['관점 4개', (r) => r.지표.pop()],
     ['점수 범위 밖 (101)', (r) => (r.지표[0].score = 101)],
@@ -257,4 +257,67 @@ it('422 invalid_radius 를 오류 계약으로 받는다 (8-D2)', () => {
   expect(
     ErrorResponseSchema.safeParse({ error: { code: 'invalid_radius', message: '지원하지 않는 분석 반경입니다(가능: 500m).' } }).success,
   ).toBe(true)
+})
+
+// ─── 엔진 v0.5 (팀 전달 v0.5 + 반경, D-028) ──────────────────────────
+describe('엔진 v0.5 golden (팀 결과 500m + 반경 300·1,000m) — 프런트 계약을 통과한다', () => {
+  const dirOf = (r: number) =>
+    fileURLToPath(new URL(`../../../tests/golden/v0.5/${r === 500 ? '' : `r${r}/`}json/`, import.meta.url))
+  const read = (r: number) =>
+    readdirSync(dirOf(r))
+      .filter((f) => f.endsWith('.json'))
+      .sort()
+      .map((f) => JSON.parse(readFileSync(join(dirOf(r), f), 'utf-8')))
+
+  it.each([500, 300, 1000])('r%s: 29개 모두 통과, 반경 표기·엔진버전 mvp-0.5, 파싱이 값을 바꾸지 않는다', (r) => {
+    const files = read(r)
+    expect(files).toHaveLength(29)
+    for (const raw of files) {
+      const parsed = EngineResultSchema.safeParse(raw)
+      expect(parsed.success, parsed.error?.message).toBe(true)
+      expect(parsed.data).toEqual(raw)
+      expect(parsed.data!.meta).toMatchObject({ 분석반경_m: r, 엔진버전: 'mvp-0.5' })
+      expect(parsed.data!.지표[1].raw.인구_기준).toBe(`반경 ${r}m 배분`)
+    }
+  })
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- 계약을 일부러 깨뜨리는 변형
+  const pcV05 = (): any => read(500).find((g) => g.meta.업종코드 === 'R10406')
+
+  it.each<[string, (r: ReturnType<typeof pcV05>) => void]>([
+    ['v0.5 응답에서 v0.5 raw 키 누락 (실효 동종 수)', (r) => delete r.지표[2].raw['동종점포수_실효(대체업종_포함)']],
+    ['v0.5 응답에서 v0.5 raw 키 누락 (역 의존도)', (r) => delete r.지표[3].raw.역_의존도],
+    ['v0.5 응답을 mvp-0.4로 표기 (v0.5 키가 섞임)', (r) => (r.meta.엔진버전 = 'mvp-0.4')],
+    ['집적 유형이 모르는 값', (r) => (r.지표[2].raw.업종_집적유형 = '광역형')],
+    ['1인가구 민감도 범위 밖', (r) => (r.지표[1].raw['1인가구_민감도'] = 1.5)],
+  ])('%s → 실패', (_, mutate) => {
+    const r = pcV05()
+    expect(EngineResultSchema.safeParse(r).success).toBe(true)
+    mutate(r)
+    expect(EngineResultSchema.safeParse(r).success).toBe(false)
+  })
+
+  it.each<[string, (r: ReturnType<typeof pcBang>) => void]>([
+    ['v0.3 응답에 v0.5 raw 키', (r) => (r.지표[3].raw.역_의존도 = 0.6)],
+    ['v0.3 응답에 p3 세부지표', (r) => r.지표[2].breakdown.push({ ...r.지표[2].breakdown[0], key: 'p3' })],
+    ['v0.3 응답에 학교구역 학교수', (r) => (r.초보자_접근성.학교구역_200m_학교수 = 1)],
+  ])('%s → 실패', (_, mutate) => {
+    const r = pcBang()
+    mutate(r)
+    expect(EngineResultSchema.safeParse(r).success).toBe(false)
+  })
+
+  it('v0.5 동종점포 0개 경로는 v0.3과 같은 raw (v0.5 키 없음)', () => {
+    const r = pcV05()
+    r.지표[2] = {
+      ...r.지표[2],
+      score: null,
+      raw: { 반경m: 500, 동종점포수: 0, 전체점포수: 120, 점포당_잠재수요: null, 해당지역_수요_백분위: 71.2 },
+      confidence: 'low',
+      coverage: 0,
+      flags: ['미개척_동종점포_0개'],
+      breakdown: [],
+    }
+    expect(EngineResultSchema.safeParse(r).success).toBe(true)
+  })
 })

@@ -8,8 +8,8 @@ import { formatRadius, type Indicator } from './format.ts'
 export type FlagText = { label: string; note: string }
 
 /**
- * 엔진이 내는 flag 전체(scoring_engine/v0_3/scoring.py `flags.append`, service.py MARKET_FLAG)와 화면 라벨·한 줄 설명.
- * 키 집합은 테스트가 엔진 원본 문자열과 대조한다(lib/flags.test.ts)
+ * 엔진이 내는 flag 전체(scoring_engine/v0_3·v0_5/scoring.py `flags.append`, service.py MARKET_FLAG)와 화면 라벨·한 줄 설명.
+ * 키 집합은 테스트가 엔진 원본 문자열과 대조한다(lib/flags.test.ts). v0.5 는 학교구역 flag 하나가 더 있다(D-028)
  */
 export const FLAG_TEXT: Readonly<Record<string, FlagText | null>> = {
   영업시간대_유입_집중: { label: '영업시간대 유입 집중', note: '24시간 균등 기준(1.0) 대비 값이라 인천 대부분 구에서 붙습니다' },
@@ -23,6 +23,11 @@ export const FLAG_TEXT: Readonly<Record<string, FlagText | null>> = {
   역세권_벗어남: { label: '역 1km 밖', note: '최근접역까지 직선거리 기준' },
   폐업률_높음: { label: '최근 폐업률 20% 초과', note: '구 × 업종 값' },
   커버리지_부족_미산출: { label: '세부지표 부족으로 미산출', note: '계산된 세부지표가 기준(50%)에 못 미칩니다' },
+  // v0.5 입지성: 학교 주변 영업 규제 업종은 학교 200m 안 초·중·고를 유인시설 가점에서 뺀다(200~500m 는 그대로)
+  학교구역_학교_가점제외: {
+    label: '학교 200m 안 학교는 가점 제외',
+    note: '학교 주변 영업 규제 업종이라 200m 안 초·중·고를 유인시설 가점에 넣지 않았습니다',
+  },
   // 해상도 flag: 근거 줄 "· 구 단위"·계산 단위 줄과 같은 뜻 → 특이사항에서는 중복 표시하지 않는다
   해상도_시군구: null,
   해상도_저하__gugu_sobun: null,
@@ -49,6 +54,10 @@ export function flagItems(ind: Indicator): FlagItem[] {
 export function calcUnitLabel(ind: Indicator, radiusM: number): string {
   if (ind.score === null) {
     return ind.fallback === 'incheon_avg' ? '구 표본 30건 미만 → 산출하지 않음' : '산출하지 않음'
+  }
+  // v0.5: 고객성 인구도 경쟁성과 같은 반경으로 행정동 경계 면적 비율 배분(raw.인구_기준). 1인 세대 비중만 행정동 값
+  if (ind.key === 'customer' && ind.raw.인구_기준?.startsWith('반경')) {
+    return `지점 반경 ${formatRadius(radiusM)} (행정동 경계 면적 배분, 1인 세대 비중은 행정동 값)`
   }
   switch (ind.key) {
     case 'competition':

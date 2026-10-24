@@ -51,6 +51,7 @@ export function areaRelation(a: AnalyzeContext, b: AnalyzeContext): AreaRelation
 /**
  * 분석 지점 값의 공간 단위 (docs/SCORE_EXPLANATION_AUDIT.md 4장). 같은 구면 시장성·안정성,
  * 같은 동이면 고객성까지 두 위치가 같은 값을 쓴다. 경쟁성(반경)·입지성(좌표)은 위치마다 다르다.
+ * 엔진 v0.5(D-028)는 고객성 인구도 지점 반경 값(raw.인구_기준 "반경 …")이라 같은 동이어도 같은 값이 아니다 → radiusCustomer.
  */
 const SHARED_BY: Record<'gu' | 'dong', readonly PerspectiveKey[]> = {
   gu: ['market', 'stability'],
@@ -59,13 +60,17 @@ const SHARED_BY: Record<'gu' | 'dong', readonly PerspectiveKey[]> = {
 
 export type SharedPerspective = { key: PerspectiveKey; label: string; unit: '구' | '행정동' }
 
+/** 고객성 인구가 지점 반경 값인 응답(엔진 v0.5)인지 — 같은 행정동이어도 고객성이 달라진다 */
+const radiusCustomer = (r: AnalyzeResponse) => (r.result.지표[1].raw.인구_기준 ?? '').startsWith('반경')
+
 /** 같은 구·동이라 두 위치 점수가 구조적으로 같은 관점. 한쪽이라도 미산출이면 넣지 않는다 */
 export function sharedPerspectives(a: AnalyzeResponse, b: AnalyzeResponse): SharedPerspective[] {
   const relation = areaRelation(a.context, b.context)
   if (relation === 'different-gu') return []
+  const sameDong = relation === 'same-dong' && !radiusCustomer(a) && !radiusCustomer(b)
   const units: [PerspectiveKey, '구' | '행정동'][] = [
     ...SHARED_BY.gu.map((k): [PerspectiveKey, '구'] => [k, '구']),
-    ...(relation === 'same-dong' ? SHARED_BY.dong.map((k): [PerspectiveKey, '행정동'] => [k, '행정동']) : []),
+    ...(sameDong ? SHARED_BY.dong.map((k): [PerspectiveKey, '행정동'] => [k, '행정동']) : []),
   ]
   return PERSPECTIVE_KEYS.flatMap((key) => {
     const unit = units.find(([k]) => k === key)?.[1]
@@ -92,10 +97,13 @@ export function sameAreaNotice(a: AnalyzeResponse, b: AnalyzeResponse): string |
       : `두 위치가 같은 구(${a.context.gu_name})에 있습니다.`
   const same = parts ? ` ${parts} 데이터라 두 위치 점수가 같습니다.` : ''
   // 반경은 응답의 분석 반경(8-D3 이후 300·500·1,000m) — 고정값을 쓰지 않는다
+  const radius = formatRadius(a.result.meta.분석반경_m)
   const differs =
-    relation === 'same-dong'
-      ? ` 이 비교에서 위치 차이는 경쟁성(반경 ${formatRadius(a.result.meta.분석반경_m)})과 입지성(좌표)에만 나타납니다.`
-      : ''
+    relation !== 'same-dong'
+      ? ''
+      : radiusCustomer(a) || radiusCustomer(b)
+        ? ` 이 비교에서 위치 차이는 고객성·경쟁성(반경 ${radius})과 입지성(좌표)에 나타납니다.`
+        : ` 이 비교에서 위치 차이는 경쟁성(반경 ${radius})과 입지성(좌표)에만 나타납니다.`
   return where + same + differs
 }
 

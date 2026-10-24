@@ -8,7 +8,13 @@
   location(biz)     158개 행정동 중심점 × site_profile     (유인시설 집합마다 다름, run_all.py 와 같은 키)
   stability(biz)    시군구별 안정성 분포                    (업종마다 다름, 가벼움)
 
-계산식은 v0.3 엔진 함수(radius_demand.build_reference, etl_location.site_profile)를 그대로 호출한다.
+계산식은 엔진 함수(radius_demand.build_reference, etl_location.site_profile)를 그대로 호출한다.
+엔진 v0.5(AREA_WEIGHTED, D-028)는 팀 run_all.py v0.5 와 같은 인자로 부른다.
+  competition  build_reference(shops, popd, biz, r, pop_col=DEMAND_COLS(거주+종사자), extra_cols=[타겟_업종, 총인구, 종사자수],
+               same_weights=대체업종, areas=경계 면적 배분) — 같은 표가 경쟁성 비교 분포·집적도(agg_ref)·고객성 반경 비교 분포
+               (customer_inputs)를 함께 준다. 키는 그대로 (업종, 반경). 면적 가중치는 RuntimeData.areas 가 중심점마다 재사용한다.
+  location     키 = (유인시설 집합, 학교구역 적용 여부) — 같은 유인시설이라도 학교 200m 안 학교를 빼는 업종(PC방 등)과 아닌 업종이
+               다른 비교 분포를 쓴다(팀 run_all.loc_for 와 같은 키). v0.3·v0.4 키는 유인시설 집합 그대로(golden).
 디스크 캐시(data/cache/)는 아직 쓰지 않는다 (docs/ARCHITECTURE.md "캐시 경계").
 
 잠금 (8-D2a, docs/UX_REDESIGN.md 4.7)
@@ -31,7 +37,7 @@ from typing import Optional
 
 import pandas as pd
 
-from . import RADIUS_OPTIONS_M, config as C, etl_location, radius_demand
+from . import AREA_WEIGHTED, RADIUS_OPTIONS_M, config as C, etl_location, radius_demand
 from .runtime import RuntimeData
 
 LOC_REF_KEYS = ["역세권_강도", "유인시설_근접도", "최근접역_거리m"]
@@ -85,23 +91,33 @@ class ReferenceCache:
     def competition(self, biz: str, radius_m: int | None = None) -> tuple[pd.DataFrame, pd.DataFrame]:
         """(158개 행정동 반경 프로파일 표, 행정동별 전체 점포수). 반경마다 비교 모집단이 다르다(D-024)."""
         key = (biz, C.RADIUS_M if radius_m is None else radius_m)
+        if AREA_WEIGHTED:
+            return self._get(self._competition, key, lambda: radius_demand.build_reference(
+                self.rt.shops, demand_table(self.rt.panel, biz), biz, key[1], pop_col=C.DEMAND_COLS,
+                extra_cols=customer_cols(biz), same_weights=C.same_weights(biz), areas=self.rt.areas))
         return self._get(self._competition, key, lambda: radius_demand.build_reference(
             self.rt.shops, self.rt.panel[["시군구명", "행정동명", "총인구"]], biz, key[1]))
 
     # ── 입지성 ──────────────────────────────────────────────
     @staticmethod
     def anchor_key(biz: str) -> tuple:
-        return tuple(C.ANCHOR.get(biz, C.DEFAULT_ANCHOR))
+        """입지 reference 키. v0.5 는 (유인시설 집합, 학교구역 적용 여부) — 팀 run_all.loc_for 와 같다."""
+        anchors = tuple(C.ANCHOR.get(biz, C.DEFAULT_ANCHOR))
+        return (anchors, etl_location._school_zoned(biz)) if AREA_WEIGHTED else anchors
+
+    @staticmethod
+    def anchor_types(key: tuple) -> tuple:
+        return key[0] if AREA_WEIGHTED else key
 
     def location(self, biz: str) -> dict:
-        """유인시설 집합이 같은 업종끼리 공유한다 (run_all.loc_for 의 _loc_cache 와 같은 키)."""
+        """유인시설 집합(v0.5 는 + 학교구역 적용 여부)이 같은 업종끼리 공유한다 (run_all.loc_for 의 _loc_cache 와 같은 키)."""
         key = self.anchor_key(biz)
 
         def build() -> dict:
             ref = [etl_location.site_profile(r["위도"], r["경도"], self.rt.stations, self.rt.anchors, biz)
                    for _, r in self.rt.centroids.iterrows()]
             d = {k: [x[k] for x in ref] for k in LOC_REF_KEYS}
-            d["유인시설_종류별"] = {t: [x["유인시설_종류별"].get(t, 0.0) for x in ref] for t in key}
+            d["유인시설_종류별"] = {t: [x["유인시설_종류별"].get(t, 0.0) for x in ref] for t in self.anchor_types(key)}
             return d
         return self._get(self._location, key, build)
 
@@ -136,3 +152,14 @@ class ReferenceCache:
 
     def stats(self) -> dict:
         return {"competition_entries": len(self._competition), "location_entries": len(self._location)}
+
+
+def customer_cols(biz: str) -> list[str]:
+    """v0.5 고객성 반경 입력 열 (팀 run_all v0.5: XC = [타겟_업종, 총인구, 종사자수])."""
+    return [f"타겟_{C.CODE_NAME[biz]}", "총인구", "종사자수"]
+
+
+def demand_table(panel: pd.DataFrame, biz: str) -> pd.DataFrame:
+    """v0.5 반경 배분용 행정동 표 (팀 run_all v0.5: popd = panel[[시군구명, 행정동명] + XC], 중복 열 제거)."""
+    popd = panel[["시군구명", "행정동명"] + customer_cols(biz)]
+    return popd.loc[:, ~popd.columns.duplicated()]

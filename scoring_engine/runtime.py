@@ -11,6 +11,10 @@ run_all.py 의 모듈 최상단 로드 블록과 같은 파일·같은 인코딩
                  없으면(data/runtime) ROLE_FILES 기본 파일명 — 지금까지의 동작과 바이트 단위로 같다 (golden 이 이를 검사한다).
   기준일         RuntimeData.as_of(역할) — manifest.roles[역할].as_of, 없으면 LEGACY_AS_OF (sources/team_v0.3/00_README.md 데이터 표).
   읽기 호출(pd.read_csv 인자·dtype·인코딩·순서)은 데이터 버전과 무관하게 같다. 경로만 바뀐다.
+
+엔진 v0.5(D-028)는 여기에 인구 면적 배분용 행정동 경계(data/geo/SGIS_행정동경계_2025_2Q_인천.geojson, scoring_engine/boundary.py)를
+한 번 더 읽는다(RuntimeData.areas). 데이터 버전 역할 키가 아니라 엔진 v0.5 입력이다 — data/runtime·매니페스트 역할 8개는 그대로.
+v0.3·v0.4 는 areas = None (읽지 않는다).
 """
 from __future__ import annotations
 
@@ -21,7 +25,7 @@ from typing import Optional
 
 import pandas as pd
 
-from . import config as C, etl_location, etl_rent
+from . import AREA_WEIGHTED, config as C, etl_location, etl_rent
 
 build_anchor_points = etl_location.build_anchor_points
 load_schools = etl_location.load_schools
@@ -169,6 +173,7 @@ class RuntimeData:
     rent: pd.DataFrame           # 인천 9개 상권 임대료 (최신 분기)
     data_dir: str
     version: Optional[DataVersion] = None   # 데이터 버전 메타 (load_runtime 이 채운다)
+    areas: Optional[object] = None          # v0.5: 행정동 경계 면적 배분 (boundary.ReusedAreas — 중심점 가중치 재사용). v0.3·v0.4 None
 
     def as_of(self, role: str) -> str:
         """역할 키의 자료 기준일 — 매니페스트 값, 없으면 LEGACY_AS_OF."""
@@ -219,6 +224,10 @@ def load_runtime(data_dir: Optional[str] = None) -> RuntimeData:
     anchors = build_anchor_points(schools, shops)
     centroids = shops.groupby(["시군구명", "행정동명"])[["위도", "경도"]].mean().reset_index()
     rent = incheon_areas(load_rent(p("rent")))
+    areas = None
+    if AREA_WEIGHTED:                          # v0.5: 경계 1회 로드, 비교 모집단 중심점의 면적 가중치는 업종과 무관하게 재사용
+        from .boundary import ReusedAreas, load_dong_areas
+        areas = ReusedAreas(load_dong_areas(panel), zip(centroids["위도"], centroids["경도"]))
     return RuntimeData(shops=shops, panel=panel, market=mkt, stability=stability, stations=stations,
                        schools=schools, anchors=anchors, centroids=centroids, rent=rent,
-                       data_dir=v.data_dir, version=v)
+                       data_dir=v.data_dir, version=v, areas=areas)

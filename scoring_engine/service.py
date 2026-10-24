@@ -7,14 +7,20 @@ v0.3 에서는 run_all.py 에 있었고, 여기서는 이 모듈이 진다.
 
 규칙: 엔진 계산식을 바꾸지 않는다. run_all.py 와 같은 입력을 같은 순서로 만든다.
       tests/test_golden_regression.py 가 29개 업종 전체 출력이 v0.3 결과와 같은지 검사한다.
+
+엔진 v0.5(AREA_WEIGHTED, D-028)는 팀 run_all.py v0.5 반복문 본문과 같은 입력을 만든다:
+  radius_profile(..., pop_col=DEMAND_COLS, extra_cols=XC, same_weights=대체업종, areas=경계 면적 배분)
+  → customer_inputs(rp, ref, 타겟_업종) 로 고객성 지점 값(dong)·비교 분포(panel)를 같은 반경 값으로 덮어쓴다
+  → analyze(..., agg_ref=ref["반경_전체점포"], schools=학교) — 학교구역 경고·집적도. tests/engine_v0_5 가 golden v0.5 와 대조한다.
+  반경 r 을 고르면 경쟁성·고객성·집적도·비교 분포가 모두 같은 r 로 계산된다(ReferenceCache 키 (업종, r)). 입지성·시장성·안정성은 반경과 무관.
 """
 from __future__ import annotations
 
 from typing import Optional
 
-from . import RADIUS_OPTIONS_M, config as C, etl_location, radius_demand, scoring
+from . import AREA_WEIGHTED, RADIUS_OPTIONS_M, config as C, etl_location, radius_demand, scoring
 from .context import SiteContext
-from .reference import ReferenceCache
+from .reference import ReferenceCache, customer_cols, demand_table
 from .runtime import RuntimeData, load_runtime
 
 # run_all.py 가 analyze() 결과에 덧붙이는 후처리 (엔진 밖 규칙).
@@ -63,8 +69,15 @@ class AnalysisService:
         stab_row, stab_n = cache.stability_row(biz, ctx.gu_name) if stab_ref else (None, 0)
 
         # ── 지점 프로파일 (요청마다) ────────────────────────
-        rp = radius_demand.radius_profile(ctx.lat, ctx.lng, rt.shops, panel[["시군구명", "행정동명", "총인구"]],
-                                          biz, radius, dong_total_shops=dong_total)
+        if AREA_WEIGHTED:
+            rp = radius_demand.radius_profile(ctx.lat, ctx.lng, rt.shops, demand_table(panel, biz), biz, radius,
+                                              pop_col=C.DEMAND_COLS, dong_total_shops=dong_total,
+                                              extra_cols=customer_cols(biz), same_weights=C.same_weights(biz),
+                                              areas=rt.areas)
+            cust_dong, cust_panel = radius_demand.customer_inputs(rp, ref, f"타겟_{tgt}")
+        else:
+            rp = radius_demand.radius_profile(ctx.lat, ctx.lng, rt.shops, panel[["시군구명", "행정동명", "총인구"]],
+                                              biz, radius, dong_total_shops=dong_total)
         lp = etl_location.site_profile(ctx.lat, ctx.lng, rt.stations, rt.anchors, biz)
 
         pn = dict(self._base_panel)
@@ -74,6 +87,9 @@ class AnalysisService:
         pn["target_share"] = panel[f"타겟비중_{tgt}"].tolist()
         pn["n_same_biz"] = panel[tgt].tolist()
         pn["same_biz_share"] = ref["반경_동종비중"].fillna(0).tolist()
+        if AREA_WEIGHTED:
+            pn["same_biz_count"] = ref.loc[ref["반경_동종점포"] > 0, "반경_동종점포"].tolist()   # P1_MODE="count" 용(기본 share)
+            pn.update(cust_panel)                                                                # 고객성 반경 비교 분포
 
         dong = {"pop_total": int(row["총인구"]),
                 "target_pop": float(row[f"타겟_{tgt}"]), "target_share": float(row[f"타겟비중_{tgt}"]),
@@ -87,6 +103,8 @@ class AnalysisService:
                 **({"survival_3y__gugu_sobun": float(stab_row["생존율_3년"]),
                     "closure_rate__gugu_sobun": float(stab_row["최근3년_폐업률"]),
                     "avg_tenure__gugu_sobun": float(stab_row["평균업력_년"])} if stab_row is not None else {})}
+        if AREA_WEIGHTED:
+            dong.update(cust_dong)                     # 반경 타겟 인구·비중·종사자 (팀 run_all v0.5)
 
         # run_all.py 와 같은 문구로 Site 를 만든다 (meta.query 가 golden 에 포함됨).
         site = scoring.Site.from_query(ctx.lat, ctx.lng, f"{ctx.label} 근처 {tgt}", dong_name=ctx.display_dong)
@@ -98,10 +116,11 @@ class AnalysisService:
             site, dong, pn, [], [], [], cc,
             radius_profile=rp,
             radius_ref=ref.loc[ref["반경_동종점포"] > 0, "반경_점포당수요"].dropna().tolist(),
+            **({"agg_ref": ref["반경_전체점포"].tolist()} if AREA_WEIGHTED else {}),   # v0.5 상권 집적도 비교 분포
             loc_profile=lp, loc_ref=lref,
             user_weights=user_weights, importance=importance, user_licenses=user_licenses,
             schools=rt.schools,
-            # v0.3 analyze() 는 radius_m 인자가 없다(500 고정). 반경을 받는 엔진(v0.4)에만 넘긴다
+            # v0.3 analyze() 는 radius_m 인자가 없다(500 고정). 반경을 받는 엔진(v0.4·v0.5)에만 넘긴다
             **({"radius_m": radius} if len(RADIUS_OPTIONS_M) > 1 else {}))
 
         for i in res["지표"]:

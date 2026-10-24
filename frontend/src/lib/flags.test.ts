@@ -22,8 +22,16 @@ function engineFlags(v: string): Set<string> {
 }
 
 describe('FLAG_TEXT — 엔진 flag 문자열과 일치', () => {
-  it.each(['v0_3', 'v0_4'])('엔진 %s가 낼 수 있는 flag 전체와 키 집합이 같다(빠짐·지어낸 키 없음)', (v) => {
-    expect(new Set(Object.keys(FLAG_TEXT))).toEqual(engineFlags(v))
+  it('엔진 v0_3·v0_4·v0_5가 낼 수 있는 flag 전체의 합집합과 키 집합이 같다(빠짐·지어낸 키 없음)', () => {
+    const all = new Set(['v0_3', 'v0_4', 'v0_5'].flatMap((v) => [...engineFlags(v)]))
+    expect(new Set(Object.keys(FLAG_TEXT))).toEqual(all)
+  })
+
+  it('v0_3·v0_4는 같은 flag, v0_5는 학교구역 flag 하나만 더 낸다(D-028)', () => {
+    expect(engineFlags('v0_4')).toEqual(engineFlags('v0_3'))
+    const added = [...engineFlags('v0_5')].filter((f) => !engineFlags('v0_3').has(f))
+    expect(added).toEqual(['학교구역_학교_가점제외'])
+    expect([...engineFlags('v0_3')].every((f) => engineFlags('v0_5').has(f))).toBe(true)
   })
 
   it('해상도 flag는 특이사항에서 뺀다(근거 줄 "· 구 단위"·계산 단위 줄과 중복), 나머지는 라벨·설명이 있다', () => {

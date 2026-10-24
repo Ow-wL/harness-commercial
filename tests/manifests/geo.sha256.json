@@ -28,6 +28,11 @@
     "인천_시군구경계_2026.geojson": {
       "sha256": "da9c11e325a4307516c9c21cce54720a610bfde143d40c5431d3293a4c5944f3",
       "git": true
+    },
+    "SGIS_행정동경계_2025_2Q_인천.geojson": {
+      "sha256": "27d0ea4a5cc7d2d9be6b9b2cb6e537c0f0f5749ce7db04b5b1d06dece02ed280",
+      "source": "팀 전달 v0.5(2026-10-23) 07_가공데이터/경계_인천_행정동.geojson 바이트 사본 — 통계청 SGIS 행정구역 통계 및 경계 bnd_dong_00_2025_2Q(EPSG:5179→WGS84, etl_boundary.export_geojson), 인천 156개 Polygon. 엔진 v0.5 인구 면적 배분 전용(D-028), 지도·행정동 판정에는 쓰지 않는다. build_geo.py 산출물 아님",
+      "git": true
     }
   }
 }

@@ -105,3 +105,10 @@
   --tone: var(--color-info);
   --tone-subtle: var(--color-info-subtle);
 }
+
+/* 학교구역(v0.5, D-028): 다른 경고보다 앞·강하게 — 위험 색 + 굵은 글자. 주의 안내이며 영업 가능 여부 판정이 아니다 */
+.band__item--priority {
+  --tone: var(--color-danger);
+  --tone-subtle: var(--color-danger-subtle);
+  font-weight: 600;
+}

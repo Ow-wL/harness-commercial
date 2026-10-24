@@ -27,6 +27,7 @@ import type { SdkState } from './map/naverMaps.ts'
 import type { CompareSide } from './lib/compare.ts'
 import { COMPARE_IDS, sameCoordinates, type CompareState, type CompareView } from './lib/compareState.ts'
 import { errorView, type ErrorAction } from './lib/errorView.ts'
+import { effectiveSameCount } from './lib/evidence.ts'
 import {
   formatDistance,
   formatRadius,
@@ -138,6 +139,8 @@ function App() {
   // 분석 반경 (8-D3, D-024, docs/UX_REDESIGN.md 4.3~4.6). radiusOptions = 서버 광고(GET /health engine.radius_options).
   // 2개 미만(구버전 서버 = engine 없음, 새 v0.3 서버 = [500])이면 반경 선택을 숨기고 radius_m 을 보내지 않는다
   const [radiusOptions, setRadiusOptions] = useState<number[]>([])
+  // 서버 엔진 버전(/health engine.version) — 반경 안내 문구만 쓴다(v0.5 는 고객성도 반경을 따른다, D-028)
+  const [serverEngine, setServerEngine] = useState<string | null>(null)
   const [radius, setRadius] = useState(DEFAULT_RADIUS_M)
   const [prevRadius, setPrevRadius] = useState<number | null>(null)
   const [radiusNotice, setRadiusNotice] = useState<string | null>(null)
@@ -231,7 +234,10 @@ function App() {
   useEffect(() => {
     const ac = new AbortController()
     fetchHealth(ac.signal)
-      .then((r) => setRadiusOptions(r.ok && r.data.engine ? r.data.engine.radius_options : []))
+      .then((r) => {
+        setRadiusOptions(r.ok && r.data.engine ? r.data.engine.radius_options : [])
+        setServerEngine(r.ok && r.data.engine ? r.data.engine.version : null)
+      })
       .catch(() => {})                                     // 취소된 요청
     return () => ac.abort()
   }, [])
@@ -599,6 +605,7 @@ function App() {
       const engineInfo = r.ok ? r.data.engine : undefined
       const options = engineInfo ? engineInfo.radius_options : []
       setRadiusOptions(options)
+      setServerEngine(engineInfo ? engineInfo.version : null)
       if (options.length >= 2 && options.includes(request.radius_m)) {
         console.error(`[api] 반경 ${request.radius_m}m 문제(${problem})지만 서버가 아직 광고합니다 — 복구하지 않습니다`)
         return
@@ -815,6 +822,7 @@ function App() {
         bizName={response.result.meta.업종}
         radiusM={response.result.meta.분석반경_m}
         expectedCount={response.result.지표[2].raw.동종점포수}
+        effectiveCount={effectiveSameCount(response.result.지표[2])}
         show={compareShowStores}
         onShowChange={changeShowStores}
         activeId={activeStoreId}
@@ -902,6 +910,7 @@ function App() {
   const radiusControl = radiusEnabled ? (
     <RadiusControl
       variant={radiusInBar ? 'bar' : 'step'}
+      engineVersion={result?.result.meta.엔진버전 ?? serverEngine}
       options={radiusOptions}
       value={radius}
       disabled={radiusBusy}
@@ -1071,6 +1080,7 @@ function App() {
               bizName={result.result.meta.업종}
               radiusM={result.result.meta.분석반경_m}
               expectedCount={result.result.지표[2].raw.동종점포수}
+              effectiveCount={effectiveSameCount(result.result.지표[2])}
               show={showStores}
               onShowChange={changeShowStores}
               activeId={activeStoreId}

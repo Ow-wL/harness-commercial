@@ -1,6 +1,6 @@
 import { useId, useState, type ReactNode } from 'react'
-import type { EngineResult } from '../api/schemas.ts'
-import { GUIDE_LABELS, PERSPECTIVE_GUIDE } from '../content/scoreGuide.ts'
+import { isAreaWeightedEngine, type EngineResult } from '../api/schemas.ts'
+import { GUIDE_LABELS, perspectiveGuide } from '../content/scoreGuide.ts'
 import { BOTTLENECK_WARN_BELOW, formatRatio, groupName, MIN_COVERAGE, type Indicator } from '../lib/format.ts'
 import { Icon } from './Icon.tsx'
 import './ScoreGuide.css'
@@ -45,8 +45,17 @@ function weightList(weights: Partial<Record<Indicator['key'], number>>, indicato
  * 관점 설명 (DESIGN.md §8.9a). 관점 아코디언 안의 2차 disclosure — 점수가 null이어도 연다.
  * 정적 문장은 content/scoreGuide.ts, "이 결과" 줄은 API 응답(기본·적용 가중치, 타겟 정의, 유인시설 기준).
  */
-export function PerspectiveGuide({ indicator: ind, summary }: { indicator: Indicator; summary: Summary }) {
-  const guide = PERSPECTIVE_GUIDE[ind.key]
+export function PerspectiveGuide({
+  indicator: ind,
+  summary,
+  engineVersion,
+}: {
+  indicator: Indicator
+  summary: Summary
+  /** meta.엔진버전 — v0.5 는 고객성·경쟁성·입지성 설명이 다르다 (content/scoreGuide.ts) */
+  engineVersion: string
+}) {
+  const guide = perspectiveGuide(ind.key, engineVersion)
   const applied = summary.적용_가중치[ind.key]
   const userWeighted = summary.가중치_출처 !== '기본(업종그룹)'
 
@@ -111,6 +120,7 @@ export function ScoreReadingGuide({
   indicators: readonly Indicator[]
 }) {
   const scored = indicators.filter((i) => i.score !== null).length
+  const v05 = isAreaWeightedEngine(meta.엔진버전)
 
   return (
     <Disclosure label="점수 읽는 법" className="guide guide--reading">
@@ -119,8 +129,10 @@ export function ScoreReadingGuide({
         <p>
           세부지표 점수는 인천 비교 대상(관점마다 다름, 아래 "데이터 출처"의 비교 대상 표)과 견준 백분위입니다. 높을수록
           좋은 지표는 이 값보다 낮은 곳의 비율, 낮을수록 좋은 지표(동종업종 비중·최근접역 거리·폐업률·임대료)는 이 값과
-          같거나 높은 곳의 비율이라 어느 쪽이든 높을수록 유리합니다. 1인 세대 비중은 업종에 따라 50점 쪽으로 당긴 값,
-          유인시설 근접도는 시설 종류별 점수의 평균입니다.
+          같거나 높은 곳의 비율이라 어느 쪽이든 높을수록 유리합니다.{' '}
+          {v05
+            ? '1인 세대 비중 점수는 업종 민감도(−1~+1)만큼 50점 쪽으로 당긴 값이며, 민감도가 음수인 가족형 업종(입시·교과학원·슈퍼마켓 등)은 방향이 반대라 1인 세대 비중이 높을수록 50점 아래로 내려갑니다. 종사자 수 점수도 업종 민감도만큼 50점 쪽으로 당긴 값이고, 유인시설 근접도는 시설 종류별 점수(종류마다 가장 가까운 3곳 기준)의 평균입니다.'
+            : '1인 세대 비중은 업종에 따라 50점 쪽으로 당긴 값, 유인시설 근접도는 시설 종류별 점수의 평균입니다.'}
         </p>
         <p>
           관점 점수는 세부지표 점수의 가중평균, 종합 점수는 관점 점수의 가중평균입니다. 평균을 거치면 순위 의미가
@@ -130,6 +142,13 @@ export function ScoreReadingGuide({
           결과 맨 위 헤드라인의 "가장 높고 낮음"은 이 위치에서 산출한 관점 점수끼리 비교한 표현입니다. 다른 위치와 비교한
           순위가 아닙니다.
         </p>
+        {v05 && (
+          <p>
+            고객성·경쟁성·입지성의 비교 기준은 인천 158개 행정동 중심점(행정동마다 점포 좌표의 평균 지점, 동네 평균 지점)입니다.
+            상업지 후보지끼리의 순위가 아니므로, 역 앞·상가 밀집지처럼 고른 위치는 입지성·상권 집적도에서 대체로 높게
+            나옵니다. 고객성 인구와 경쟁성 잠재수요는 같은 분석 반경 안의 값을 행정동 경계 면적 비율로 나눠 계산합니다.
+          </p>
+        )}
       </section>
 
       <section className="guide__section">
@@ -183,6 +202,10 @@ export function ScoreReadingGuide({
           않습니다. 인천은 행정동 단위 매출 원자료가 공개되지 않아 매출은 추정하지 않습니다. 임대 조건·유동 동선·경쟁
           점포의 실제 상태는 현장에서 확인해야 합니다.
         </p>
+        <p>
+          분석팀의 사후 점검(인천 음식 9개 업종, 2013년 이후 개업한 음식점의 실제 3년 생존과 점수 비교)에서도 점수가 높은
+          곳의 가게가 더 오래 살아남는다는 관계는 확인되지 않았습니다. 점수는 생존이나 성공을 예측하도록 만든 값이 아닙니다.
+        </p>
       </section>
 
       <section className="guide__section">
@@ -192,6 +215,11 @@ export function ScoreReadingGuide({
           지도에서 고른 위치를 어느 상권에 연결할 근거가 없습니다. 그래서 일반 웹 분석은 모든 위치에서 임대료를 빼고
           안정성을 생존율·폐업률·업력으로 계산합니다. 임대료를 넣어 계산한 보고서의 부평역 예시와 웹 점수가 다를 수
           있습니다.
+        </p>
+        <p>
+          보고서 계산의 임대료 지표는 임대료가 높을수록 감점하는 방식이라 "이 임대료를 감당할 수 있는가"에 가깝고 "손님에
+          비해 비싼가"를 뜻하지 않습니다. 임대료가 높은 상권은 수요도 큰 경우가 많습니다. 실제 임대 조건은 현장에서
+          확인해야 합니다.
         </p>
       </section>
     </Disclosure>

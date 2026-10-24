@@ -24,7 +24,7 @@ import {
   nearestStation,
 } from '../lib/format.ts'
 import { compareBand } from '../lib/attentionBand.ts'
-import { dataLimits, displayWarnings } from '../lib/warnings.ts'
+import { dataLimits, displayWarnings, isSchoolZoneWarning } from '../lib/warnings.ts'
 import { AnalysisResult } from './AnalysisResult.tsx'
 import { AttentionBand } from './AttentionBand.tsx'
 import { DataSources, SERVICE_DISCLAIMER } from './DataSources.tsx'
@@ -529,7 +529,11 @@ function SideWarnings({ side, analysis }: { side: CompareSide; analysis: Analyze
       ) : (
         <ul className="warnings__list">
           {warnings.map((text) => (
-            <li key={text} className="warnings__item warnings__item--warning">
+            // v0.5 학교구역 경고(엔진 순서상 맨 앞)는 원문 그대로 강조만 한다 (WarningPanel 과 같은 규칙, D-028)
+            <li
+              key={text}
+              className={`warnings__item ${isSchoolZoneWarning(text) ? 'warnings__item--priority' : 'warnings__item--warning'}`}
+            >
               <Icon name="alert-triangle" />
               <span>{text}</span>
             </li>

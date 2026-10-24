@@ -47,3 +47,21 @@
   --tone: var(--color-info);
   --tone-subtle: var(--color-info-subtle);
 }
+
+/* 학교구역 경고(v0.5, D-028): 맨 앞(엔진 순서) + 위험 색 강조. 문장은 엔진 원문 그대로 */
+.warnings__item--priority {
+  --tone: var(--color-danger);
+  --tone-subtle: var(--color-danger-subtle);
+}
+
+.warnings__tag {
+  display: block;
+  margin-bottom: var(--space-1);
+  color: var(--color-danger);
+}
+
+.warnings__note {
+  display: block;
+  margin-top: var(--space-1);
+  color: var(--color-text-secondary);
+}

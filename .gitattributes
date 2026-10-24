@@ -7,6 +7,8 @@ data/geo/*.csv -text
 sources/** -text
 scoring_engine/v0_3/** -text
 scoring_engine/v0_4/** -text
+scoring_engine/v0_5/** -text
+scoring_engine/v0_5_1/** -text
 data/runtime/** -text
 tests/golden/** -text
 

@@ -36,7 +36,8 @@ FROM python:3.10-slim
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
-    PIP_DISABLE_PIP_VERSION_CHECK=1
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    MPLCONFIGDIR=/tmp/matplotlib
 WORKDIR /app
 COPY requirements.txt ./
 RUN pip install -r requirements.txt
@@ -46,6 +47,8 @@ COPY backend/__init__.py backend/
 COPY backend/app/ backend/app/
 COPY data/runtime/ data/runtime/
 COPY ["data/geo/인천_행정동경계_2026.geojson", "data/geo/"]
+# 엔진 v0.5 인구 면적 배분용 SGIS 2025년 2분기 경계(D-028). 지도·행정동 판정용 2026 경계와 별개 — v0.3·v0.4 는 읽지 않는다
+COPY ["data/geo/SGIS_행정동경계_2025_2Q_인천.geojson", "data/geo/"]
 COPY --from=frontend /build/frontend/dist/ frontend/dist/
 
 RUN useradd --system --uid 10001 app
@@ -54,5 +57,7 @@ USER app
 ENV FRONTEND_DIST=/app/frontend/dist \
     PORT=8080
 EXPOSE 8080
+# 엔진 버전은 이미지에 고정하지 않는다: 실행 환경변수 SCORING_ENGINE_VERSION = v0_3(기본) | v0_4 | v0_5 (Cloud Run 리비전 설정)
+# matplotlib(v0.5 면적 배분)은 matplotlib.path 만 쓴다. MPLCONFIGDIR 는 홈 없는 app 사용자의 설정 캐시 경고를 막는다
 # Cloud Run 이 PORT 를 넣는다. worker 1개 — 워커마다 RuntimeData·ReferenceCache 를 따로 가지므로 (D-016)
 CMD ["sh", "-c", "exec uvicorn backend.app.main:app --host 0.0.0.0 --port ${PORT} --workers 1"]
