@@ -1,0 +1,252 @@
+/* 업데이트 내역(D-031): 조건 바 버튼 + 최신순 모달. 색은 테마 토큰만 쓴다(라이트·다크 공통) */
+
+/* 조건 바 버튼 — 테마 전환 버튼과 같은 높이·테두리·그림자. 넓은 화면에서만 글자를 붙인다 */
+.bar__updates {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: var(--a3-bar-h);
+  height: var(--a3-bar-h);
+  margin-left: auto;
+  padding: 0 10px;
+  border: 1px solid var(--color-map-ui-edge);
+  border-radius: 12px;
+  background: var(--color-surface);
+  box-shadow: var(--shadow-map-ui);
+  font: var(--text-small);
+  font-weight: 600;
+  white-space: nowrap;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+
+.bar__updates:hover {
+  color: var(--color-accent);
+}
+
+/* 테마 버튼의 margin-left:auto 는 업데이트 버튼이 대신 맡는다(두 버튼이 오른쪽 끝에 붙는다) */
+.bar__updates + .bar__theme {
+  margin-left: 0;
+}
+
+@media (max-width: 1100px) {
+  .bar__updates {
+    padding: 0;
+  }
+
+  .bar__updates-label {
+    display: none;
+  }
+}
+
+.updates-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-4);
+  background: rgba(5, 10, 22, 0.55);
+}
+
+.updates {
+  display: flex;
+  flex-direction: column;
+  width: min(560px, 100%);
+  max-height: min(720px, calc(100dvh - 2 * var(--space-4)));
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: var(--color-surface);
+  box-shadow: var(--shadow-panel);
+  color: var(--color-text-primary);
+}
+
+.updates:focus {
+  outline: none;
+}
+
+.updates__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-3) var(--space-3) var(--space-5);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.updates__title {
+  margin: 0;
+  font: var(--text-section);
+  letter-spacing: -0.01em;
+}
+
+.updates__close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+
+.updates__close:hover {
+  background: var(--color-surface-sunken);
+  color: var(--color-text-primary);
+}
+
+.updates__body {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: var(--space-4) var(--space-5) var(--space-5);
+}
+
+.updates__current {
+  margin: 0;
+  font: var(--text-body);
+}
+
+.updates__note,
+.updates__foot {
+  margin: var(--space-1) 0 0;
+  font: var(--text-small);
+  color: var(--color-text-muted);
+}
+
+.updates__list {
+  margin: var(--space-4) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.updates__item {
+  padding: var(--space-4) 0;
+  border-top: 1px solid var(--color-border);
+}
+
+.updates__item-head {
+  margin: 0;
+  font: var(--text-card-title);
+}
+
+.updates__version {
+  font-variant-numeric: tabular-nums;
+  color: var(--color-accent);
+}
+
+.updates__date {
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-muted);
+}
+
+.updates__item-title {
+  display: block;
+  margin-top: 2px;
+}
+
+.updates__changes {
+  margin: var(--space-2) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.updates__change {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  margin-top: var(--space-1);
+  font: var(--text-small);
+  color: var(--color-text-secondary);
+}
+
+/* 종류는 글자로 구분한다(색은 보조) */
+.updates__tag {
+  flex: none;
+  padding: 0 6px;
+  border-radius: var(--radius-sm);
+  font: var(--text-caption);
+  line-height: 18px;
+}
+
+.updates__tag--added {
+  background: var(--color-success-subtle);
+  color: var(--color-success);
+}
+
+.updates__tag--improved {
+  background: var(--color-accent-subtle);
+  color: var(--color-accent);
+}
+
+.updates__tag--fixed {
+  background: var(--color-surface-sunken);
+  color: var(--color-text-secondary);
+}
+
+.updates__live {
+  margin: var(--space-2) 0 0;
+  font: var(--text-caption);
+  color: var(--color-text-muted);
+}
+
+.updates__details {
+  margin-top: var(--space-2);
+  font: var(--text-small);
+}
+
+.updates__details > summary {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  color: var(--color-accent);
+  cursor: pointer;
+}
+
+.updates__meta {
+  margin: var(--space-1) 0 0;
+  color: var(--color-text-secondary);
+}
+
+.updates__meta dt {
+  margin-top: var(--space-2);
+  font: var(--text-caption);
+  color: var(--color-text-muted);
+}
+
+.updates__meta dd {
+  margin: 2px 0 0;
+  overflow-wrap: anywhere;
+}
+
+.updates__meta code {
+  font-size: 12px;
+}
+
+.updates__commits {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+}
+
+@media (max-width: 639px) {
+  .updates-backdrop {
+    align-items: flex-end;
+    padding: var(--space-4) 0 0;
+  }
+
+  .updates {
+    width: 100%;
+    max-height: calc(100dvh - var(--space-8));
+    border-radius: 12px 12px 0 0;
+  }
+
+  .updates__body {
+    padding: var(--space-4);
+  }
+}

@@ -5,6 +5,7 @@
 `src/lib/storeIcons.ts`의 점포 글리프 13개(`coffee`, `croissant`, `utensils`, `pizza`, `beer`, `shopping-basket`, `scissors`,
 `book-open`, `gamepad-2`, `dumbbell`, `washing-machine`, `pill`, `store`)는 Lucide(https://lucide.dev, lucide-static v0.544.0)의
 SVG path를 inline으로 옮긴 것이다. 라이브러리 패키지는 의존성에 넣지 않았다.
+`src/components/Icon.tsx`의 UI 아이콘 `history`·`x`(업데이트 내역)도 같은 방식으로 Lucide에서 옮겼다.
 
 ```
 ISC License

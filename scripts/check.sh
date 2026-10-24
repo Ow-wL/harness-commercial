@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# 전체 검증 (bash / Git Bash / macOS / Linux).  사용: scripts/check.sh [--fast]
+# 검증 (bash / Git Bash / macOS / Linux).  사용: scripts/check.sh [--fast] [--only KEY,...] [--list]  — 인자 없으면 전체
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 if [ -x "$ROOT/.venv/Scripts/python.exe" ]; then PY="$ROOT/.venv/Scripts/python.exe"

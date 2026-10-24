@@ -29,51 +29,56 @@ const sdkMock = vi.hoisted(() => {
       },
     },
   }
-  return { reverseCalls, geocodeCalls, api }
+  // 지도 영역 예외(MapErrorBoundary) 재현용 — true면 mock 지도가 렌더 중 예외를 던진다
+  const crash = { on: false }
+  return { reverseCalls, geocodeCalls, api, crash }
 })
 
 vi.mock('./components/MapView.tsx', () => ({
-  MapView: (props: MapViewProps) => (
-    <div
-      data-testid="map"
-      data-selected={props.selected ? `${props.selected.lat},${props.selected.lng}` : ''}
-      data-radius={props.radiusM ?? ''}
-      data-tone={props.markerTone}
-      data-dong={props.dong ? `${props.dong.guCode} ${props.dong.dongName}` : ''}
-      data-stores={props.stores ? String(props.stores.length) : ''}
-      data-active-store={props.activeStoreId ?? ''}
-      data-interactive={String(props.interactive)}
-      data-compare={props.compare ? 'on' : undefined}
-      data-compare-location={props.compare ? (props.compare.location ? `${props.compare.location.lat},${props.compare.location.lng}` : '') : undefined}
-      data-compare-tone={props.compare?.tone}
-      data-compare-dong={props.compare ? (props.compare.dong ? `${props.compare.dong.guCode} ${props.compare.dong.dongName}` : '') : undefined}
-      data-compare-guide={props.compare?.guide ?? undefined}
-      data-store-context={props.storeContext}
-      data-layout-key={props.layoutKey}
-      data-theme={props.theme}
-    >
-      <button type="button" onClick={() => props.interactive && props.onSelect({ lat: 37.4894, lng: 126.7246 })}>
-        지도 클릭: 부평역
-      </button>
-      <button type="button" onClick={() => props.interactive && props.onSelect({ lat: 37.392512, lng: 126.639034 })}>
-        지도 클릭: 송도
-      </button>
-      <button type="button" onClick={() => props.onSdkState?.({ status: 'ready', api: sdkMock.api as never, geocoder: 'ready' })}>
-        SDK 준비
-      </button>
-      <button type="button" onClick={() => props.onSdkState?.({ status: 'ready', api: sdkMock.api as never, geocoder: 'unavailable' })}>
-        SDK Geocoder 없음
-      </button>
-      <button type="button" onClick={() => props.onSdkState?.({ status: 'failed', kind: 'auth' })}>
-        SDK 인증 실패
-      </button>
-      {props.stores?.[1] && (
-        <button type="button" onClick={() => props.onStoreSelect?.(props.stores![1]!.id)}>
-          지도 점포 마커: {props.stores[1].name}
+  MapView: (props: MapViewProps) => {
+    if (sdkMock.crash.on) throw new TypeError("Cannot read properties of null (reading 'isArray')")
+    return (
+      <div
+        data-testid="map"
+        data-selected={props.selected ? `${props.selected.lat},${props.selected.lng}` : ''}
+        data-radius={props.radiusM ?? ''}
+        data-tone={props.markerTone}
+        data-dong={props.dong ? `${props.dong.guCode} ${props.dong.dongName}` : ''}
+        data-stores={props.stores ? String(props.stores.length) : ''}
+        data-active-store={props.activeStoreId ?? ''}
+        data-interactive={String(props.interactive)}
+        data-compare={props.compare ? 'on' : undefined}
+        data-compare-location={props.compare ? (props.compare.location ? `${props.compare.location.lat},${props.compare.location.lng}` : '') : undefined}
+        data-compare-tone={props.compare?.tone}
+        data-compare-dong={props.compare ? (props.compare.dong ? `${props.compare.dong.guCode} ${props.compare.dong.dongName}` : '') : undefined}
+        data-compare-guide={props.compare?.guide ?? undefined}
+        data-store-context={props.storeContext}
+        data-layout-key={props.layoutKey}
+        data-theme={props.theme}
+      >
+        <button type="button" onClick={() => props.interactive && props.onSelect({ lat: 37.4894, lng: 126.7246 })}>
+          지도 클릭: 부평역
         </button>
-      )}
-    </div>
-  ),
+        <button type="button" onClick={() => props.interactive && props.onSelect({ lat: 37.392512, lng: 126.639034 })}>
+          지도 클릭: 송도
+        </button>
+        <button type="button" onClick={() => props.onSdkState?.({ status: 'ready', api: sdkMock.api as never, geocoder: 'ready' })}>
+          SDK 준비
+        </button>
+        <button type="button" onClick={() => props.onSdkState?.({ status: 'ready', api: sdkMock.api as never, geocoder: 'unavailable' })}>
+          SDK Geocoder 없음
+        </button>
+        <button type="button" onClick={() => props.onSdkState?.({ status: 'failed', kind: 'auth' })}>
+          SDK 인증 실패
+        </button>
+        {props.stores?.[1] && (
+          <button type="button" onClick={() => props.onStoreSelect?.(props.stores![1]!.id)}>
+            지도 점포 마커: {props.stores[1].name}
+          </button>
+        )}
+      </div>
+    )
+  },
 }))
 
 /** GET /businesses 응답 (테스트 데이터: 실제 계약 모양, 일부 업종만) */
@@ -3435,4 +3440,64 @@ describe('첫 방문 안내 (묶음 D, docs/ONBOARDING_DESIGN.md)', () => {
       expect(within(conditions()).getByRole('combobox', { name: '업종' })).toBeInTheDocument()
     })
   })
+})
+
+describe('업데이트 내역 (D-031) — 지도 실패에도 열리고, 열고 닫아도 분석·비교 상태는 그대로', () => {
+  const ok = (body: unknown) => ({ status: 200, body })
+  const updatesButton = () => screen.getByRole('button', { name: '업데이트 내역' })
+  function openAndCloseUpdates() {
+    updatesButton().focus()
+    fireEvent.click(updatesButton())
+    const dialog = screen.getByRole('dialog', { name: '업데이트 내역' })
+    expect(dialog).toHaveFocus()
+    fireEvent.keyDown(dialog, { key: 'Escape' })
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(updatesButton()).toHaveFocus()
+  }
+
+  afterEach(() => {
+    sdkMock.crash.on = false
+  })
+
+  it('지도 SDK 인증 실패 상태에서 분석 결과를 둔 채 열고 닫는다 — 결과·선택 위치가 그대로다', async () => {
+    mockApi({ analyze: [ok(fixture)], nearby: [ok(nearbyFixture)] })
+    render(<App />)
+    fireEvent.click(screen.getByRole('button', { name: 'SDK 인증 실패' }))
+    await selectBupyeongPcBang()
+    fireEvent.click(analyzeButton())
+    await screen.findByRole('heading', { level: 1, name: '부평구 부평1동 · PC방 분석' })
+
+    openAndCloseUpdates()
+
+    expect(screen.getByRole('heading', { level: 1, name: '부평구 부평1동 · PC방 분석' })).toBeInTheDocument()
+    expect(screen.getByTestId('map')).toHaveAttribute('data-selected', '37.4894,126.7246')
+  })
+
+  it('지도 영역이 예외로 내려가도(지도 오류 경계) 업데이트 내역은 열리고, 비교 결과도 그대로다', async () => {
+    mockApi({ analyze: [ok(fixture), ok(guwolFixture)], nearby: [ok(nearbyFixture), ok(guwolNearbyFixture)] })
+    render(<App />)
+    await selectBupyeongPcBang()
+    fireEvent.click(analyzeButton())
+    await findList('PC방 점포 목록')
+    fireEvent.click(screen.getAllByRole('button', { name: '다른 위치와 비교' })[0]!)
+    const bCard = () => screen.getByRole('region', { name: 'B 비교 위치' })
+    fireEvent.change(within(bCard()).getByLabelText('B 위도'), { target: { value: '37.4475' } })
+    fireEvent.change(within(bCard()).getByLabelText('B 경도'), { target: { value: '126.7015' } })
+    fireEvent.click(within(bCard()).getByRole('button', { name: 'B 위치로 선택' }))
+    fireEvent.click(within(bCard()).getByRole('button', { name: 'B 분석하기' }))
+    await waitFor(() => expect(bCard()).toHaveTextContent('남동구 구월3동'))
+
+    // 지도 영역 예외 → 지도 칸만 실패 안내 (테마 전환으로 지도를 다시 그리게 한다)
+    sdkMock.crash.on = true
+    fireEvent.click(screen.getByRole('button', { name: /모드로 전환/ }))
+    expect(await screen.findByText('지도를 표시하지 못했습니다')).toBeInTheDocument()
+
+    openAndCloseUpdates()
+
+    expect(screen.getByRole('heading', { level: 1, name: '두 위치 비교 · PC방' })).toBeInTheDocument()
+    expect(bCard()).toHaveTextContent('남동구 구월3동')
+    expect(overallRowText()).toMatch(/종합.*65\.8.*59\.1/)
+  })
+
+  const overallRowText = () => within(getScoreTable()).getAllByRole('row')[1]!.textContent ?? ''
 })

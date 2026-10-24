@@ -24,6 +24,7 @@ import { MoreBelow } from './components/MoreBelow.tsx'
 import { NearbyStores } from './components/NearbyStores.tsx'
 import { RadiusControl } from './components/RadiusControl.tsx'
 import { ReferenceAddress } from './components/ReferenceAddress.tsx'
+import { UpdateNotes } from './components/UpdateNotes.tsx'
 import type { SdkState } from './map/naverMaps.ts'
 import type { CompareSide } from './lib/compare.ts'
 import { COMPARE_IDS, sameCoordinates, type CompareState, type CompareView } from './lib/compareState.ts'
@@ -1203,6 +1204,8 @@ function App() {
         </span>
         {barCondition}
         {radiusInBar && radiusControl}
+        {/* 업데이트 내역(D-031): 지도 영역 밖이라 지도 SDK가 실패해도 열 수 있다. 열고 닫아도 분석·비교 상태는 그대로 */}
+        <UpdateNotes />
         {/* 테마 전환(묶음 A, §19.7): 누르면 그 선택을 저장하고 패널·지도가 함께 바뀐다. 아이콘은 "바뀔 테마"가 아니라 지금 상태 반대 행동 */}
         <button
           type="button"

@@ -1,4 +1,4 @@
-﻿# 전체 검증 (Windows PowerShell).  사용: .\scripts\check.ps1   또는  .\scripts\check.ps1 --fast
+﻿# 검증 (Windows PowerShell).  사용: .\scripts\check.ps1 (전체)  /  --fast  /  --only KEY,...  /  --list
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
 $py = Join-Path $root ".venv\Scripts\python.exe"
