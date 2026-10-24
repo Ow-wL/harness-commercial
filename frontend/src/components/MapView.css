@@ -542,3 +542,20 @@
     text-align: center;
   }
 }
+
+/* 지도 실패 안내의 "지도 다시 불러오기"(2026-10-25): 지도 영역 안에서만 복구한다 — 분석·비교는 패널에서 계속.
+   .button-ghost 의 align-self(flex-start)를 덮어 안내 문구 아래 가운데에 둔다 */
+.map__retry {
+  align-self: center;
+  margin-top: var(--space-2);
+  min-height: 44px;
+}
+
+/* 지도 상태 안내(로딩·실패)는 지도에 실제로 보이는 부분(조건 바 아래, 결과 패널 왼쪽)의 가운데에 둔다 — A3 에서 지도는 화면 전체라
+   그냥 가운데면 문구 오른쪽이 결과 패널 뒤로 가려졌다(2026-10-25 무트래픽 검증에서 확인). mobile(<640)은 패널이 지도 위에 뜨지 않는다 */
+@media (min-width: 640px) {
+  .map__state {
+    padding-top: calc(var(--map-visible-top, 0px) + var(--space-6));
+    padding-right: calc(var(--map-visible-right, 0px) + var(--space-6));
+  }
+}

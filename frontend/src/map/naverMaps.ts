@@ -112,7 +112,7 @@ export interface NaverMapsApi {
 
 declare global {
   interface Window {
-    naver?: { maps?: NaverMapsApi }
+    naver?: { maps?: NaverMapsApi | null }      // 실제 SDK는 인증 실패 때 maps 를 null 로 바꾼다
     navermap_authFailure?: () => void
     /** SDK `callback=` 파라미터가 부르는 전역 — 서브모듈까지 준비된 뒤 */
     __naverMapsReady?: () => void
@@ -175,6 +175,12 @@ const SDK_URL = 'https://oapi.map.naver.com/openapi/v3/maps.js'
 
 let pending: Promise<NaverMapsApi> | null = null
 const authListeners = new Set<() => void>()
+/**
+ * NAVER가 인증 실패를 알렸는지. 실제 SDK는 인증 실패 때 `window.naver.maps`를 null 로 바꾸고, 이미 만든 지도·리스너를 다루는
+ * SDK 내부도 그 전역을 읽어 예외를 던진다(2026-10-25 무트래픽 리비전 검증에서 확인). 그래서 같은 페이지에서 다시 부르면(테마 전환 등)
+ * SDK를 쓰지 않고 바로 인증 실패로 돌려준다. 새로 받으려면 resetNaverMapsForRetry()
+ */
+let authFailed = false
 
 let geocoder: GeocoderAvailability = 'loading'
 const geocoderListeners = new Set<(state: GeocoderAvailability) => void>()
@@ -224,6 +230,10 @@ export function onNaverAuthFailure(listener: () => void): () => void {
  * 준비로 넘긴다 — 지도는 래스터로 그려지고(renderMode 1) MapView가 실제 모드를 읽는다.
  */
 export function loadNaverMaps(clientId: string | undefined, options: { gl?: boolean } = {}): Promise<NaverMapsApi> {
+  if (authFailed || (window.naver && window.naver.maps === null)) {
+    // 인증 실패한 SDK — 이미 붙은 script 의 load 를 기다리면 끝나지 않고, 지도를 만들면 SDK 내부 예외가 난다
+    return Promise.reject(new MapLoadError('auth', 'NAVER Maps 인증에 실패했습니다.'))
+  }
   if (window.naver?.maps) {
     // 이미 로드된 SDK(HMR 등): Service가 있으면 Geocoder도 준비, 없으면 callback·타임아웃을 기다린다
     if (isGeocoderAvailable(window.naver.maps)) settleGeocoder('ready')
@@ -242,6 +252,7 @@ export function loadNaverMaps(clientId: string | undefined, options: { gl?: bool
 
   pending = new Promise<NaverMapsApi>((resolve, reject) => {
     window.navermap_authFailure = () => {
+      authFailed = true
       reject(new MapLoadError('auth', 'NAVER Maps 인증에 실패했습니다.'))
       authListeners.forEach((l) => l())
     }
@@ -283,12 +294,14 @@ export function loadNaverMaps(clientId: string | undefined, options: { gl?: bool
   return pending
 }
 
-/** 테스트 전용: 모듈 singleton 상태를 지운다. */
-export function resetNaverMapsLoaderForTest(): void {
+/**
+ * 지도 "다시 불러오기"(인증·로드 실패 뒤): 붙어 있던 SDK script·전역을 걷어 내고 다음 loadNaverMaps 가 SDK를 새로 받게 한다.
+ * 구독(authListeners·geocoderListeners)은 지도 컴포넌트가 effect 단위로 걸고 풀므로 그대로 둔다
+ */
+export function resetNaverMapsForRetry(): void {
   pending = null
-  authListeners.clear()
+  authFailed = false
   geocoder = 'loading'
-  geocoderListeners.clear()
   if (geocoderTimer) {
     clearTimeout(geocoderTimer)
     geocoderTimer = null
@@ -297,4 +310,11 @@ export function resetNaverMapsLoaderForTest(): void {
   delete window.naver
   delete window.navermap_authFailure
   delete window[NAVER_READY_CALLBACK]
+}
+
+/** 테스트 전용: 모듈 singleton 상태를 지운다. */
+export function resetNaverMapsLoaderForTest(): void {
+  resetNaverMapsForRetry()
+  authListeners.clear()
+  geocoderListeners.clear()
 }

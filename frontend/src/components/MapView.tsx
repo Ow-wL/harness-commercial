@@ -28,6 +28,7 @@ import {
   onGeocoderAvailability,
   onNaverAuthFailure,
   reduceSdkState,
+  resetNaverMapsForRetry,
   type MapLoadErrorKind,
   type SdkEvent,
   type SdkState,
@@ -202,6 +203,25 @@ function radiusCircle(api: NaverMapsApi, map: NaverMap, center: unknown, which: 
 }
 
 /** 행정동 경계 강조 (A·B 공용). guCode·dongName이 없으면 그리지 않고, 바뀌면 이전 경계를 지운다 */
+/**
+ * 지도·오버레이·리스너 정리 중 SDK 호출. NAVER SDK는 인증 실패 때 `window.naver.maps`를 null 로 바꾸고, 그 뒤 이미 만든 객체를
+ * 다루는 SDK 내부가 TypeError 를 던진다(2026-10-25 무트래픽 리비전 검증 — 테마 전환 때 Event.removeListener). 정리 중 예외가
+ * React effect 정리 밖으로 나가면 앱 전체가 내려가므로, 단계마다 시도하고 실패는 숨기지 않고 console.error 로 남긴 뒤 나머지를 계속한다
+ */
+function release(label: string, steps: readonly (() => unknown)[]): void {
+  let first: unknown = null
+  let failed = 0
+  for (const step of steps) {
+    try {
+      step()
+    } catch (e) {
+      if (failed === 0) first = e
+      failed += 1
+    }
+  }
+  if (failed > 0) console.error(`[map] ${label} 중 NAVER SDK 오류 ${failed}건 — 이 지도 객체는 버리고 계속합니다`, first)
+}
+
 function useDongPolygons(api: NaverMapsApi | null, map: NaverMap | null, guCode?: string, dongName?: string) {
   useEffect(() => {
     if (!api || !map || !guCode || !dongName) return
@@ -228,7 +248,7 @@ function useDongPolygons(api: NaverMapsApi | null, map: NaverMap | null, guCode?
       .catch((e: unknown) => console.error('[map] 행정동 경계를 불러오지 못했습니다', e))
     return () => {
       cancelled = true
-      polygons.forEach((p) => p.setMap(null))
+      release('행정동 경계 정리', polygons.map((p) => () => p.setMap(null)))
     }
   }, [api, map, guCode, dongName])
 }
@@ -282,8 +302,10 @@ function useGuBoundaries(api: NaverMapsApi | null, map: NaverMap | null, renderM
       .catch((e: unknown) => console.error('[map] 구 경계를 불러오지 못했습니다', e))
     return () => {
       cancelled = true
-      listeners.forEach((l) => api.Event.removeListener(l))
-      for (const p of [...outline, ...gu]) p.setMap(null)
+      release('구 경계 정리', [
+        ...listeners.map((l) => () => api.Event.removeListener(l)),
+        ...[...outline, ...gu].map((p) => () => p.setMap(null)),
+      ])
     }
   }, [api, map, renderModeRef])
 }
@@ -299,7 +321,7 @@ function useRasterZoom(api: NaverMapsApi | null, map: NaverMap | null, renderMod
     const read = () => setZoom(rasterZoom(map.getZoom(), renderModeRef.current))
     read()
     const listeners = ['init', 'zoom_changed', 'idle'].map((type) => api.Event.addListener(map, type, read))
-    return () => listeners.forEach((l) => api.Event.removeListener(l))
+    return () => release('줌 리스너 해제', listeners.map((l) => () => api.Event.removeListener(l)))
   }, [api, map, renderModeRef])
   return zoom
 }
@@ -539,6 +561,8 @@ export function MapView({
   const [api, setApi] = useState<NaverMapsApi | null>(null)
   const [map, setMap] = useState<NaverMap | null>(null)
   const [error, setError] = useState<MapLoadErrorKind | null>(null)
+  // "지도 다시 불러오기"(인증·로드·초기화 실패 뒤). 값이 바뀌면 아래 SDK 로드·지도 생성 effect가 처음부터 다시 돈다
+  const [retry, setRetry] = useState(0)
   // 지도가 보이고 유효한 크기를 가졌는지 (mobile 패널 화면에서는 .map이 숨겨져 0×0). 아래 크기 맞춤 흐름이 setSize 뒤에 정한다
   const [sized, setSized] = useState(false)
   // 정보창 열기를 숨김(크기 0) 때문에 미뤘는지 + 다시 처리 신호 (6-4 보완). `sized`가 이미 true인 채로 실제 크기가 0이어서
@@ -566,6 +590,12 @@ export function MapView({
   const restoredMapRef = useRef<NaverMap | null>(null)
   const liveMapRef = useRef<NaverMap | null>(null)
 
+  /** 실패한 지도만 다시 불러온다 — 선택 위치·결과·비교는 props 그대로라 새 지도에 다시 그려진다 */
+  const retryMap = () => {
+    if (error === 'auth' || error === 'load') resetNaverMapsForRetry()
+    setRetry((n) => n + 1)
+  }
+
   // 최신 콜백·상태를 클릭 핸들러가 읽는다 (지도를 다시 만들지 않기 위해)
   const onSelectRef = useRef(onSelect)
   const interactiveRef = useRef(interactive)
@@ -590,7 +620,22 @@ export function MapView({
       onSdkStateRef.current?.(next)
     }
     let unsubscribeGeocoder: (() => void) | null = null
+    // 인증 실패: 이 SDK는 더 쓸 수 없다(naver.maps = null). 지금 세대(지도·리스너·init 대기)를 바로 걷어 내고 지도 영역에 안내만 남긴다 —
+    // 대기 중이던 스타일 지도가 시간 초과로 밝은 지도를 다시 만들거나, 내놓은 지도에 오버레이를 계속 그리지 않게 한다
+    let authDead = false
     const unsubscribe = onNaverAuthFailure(() => {
+      if (cancelled) return
+      authDead = true
+      gen += 1
+      if (waitVisible) clearInterval(waitVisible)
+      waitVisible = null
+      disposeAttempt?.()
+      disposeAttempt = null
+      liveMapRef.current = null
+      initedRef.current = false
+      pendingFitRef.current = null
+      applyMapTone(null)
+      setMap(null)
       setError('auth')
       report({ type: 'auth-failed' })
     })
@@ -637,9 +682,9 @@ export function MapView({
      */
     const attempt = (loaded: NaverMapsApi, kind: 'plain' | 'styled' | 'fallback') => {
       const host = hostRef.current
-      if (cancelled || !host) return
+      if (cancelled || authDead || !host) return
       const g = ++gen
-      const live = () => !cancelled && g === gen
+      const live = () => !cancelled && !authDead && g === gen
       const listeners: unknown[] = []
       let tick: ReturnType<typeof setInterval> | null = null
       let raf = 0
@@ -656,20 +701,31 @@ export function MapView({
       const carry = carryRef.current
       const center = carry ?? INCHEON_CENTER
       const zoomRaster = carry ? carry.zoomRaster : INITIAL_ZOOM
-      const map = new loaded.Map(canvas, {
-        center: new loaded.LatLng(center.lat, center.lng),
-        zoom: gl ? zoomRaster - 1 : zoomRaster,
-        ...(gl ? { gl: true } : {}),
-        ...(kind === 'styled' ? { customStyleId: styleId } : {}),
-        // 확대·축소는 지도에 보이는 영역 오른쪽 아래의 우리 버튼(.map__controls, A3 §19.1) — 지도가 화면 전체라 SDK 오른쪽
-        // 컨트롤은 결과 패널 뒤에 숨는다. 로고·축척·지도 데이터 저작권(D-023 D7)은 왼쪽 아래 한 줄 + 배경 띠(syncControlBand)
-        zoomControl: false,
-        scaleControl: true,
-        logoControlOptions: { position: loaded.Position.BOTTOM_LEFT },
-        scaleControlOptions: { position: loaded.Position.BOTTOM_LEFT },
-        mapDataControl: true,
-        mapDataControlOptions: { position: loaded.Position.BOTTOM_LEFT },
-      })
+      // SDK 초기화 실패(지도 생성자가 예외): 만든 요소만 정리하고 지도 영역 오류로 둔다 — 예외를 위로 올리지 않는다
+      let map: NaverMap
+      try {
+        map = new loaded.Map(canvas, {
+          center: new loaded.LatLng(center.lat, center.lng),
+          zoom: gl ? zoomRaster - 1 : zoomRaster,
+          ...(gl ? { gl: true } : {}),
+          ...(kind === 'styled' ? { customStyleId: styleId } : {}),
+          // 확대·축소는 지도에 보이는 영역 오른쪽 아래의 우리 버튼(.map__controls, A3 §19.1) — 지도가 화면 전체라 SDK 오른쪽
+          // 컨트롤은 결과 패널 뒤에 숨는다. 로고·축척·지도 데이터 저작권(D-023 D7)은 왼쪽 아래 한 줄 + 배경 띠(syncControlBand)
+          zoomControl: false,
+          scaleControl: true,
+          logoControlOptions: { position: loaded.Position.BOTTOM_LEFT },
+          scaleControlOptions: { position: loaded.Position.BOTTOM_LEFT },
+          mapDataControl: true,
+          mapDataControlOptions: { position: loaded.Position.BOTTOM_LEFT },
+        })
+      } catch (e) {
+        console.error('[map] NAVER 지도를 만들지 못했습니다 — 지도 영역만 실패로 두고 분석·비교는 그대로 씁니다', e)
+        canvas.remove()
+        if (canvasRef.current === canvas) canvasRef.current = null
+        setError('init')
+        report({ type: 'map-failed', kind: 'init' })
+        return
+      }
       const stopWaiting = () => {
         if (tick) clearInterval(tick)
         tick = null
@@ -682,21 +738,29 @@ export function MapView({
       }
       disposeAttempt = () => {
         stopWaiting()
-        for (const l of listeners) loaded.Event.removeListener(l)
+        release('지도 세대 정리', [...listeners.map((l) => () => loaded.Event.removeListener(l)), () => map.destroy?.()])
         listeners.length = 0
-        map.destroy?.()
         canvas.remove()
         if (canvasRef.current === canvas) canvasRef.current = null
       }
       const on = (type: string, handler: (e: NaverMapEvent) => void) =>
         listeners.push(loaded.Event.addListener(map, type, (e) => live() && handler(e)))
-      on('click', (e) => {
-        if (!interactiveRef.current) return
-        onSelectRef.current({ lat: round(e.coord.lat()), lng: round(e.coord.lng()) })
-      })
-      on('zooming', () => (lockedRef.current = true))
-      on('dragstart', () => (lockedRef.current = true))
-      on('idle', () => syncControlBand(bandRef.current, sectionRef.current, canvasRef.current))
+      try {
+        on('click', (e) => {
+          if (!interactiveRef.current) return
+          onSelectRef.current({ lat: round(e.coord.lat()), lng: round(e.coord.lng()) })
+        })
+        on('zooming', () => (lockedRef.current = true))
+        on('dragstart', () => (lockedRef.current = true))
+        on('idle', () => syncControlBand(bandRef.current, sectionRef.current, canvasRef.current))
+      } catch (e) {
+        console.error('[map] NAVER 지도 이벤트를 걸지 못했습니다 — 만든 지도를 정리하고 지도 영역만 실패로 둡니다', e)
+        disposeAttempt()
+        disposeAttempt = null
+        setError('init')
+        report({ type: 'map-failed', kind: 'init' })
+        return
+      }
 
       if (kind === 'plain') {
         on('init', () => markInited(map))
@@ -833,11 +897,16 @@ export function MapView({
       unsubscribeGeocoder?.()
       // 테마 전환(theme 변경으로 다시 도는 effect): 내놓은 지도의 보기를 적어 두고 새 지도가 이어받는다. init 전이면 적지 않는다
       const live = liveMapRef.current
-      const c = live && initedRef.current ? live.getCenter?.() : undefined
-      const liveMode = live?.get?.('renderMode')
-      carryRef.current = c
-        ? { lat: c.lat(), lng: c.lng(), zoomRaster: rasterZoom(live!.getZoom(), typeof liveMode === 'number' ? liveMode : null) }
-        : null
+      carryRef.current = null
+      release('테마 전환 보기 이어받기', [
+        () => {
+          const c = live && initedRef.current ? live.getCenter?.() : undefined
+          const liveMode = live?.get?.('renderMode')
+          carryRef.current = c
+            ? { lat: c.lat(), lng: c.lng(), zoomRaster: rasterZoom(live!.getZoom(), typeof liveMode === 'number' ? liveMode : null) }
+            : null
+        },
+      ])
       liveMapRef.current = null
       if (waitVisible) clearInterval(waitVisible)
       waitVisible = null
@@ -851,7 +920,7 @@ export function MapView({
       // 이전 세대의 늦은 실패는 cancelled·세대 번호·구독 해제로 새 세대의 상태를 건드리지 못하고, 새 세대가 실패하면 그때 다시 건다
       setError(null)
     }
-  }, [theme])
+  }, [theme, retry])
 
   // 바깥 .map 크기가 바뀌면 지도 크기를 맞춘다 (mobile 화면 전환·tablet 높이 변경·창 크기 변경).
   // canvas가 아니라 바깥 section을 본다 — SDK가 canvas에 inline px 크기를 넣어서 canvas는 레이아웃을 따라가지 않는다.
@@ -1146,10 +1215,9 @@ export function MapView({
 
   useEffect(
     () => () => {
-      for (const ref of [markerRef, circleRef, bMarkerRef, bCircleRef]) {
-        ref.current?.setMap(null)
-        ref.current = null
-      }
+      const refs = [markerRef, circleRef, bMarkerRef, bCircleRef]
+      release('선택 마커·반경 정리', refs.map((ref) => () => ref.current?.setMap(null)))
+      for (const ref of refs) ref.current = null
     },
     [map],
   )
@@ -1199,8 +1267,10 @@ export function MapView({
     }
     storeMarkersRef.current = markers
     return () => {
-      listeners.forEach((l) => api.Event.removeListener(l))
-      markers.forEach((m) => m.setMap(null))
+      release('점포 마커 정리', [
+        ...listeners.map((l) => () => api.Event.removeListener(l)),
+        ...[...markers.values()].map((m) => () => m.setMap(null)),
+      ])
       storeMarkersRef.current = new Map()
     }
   }, [api, map, stores, storeGlyph])
@@ -1276,8 +1346,8 @@ export function MapView({
       const timer = setTimeout(once, 1500)
       return () => {
         done = true
-        api.Event.removeListener(idle)
         clearTimeout(timer)
+        release('정보창 이동 대기 해제', [() => api.Event.removeListener(idle)])
       }
     }
     place()
@@ -1285,7 +1355,7 @@ export function MapView({
 
   useEffect(
     () => () => {
-      infoRef.current?.close()
+      release('점포 정보창 닫기', [() => infoRef.current?.close()])
       infoRef.current = null
     },
     [map],
@@ -1329,6 +1399,12 @@ export function MapView({
           <Icon name="alert-triangle" size={20} />
           <p className="map__state-title">{MESSAGES[error].title}</p>
           <p className="map__state-body">{MESSAGES[error].body}</p>
+          {error !== 'config' && (
+            // 설정(Client ID 없음)은 다시 불러와도 같다. 인증·로드 실패는 SDK를 새로 받고, 초기화 실패는 지도만 다시 만든다
+            <button type="button" className="button-ghost map__retry" onClick={retryMap}>
+              지도 다시 불러오기
+            </button>
+          )}
         </div>
       ) : (
         !map && (

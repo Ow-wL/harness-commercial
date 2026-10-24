@@ -1982,3 +1982,96 @@ describe('MapView — 인천 외곽선·구 경계 (묶음 A, DESIGN.md §19.3 �
     expect(polygons().every((p) => p.setMap.mock.lastCall?.[0] === null)).toBe(true)
   })
 })
+
+// ── 지도 인증 실패·SDK 초기화 실패 뒤 테마 전환·재시도 (2026-10-25 무트래픽 리비전 검증에서 발견) ──
+// 실제 NAVER SDK는 인증 실패 때 window.naver.maps 를 null 로 바꾸고, 이미 만든 지도·리스너·오버레이를 다루는 SDK 내부가 그 전역을
+// 읽어 TypeError("Cannot read properties of null (reading 'isArray')")를 던진다(개발 빌드에서 Event.removeListener 로 확인).
+describe('MapView — 인증 실패·초기화 실패 격리', () => {
+  const A = { lat: 37.4894, lng: 126.7246 }
+  const SDK_DEAD = "Cannot read properties of null (reading 'isArray')"
+  const dead = () => {
+    throw new TypeError(SDK_DEAD)
+  }
+
+  /** 실제 첫 로드 경로(script → load)로 마운트 — 로더가 navermap_authFailure 를 건다 */
+  async function mountFresh(theme: 'dark' | 'light', p: Partial<MapViewProps> = {}) {
+    delete window.naver
+    vi.stubEnv('VITE_NAVER_MAP_CLIENT_ID', 'test-client-id')
+    const onSdkState = vi.fn()
+    const view = render(<MapView {...props({ theme, onSdkState, ...p })} />)
+    layout.set(view.container.querySelector('section.map')!, { w: 955, h: 365 })
+    window.naver = { maps: fakeSdk }
+    document.getElementById(NAVER_SCRIPT_ID)!.dispatchEvent(new Event('load'))
+    await waitFor(() => expect(maps).toHaveLength(1))
+    return { ...view, onSdkState }
+  }
+
+  /** NAVER 인증 실패를 실제 SDK처럼(최악 순서): naver.maps = null·기존 지도·리스너·오버레이 정리 호출이 TypeError → 그다음 콜백 */
+  function failAuthLikeNaver() {
+    window.naver = { maps: null }
+    vi.mocked(fakeSdk.Event.removeListener).mockImplementation(dead)
+    for (const m of maps) m.destroy.mockImplementation(dead)
+    for (const ctor of [fakeSdk.Marker, fakeSdk.Circle, fakeSdk.Polygon]) {
+      for (const r of vi.mocked(ctor).mock.results) (r.value as { setMap: Mock }).setMap.mockImplementation(dead)
+    }
+    act(() => window.navermap_authFailure!())
+  }
+
+  it.each(['light', 'dark'] as const)('인증 실패 뒤 테마를 여러 번 바꿔도(%s 시작) 지도 영역만 실패 안내로 남고 컴포넌트는 내려가지 않는다', async (start) => {
+    const errors = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const other = start === 'light' ? 'dark' : 'light'
+    const view = await mountFresh(start, { selected: A })
+    failAuthLikeNaver()
+    expect(await screen.findByRole('alert')).toHaveTextContent('지도 인증에 실패했습니다')
+    for (const theme of [other, start, other] as const) {
+      view.rerender(<MapView {...props({ selected: A, theme, onSdkState: view.onSdkState })} />)
+      await act(async () => {})
+      expect(screen.getByRole('alert')).toHaveTextContent('지도 인증에 실패했습니다')
+    }
+    expect(view.container.querySelector('section.map')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '지도 다시 불러오기' })).toBeInTheDocument()
+    expect(view.onSdkState).toHaveBeenLastCalledWith({ status: 'failed', kind: 'auth' })
+    expect(maps).toHaveLength(1)                                   // 인증 실패한 SDK로 지도를 다시 만들지 않는다
+    expect(view.container.querySelectorAll('.map__canvas')).toHaveLength(0)   // 부분 생성된 지도 요소는 정리
+    // 정리 중 SDK 오류는 숨기지 않고 남긴다
+    expect(errors.mock.calls.some((c) => String(c[0]).startsWith('[map]'))).toBe(true)
+  })
+
+  it('인증 실패 뒤 "지도 다시 불러오기"는 SDK를 새로 받아 다시 만든다 — 성공하면 지도가 돌아오고 선택은 그대로', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    const view = await mountFresh('light', { selected: A })
+    failAuthLikeNaver()
+    await screen.findByRole('alert')
+    fireEvent.click(screen.getByRole('button', { name: '지도 다시 불러오기' }))
+    const fresh = document.getElementById(NAVER_SCRIPT_ID)!
+    expect(fresh).toBeTruthy()
+    vi.mocked(fakeSdk.Event.removeListener).mockImplementation((l: unknown) => (listeners = listeners.filter((x) => x !== l)))
+    window.naver = { maps: fakeSdk }
+    fresh.dispatchEvent(new Event('load'))
+    await waitFor(() => expect(maps).toHaveLength(2))
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(view.onSdkState).toHaveBeenLastCalledWith(expect.objectContaining({ status: 'ready' }))
+    expect(vi.mocked(fakeSdk.Marker).mock.calls.length).toBeGreaterThan(0)   // 선택 마커를 새 지도에 다시 그린다
+  })
+
+  it('SDK 지도 생성이 예외를 던지면(초기화 실패) 부분 생성분을 정리하고 실패 안내·재시도를 보인다 — 재시도가 성공하면 복구', async () => {
+    const errors = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const RealMap = fakeSdk.Map
+    ;(fakeSdk as { Map: unknown }).Map = function () {
+      throw new TypeError(SDK_DEAD)
+    }
+    try {
+      const view = render(<MapView {...props({ selected: A, theme: 'light' })} />)
+      layout.set(view.container.querySelector('section.map')!, { w: 955, h: 365 })
+      expect(await screen.findByRole('alert')).toHaveTextContent('지도를 준비하지 못했습니다')
+      expect(view.container.querySelectorAll('.map__canvas')).toHaveLength(0)
+      expect(errors.mock.calls.some((c) => String(c[0]).startsWith('[map]'))).toBe(true)
+      ;(fakeSdk as { Map: unknown }).Map = RealMap
+      fireEvent.click(screen.getByRole('button', { name: '지도 다시 불러오기' }))
+      await waitFor(() => expect(maps).toHaveLength(1))
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    } finally {
+      ;(fakeSdk as { Map: unknown }).Map = RealMap
+    }
+  })
+})

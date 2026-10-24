@@ -18,6 +18,7 @@ import { ConditionPanel, type BusinessesState } from './components/ConditionPane
 import { LocationMethodSwitch, type LocationMethod } from './components/LocationMethodSwitch.tsx'
 import { ErrorBlock } from './components/ErrorBlock.tsx'
 import { Icon } from './components/Icon.tsx'
+import { MapErrorBoundary } from './components/MapErrorBoundary.tsx'
 import { MapView, type LatLng, type MapCompare, type MapStore } from './components/MapView.tsx'
 import { MoreBelow } from './components/MoreBelow.tsx'
 import { NearbyStores } from './components/NearbyStores.tsx'
@@ -1167,30 +1168,33 @@ function App() {
       data-compare={comparing ? 'on' : 'off'}
     >
       <div className="app__map" ref={mapRef}>
-        <MapView
-          theme={theme}
-          onSdkState={setSdk}
-          // mobile 지도↔패널 전환 신호: 크기 알림 없이 지도 화면으로 돌아와도 크기 맞춤·미룬 정보창 처리 (6-4)
-          // tablet 패널 접기도 같은 신호 — 지도 크기는 그대로라 zoom은 바꾸지 않고 컨트롤 띠·미룬 정보창만 다시 본다(D-022 순위 8)
-          layoutKey={`${mobileScreen}:${panelFolded ? 'folded' : 'open'}`}
-          selected={location}
-          radiusM={radius}
-          markerTone={markerTone}
-          dong={result ? { guCode: result.context.gu_code, dongName: result.context.dong_name } : null}
-          interactive={!analyzing && !bRequesting}
-          onSelect={selectLocation}
-          // 지금 보이는 점포 기준의 마커만 (B 고르기·분석 중·실패에는 없음). A 점포 데이터는 비교 중에도 그대로 둔다
-          stores={mapStores}
-          activeStoreId={activeStoreId}
-          onStoreSelect={selectStore}
-          storeGlyph={storeGlyph}
-          storeContext={
-            comparing && visibleSide
-              ? `${visibleSide} ${(visibleSide === 'A' ? result : compared)?.context.dong_name} 주변`
-              : undefined
-          }
-          compare={mapCompare}
-        />
+        {/* 지도 영역 오류 격리: 지도에서 예외가 나도 지도 칸만 실패 안내로 바뀌고 패널(분석·결과·비교)은 그대로다 */}
+        <MapErrorBoundary>
+          <MapView
+            theme={theme}
+            onSdkState={setSdk}
+            // mobile 지도↔패널 전환 신호: 크기 알림 없이 지도 화면으로 돌아와도 크기 맞춤·미룬 정보창 처리 (6-4)
+            // tablet 패널 접기도 같은 신호 — 지도 크기는 그대로라 zoom은 바꾸지 않고 컨트롤 띠·미룬 정보창만 다시 본다(D-022 순위 8)
+            layoutKey={`${mobileScreen}:${panelFolded ? 'folded' : 'open'}`}
+            selected={location}
+            radiusM={radius}
+            markerTone={markerTone}
+            dong={result ? { guCode: result.context.gu_code, dongName: result.context.dong_name } : null}
+            interactive={!analyzing && !bRequesting}
+            onSelect={selectLocation}
+            // 지금 보이는 점포 기준의 마커만 (B 고르기·분석 중·실패에는 없음). A 점포 데이터는 비교 중에도 그대로 둔다
+            stores={mapStores}
+            activeStoreId={activeStoreId}
+            onStoreSelect={selectStore}
+            storeGlyph={storeGlyph}
+            storeContext={
+              comparing && visibleSide
+                ? `${visibleSide} ${(visibleSide === 'A' ? result : compared)?.context.dong_name} 주변`
+                : undefined
+            }
+            compare={mapCompare}
+          />
+        </MapErrorBoundary>
       </div>
       <header ref={headerRef} className="app-header bar" data-map-obstacle>
         <span className="bar__brand">
