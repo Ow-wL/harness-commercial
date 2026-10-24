@@ -64,3 +64,20 @@
 **전체 `scripts/check.sh`** — 2회째 **CHECK PASSED 18/18**(pytest 368·v0_4 61·v0_5 104·v0_5_1 40·backend 137·frontend 759). 1회째는 2건 실패였다(숨기지 않음):
 - `frontend/src/layout.test.ts` 정보창 닫기 44px 규칙 — 편집 중 작업 트리의 `MapView.css`·`MapView.tsx`·`naverMaps.ts`가 CRLF로 바뀌어(저장소 blob은 LF) LF 기준 문자열 검사가 규칙을 못 찾았다. 작업 트리를 LF로 되돌려 통과(내용 차이 없음, 커밋 기준 빌드는 원래 LF).
 - `tests/test_bench_scripts.py::test_uvicorn_invalid_runs_are_marked[exit-server_exited]` — 측정 요청 1건 200 아님이 추가로 잡혔다. 가짜 서버(`tests/bench_fixtures/fake_app.py`)가 6번째 `/analyze`를 세고 응답을 보내기 전에 동시 `/health`가 프로세스를 끝내면 생기는 기존 테스트 장치의 경합으로 본다(부하 중에만, 단독 6회 연속 통과). 이번 변경과 무관하며 테스트는 고치거나 건너뛰지 않았다 — 후속 정리 후보.
+
+## 7. 수정본 이미지·무트래픽 리비전 재검증 (2026-10-25, **트래픽 전환 미실행**)
+
+**이미지** — 소스 커밋 `276157ee484b5b33d0d8bc3b7421b44c3e84a6db`(`git archive` 컨텍스트, 커밋 blob과 대조: 차이 0·추가 파일 0·텍스트 352개는 줄바꿈만 다름, 해시 보호 파일 바이트 동일). 태그 `:276157e`, label `org.opencontainers.image.revision` = 위 커밋, 지도 설정은 운영용 build arg(값 기록 안 함).
+- index `sha256:6b854354ce3869953f5136beb621e73660f57f8e76b4d24d21198ad0a64a10cd`
+- linux/amd64 `sha256:082706fc0a8f3d72633a33a17fc11cd6d17eccec19312a25918f17698b891004` (리비전이 실행하는 digest)
+
+**리비전** — `<서비스>-276157e-v051`, 태그 `verify-276157e`, `--no-traffic`, `--update-env-vars SCORING_ENGINE_VERSION=v0_5_1`. 이전 v0.5.1 리비전(`965849c`)과 이미지 외 템플릿(환경변수·1 vCPU·1Gi·동시성 4·CPU 상시·startup boost·서비스 계정 등) 동일, IAM 변경 없음. 트래픽 `<서비스>-1020200-v04` 100% 유지, `965849c-v051`(태그 `verify-965849c`)·이전 리비전·이미지 보존.
+
+**API(태그 URL)** — `/health` mvp-0.5.1, warm 87/87(배포 시작 후 약 5분 안, 실패 0). 같은 커밋 엔진 기대값과 48건 전체 응답 일치(불일치 0, 지연 중앙값 137ms). 부평역 PC방 500m 61.6·77.5·31.9·66.4·73.2·**62.3**, 반경별 동종·주변 점포 6/12/17, 학교 50m PC방 학교구역 경고 첫 줄, 잘못된 반경 422 `invalid_radius`, GeoJSON 정적 파일 일치. ERROR 로그 0(4xx 13건은 검증 스크립트의 계약 확인 요청). 메모리 사용률 최대 약 31%(1Gi).
+
+**화면(태그 URL — NAVER 미등록 주소 = 인증 실패 상태, Claude 브라우저)** — 첫 화면 "지도 인증에 실패했습니다 + 지도 다시 불러오기". 테마 6회 연속 전환: 앱 유지(버튼 수 그대로), 처리되지 않은 오류 0. 좌표 입력 분석(학교 50m PC방 67.2, 학교구역) → 테마 2회 → 결과 유지 → 1km 68.9·점포 17 → A/B 비교 1km 68.9 / 64.8 → 비교 중 테마 2회 → 비교 중 500m 67.2 / 62.3 → "지도 다시 불러오기"(SDK 다시 받음 → 다시 인증 실패 안내, 비교 유지). 정리 중 SDK 오류는 `[map] 지도 세대 정리 중 NAVER SDK 오류 …` 콘솔 오류로 남는다. 모바일 375×812: 테마 4회 전환 뒤 앱 유지, 가로 넘침 없음.
+- 관찰(미수정): "지도 다시 불러오기" 한 번마다 SDK가 스스로 붙이는 하위 스크립트(geocoder·gl) 2개가 문서에 남는다(사용자가 누를 때만, 동작 영향 확인 안 됨).
+
+**미검증** — 인증 성공 상태(NAVER 등록 주소)에서 새 리비전의 지도·테마 전환(로컬 등록 주소에서는 6장에서 확인), 실기기·Safari·Firefox·스크린리더.
+
+**다음(승인 필요)** — 전환: `gcloud run services update-traffic <서비스> --region asia-northeast3 --to-revisions <서비스>-276157e-v051=100` → 운영 도메인 지도 확인 → 태그 정리. 복구: `--to-revisions <서비스>-1020200-v04=100`.
