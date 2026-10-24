@@ -6,6 +6,7 @@
 구현·검수 이력: A3 지도 탐색형·블루안(`DESIGN.md` §19, D-023), 8-B1 단일·8-B2 비교 지도 맞춤, 8-DK·8-L·8-C1a~d·8-P 및 추가 UI 간소화, 8-D1~8-D3 반경 선택을 저장소에 반영했고 이번 배포에 포함했다.
 2026-10-19 개선 계획(`docs/IMPROVEMENT_PLAN_2026-10.md`) 승인 뒤 묶음 A(테마 전환·구 경계·외곽선, D-025), 묶음 C(데이터 버전 구조, D-006 개정), 묶음 B(업종 글리프·외부 검색 링크, D-026), 묶음 D(첫 방문 안내 코치마크, D-027)를 master에 커밋했다(`docs/TASKS.md` 9장, Codex 검수 지적 수정 뒤 재검수 통과 9-R1·9-R2) — **운영 미배포**. 다크 스타일 지명 색 재발행은 사용자 작업으로 남아 있다.
 2026-10-24 팀 전달 엔진 v0.5와 지오비전 퍼즐 조사 의견을 반영했다(D-028, `docs/ENGINE_V0_5.md`, `docs/TASKS.md` 10장) — 저장소 반영, **운영 미배포**(코드 기본 엔진은 v0.3 그대로). 운영 엔진은 v0.5.1로 확정(2026-10-25), 사전 검증·배포/복구 절차 `docs/DEPLOYMENT_PLAN_v0_5_1.md`.
+2026-10-25 배포 후보(UI 묶음 A~D + 엔진 v0.5.1)는 **무트래픽 검증만 했다 — 운영 반영 아님**(운영 트래픽은 `1020200` v0.4 100%). `965849c` 리비전 검증에서 지도 인증 실패 시 테마 전환 빈 화면 결함을 찾아 `276157e`로 고쳤고(D-030), `276157e` 무트래픽 리비전에서 API·인증 실패 화면을 재검증했다(`docs/DEPLOYMENT_2026-10-25_v051_verify.md` 6·7장). 남은 운영 전 확인: 새 리비전의 NAVER 인증 성공 상태 지도·테마 전환, 실기기·Safari·Firefox·스크린리더. 이후 업데이트 내역(앱 버전 v0.0.11, D-031)을 더했으므로 다음 배포 후보 소스는 `276157e` 이후 커밋이다.
 후속 작업은 `docs/TASKS.md` 현재 운영 상태와 8·9·10장 참고. 8-D2c의 정식 반복·동시 부하 성능 연구는 미완료이며, 이번 배포 전에는 사용자 승인에 따라 1 CPU·1Gi Linux 컨테이너 및 무트래픽 Cloud Run 실측을 각 1회 진행했다. 각 새 단위는 사용자 지시에 따라 진행한다.
 
 ## Source of Truth
@@ -40,17 +41,40 @@
 ## Development Loop
 Explore → Plan → Implement → Test → Verify → Report
 
-## Definition of Done
-코드 작성만으로 완료로 판단하지 않는다. 관련 테스트와 전체 check가 성공해야 완료다.
+## Definition of Done (검증 규칙, 2026-10-25 개정)
+코드 작성만으로 완료로 판단하지 않는다. **작업 중에는 영향받는 검사를 실행하고, 여러 수정이 모인 배포 후보가 확정되면 전체 check를 한 번 실행한다.** 작업 단위의 완료 = 아래 변경별 검증 통과, 배포 후보의 완료 = 최종 소스 기준 전체 check 통과.
 
 ```powershell
-.\scripts\check.ps1          # Windows (전체, 약 10분 — engine v0_4 단계 약 5분 포함)
+.\scripts\check.ps1                               # 전체 — 모든 단계 (약 17~30분, 엔진 pytest 4단계가 약 85%)
+.\scripts\check.ps1 --only frontend,patch-notes   # 고른 단계만 (키 목록: --list) — 전체 check 아님
 ```
 ```bash
-scripts/check.sh             # bash
+scripts/check.sh            # bash (옵션 같음)
 ```
-`--fast`는 golden regression을 뺀 작업 중 확인용이며 완료 판정에 쓰지 않는다.
-보고 시 실패·SKIP 단계를 숨기지 않는다.
+
+변경별 기본 검증 (여러 종류가 섞이면 합친다):
+- **A. 문서·패치노트 문구만**: 형식·데이터 유효성(`python scripts/patch_notes.py check`, 패치노트를 바꿨을 때)·`git diff --check`·diff 확인. 전체 check 불필요. 정책 문서나 실행 설정이 동작에 영향을 주면 그 검사를 더한다.
+- **B. UI·스타일**: 관련 프런트 테스트(`npx vitest run <파일>`), 타입 검사·lint(`npm --prefix frontend run typecheck`, `lint`). 빌드·지도·반응형에 영향을 주면 production build(`npm --prefix frontend run build`)와 관련 브라우저 확인.
+- **C. API·캐시**: 관련 백엔드·계약·회귀 테스트(`pytest backend/…`, `tests/…`), 영향받는 프런트 계약(API 스키마 테스트).
+- **D. 점수 엔진·입력 데이터**: 해당 엔진 단계(`--only core|v0_4|v0_5|v0_5_1` — 단위·golden·어댑터)와 원본·데이터 무결성(`--only integrity,team-tests`). 다른 엔진 버전에도 쓰이는 공통 로더·어댑터 변경이면 관련 버전 단계까지.
+- **E. 의존성·Docker·줄바꿈·패키징**: 영향받는 설치·무결성·빌드·패키징 검사(setup, `--only integrity`, build, Docker build, runtime 파일 목록 테스트). "코드가 아닌 파일"이라는 이유만으로 생략하지 않는다.
+- **F. 배포 후보 확정**: 최종 소스 기준 전체 check 1회. 실패하면 원인을 확인하고 필요한 수정과 검증을 한다. 실패·간헐 실패·재실행 횟수를 숨기지 않는다.
+
+중복 실행 방지·기록:
+- 검사를 통과한 소스 그대로 커밋·아카이브·이미지 빌드를 했다는 이유로 전체 check를 반복하지 않는다. 이후 변경이 문서뿐이면 기존 코드 검증 결과를 재사용하고, 재사용했다고 적는다. 코드·의존성·빌드 설정이 바뀌면 영향 범위를 다시 판단한다.
+- 검증한 커밋 또는 소스 상태(예: "`abc1234` + 미커밋 변경"), 실행 명령, 결과(단계·건수·실패·재실행)를 기록한다. 다른 소스의 검사 결과를 현재 소스의 결과처럼 보고하지 않는다.
+- `--fast`(golden 제외)·`--only`(고른 단계만)를 전체 check 통과라고 표현하지 않는다. 보고 시 실패·SKIP 단계를 숨기지 않는다.
+- 보호 경로(`sources/`, `scoring_engine/v0_3/`, `data/runtime/`, `tests/golden/`) 변경 0건(`git diff --stat`)은 모든 변경에서 확인한다.
+
+## 패치노트·배포 기록 (D-031)
+- **기능 추가·개선·수정 시 패치노트를 함께 갱신하고, 각 커밋과 배포를 관련 변경 항목에 연결한다. 실제 운영 트래픽 전환을 확인한 뒤에만 운영 반영 완료로 기록한다.**
+- 기준 파일은 `frontend/src/content/patchNotes.json` 하나 — 화면의 "업데이트 내역"이 그대로 읽는다. 앱 버전(`vX.Y.Z`, 최신 항목 = 이 빌드의 버전)은 점수 엔진 버전과 별개다. 날짜는 한국 시간(KST) `YYYY-MM-DD`, `date`는 구현일(운영 반영일과 다르다).
+- 사용자 요약 `changes`(1~3줄, 추가 `added`·개선 `improved`·수정 `fixed`)에는 사용자에게 달라진 점만 쓴다 — 테스트 개수·모듈명 같은 구현 세부 금지. 내부 작업 요약 `work`·커밋·배포 기록은 화면의 "자세히"에만 보인다.
+- 커밋 연결: 문서·테스트·내부 작업을 포함한 **모든 커밋** 메시지에 트레일러 `Patch-Note: vX.Y.Z`를 단다(같은 기능의 여러 커밋은 한 버전). 커밋은 자기 해시를 담을 수 없으므로, 해시는 다음에 패치노트를 고칠 때 `python scripts/patch_notes.py sync --write`로 목록에 옮긴다 — 해시를 넣으려고 커밋을 반복하지 않는다.
+- 배포 기록 `deployments`는 **추가만** 한다: id·날짜·종류(`production` 운영 전환 / `verification` 무트래픽 검증 / `rollback` 복구 전환)·결과·`app_version`·`source_commit`·엔진·한 줄 설명. 실패·보류·롤백·정정도 기존 기록을 지우거나 고치지 않고 새 기록으로 더한다. 무트래픽 검증은 운영 반영이 아니다.
+- 운영 전환 기록은 전환을 확인한 뒤 문서 커밋으로 더한다. 이미 배포된 화면에는 다음 빌드 때 보인다 — 기록만 바꾸려고 이미지를 다시 빌드하지 않는다(화면은 "이 화면을 만든 시점까지의 기록"이라고 밝힌다).
+- 공개 번들에 들어가므로 비밀정보·환경변수 값·서비스 URL·클라우드 프로젝트·리비전 이름·비공개 조사 자료를 쓰지 않는다.
+- 검사: `python scripts/patch_notes.py check`(전체 check의 `patch-notes` 단계) — 버전·id 중복, 날짜 형식, 필수 필드, 최신순, 종류·결과 값, 커밋이 한 버전에만 속하는지, HEAD 이력의 모든 커밋이 연결됐는지, 기록 삭제·수정 여부.
 
 ## 문서
 - `docs/ARCHITECTURE.md` 데이터 흐름, 목표 구조, 캐시 경계, 하드코딩 목록
@@ -65,7 +89,7 @@ gstack(v1.91.25.0)이 전역 설치되어 있다: `~/.claude/skills/gstack` (Win
 - 웹 브라우징은 gstack의 `/browse` skill을 사용한다. `mcp__claude-in-chrome__*` 도구는 쓰지 않는다 (gstack 공식 설치 지침).
 - 사용 가능한 skill: /office-hours, /plan-ceo-review, /plan-eng-review, /plan-design-review, /design-consultation, /design-shotgun, /design-html, /review, /deslop-shared-libs, /test-audit, /ship, /land-and-deploy, /canary, /benchmark, /browse, /connect-chrome, /qa, /qa-only, /design-review, /scrape, /setup-browser-cookies, /setup-deploy, /setup-gbrain, /retro, /investigate, /document-release, /document-generate, /codex, /cso, /autoplan, /plan-devex-review, /devex-review, /careful, /freeze, /guard, /unfreeze, /gstack-upgrade, /learn
 - **이 프로젝트의 규칙이 gstack skill보다 우선한다.** gstack skill을 쓰더라도 위 Source of Truth / Critical Rules / Definition of Done을 따른다.
-  `sources/`, `scoring_engine/v0_3/`, `data/runtime/`, `tests/golden/`은 어떤 skill로도 수정하지 않으며, 완료 판정은 `scripts/check` 통과다(v0.4·v0.5 사본은 허용 diff 테스트 범위 안에서만).
+  `sources/`, `scoring_engine/v0_3/`, `data/runtime/`, `tests/golden/`은 어떤 skill로도 수정하지 않으며, 완료 판정은 위 Definition of Done(작업 = 변경별 검증, 배포 후보 = 전체 `scripts/check`)을 따른다(v0.4·v0.5 사본은 허용 diff 테스트 범위 안에서만).
 - Windows 설치는 파일 복사 방식이다. gstack을 `git pull`한 뒤에는 `cd ~/.claude/skills/gstack && ./setup`을 다시 실행한다 (또는 `/gstack-upgrade`).
 
 ## Communication

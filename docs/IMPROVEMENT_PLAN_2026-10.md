@@ -204,6 +204,8 @@ scripts/etl/             원본 etl_*.py의 실행 사본(원본과 diff 기록)
 
 보호 경로 불변 검사(`git diff --stat`에 보호 경로 0건)를 T0·T1 모두에 둔다. 완료 판정은 지금처럼 전체 check 통과다(`CLAUDE.md`).
 
+> 2026-10-25 개정(D-032): 완료 판정 규칙은 `CLAUDE.md` Definition of Done이 기준이다 — 작업 중은 변경별 검증(A~E, `scripts/check --only`), 전체 check는 배포 후보 확정 때 최종 소스로 1회(F). 위 T0·T1의 "묶음마다 전체 check"는 "배포 후보마다"로 읽는다.
+
 ## 6. 결정이 필요한 핵심 질문
 
 **지금 결정(묶음 A·C 착수용)**
