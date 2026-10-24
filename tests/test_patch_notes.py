@@ -81,3 +81,64 @@ def test_check_format_does_not_mutate():
     before = copy.deepcopy(data)
     pn.check_format(data)
     assert data == before
+
+
+# ── git 연결 검사(check_git): 실제 저장소 대신 가짜 이력으로 ──
+FULL_A = "a" * 7 + "1" * 33
+FULL_B = "b" * 7 + "2" * 33
+
+
+def _fake_git(monkeypatch, rows):
+    import subprocess
+    monkeypatch.setattr(pn, "history", lambda: rows)
+
+    def no_head(*args):   # HEAD 기준 파일 없음 → 기록 보존 비교는 건너뛴다
+        raise subprocess.CalledProcessError(128, ["git", *args])
+    monkeypatch.setattr(pn, "git", no_head)
+
+
+def test_check_git_passes_normal_links(monkeypatch):
+    _fake_git(monkeypatch, [(FULL_B, []), (FULL_A, [])])
+    errs, pending = pn.check_git(_ok())
+    assert errs == [] and pending == []
+
+
+def test_same_commit_with_short_and_full_hash_in_two_versions_is_rejected(monkeypatch):
+    # 같은 커밋을 v0.0.2 에는 전체 해시로, v0.0.1 에는 짧은 해시로 넣으면 한 커밋이 두 버전에 속한다
+    data = _ok()
+    data["releases"][0]["commits"].append(FULL_A)
+    _fake_git(monkeypatch, [(FULL_B, []), (FULL_A, [])])
+    errs, _ = pn.check_git(data)
+    assert any("aaaaaaa" in e and "두 버전" in e for e in errs), errs
+    # 형식 검사(git 없이)도 길이만 다른 같은 해시를 잡는다
+    assert any("에도 있다" in e for e in pn.check_format(data))
+
+
+def test_same_commit_twice_in_one_version_with_different_lengths_is_rejected(monkeypatch):
+    data = _ok()
+    data["releases"][1]["commits"].append(FULL_A[:10])
+    _fake_git(monkeypatch, [(FULL_B, []), (FULL_A, [])])
+    errs, _ = pn.check_git(data)
+    assert any("aaaaaaa" in e and "두 번" in e for e in errs), errs
+
+
+def test_trailer_only_commit_is_pending_not_error(monkeypatch):
+    full_c = "c" * 40
+    _fake_git(monkeypatch, [(full_c, ["v0.0.2"]), (FULL_B, []), (FULL_A, [])])
+    errs, pending = pn.check_git(_ok())
+    assert errs == [] and pending == ["ccccccc → v0.0.2"]
+
+
+def test_sync_write_moves_trailer_commit_once(monkeypatch, tmp_path):
+    import json as _json
+    full_c = "c" * 40
+    data = _ok()
+    path = tmp_path / "patchNotes.json"
+    path.write_text(_json.dumps(data, ensure_ascii=False), encoding="utf-8")
+    _fake_git(monkeypatch, [(full_c, ["v0.0.2"]), (FULL_B, []), (FULL_A, [])])
+    monkeypatch.setattr(pn, "PATH", str(path))
+    assert pn.main(["sync", "--write"]) == 0
+    written = _json.loads(path.read_text(encoding="utf-8"))
+    assert written["releases"][0]["commits"] == ["bbbbbbb", "ccccccc"]
+    assert pn.main(["sync", "--write"]) == 0            # 두 번째는 옮길 것 없음
+    assert _json.loads(path.read_text(encoding="utf-8")) == written

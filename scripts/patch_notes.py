@@ -112,10 +112,13 @@ def check_format(data: dict) -> list[str]:
         for h in commits:
             if not HASH.match(str(h)):
                 errs.append(f"{where}: 커밋 해시 형식 아님 {h!r}")
-            elif h in seen_commits:
-                errs.append(f"{where}: 커밋 {h} 가 {seen_commits[h]} 에도 있다")
             else:
-                seen_commits[h] = v
+                # 길이만 다른 같은 해시(한쪽이 다른 쪽의 접두사)도 같은 커밋으로 본다
+                same = next((k for k in seen_commits if k.startswith(h) or h.startswith(k)), None)
+                if same is not None:
+                    errs.append(f"{where}: 커밋 {h} 가 {seen_commits[same]} 에도 있다({same})")
+                else:
+                    seen_commits[h] = v
         prev = r
 
     seen_ids: set[str] = set()
@@ -178,6 +181,11 @@ def check_git(data: dict) -> tuple[list[str], list[str]]:
             hits = [f for f in fulls if f.startswith(h)]
             if len(hits) != 1:
                 errs.append(f"{r['version']}: 커밋 {h} 가 HEAD 이력의 커밋 하나를 가리키지 않는다({len(hits)}개)")
+            elif hits[0] in listed:
+                # 전체 해시로 정규화한 뒤의 중복 — 덮어쓰지 않고 거절한다(길이가 다른 해시로 같은 커밋을 다시 넣은 경우)
+                before = listed[hits[0]]
+                where = f"{before} 에 두 번" if before == r["version"] else f"{before}·{r['version']} 두 버전에"
+                errs.append(f"{r['version']}: 커밋 {h} ({hits[0][:7]}) 가 {where} 연결됐다")
             else:
                 listed[hits[0]] = r["version"]
     versions = {r["version"] for r in data["releases"]}
