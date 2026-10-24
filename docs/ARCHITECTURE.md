@@ -46,6 +46,9 @@ scoring_engine/
   location.py           LocationResolver(좌표 → 2026 인천 행정동, point-in-polygon, 코드로 panel 연결) + ContextBuilder(좌표 → SiteContext, 반경 500m 점포 0개 거부). 한 모듈 (eng review D3, D-011)
   v0_3/                 canonical 엔진 사본 (원본과 바이트 동일)
   v0_4/                 v0.3 + 분석 반경 300·500·1,000m 최소 diff (D-024, SCORING_ENGINE_VERSION=v0_4)
+  v0_5/                 팀 전달 v0.5(sources/team_v0.5) + 같은 반경 최소 diff (D-028, SCORING_ENGINE_VERSION=v0_5)
+  v0_5_1/               v0_5 + 분동 인구비 이중 적용 결함 수정 (D-029, SCORING_ENGINE_VERSION=v0_5_1)
+  boundary.py           v0.5 인구 면적 배분 경계(data/geo/SGIS_행정동경계_2025_2Q_인천.geojson) UTF-8 로드 + 중심점 면적 가중치 재사용
   runtime.py            RuntimeData — 런타임 데이터 1회 로드
   reference.py          ReferenceCache — 비교 모집단 캐시 (프로세스 메모리)
   context.py            SiteContext — run_all 하드코딩을 명시적 파라미터로. golden fixture BUPYEONG_STATION, 웹 요청은 ContextBuilder가 좌표로 만든다
@@ -148,6 +151,7 @@ production: Cloud Run 서비스 1개 — FastAPI(uvicorn 1 process)가 API와 Vi
 
 캐시 경계 (무효화 키):
 - 런타임 데이터 + reference: `(엔진 버전, data/runtime 해시, 분석 반경(v0.3은 config.RADIUS_M), 업종코드 | 유인시설 집합)` — 경쟁성 reference 키는 (업종, 반경)(D-024). 데이터나 엔진이 바뀌지 않으면 영구 유효.
+- 엔진 v0.5(D-028): 경쟁성 reference (업종, 반경) 하나가 경쟁성·집적도(`agg_ref`)·고객성 반경 비교 분포(`customer_inputs`)를 함께 준다(87개). 입지 reference 키는 (유인시설 집합, 학교구역 적용 여부) 18개 — 학교구역 업종(PC방 등)과 같은 유인시설의 비규제 업종(분식 등)이 캐시를 나눠 쓰지 않는다. 행정동 경계(`RuntimeData.areas`)는 앱 시작 때 1회 로드하고, 158개 중심점의 면적 가중치는 (중심점, 반경)마다 1회 계산해 29개 업종이 재사용한다(요청 지점 가중치는 저장하지 않는다). 엔진·데이터는 프로세스당 하나라 별도 무효화가 필요 없다(새 리비전 = 새 프로세스). 프런트 결과 캐시는 응답 엔진버전이 바뀌면 전부 버린다.
 - 지점 결과: `(위 키, lat, lng, biz, 사용자 가중치/중요도/면허)`. 필요해지면 그때 도입 (현재 불필요, 20ms).
 - `data/cache/`에 쓸 때는 위 키를 파일명/메타에 넣고, 키가 다르면 버린다. 캐시는 정답이 아니다 — golden이 정답이다.
 

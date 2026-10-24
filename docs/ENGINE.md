@@ -58,13 +58,32 @@ AnalysisService().analyze(BUPYEONG_STATION, "R10406", importance={"stability": 5
 `radius_demand.py`, `etl_location.py`: 반경 수요·비교 모집단·역 병합·유인시설 규칙.
 adapter 후처리(시장성 `fallback="gugu"`, `해상도_시군구`)도 golden에 포함되므로 같은 취급.
 
-변경이 필요하면: 새 엔진 버전(예: `v0_4/`) + golden 새 버전 디렉터리 + DECISIONS 기록. v0.3 golden은 그대로 둔다.
+변경이 필요하면: 새 엔진 버전(예: `v0_4/`) + golden 새 버전 디렉터리 + DECISIONS 기록. v0.3 golden은 그대로 둔다. (v0.4 = 반경 D-024, v0.5 = 팀 전달 v0.5 + 반경 D-028)
 
 ## v0.4 (`mvp-0.4`, D-024) — 분석 반경 선택
 - `scoring_engine/v0_4/` = v0.3 사본 + 최소 diff: `config.RADIUS_OPTIONS_M = (300, 500, 1000)`, `scoring.analyze(..., radius_m=None)`(기본 500, 다른 값은 `ValueError`) → 경쟁성 raw `반경m`·`meta.분석반경_m`에 기록, `엔진버전 = "mvp-0.4"`.
 - 반경은 경쟁성(과 종합·경고)만 바꾼다. 비교 모집단(`build_reference`)도 반경마다 다르므로 `radius_profile`·`radius_ref`를 같은 반경으로 만들어 넘겨야 한다(`AnalysisService`가 한다).
-- 프로세스당 엔진 하나: `SCORING_ENGINE_VERSION=v0_4`. 기본은 v0.3.
+- 프로세스당 엔진 하나: `SCORING_ENGINE_VERSION=v0_4`(또는 `v0_5`). 기본은 v0.3.
 - 변경 금지: 허용 diff 밖 변경은 `tests/test_engine_v0_4_diff.py`가 막는다. 바꾸려면 새 버전으로.
+
+## v0.5 (`mvp-0.5`, D-028) — 팀 전달 v0.5 + 반경 선택
+상세(차이·이유·검증·퍼즐 조사 반영 방식): `docs/ENGINE_V0_5.md`.
+- `scoring_engine/v0_5/` = 팀 전달 엔진(`sources/team_v0.5/04_엔진코드/engine`) 13개 파일 + 반경 최소 diff(`config.RADIUS_OPTIONS_M`, `analyze/score_competition/score_customer(..., radius_m)`, 경쟁성 raw `반경m`·`meta.분석반경_m`·고객성 `인구_기준` 문구). 허용 diff 밖은 `tests/test_engine_v0_5_diff.py`가 막는다. `엔진버전`은 팀과 같은 `mvp-0.5`.
+- 팀 번들의 "v0.4"(집적 효과)는 웹 v0.4(반경)와 다른 변경이다. 웹 v0.5는 팀 v0.4·v0.5를 모두 포함한다.
+- 진입점 추가 인자: `analyze(..., agg_ref=반경 전체 점포 수 분포, radius_m=…)`. 반경 계산 `radius_profile/build_reference(..., pop_col=DEMAND_COLS, extra_cols=[타겟_업종, 총인구, 종사자수], same_weights=config.same_weights(업종), areas=DongAreas)` → `customer_inputs(rp, ref, 타겟열)`로 고객성 지점 값·비교 분포를 같은 반경 값으로 덮어쓴다(`service.py`가 팀 run_all v0.5와 같은 순서로).
+- 경계: `etl_boundary.DongAreas(data/geo/SGIS_행정동경계_2025_2Q_인천.geojson, panel)` 1회 로드(`RuntimeData.areas`, `boundary.py`가 UTF-8로 읽고 중심점 가중치 재사용). 158/158 연결, 분동 4곳은 모체 동 경계(팀 v0.5: × 인구 비율 — 결함, v0.5.1에서 수정, D-029).
+- 캐시 키: 경쟁성 (업종, 반경) — 같은 표가 경쟁성·집적도·고객성 비교 분포를 준다(87개). 입지성 (유인시설 집합, 학교구역 적용 여부) — 18개(반경 무관).
+- 반경은 고객성(반경 인구)·경쟁성(과 종합·경고)을 바꾼다. 시장성·입지성·안정성·초보자 접근성은 반경과 무관(golden r300·r1000으로 확인).
+- 출력 추가: 고객성 raw `종사자_민감도`·`1인가구_민감도`·`인구_기준`, 경쟁성 raw `동종점포수_정확일치`·`동종점포수_실효(대체업종_포함)`·`대체업종_계수`·`업종_집적유형`·`집적_계수`·`상권_집적도_백분위`·`잠재수요_구성`(+ 세부지표 `p3` 상권 집적도, 집적형·중간형만), 입지성 raw `역_의존도`·`학교구역_제외_학교수`, 안정성 raw `임대료_해석`, `초보자_접근성.학교구역_200m_학교수`, `meta.정규화_기준` = "인천 158개 행정동 중심점(동네 평균 지점) 대비 백분위 — 상업지 후보지끼리의 순위가 아님". 학교구역 경고는 `경고[0]`.
+- 이름은 같지만 뜻이 바뀐 raw: 고객성 `타겟연령_거주인구`·`종사자수`(반경 면적 배분), 경쟁성 `반경_추정수요`(거주 + 종사자), `점포당_잠재수요`(÷ 실효 동종 수), `동종업종_비중`(실효 ÷ 전체), 입지성 `유인시설_근접도`(가까운 3곳 평균). `동종점포수`는 정확 일치 그대로(= `/nearby-stores` count).
+- 변경 금지: 팀 원본과 같은 설정·계산(가중치·집적 계수·역 의존도·민감도·대체업종·학교구역 거리). 지오비전 퍼즐 수치로 바꾸지 않는다(D-028).
+- golden: `tests/golden/v0.5/`(500m = 팀 결과 사본, r300·r1000 = `scripts/golden_v0_5.py`). Python 3.12+로 만든 팀 결과와 3.10 실행의 `종합.적용_가중치` 반올림 1칸 차이(14칸)만 테스트가 재계산으로 허용한다.
+
+## v0.5.1 (`mvp-0.5.1`, D-029) — v0.5 + 분동 배분 결함 수정
+- `scoring_engine/v0_5_1/` = `v0_5` + `etl_boundary.DongAreas`의 분동 비율 한 줄(비율 1.0) + 엔진버전 문자열(`scoring.py`, 사본 `test_access.py`). 허용 diff `tests/test_engine_v0_5_1_diff.py`, 해시 `tests/manifests/engine_v0_5_1.sha256.json`.
+- 결함(팀 엔진 유래): 신설 분동(아라1·2동, 운서1·2동)을 SGIS 2025 모체 경계로 연결하면서 가중치에 "분동 인구 ÷ 형제 합"을 곱했다. 패널 값은 이미 분동별이라 배분 인구 = 면적 비율 × 인구비 × 분동 값(이중 적용) — 같은 경계·같은 총량에서 분동 전보다 약 절반. 비율은 팀 `etl_sgis.attach`(SGIS **모체** 통계를 분동에 나눔, 그곳은 맞음)에서 온 규칙이다.
+- 수정 가정: 분동들은 모체 경계 안에 고르게 산다(엔진의 동 안 균등 거주 가정 그대로) → 분동마다 모체 면적 비율만 곱한다. 분동 전후 배분 총량이 보존된다(합성·실데이터 테스트). 대안(2026 자식 경계로 따로 배분)은 경계 출처가 섞여 다음 과제로 둔다(`docs/ENGINE_V0_5.md` 9장).
+- v0.5(`v0_5/`, golden v0.5 = 팀 결과)는 그대로 둔다 — 결함 재현 테스트가 v0.5에 고정돼 있다. golden v0.5.1 = `tests/golden/v0.5.1/r300·r500·r1000`(`scripts/golden_v0_5.py`). 응답 형태는 v0.5와 같다(프런트 `isAreaWeightedEngine`).
 
 ## 알아둘 결합 (주의)
 - `AGE_PROFILE`은 실데이터 경로에서 `raw.타겟_정의` 문구에만 쓰인다. 타겟 인구 값은 `패널_통합.csv`의 `타겟_{업종명}` 컬럼(ETL `etl_pop.py`가 계산)에서 온다. 연령 프로파일을 바꾸려면 패널 재생성이 필요하다.

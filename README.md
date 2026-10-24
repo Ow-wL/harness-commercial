@@ -1,6 +1,7 @@
 # 우리동네 상권분석 매니저 — 웹 개발 저장소
 
-인천 지도에서 위치와 업종을 고르면 v0.3 스코어링 엔진(`mvp-0.3`)으로 상권을 분석하는 웹 애플리케이션.
+인천 지도에서 위치와 업종을 고르면 버전 선택형 스코어링 엔진으로 상권을 분석하는 웹 애플리케이션.
+엔진은 프로세스당 하나 — `SCORING_ENGINE_VERSION = v0_3(코드 기본) | v0_4(반경 300·500·1,000m, 현재 운영) | v0_5(팀 전달 v0.5 + 반경) | v0_5_1(v0.5 + 분동 배분 결함 수정, D-029)` — v0.5 계열은 2026-10-24 저장소 반영·운영 미배포(`docs/ENGINE_V0_5.md`).
 현재 상태: MVP 운영 배포 완료 후 **8차 UI/UX 개선** 진행 중 — 디자인 방향 A3 지도 탐색형·블루안 확정(`DESIGN.md` §19, D-023), 8-B1 단일·8-B2 비교 지도 맞춤 저장소 반영(운영 미배포 — 두 단계를 묶어 배포 예정). 다음 작업은 `docs/TASKS.md` 8장.
 
 ## MVP 기능
@@ -26,6 +27,9 @@ bash: `scripts/setup.sh`, `scripts/check.sh`. frontend 의존성은 `frontend/`�
 ```powershell
 # 1) backend (저장소 루트, .venv 활성화 상태) — 데이터 로드 약 4s 뒤 요청 수신, 업종 warm은 background
 python -m uvicorn backend.app.main:app --port 8000
+
+# 1-0) 엔진 v0.5 로 띄우기 (PowerShell) — /health engine.version = "mvp-0.5", 반경 300·500·1,000m
+$env:SCORING_ENGINE_VERSION = "v0_5"; python -m uvicorn backend.app.main:app --port 8000
 
 # 1-1) venv 활성화 
 .\.venv\Scripts\Activate.ps1

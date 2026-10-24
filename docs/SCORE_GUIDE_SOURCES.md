@@ -145,3 +145,23 @@ PPTX는 읽기만 했다 (sha256 `a551b190e8663350f112cc38f67e16ba43deead6eddf08
 3. 안정성 런타임 CSV의 생성 이력 — ETL 규칙은 원본 코드(`etl_stability.py`, `etl_stability_food.py`)로 확인했지만, 런타임 CSV가 그 코드·현재 입력으로 만들어졌는지는 확인하지 못했다(2-1 (c)). 필요하면 원본 ETL을 scratch 사본으로 재실행해 출력 동일성을 확인한다.
 4. "안정성에 비교적 큰 비중" — 원본은 "일반 상권분석보다 높게"라고 적었지만 비교 대상 서비스의 가중치는 확인하지 못해 비교 표현은 넣지 않았다.
 5. 서울시 상권분석서비스와의 지표 대응(근거조사 2장)은 화면에 넣지 않았다. 소진공 부분이 2차 자료에만 근거하기 때문이다.
+
+## 6. 엔진 v0.5 문장 근거 (2026-10-24, D-028)
+
+화면은 응답 `meta.엔진버전`이 `mvp-0.5`일 때만 아래 문장을 쓴다(`content/scoreGuide.ts` `perspectiveGuide`, `DataSources`, `scoreHelp`, `RadiusControl`, `IndicatorDetails` 계산 기준). v0.3·v0.4 응답의 문장은 그대로다.
+
+| 문장(요지) | 근거 |
+|---|---|
+| 고객성 = 반경 안 타겟 인구·비중·종사자, 1인 세대 비중은 행정동 값 | `scoring_engine/v0_5/radius_demand.customer_inputs`(target_pop·target_share·workers만 반경 값), `scoring.score_customer`(`solo_household_share`는 dong 값), raw `인구_기준` |
+| "원과 겹치는 면적 ÷ 그 동 면적"만큼 배분, 동 안 균등 거주 가정 | `etl_boundary` 모듈 docstring·`DongAreas.weights` |
+| 가족형 업종은 1인 세대가 많을수록 감점, 직장인 비고객 업종은 종사자 점수를 50 쪽으로 | `config.SOLO_SENSITIVITY`(음수), `config.worker_sens` = 0.5 + 0.5 × WORK_PREF |
+| 잠재수요 = 반경 거주인구 + 종사자, 실효 동종 수(계수 0.3~0.5) | `config.DEMAND_COLS`, `config.SUBSTITUTE`·`same_weights` |
+| 집적형·중간형은 반경 전체 점포 수 백분위를 가점, "우수성·성공 가능성 순위가 아님" | `config.AGGLOMERATION`·`AGG_BASE_WEIGHT`, `scoring.score_competition` p3 = `pct_rank(n_all, agg_ref)` — 점포 수의 백분위일 뿐이라는 해석은 이 저장소의 표기 원칙(감사 3장) |
+| 집적 유형 일부는 인천 음식점 생존 분석으로 정함 | 팀 `00_엔진_v0.5_변경사항.md` 2장 마지막 행(카페 OR 0.84, 한식 1.24, 양식 불분명) |
+| 경쟁성 한계 "번화가·신도시 상업지는 외부 방문객이 많아 …" | 사용자 지정 문구(2026-10-24). 근거는 팀 지오비전 퍼즐 조사의 방향(`docs/ENGINE_V0_5.md` 6장) — 수치는 화면에 쓰지 않는다 |
+| 입지성 = 역 의존도만큼 역 근접, 나머지 유인시설 / 가까운 3곳 평균 / 학교 200m 안 학교 가점 제외 | `config.STATION_RELIANCE`·`station_reliance`, `config.ANCHOR_K`, `etl_location.site_profile`, `config.SCHOOL_ZONE_M`·`access.ACCESS[…]["입지규제"]` |
+| 비교 기준 = 158개 행정동 중심점(동네 평균 지점), 상업지 후보지 순위 아님 | `config.REFERENCE_LABEL`(= 응답 `meta.정규화_기준`), `reference.py`(비교 지점 = 행정동별 점포 좌표 평균) |
+| 학교구역 경고는 주의 안내이며 허가 여부를 정하지 않음 | 엔진 경고 원문("영업 허가가 어려울 수 있어 … 먼저 확인이 필요")을 그대로 두고, 판정 주체(관할 교육지원청)만 덧붙임 |
+| 임대료 지표 = "감당 가능성"이지 "손님 대비 비싼가"가 아님 | 엔진 raw `임대료_해석`(`scoring.score_stability`) |
+| 점수 읽는 법: 1인 세대 점수는 민감도(−1~+1)만큼 50점 쪽, 음수(가족형)는 방향 반대, 종사자 점수도 민감도만큼 (2026-10-24 Codex 검수 반영) | `scoring.score_customer` p4 = 50 + (백분위 − 50) × `SOLO_SENSITIVITY`(음수 업종: 학원 −0.8, 슈퍼 −0.5 …), p3 = 50 + (백분위 − 50) × `worker_sens` |
+| 사후 점검에서 점수가 높은 곳이 더 오래 살아남는 관계 확인 안 됨 | 팀 `00_엔진_v0.5_변경사항.md` 3-2(음식 9개 업종 평균 ρ v0.4 −0.089 → v0.5 −0.069). 수치는 화면에 쓰지 않음 |

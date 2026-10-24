@@ -24,8 +24,9 @@ python -m uvicorn backend.app.main:app --reload
  "engine": {"version": "mvp-0.3", "radius_options": [500], "default_radius_m": 500},
  "warm": {"completed": 7, "total": 29, "done": false, "failed": false, "error": null}}
 ```
-- `engine`(8-D2, D-024): 이 서버 엔진이 받는 분석 반경. v0.4(`SCORING_ENGINE_VERSION=v0_4`)는 `"mvp-0.4"`, `[300, 500, 1000]`. 프런트는 `radius_options`가 2개 이상일 때만 반경 선택을 보인다(8-D3).
-- warm 단위: 반경이 하나(v0.3)면 업종 29개, 여럿(v0.4)이면 (업종, 반경) 87개 — 500m를 모두 먼저, 그다음 300·1,000m. 실패 표시는 `"업종코드@반경m: 예외이름"`.
+- `engine`(8-D2, D-024): 이 서버 엔진이 받는 분석 반경. v0.4(`SCORING_ENGINE_VERSION=v0_4`)는 `"mvp-0.4"`, `[300, 500, 1000]`. v0.5(`SCORING_ENGINE_VERSION=v0_5`, D-028)는 `"mvp-0.5"`, v0.5.1(`v0_5_1`, D-029 분동 배분 수정)은 `"mvp-0.5.1"`, 둘 다 `[300, 500, 1000]`. 프런트는 `radius_options`가 2개 이상일 때만 반경 선택을 보인다(8-D3).
+- warm 단위: 반경이 하나(v0.3)면 업종 29개, 여럿(v0.4·v0.5)이면 (업종, 반경) 87개 — 500m를 모두 먼저, 그다음 300·1,000m. 실패 표시는 `"업종코드@반경m: 예외이름"`.
+- v0.5 는 시작 때 인구 면적 배분 경계(`data/geo/SGIS_행정동경계_2025_2Q_인천.geojson`)를 한 번 더 읽고(matplotlib 필요), `/analyze` 응답에 v0.5 raw 항목(실효 동종 수·집적도·역 의존도·학교구역 등)과 학교구역 경고(`경고[0]`)가 생긴다. `/nearby-stores count`는 계속 정확 일치 동종 점포 수(= `경쟁성.raw.동종점포수`)다.
 
 `GET /businesses` (3-2) — 엔진 `config.BIZ_GROUP` 그대로 (그룹·업종 순서 = 정의 순서, 업종 목록을 backend에 따로 두지 않는다). service·warm과 무관하게 즉시 응답.
 ```json
