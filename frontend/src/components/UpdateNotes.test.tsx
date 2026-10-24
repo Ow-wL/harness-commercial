@@ -50,14 +50,18 @@ describe('업데이트 내역 (D-031)', () => {
     expect(articleOf(dialog, 'v0.0.1')).toHaveTextContent('v0.0.1 · 2026.10.05~10.08')
   })
 
-  it('운영 반영은 운영 전환 기록이 있는 버전에만 보이고, 무트래픽 검증은 운영 반영으로 보이지 않는다', () => {
+  it('운영 반영은 운영 전환 기록으로 계산하고, 무트래픽 검증 기록은 상세 보기에 따로 남는다', () => {
     const dialog = open()
     const article = (v: string) => articleOf(dialog, v)
     expect(article('v0.0.1')).toHaveTextContent('운영 반영 2026.10.08')
     expect(article('v0.0.2')).toHaveTextContent('운영 반영 2026.10.13 (v0.0.4와 함께)')
     expect(article('v0.0.5')).toHaveTextContent('운영 반영 2026.10.19')
-    for (const v of ['v0.0.6', 'v0.0.9', 'v0.0.10', 'v0.0.11']) expect(article(v)).not.toHaveTextContent('운영 반영')
-    // 상세 보기: 무트래픽 검증 기록과 커밋 해시
+    // 2026-10-25 운영 전환(v0.0.11): 그 전 버전은 함께 반영, 무트래픽 검증만 있던 v0.0.9·v0.0.10도 이 전환으로 반영
+    expect(article('v0.0.6')).toHaveTextContent('운영 반영 2026.10.25 (v0.0.11와 함께)')
+    expect(article('v0.0.10')).toHaveTextContent('운영 반영 2026.10.25 (v0.0.11와 함께)')
+    expect(article('v0.0.11')).toHaveTextContent('운영 반영 2026.10.25')
+    expect(article('v0.0.11')).not.toHaveTextContent('함께')
+    // 상세 보기: 무트래픽 검증 기록과 커밋 해시(검증 기록은 운영 반영과 따로 남는다)
     const v0010 = article('v0.0.10')
     expect(v0010).toHaveTextContent('2026.10.25 무트래픽 검증 통과')
     expect(within(v0010).getByText('276157e', { selector: '.updates__commits code' })).toBeInTheDocument()
