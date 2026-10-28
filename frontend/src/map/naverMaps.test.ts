@@ -3,6 +3,7 @@ import {
   MapLoadError,
   NAVER_SCRIPT_ID,
   onNaverAuthFailure,
+  resetNaverMapsForRetry,
   resetNaverMapsLoaderForTest,
   type NaverMapsApi,
 } from './naverMaps.ts'
@@ -198,5 +199,30 @@ describe('reduceSdkState — failed는 끝 상태', () => {
     expect(reduceSdkState(failed, { type: 'geocoder', geocoder: 'ready' })).toBe(failed)
     expect(reduceSdkState(failed, { type: 'map-ready', api, geocoder: 'ready' })).toBe(failed)
     expect(reduceSdkState({ status: 'loading' }, { type: 'map-failed', kind: 'load' })).toEqual({ status: 'failed', kind: 'load' })
+  })
+})
+
+describe('resetNaverMapsForRetry — 지도 다시 불러오기 (TASKS 11-5)', () => {
+  const SDK_BASE = 'https://oapi.map.naver.com/openapi/v3/'
+  const sdkScripts = () => document.querySelectorAll(`script[src^="${SDK_BASE}"]`)
+
+  it('SDK가 스스로 붙인 서브모듈 script(geocoder·gl)까지 걷어 내 재시도마다 쌓이지 않고, 다른 script는 그대로 둔다', () => {
+    const other = document.createElement('script')
+    other.src = 'https://example.com/other.js'
+    document.head.appendChild(other)
+    for (let i = 0; i < 3; i++) {
+      loadNaverMaps('test-client-id', { gl: true }).catch(() => {})
+      // 실제 SDK는 maps.js 를 읽은 뒤 서브모듈 script 를 문서에 직접 붙인다(운영 리비전에서 확인) — 그 동작을 흉내 낸다
+      for (const name of ['maps-geocoder.js', 'maps-gl.js']) {
+        const sub = document.createElement('script')
+        sub.src = `${SDK_BASE}${name}`
+        document.head.appendChild(sub)
+      }
+      expect(sdkScripts()).toHaveLength(3)
+      resetNaverMapsForRetry()
+      expect(sdkScripts()).toHaveLength(0)
+    }
+    expect(other.isConnected).toBe(true)
+    other.remove()
   })
 })

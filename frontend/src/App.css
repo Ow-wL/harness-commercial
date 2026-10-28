@@ -569,8 +569,13 @@
   }
 
   /* UI 간소화: 결과 지도 시트는 점수 · 위치 · 주의 첫 줄(병목 등) · 행동만. 헤드라인은 패널의 "설명 함께 보기",
-     참고 주소는 패널의 "위치 정보"에서 본다(분석 전 시트의 참고 주소는 그대로) */
-  .map-sheet__headline,
+     참고 주소는 패널의 "위치 정보"에서 본다(분석 전 시트의 참고 주소는 그대로).
+     두 규칙을 한 선택자 목록으로 묶지 않는다 — build 의 CSS 변환(대상 브라우저에 :has 미지원 firefox 114 포함)이
+     섞인 목록을 합치며 :has() 쪽을 버려 운영 번들에서 주소 숨김이 빠졌다(layout.test.ts 가 변환 결과로 고정) */
+  .map-sheet__headline {
+    display: none;
+  }
+
   .map-sheet:has(.map-sheet__score) .reference-address {
     display: none;
   }

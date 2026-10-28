@@ -171,7 +171,8 @@ export const NAVER_SCRIPT_ID = 'naver-maps-sdk'
 export const NAVER_READY_CALLBACK = '__naverMapsReady'
 /** 지도가 준비된 뒤 이 시간 안에 callback이 오지 않으면 Geocoder는 'unavailable' (지도는 그대로) */
 export const GEOCODER_TIMEOUT_MS = 10_000
-const SDK_URL = 'https://oapi.map.naver.com/openapi/v3/maps.js'
+const SDK_BASE = 'https://oapi.map.naver.com/openapi/v3/'
+const SDK_URL = `${SDK_BASE}maps.js`
 
 let pending: Promise<NaverMapsApi> | null = null
 const authListeners = new Set<() => void>()
@@ -296,6 +297,8 @@ export function loadNaverMaps(clientId: string | undefined, options: { gl?: bool
 
 /**
  * 지도 "다시 불러오기"(인증·로드 실패 뒤): 붙어 있던 SDK script·전역을 걷어 내고 다음 loadNaverMaps 가 SDK를 새로 받게 한다.
+ * SDK는 maps.js 를 읽은 뒤 서브모듈 script(maps-geocoder.js·maps-gl.js)를 문서에 직접 붙이므로, 우리 script 하나만 지우면
+ * 재시도마다 서브모듈 script 가 쌓인다(TASKS 11-5) — SDK 경로의 script 를 모두 걷어 낸다.
  * 구독(authListeners·geocoderListeners)은 지도 컴포넌트가 effect 단위로 걸고 풀므로 그대로 둔다
  */
 export function resetNaverMapsForRetry(): void {
@@ -307,6 +310,7 @@ export function resetNaverMapsForRetry(): void {
     geocoderTimer = null
   }
   document.getElementById(NAVER_SCRIPT_ID)?.remove()
+  for (const script of document.querySelectorAll(`script[src^="${SDK_BASE}"]`)) script.remove()
   delete window.naver
   delete window.navermap_authFailure
   delete window[NAVER_READY_CALLBACK]

@@ -2,8 +2,9 @@
  * App shell CSS 계약 (DESIGN.md §14). jsdom에는 레이아웃이 없어 크기 계산을 재현할 수 없으므로,
  * 실제 브라우저에서 확인한 버그의 원인이 된 규칙만 고정한다 (3차-B).
  */
-import { readFileSync } from 'node:fs'
+import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
+import { transform } from 'lightningcss'
 
 // vitest는 CSS import를 빈 모듈로 바꾸므로(?raw 포함) 파일을 직접 읽는다. jsdom 환경의 import.meta.url은
 // file URL이 아니라서 vitest 실행 위치(frontend/, npm run check)를 기준으로 한다
@@ -177,10 +178,42 @@ describe('위치 입력 방법 segmented (P2·P3)', () => {
 
 describe('UI 간소화 — 결과 지도 시트 (mobile)', () => {
   it('헤드라인과 결과 참고 주소는 시트에서 숨기고(패널의 설명 함께 보기·위치 정보로), 분석 전 시트의 참고 주소는 건드리지 않는다', () => {
-    const rule = mobileRule('.map-sheet__headline,\n  .map-sheet:has(.map-sheet__score) .reference-address')
-    expect(rule).toMatch(/display: none;/)
-    // 숨기는 대상은 이 둘뿐 — 주의 첫 줄(BandPeek)·점수·위치·행동은 이 규칙에 없다
-    const selectors = rule.slice(0, rule.indexOf('{')).split(',').map((x) => x.trim())
-    expect(selectors).toEqual(['.map-sheet__headline', '.map-sheet:has(.map-sheet__score) .reference-address'])
+    // 두 규칙은 따로 둔다 — 한 선택자 목록이면 build 의 CSS 변환이 :has 쪽을 버린다(아래 production CSS 변환 테스트)
+    const media = appCss.slice(appCss.indexOf('@media (max-width: 639px)'))
+    expect(media).toMatch(/\n {2}\.map-sheet__headline \{\s*display: none;\s*\}/)
+    expect(mobileRule('.map-sheet:has(.map-sheet__score) .reference-address')).toMatch(/display: none;/)
+    // 주의 첫 줄(BandPeek)·점수·위치·행동은 숨기지 않는다
+    expect(mobileRule('.map-sheet__score')).not.toMatch(/display: none/)
+  })
+})
+
+describe('production CSS 변환에서 :has() 선택자가 사라지지 않는다 (TASKS 후속 UI — 모바일 결과 시트 참고 주소)', () => {
+  // Vite 8 build 의 기본 CSS 대상(baseline-widely-available: chrome·edge 111, firefox 114, safari 16.4)을 그대로 넣어
+  // build 와 같은 lightningcss 변환을 돌린다. firefox 114는 :has()를 지원하지 않아, 지원 선택자와 :has() 선택자가 한
+  // 목록에 섞인 규칙은 합쳐지면서 :has() 쪽이 버려졌다(운영 번들에서 결과 시트 참고 주소 숨김 규칙이 빠진 원인).
+  // lightningcss 는 vite 의존성으로 설치돼 있다(직접 의존성 아님 — vite 를 바꾸면 이 테스트도 함께 본다)
+  const version = (major: number, minor = 0) => (major << 16) | (minor << 8)
+  const targets = { chrome: version(111), edge: version(111), firefox: version(114), safari: version(16, 4) }
+  const cssFiles: string[] = []
+  const walk = (dir: string) => {
+    for (const name of readdirSync(dir)) {
+      const path = join(dir, name)
+      if (statSync(path).isDirectory()) walk(path)
+      else if (name.endsWith('.css')) cssFiles.push(path)
+    }
+  }
+  walk(join(process.cwd(), 'src'))
+  // 주석 안의 글자는 세지 않는다(변환하면 주석이 빠진다)
+  const hasCount = (css: string) => (css.replace(/\/\*[\s\S]*?\*\//g, '').match(/:has\(/g) ?? []).length
+
+  it.each(cssFiles.map((f) => [f.slice(f.indexOf('src')), f]))('%s', (_label, file) => {
+    const source = readFileSync(file, 'utf-8')
+    const built = transform({ filename: file, code: Buffer.from(source), minify: true, targets }).code.toString()
+    expect(hasCount(built)).toBe(hasCount(source))
+  })
+
+  it('결과 시트 참고 주소 숨김 규칙이 변환 뒤에도 남는다', () => {
+    const built = transform({ filename: 'App.css', code: Buffer.from(appCss), minify: true, targets }).code.toString()
+    expect(built).toMatch(/\.map-sheet:has\(\.map-sheet__score\) \.reference-address\{display:none\}/)
   })
 })
