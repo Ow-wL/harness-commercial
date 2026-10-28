@@ -1,6 +1,7 @@
 import { Fragment } from 'react'
 import type { EngineResult } from '../api/schemas.ts'
 import { evidenceLine } from '../lib/evidence.ts'
+import { unitChipLabel } from '../lib/flags.ts'
 import { BOTTLENECK_WARN_BELOW, formatScore, notComputedText, type Indicator } from '../lib/format.ts'
 import { Icon } from './Icon.tsx'
 import './PerspectiveScores.css'
@@ -9,7 +10,8 @@ import './PerspectiveScores.css'
  * 다섯 관점 행 (DESIGN.md §6·§8.2·§8.3, A3 §19.1 요약 탭).
  * 순서는 엔진 지표 배열 그대로(시장성→안정성, 정렬하지 않는다). 막대는 모두 한 색, 50 기준선.
  * 관점 점수는 세부지표 백분위의 가중평균이라 인천 내 순위가 아니다 — 50 기준선은 0~100 척도의 중간일 뿐이다.
- * 행 = [식별색 + 이름][막대][점수] / 둘째 줄: 짧은 라벨(가장 높음·병목·가장 낮음) · 신뢰도 낮음 · 근거 줄(8-C1b).
+ * 행 = [식별색 + 이름][막대][점수] / 둘째 줄: 짧은 라벨(가장 높음·병목·가장 낮음) · 자료 등급 낮음 · 근거 줄(8-C1b) · 자료 단위 칩(12-18).
+ * 자료 단위 칩은 산출된 관점마다 항상 붙는다 — 구 단위 자료와 지점 좌표 자료가 같은 정밀도로 보이지 않게(계획 0-3).
  * 행 전체가 버튼 — 누르면 상세 근거 탭의 그 관점을 펼친다. 막대는 aria-hidden이고 같은 값을 숫자 텍스트로 준다(§15).
  */
 export function PerspectiveScores({
@@ -55,6 +57,7 @@ export function PerspectiveScores({
             isBottleneck={ind.key === summary.병목_지표}
             bottleneckWarn={bottleneckWarn}
             evidence={evidenceLine(ind, guName, business, radiusM)}
+            unit={unitChipLabel(ind, radiusM)}
             onOpen={onOpen}
           />
         ))}
@@ -69,6 +72,7 @@ function PerspectiveRow({
   isBottleneck,
   bottleneckWarn,
   evidence,
+  unit,
   onOpen,
 }: {
   indicator: Indicator
@@ -76,6 +80,8 @@ function PerspectiveRow({
   isBottleneck: boolean
   bottleneckWarn: boolean
   evidence: string | null
+  /** 자료 단위 칩(산출된 관점만) */
+  unit: string | null
   onOpen?: (key: string) => void
 }) {
   const lowConfidence = ind.confidence === 'low'
@@ -106,7 +112,7 @@ function PerspectiveRow({
     lowConfidence && (
       <span key="lc" className="perspective__low-confidence">
         <Icon name="alert-triangle" size={12} />
-        신뢰도 낮음
+        자료 등급 낮음
       </span>
     ),
   ].filter(Boolean)
@@ -132,7 +138,7 @@ function PerspectiveRow({
         )}
       </span>
       {ind.score === null && <span className="perspective__sub perspective__missing-note">{notComputedText(ind)}</span>}
-      {(tags.length > 0 || evidence) && (
+      {(tags.length > 0 || evidence || unit) && (
         <span className="perspective__sub perspective__evidence">
           {tags}
           {evidence && (
@@ -150,6 +156,7 @@ function PerspectiveRow({
               ))}
             </span>
           )}
+          {unit && <span className="perspective__unit">{unit}</span>}
         </span>
       )}
     </>

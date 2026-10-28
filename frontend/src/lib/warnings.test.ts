@@ -24,7 +24,7 @@ describe('lib/warnings — WarningPanel에서 옮긴 규칙 (동작 그대로, �
   it('데이터 한계: 신뢰도 낮음·임대료 제외를 위치의 실제 값으로 만든다 — 해상도 줄은 8-C1b부터 근거 줄 끝 "· 구 단위"', () => {
     const s4 = SONGDO.result.지표[4].breakdown.find((b) => b.key === 's4')!
     expect(dataLimits(SONGDO).map((n) => [n.tone, n.text])).toEqual([
-      ['warning', '경쟁성: 신뢰도 낮음'],
+      ['warning', '경쟁성: 자료 등급 낮음'],
       ['info', `이 위치는 임대료 조사 상권이 지정되지 않아 안정성의 '${s4.label}' 지표를 제외하고 계산했습니다.`],
     ])
     for (const analysis of [GUWOL, GANGHWA, SONGDO]) {

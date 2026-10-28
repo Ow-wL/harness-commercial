@@ -188,3 +188,16 @@ button.perspective__button:hover .perspective__label {
 .perspective__evidence-part {
   white-space: nowrap;
 }
+
+/* 자료 단위 칩(12-18): 근거 줄 끝, 작은 pill. 글자 토큰만 쓰고 두 테마에서 같은 모양 */
+.perspective__unit {
+  display: inline-block;
+  padding: 0 6px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  font-size: 11px;
+  line-height: 16px;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+  vertical-align: 1px;
+}

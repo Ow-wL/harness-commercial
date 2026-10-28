@@ -51,6 +51,33 @@ export function flagItems(ind: Indicator): FlagItem[] {
  * 경쟁성은 분석 반경, 입지성은 지점 좌표(엔진 fallback 기본값 dong_sobun은 이 둘의 단위가 아니다).
  * 안정성 incheon_avg는 웹 경로에서 S1~S3 값이 공급되지 않아 항상 미산출이다(감사 4장) — "인천 평균으로 계산"이라고 쓰지 않는다.
  */
+/**
+ * 요약 행의 자료 단위 칩(12-18, 계획 0-3): 산출된 관점마다 "이 점수의 자료가 어느 공간 단위인지"를 짧게 상시 표시한다 —
+ * 지도의 정밀한 핀과 소수 1자리 점수가 모든 자료가 지점 단위처럼 보이지 않게. calcUnitLabel(상세 근거 "계산 단위")의 짧은 판.
+ * 미산출 관점은 null(그 자리는 미산출 안내). 반경을 모르면(radiusM undefined) "반경"만.
+ */
+export function unitChipLabel(ind: Indicator, radiusM?: number): string | null {
+  if (ind.score === null) return null
+  const radius = radiusM === undefined ? '반경' : `반경 ${formatRadius(radiusM)}`
+  if (ind.key === 'customer' && ind.raw.인구_기준?.startsWith('반경')) return `${radius} 추정`   // v0.5 면적 배분 인구
+  switch (ind.key) {
+    case 'competition':
+      return radius
+    case 'location':
+      return '지점 좌표'
+    default:
+      return (
+        {
+          dong_sobun: '행정동 단위',
+          dong_jung: '업종 중분류 단위',
+          gugu_sobun: '구 단위',
+          gugu: '구 단위',
+          incheon_avg: '인천 전체 단위',
+        } as const
+      )[ind.fallback]
+  }
+}
+
 export function calcUnitLabel(ind: Indicator, radiusM: number): string {
   if (ind.score === null) {
     return ind.fallback === 'incheon_avg' ? '구 표본 30건 미만 → 산출하지 않음' : '산출하지 않음'

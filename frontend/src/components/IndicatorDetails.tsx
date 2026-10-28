@@ -129,7 +129,7 @@ function IndicatorAccordion({
             ) : (
               <span className="detail__score">{formatScore(ind.score)}</span>
             )}
-            <Chip tone={ind.confidence === 'low' ? 'warning' : 'neutral'}>신뢰도 {confidenceLabel(ind.confidence)}</Chip>
+            <Chip tone={ind.confidence === 'low' ? 'warning' : 'neutral'}>자료 등급 {confidenceLabel(ind.confidence)}</Chip>
           </span>
         </button>
       </h3>

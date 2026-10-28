@@ -5,7 +5,7 @@ import nail from '../fixtures/bupyeong-nailshop.json'
 import songdo from '../fixtures/compare-songdo-pcbang.json'
 import ganghwa from '../fixtures/compare-ganghwa-pcbang.json'
 import { AnalyzeResponseSchema, EngineResultSchema, type EngineResult } from '../api/schemas.ts'
-import { evidenceLine, evidenceUnit } from './evidence.ts'
+import { evidenceLine } from './evidence.ts'
 import { formatDistance, formatRadius, type Indicator } from './format.ts'
 
 /** 8-C1b 근거 줄 (docs/UX_REDESIGN.md 2.5) — 실제 응답 fixture + golden v0.3 29개 */
@@ -17,13 +17,13 @@ const lines = (fx: unknown) => {
 const FORBIDDEN = /순위|상위\s*\d+\s*%|하위\s*\d+\s*%|백분위|확률|추천|가장|높음|낮음/
 
 describe('evidenceLine — 실제 응답 fixture', () => {
-  it('부평역 PC방: 다섯 관점 근거 줄, 해상도 flag가 있는 시장성·안정성만 "· 구 단위"', () => {
+  it('부평역 PC방: 다섯 관점 근거 줄 — 공간 단위는 줄에 쓰지 않는다(12-18부터 자료 단위 칩이 맡는다)', () => {
     expect(lines(pc)).toEqual({
-      market: '부평구 하루 유입 679,748명 · 구 단위',
+      market: '부평구 하루 유입 679,748명',
       customer: '타겟 연령 거주 5,290명 · 비중 15.4%',
       competition: '반경 500m PC방 12곳 · 점포당 잠재수요 4,433명',
       location: '부평역까지 직선거리 85m',
-      stability: '3년 생존율 52.3% · 구 단위',
+      stability: '3년 생존율 52.3%',
     })
   })
 
@@ -104,10 +104,7 @@ describe('evidenceLine — golden v0.3 29개: raw 값 포맷만(재계산 없음
       const numbers = line!.replace(result.meta.업종, '').replace('3년 생존율', '생존율').match(/\d[\d,]*(?:\.\d+)?/g) ?? []
       for (const n of numbers) expect(allowed, `${ind.key}: ${line}`).toContain(n)
       expect(line).not.toMatch(FORBIDDEN)
-      // 해상도 단위는 flag가 있을 때만, 줄 끝에 한 번
-      const unit = evidenceUnit(ind)
-      if (unit) expect(line!.endsWith(` · ${unit}`)).toBe(true)
-      expect(line!.split('단위').length - 1).toBeLessThanOrEqual(1)
+      expect(line).not.toContain('단위')                               // 공간 단위는 칩(unitChipLabel)이 맡는다 (12-18)
     }
   })
 })

@@ -104,7 +104,7 @@ function linesOf(analysis: AnalyzeResponse, { side, compare }: Context): BandLin
 
   for (const ind of result.지표) {
     if (ind.score !== null) continue
-    const low = ind.confidence === 'low' ? ' · 신뢰도 낮음' : ''
+    const low = ind.confidence === 'low' ? ' · 자료 등급 낮음' : ''
     const text = isVacantCompetition(ind)
       ? `${p}반경 ${formatRadius(result.meta.분석반경_m)} 안 ${result.meta.업종} 0곳 · 경쟁성 미산출${low}`
       : `${p}${ind.label} 미산출 · 종합에서 제외${low}`
@@ -125,8 +125,8 @@ function linesOf(analysis: AnalyzeResponse, { side, compare }: Context): BandLin
 
   for (const ind of result.지표) {
     if (ind.confidence === 'low' && ind.score !== null) {
-      // 원인을 적지 않는다 — 엔진 신뢰도 등급은 폴백·입력·coverage 를 합친 판정이라 응답만으로 원인을 가를 수 없다(2.2)
-      lines.push({ kind: 'confidence', tone: 'warning', mark: '!', text: `${p}${ind.label} 신뢰도 낮음(엔진 판정)`, target: t('details', 'compare-warnings') })
+      // 원인을 적지 않는다 — 엔진 자료 등급(confidence)은 폴백·입력·coverage 를 합친 판정이라 응답만으로 원인을 가를 수 없다(2.2)
+      lines.push({ kind: 'confidence', tone: 'warning', mark: '!', text: `${p}${ind.label} 자료 등급 낮음(엔진 판정)`, target: t('details', 'compare-warnings') })
     }
   }
 

@@ -148,11 +148,12 @@ describe('AnalysisResult — 실제 /analyze 응답(부평역 · PC방)', () => 
     expect(perspectives).not.toHaveTextContent('인천 중앙')
   })
 
-  it('산출된 안정성의 해상도는 근거 줄 끝 "· 구 단위" 한 번 — 행 chip·주의할 점 해상도 줄은 없다 (8-C1b)', () => {
+  it('산출된 안정성의 해상도는 근거 줄 끝 자료 단위 칩 "구 단위" 한 번 — 행 chip·주의할 점 해상도 줄은 없다 (8-C1b, 12-18)', () => {
     renderResult()
     expect(FIXTURE.result.지표[4].score).not.toBeNull()
     const stability = perspectiveRows().find((r) => r.dataset.key === 'stability')!
-    expect(stability).toHaveTextContent('3년 생존율 52.3% · 구 단위')
+    expect(stability.querySelector('.perspective__evidence-text')).toHaveTextContent('3년 생존율 52.3%')
+    expect(stability.querySelector('.perspective__unit')).toHaveTextContent('구 단위')
     expect(stability).not.toHaveTextContent('시군구 단위 데이터')
     const warnings = getInTab(EVIDENCE_TAB, 'region', { name: '주의할 점' })
     expect(warnings).not.toHaveTextContent('단위 데이터로 계산했습니다')
@@ -321,7 +322,7 @@ describe('AnalysisResult — 헤드라인·주의 요약 띠 (8-C1a)', () => {
     fireEvent.click(band.querySelector('summary')!)
     expect(within(band).getAllByRole('link').map((a) => a.getAttribute('aria-label'))).toEqual([
       '경고: 경쟁성 1.2점 · 병목 기준(25점 미만) — 종합과 별개 위험 요인',
-      '경고: 안정성 미산출 · 종합에서 제외 · 신뢰도 낮음',
+      '경고: 안정성 미산출 · 종합에서 제외 · 자료 등급 낮음',
       '경고: 네일숍 제도 진입장벽 높음: 본인 미용사(네일) 면허 필요.',
     ])
     const warnings = getInTab(EVIDENCE_TAB, 'region', { name: '주의할 점' })
@@ -352,8 +353,30 @@ describe('AnalysisResult — 근거 줄·행 chip 통합·충족 1줄 (8-C1b, do
     expect(rowOf('competition').querySelector('.perspective__evidence')).toHaveTextContent(
       '가장 낮음반경 500m PC방 12곳 · 점포당 잠재수요 4,433명',
     )
-    expect(rowOf('market').querySelector('.perspective__evidence')).toHaveTextContent('부평구 하루 유입 679,748명 · 구 단위')
-    expect(rowOf('location').querySelector('.perspective__evidence')).toHaveTextContent('부평역까지 직선거리 85m')
+    expect(rowOf('market').querySelector('.perspective__evidence-text')).toHaveTextContent('부평구 하루 유입 679,748명')
+    expect(rowOf('location').querySelector('.perspective__evidence-text')).toHaveTextContent('부평역까지 직선거리 85m')
+  })
+
+  it('자료 단위 칩(12-18): 산출된 관점마다 근거 줄 끝에 상시 — 구 단위·행정동 단위·반경·지점 좌표', () => {
+    renderResult()
+    const unitOf = (key: string) => rowOf(key).querySelector('.perspective__unit')?.textContent ?? null
+    expect(['market', 'customer', 'competition', 'location', 'stability'].map(unitOf)).toEqual([
+      '구 단위',
+      '행정동 단위',
+      '반경 500m',
+      '지점 좌표',
+      '구 단위',
+    ])
+  })
+
+  it('자료 단위 칩: 미산출 관점에는 없고, v0.5 반경 배분 인구는 "반경 500m 추정"', () => {
+    render(<AnalysisResult analysis={AnalyzeResponseSchema.parse(nailShopFixture)} />)
+    expect(rowOf('stability').querySelector('.perspective__unit')).toBeNull()
+    document.body.innerHTML = ''
+    const v05 = structuredClone(FIXTURE)
+    Object.assign(v05.result.지표[1].raw, { 인구_기준: '반경 500m 배분' })         // 표시 테스트 전용 변형(v0.5 raw)
+    render(<AnalysisResult analysis={v05} />)
+    expect(rowOf('customer').querySelector('.perspective__unit')).toHaveTextContent('반경 500m 추정')
   })
 
   it('충족 1줄(12-17): "관점 5/5 산출 · 세부지표 없음 4: … · 가중치 기본(목적방문형) · 진입장벽 중간" — "데이터 충족 100%"는 쓰지 않는다', () => {
@@ -385,12 +408,14 @@ describe('AnalysisResult — 근거 줄·행 chip 통합·충족 1줄 (8-C1b, do
     ])
   })
 
-  it('"신뢰도 낮음" chip은 유지한다(산출된 관점, 표시 테스트 전용 변형)', () => {
+  it('"자료 등급 낮음" chip은 유지한다(산출된 관점, 표시 테스트 전용 변형) — 12-18: 신뢰도 → 자료 등급', () => {
     const r = structuredClone(FIXTURE)
     ;(r.result.지표[0] as { confidence: string }).confidence = 'low'
     render(<AnalysisResult analysis={r} />)
-    expect(within(rowOf('market')).getByText('신뢰도 낮음')).toBeInTheDocument()
-    expect(rowOf('market')).toHaveTextContent('부평구 하루 유입 679,748명 · 구 단위')
+    expect(within(rowOf('market')).getByText('자료 등급 낮음')).toBeInTheDocument()
+    expect(within(rowOf('market')).queryByText('신뢰도 낮음')).toBeNull()
+    expect(rowOf('market').querySelector('.perspective__evidence-text')).toHaveTextContent('부평구 하루 유입 679,748명')
+    expect(rowOf('market').querySelector('.perspective__unit')).toHaveTextContent('구 단위')
   })
 
   it('사용자 가중치면 충족 줄에 출처 원문(표시 테스트 전용 변형)', () => {

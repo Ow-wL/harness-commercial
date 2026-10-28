@@ -2,8 +2,8 @@
  * 관점 근거 줄 (8-C1b, docs/UX_REDESIGN.md 2.5, 승인 초안 §6 "근거 줄 규칙").
  * 그 관점 raw 값을 엔진 값 그대로 **포맷만** 해 1줄로 만든다 — 재계산·비교·순위 표현 없음.
  * - 미산출 관점은 근거 줄을 만들지 않는다(null) — 그 자리는 기존 미산출 안내(notComputedText)다.
- * - 공간 단위는 엔진 해상도 flag가 있을 때만 줄 끝에 한 번 쓴다("· 구 단위"). 행 chip "시군구 단위 데이터"와
- *   주의할 점의 "…단위로 계산했습니다" 줄을 이것으로 합친다.
+ * - 공간 단위는 근거 줄에 쓰지 않는다(12-18부터): 산출된 관점마다 자료 단위 칩(lib/flags.unitChipLabel)이 줄 끝에 상시 붙는다.
+ *   (8-C1b~12-17은 해상도 flag가 있을 때만 "· 구 단위"를 줄 끝에 썼다.)
  * - raw 값이 없는(null) 조각은 빼고, 남는 조각이 없으면 null.
  * - 엔진 v0.5(D-028): 고객성 인구는 반경 면적 배분 값이라 "반경 {r} 타겟 연령 거주"로, 경쟁성은 정확 일치 동종 수 옆에
  *   대체업종을 포함한 실효 수("비슷한 업종 포함 약 N곳")와 잠재수요 기준(거주+종사자)을 함께 쓴다 — 두 수를 섞지 않는다.
@@ -34,19 +34,6 @@ export const isRadiusPopulation = (ind: Indicator) =>
 /** v0.5 경쟁성 잠재수요 구성에 종사자가 들어가는지 ({"총인구":1,"종사자수":1}) */
 export const demandIncludesWorkers = (ind: Indicator) =>
   ind.key === 'competition' && '잠재수요_구성' in ind.raw && Object.hasOwn(ind.raw.잠재수요_구성 ?? {}, '종사자수')
-
-/**
- * 해상도 flag → 근거 줄 끝 단위. 점수가 산출된 관점만(미산출 관점의 폴백 flag는 "그 단위로 계산했다"는 뜻이 아니다,
- * docs/SCORE_EXPLANATION_AUDIT.md 4장). incheon_avg·dong_jung은 웹 경로에서 산출과 함께 오지 않지만(2.4) 오면 그대로 밝힌다
- */
-export function evidenceUnit(ind: Indicator): string | null {
-  if (ind.score === null) return null
-  const { flags } = ind
-  if (flags.includes('해상도_시군구') || flags.includes('해상도_저하__gugu_sobun')) return '구 단위'
-  if (flags.includes('해상도_저하__incheon_avg')) return '인천 전체 업종평균 단위'
-  if (flags.includes('해상도_저하__dong_jung')) return '업종 중분류 단위'
-  return null
-}
 
 /** 근거 줄 조각(단위 제외). 관점별 raw 키는 schemas.ts 그대로 */
 function parts(ind: Indicator, guName: string, business: string, radiusM: number | undefined): string[] {
@@ -95,7 +82,5 @@ function parts(ind: Indicator, guName: string, business: string, radiusM: number
 export function evidenceLine(ind: Indicator, guName: string, business: string, radiusM?: number): string | null {
   if (ind.score === null) return null
   const body = parts(ind, guName, business, radiusM)
-  if (body.length === 0) return null
-  const unit = evidenceUnit(ind)
-  return [...body, ...(unit ? [unit] : [])].join(' · ')
+  return body.length === 0 ? null : body.join(' · ')
 }

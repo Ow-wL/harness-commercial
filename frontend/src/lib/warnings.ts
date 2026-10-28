@@ -23,7 +23,7 @@ export function dataLimits({ context, result }: AnalyzeResponse): Notice[] {
   const notices: Notice[] = []
   for (const ind of result.지표) {
     if (ind.confidence === 'low') {
-      notices.push({ tone: 'warning', text: `${ind.label}: 신뢰도 ${confidenceLabel(ind.confidence)}` })
+      notices.push({ tone: 'warning', text: `${ind.label}: 자료 등급 ${confidenceLabel(ind.confidence)}` })
     }
     // 해상도 안내("…단위로 계산했습니다")는 8-C1b부터 막대 아래 근거 줄 끝 "· 구 단위"로 옮겼다(docs/UX_REDESIGN.md 2.2·2.5)
   }

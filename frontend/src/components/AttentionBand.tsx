@@ -19,7 +19,7 @@ const MARK_LABEL: Record<BandLine['mark'], string> = { '!': '경고', i: '안내
 
 const KIND_LABEL: Record<BandLine['kind'], string> = {
   'school-zone': '학교구역', composition: '계산 구성 다름', bottleneck: '병목', 'not-computed': '미산출',
-  school: '학교 주변', confidence: '신뢰도 낮음', other: '추가 확인', area: '같은 지역',
+  school: '학교 주변', confidence: '자료 등급 낮음', other: '추가 확인', area: '같은 지역',
 }
 
 /** 섹션 제목으로 이동하고 포커스를 옮긴다. 대상이 숨은 결과 탭 안이면 그 탭을 먼저 연다(A3 탭, ResultTabs) */
