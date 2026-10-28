@@ -9,7 +9,7 @@
                                                검사 내용은 같고 실행 순서만 겹친다(11-6). 기본 1 = 순차(지금과 같다)
 
 단계 키: imports · integrity · team-tests · core(엔진 v0.3·데이터·golden·스크립트) · v0_4 · v0_5 · v0_5_1 · backend ·
-frontend · patch-notes. 단계를 추가할 때는 steps() 에 한 줄(키 포함)을 넣는다. 대상 폴더가 아직 없으면 SKIP(사유 표시)이며
+frontend · patch-notes · e2e(선택 단계 — 기본 전체 check 에 없고 --only e2e 로, D-035). 단계를 추가할 때는 steps() 에 한 줄(키 포함)을 넣는다. 대상 폴더가 아직 없으면 SKIP(사유 표시)이며
 실패로 숨기지 않는다. 소요(2026-10 로그 기준): core·v0_4·v0_5·v0_5_1 pytest 가 각 약 3~6분으로 전체의 약 85%다.
 """
 from __future__ import annotations
@@ -38,8 +38,10 @@ ENV_V051 = dict(ENV, SCORING_ENGINE_VERSION="v0_5_1")
 PARALLEL_KEYS = {"core", "v0_4", "v0_5", "v0_5_1", "backend"}
 
 
-def step(name, cmd, cwd=ROOT, when=True, why_skip="", env=None, key=""):
-    return {"name": name, "cmd": cmd, "cwd": cwd, "when": when, "why_skip": why_skip, "env": env or ENV, "key": key}
+def step(name, cmd, cwd=ROOT, when=True, why_skip="", env=None, key="", opt_in=False):
+    """opt_in: 기본 전체 check 에서 빼고 --only 로 고를 때만 돈다(e2e — 브라우저·backend 를 띄운다, D-035)"""
+    return {"name": name, "cmd": cmd, "cwd": cwd, "when": when, "why_skip": why_skip, "env": env or ENV, "key": key,
+            "opt_in": opt_in}
 
 
 def _shell(s) -> bool:
@@ -130,6 +132,10 @@ def steps(fast: bool):
         # 패치노트 기준 파일 형식·커밋 연결·기록 보존(D-031). git 저장소가 아니면 형식만
         step("patch notes (format, commit links)",
              [PY, "scripts/patch_notes.py", "check"] + ([] if has_git else ["--no-git"]), key="patch-notes"),
+        # 자동 E2E smoke(5-3 B, D-035): e2e build → backend(v0.5.1) → Playwright(가짜 NAVER SDK). 기본 전체 check 에는
+        # 넣지 않는다 — 배포 후보 확정 때 `--only e2e` 로 함께 돌린다(약 1.5분 + 첫 Chromium 설치)
+        step("e2e smoke (Playwright, fake NAVER SDK)", ["npm", "--prefix", "frontend", "run", "e2e"], when=has_frontend,
+             why_skip="frontend 미구현", key="e2e", opt_in=True),
     ]
 
 
@@ -141,7 +147,7 @@ def main() -> int:
     keys = sorted({s["key"] for s in all_steps})
     if "--list" in sys.argv:
         for s in all_steps:
-            print(f"  {s['key']:12s} {s['name']}")
+            print(f"  {s['key']:12s} {s['name']}" + ("   (선택 단계 — --only 로만)" if s["opt_in"] else ""))
         return 0
     only = None
     if "--only" in sys.argv:
@@ -152,6 +158,8 @@ def main() -> int:
             print(f"--only 키가 없거나 모른다: {sorted(unknown) or '(빈 값)'} — 가능한 키: {', '.join(keys)}", file=sys.stderr)
             return 2
         all_steps = [s for s in all_steps if s["key"] in only]
+    else:
+        all_steps = [s for s in all_steps if not s["opt_in"]]
     jobs = 1
     if "--jobs" in sys.argv:
         i = sys.argv.index("--jobs")

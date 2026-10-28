@@ -21,3 +21,6 @@ data/cache
 
 frontend/node_modules
 frontend/dist
+frontend/dist-e2e
+frontend/test-results
+frontend/playwright-report

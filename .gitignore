@@ -29,3 +29,8 @@ data/geo/raw/
 
 # spike temporary GeoJSON (regenerate: docs/spikes/9A-geo-theme/union_spike.py)
 frontend/spike/_geo/
+
+# e2e (TASKS 5-3 B)
+frontend/dist-e2e/
+frontend/test-results/
+frontend/playwright-report/

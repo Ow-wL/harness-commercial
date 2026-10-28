@@ -373,3 +373,9 @@ eng review에서 승인됐지만 이 기록에 없던 결정. 구현 단계에�
 - 배경: 순차 전체 check 약 17~20분(기계 부하 때 약 35분), 엔진 pytest 4단계가 약 85%.
 - 결정: `scripts/check.py --jobs N`은 Python 테스트 단계 core·v0_4·v0_5·v0_5_1·backend 를 최대 N개 동시에 돌린다(각자 별도 프로세스·엔진 환경변수, 파일 쓰기는 테스트 임시 폴더, 서버 포트는 OS 빈 포트 — 점검함). 출력은 단계별로 모았다가 원래 순서대로 붙인다. 원본 무결성·팀 원본 테스트·imports 는 앞에서 순차, frontend(vitest 자체 다중 스레드, 부하 때 시간 초과 이력)와 patch-notes 는 뒤에서 순차. 검사 항목·golden·건수는 같으므로 `--jobs` 실행도 전체 check 로 인정한다. 기본(옵션 없음)은 지금처럼 순차.
 - 측정(2026-10-28, 16코어, 시작 CPU 약 33%): `--jobs 5` 657초(약 11분), 순차 대비 약 1.8~3배 빠름. 동시 실행 중 각 단계는 약 1.7~2배 느려진다(경합). 남은 병목은 v0_5 단계(약 9분) — 더 줄이려면 단계 안 병렬(pytest-xdist, 새 의존성) 검토가 별도 과제.
+
+## D-035 자동 E2E smoke: API smoke 스크립트 + Playwright(가짜 NAVER SDK) (2026-10-28, TASKS 5-3, 사용자 결정 "A+B 도입")
+- 배경: 배포마다 지도·테마·분석·비교·업데이트 내역·모바일을 사람이 브라우저로 확인했고, 최근 결함 3건(테마 빈 화면, 운영 CSS `:has` 누락, 재시도 script 누적)은 jsdom 단위 테스트로 원리상 잡히지 않는 층에서 나왔다(`docs/E2E_SMOKE_PROPOSAL.md`).
+- 결정 A: `scripts/smoke_api.py` — `expected`(같은 소스·엔진으로 48건 기대값, 반경은 서버 광고), `check <주소> <기대값>`(정적·캐시·GeoJSON, health·warm, 48건 일치, X-Data-Version == data.version, 반경별 동종 = 목록, 학교구역 첫 줄(v0.5 계열), 422). 서비스 주소는 인자로만. 헤더 이전 리비전은 `--no-data-header`. 테스트 `backend/tests/test_smoke_api.py`(같은 앱 TestClient).
+- 결정 B: Playwright(`@playwright/test` devDependency, Chromium) — `npm run e2e` = e2e build(`dist-e2e`, 실제 `.env`를 읽지 않고 가짜 Client ID) → backend(엔진 v0.5.1, 같은 origin 서빙) → 가짜 NAVER SDK(`frontend/e2e/fakeNaverSdk.ts`: 동작 모드·인증 실패 모드)로 4흐름. `scripts/check.py --only e2e` 선택 단계 — 기본 전체 check 에는 넣지 않고 배포 후보 확정(F) 때 함께. 실제 SDK·네트워크·Client ID 를 쓰지 않으므로 실제 지도 표시는 여전히 등록 주소에서 사람이 본다(C 미도입).
+- 확인: 4흐름 통과(약 1.5분). 수정 전 소스(`965849c`) 빌드로 인증 실패 흐름을 돌리면 첫 테마 전환 뒤 빈 화면으로 실패 — 결함을 잡는다. `npm audit`의 high 3건은 기존 `zod` 경로(이번 추가와 무관, 후속).

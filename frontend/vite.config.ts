@@ -1,5 +1,5 @@
-/// <reference types="vitest/config" />
 import { defineConfig, loadEnv, searchForWorkspaceRoot } from 'vite'
+import { configDefaults } from 'vitest/config'
 import react from '@vitejs/plugin-react'
 
 // 개발 서버는 backend API 경로를 그대로 FastAPI로 넘긴다 (backend에 CORS를 추가하지 않는다).
@@ -26,6 +26,8 @@ export default defineConfig(({ mode }) => {
       environment: 'jsdom',
       globals: true,
       setupFiles: ['./src/test/setup.ts'],
+      // e2e/*.spec.ts 는 Playwright 테스트(npm run e2e) — vitest 가 줍지 않는다
+      exclude: [...configDefaults.exclude, 'e2e/**'],
     },
   }
 })
