@@ -54,13 +54,14 @@ describe('업데이트 내역 (D-031)', () => {
     const dialog = open()
     const article = (v: string) => articleOf(dialog, v)
     expect(article('v0.0.1')).toHaveTextContent('운영 반영 2026.10.08')
-    expect(article('v0.0.2')).toHaveTextContent('운영 반영 2026.10.13 (v0.0.4와 함께)')
+    expect(article('v0.0.2')).toHaveTextContent('운영 반영 2026.10.13 · v0.0.4 배포에 포함')
     expect(article('v0.0.5')).toHaveTextContent('운영 반영 2026.10.19')
     // 2026-10-25 운영 전환(v0.0.11): 그 전 버전은 함께 반영, 무트래픽 검증만 있던 v0.0.9·v0.0.10도 이 전환으로 반영
-    expect(article('v0.0.6')).toHaveTextContent('운영 반영 2026.10.25 (v0.0.11와 함께)')
-    expect(article('v0.0.10')).toHaveTextContent('운영 반영 2026.10.25 (v0.0.11와 함께)')
+    expect(article('v0.0.6')).toHaveTextContent('운영 반영 2026.10.25 · v0.0.11 배포에 포함')
+    expect(article('v0.0.10')).toHaveTextContent('운영 반영 2026.10.25 · v0.0.11 배포에 포함')
     expect(article('v0.0.11')).toHaveTextContent('운영 반영 2026.10.25')
-    expect(article('v0.0.11')).not.toHaveTextContent('함께')
+    expect(article('v0.0.11')).not.toHaveTextContent('배포에 포함')
+    expect(article('v0.0.12').querySelector('.updates__live')).toBeNull()        // 아직 운영 전환 기록 없음
     // 상세 보기: 무트래픽 검증 기록과 커밋 해시(검증 기록은 운영 반영과 따로 남는다)
     const v0010 = article('v0.0.10')
     expect(v0010).toHaveTextContent('2026.10.25 무트래픽 검증 통과')

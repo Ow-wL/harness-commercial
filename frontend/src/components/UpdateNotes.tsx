@@ -141,7 +141,7 @@ function UpdatesDialog({ onClose }: { onClose: () => void }) {
                     {live && (
                       <p className="updates__live">
                         운영 반영 {live.date.replaceAll('-', '.')}
-                        {live.app_version !== r.version && ` (${live.app_version}와 함께)`}
+                        {live.app_version !== r.version && ` · ${live.app_version} 배포에 포함`}
                       </p>
                     )}
                     <details className="updates__details">
