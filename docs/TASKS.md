@@ -156,7 +156,7 @@
     - B4 backend cold start 직후 background warm 중 미warm 업종 첫 분석 약 8s (warm 완료 후 약 0.3s). 시연은 `/health`의 `warm.done=true` 확인 후 시작
     - B5 모바일 첫 화면 sheet의 "좌표 직접 입력"이 입력란을 바로 펼치지 않음 (조건 패널에서 한 번 더 눌러야 함)
     - B6 인천 밖 dim overlay(DESIGN §5.D) 미구현, 모바일 초기 지도 안내 문구 중복, 모바일 업종 선택이 bottom sheet(§14) 대신 native select
-- [ ] 5-3 자동 E2E smoke 테스트 도입 여부 결정: 도구·NAVER 지도 대체 방식·check 포함 여부와 추가 시간을 비교해 DECISIONS에 기록한다 (결정만, dependency 추가는 결정 후)
+- [ ] 5-3 자동 E2E smoke 테스트 도입 여부 결정 — **결정안 작성(2026-10-28, [E2E_SMOKE_PROPOSAL.md](E2E_SMOKE_PROPOSAL.md)), 사용자 결정 대기**. 추천: API smoke 스크립트 저장소화 + Playwright UI smoke(가짜 SDK, `--only e2e`, 배포 후보 때). 원래 항목: 도구·NAVER 지도 대체 방식·check 포함 여부와 추가 시간을 비교해 DECISIONS에 기록한다 (결정만, dependency 추가는 결정 후)
 - [x] 5-4 production 배포 구조 결정: 서빙 방식(같은 origin reverse proxy 등)·워커 수·환경변수 관리·build asset(행정동 경계) 포함을 DECISIONS에 기록하고, 워커 수에 따라 디스크 캐시 재검토 조건(D-016)을 판단한다 (구현은 결정 후)
   - 결과 (2026-10-08): Cloud Run 서비스 1개에서 FastAPI가 frontend build까지 같은 origin으로 서빙(D-018). `Dockerfile`·`backend/app/frontend.py`·테스트, 로컬 Docker 실행·golden 검증. **Cloud Run(`asia-northeast3`) 배포 완료**, NAVER 콘솔에 서비스 URL 등록, 운영 사이트 점검 통과 (D-018 "배포·운영 점검")
 
