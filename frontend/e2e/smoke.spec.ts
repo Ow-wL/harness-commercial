@@ -47,7 +47,7 @@ test('단일 분석·반경 변경·데이터 기준일·테마 전환·업데�
   await analyzePcBang(page)
   await expect(page.getByRole('heading', { level: 1, name: '부평구 부평1동 · PC방 분석' })).toBeVisible()
   await expect(overall(page)).toContainText('62.3')
-  await expect(page.locator('.result__eyebrow')).toContainText('반경 500m · 데이터 2026-06 기준')
+  await expect(page.locator('.result__eyebrow')).toContainText('반경 500m · 데이터 묶음 2026-06')
 
   await page.locator('.bar').getByRole('button', { name: '1km', exact: true }).click()   // 결과 위 조건 바의 반경
   // 막 시작한 backend 의 첫 1km 분석은 면적 가중치 계산 때문에 약 1분 걸린다(docs/ENGINE_V0_5.md 8장) — 이 단계만 길게 기다린다
@@ -87,7 +87,7 @@ test('A/B 비교 — A 부평역, B 학교 50m (같은 데이터 버전)', async
   const head = page.locator('.compare .result__head')
   await expect(head).toContainText('62.3')
   await expect(head).toContainText('67.2')
-  await expect(head).toContainText('데이터 2026-06 기준')
+  await expect(head).toContainText('데이터 묶음 2026-06')
   expect(pageErrors).toEqual([])
 })
 

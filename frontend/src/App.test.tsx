@@ -3513,20 +3513,20 @@ describe('데이터 버전 (9-C4, D-033) — 응답 헤더 X-Data-Version 과 /h
   const v = (version: string) => ({ 'X-Data-Version': version })
   const ok = (body: unknown, version?: string) => ({ status: 200, body, headers: version ? v(version) : undefined })
 
-  it('결과 머리줄에 "데이터 2026-06 기준", 데이터 출처 표·관점 설명 기준일은 /health data.as_of 로 채운다', async () => {
+  it('결과 머리줄에 "데이터 묶음 2026-06"(12-19), 데이터 출처 표·관점 설명 기준일은 /health data.as_of 로 채운다', async () => {
     mockApi({ health: { status: 200, body: HEALTH }, analyze: [ok(fixture, '2026-06')], nearby: [ok(nearbyFixture, '2026-06')] })
     render(<App />)
     await selectBupyeongPcBang()
     fireEvent.click(analyzeButton())
     await screen.findByRole('heading', { level: 1, name: '부평구 부평1동 · PC방 분석' })
-    expect(document.querySelector('.result__eyebrow')).toHaveTextContent('분석 결과 · 반경 500m · 데이터 2026-06 기준')
+    expect(document.querySelector('.result__eyebrow')).toHaveTextContent('분석 결과 · 반경 500m · 데이터 묶음 2026-06')
     openTab(EVIDENCE_TAB)
     const sources = screen.getByRole('table', { name: '사용한 데이터와 기준시점' })
     expect(sources).toHaveTextContent('2026-06-30')
     expect(sources).toHaveTextContent('2026년 2분기')                      // rent 2026Q2
     expect(sources).toHaveTextContent('2024-12 / 2026-03')                 // stations / schools
     expect(sources).not.toHaveTextContent('—')
-    expect(screen.getByText('이 결과는 데이터 2026-06 기준입니다.')).toBeInTheDocument()
+    expect(screen.getByText(/이 결과는 데이터 묶음 2026-06으로 계산했습니다/)).toBeInTheDocument()
   })
 
   it('/health 에 data 가 없는 서버(구버전)면 머리줄 표시 없음, 기준일은 "—" — 정적 날짜로 채우지 않는다', async () => {

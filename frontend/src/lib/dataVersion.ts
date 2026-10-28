@@ -24,8 +24,11 @@ export function dataVersionOf(data: object): string | null {
   return versions.get(data) ?? null
 }
 
-/** 화면 표기 "데이터 2026-06 기준" */
-export const dataVersionLabel = (version: string): string => `데이터 ${version} 기준`
+/**
+ * 화면 표기 "데이터 묶음 2026-06" (12-19). 버전 id 는 묶음 이름이지 모든 자료의 기준월이 아니다 — 상가 2026-06-30·인구 2026-08·
+ * 인허가 2026-09·SGIS 2024처럼 자료마다 기준일이 다르므로 "데이터 2026-06 기준"처럼 읽히지 않게 쓴다. 자료별 기준일은 데이터 출처 표
+ */
+export const dataVersionLabel = (version: string): string => `데이터 묶음 ${version}`
 
 /** 역할별 자료 기준일 화면 표기: 분기 "2026Q2" → "2026년 2분기", 그 밖(YYYY-MM-DD·YYYY-MM)은 그대로 */
 export function formatAsOf(value: string): string {

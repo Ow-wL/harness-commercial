@@ -103,7 +103,11 @@ export function DataSources({ meta, disclaimer }: { meta: EngineResult['meta']; 
       <h2 id="sources-title" className="result-section__title">
         데이터 출처
       </h2>
-      {dataVersion && <p className="result-section__note">이 결과는 {dataVersionLabel(dataVersion)}입니다.</p>}
+      {dataVersion && (
+        <p className="result-section__note">
+          이 결과는 {dataVersionLabel(dataVersion)}으로 계산했습니다. 묶음 이름은 자료마다 다른 기준일을 대신하지 않습니다 — 기준일은 아래 표.
+        </p>
+      )}
       <div className="table-scroll">
         <table className="data-table">
           <caption className="visually-hidden">사용한 데이터와 기준시점</caption>

@@ -16,8 +16,8 @@ describe('데이터 버전 (9-C4, D-033)', () => {
     expect(dataVersionOf(stampDataVersion({}, null))).toBeNull()
   })
 
-  it('표기: "데이터 2026-06 기준", 분기 "2026Q2" → "2026년 2분기", 날짜는 그대로', () => {
-    expect(dataVersionLabel('2026-06')).toBe('데이터 2026-06 기준')
+  it('표기: "데이터 묶음 2026-06"(기준월이 아니라 묶음 이름, 12-19), 분기 "2026Q2" → "2026년 2분기", 날짜는 그대로', () => {
+    expect(dataVersionLabel('2026-06')).toBe('데이터 묶음 2026-06')
     expect(formatAsOf('2026Q2')).toBe('2026년 2분기')
     expect(formatAsOf('2026-06-30')).toBe('2026-06-30')
   })
