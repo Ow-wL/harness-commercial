@@ -117,7 +117,7 @@ describe('CompareResult — 해석 안내', () => {
     const section = getInTab(EVIDENCE_TAB, 'region', { name: '미산출·데이터 차이' })
     expect(within(section).getAllByRole('listitem').map((li) => li.textContent)).toEqual([
       'B 연수구 송도2동: 경쟁성 미산출 — 반경 500m 안에 같은 업종 점포가 없어 점수를 내지 않았고, 종합점수에서 제외했습니다',
-      '데이터 충족률: A 100% · B 78%',
+      '점수를 낸 관점의 가중치 비율: A 100% · B 78%',
     ])
   })
 

@@ -356,9 +356,16 @@ describe('AnalysisResult — 근거 줄·행 chip 통합·충족 1줄 (8-C1b, do
     expect(rowOf('location').querySelector('.perspective__evidence')).toHaveTextContent('부평역까지 직선거리 85m')
   })
 
-  it('충족 1줄: "데이터 충족 100% · 가중치 기본(목적방문형) · 진입장벽 중간"', () => {
+  it('충족 1줄(12-17): "관점 5/5 산출 · 세부지표 없음 4: … · 가중치 기본(목적방문형) · 진입장벽 중간" — "데이터 충족 100%"는 쓰지 않는다', () => {
     renderResult()
-    expect(coverageItems()).toEqual(['데이터 충족 100%', '가중치 기본(목적방문형)', '진입장벽 중간'])
+    expect(coverageItems()).toEqual([
+      '관점 5/5 산출',
+      '세부지표 없음 4: 업종 소비 증감, 최근 1년 순증감, 버스정류장 밀도, 상권 임대료(소규모상가)',
+      '가중치 기본(목적방문형)',
+      '진입장벽 중간',
+    ])
+    expect(document.querySelector('.coverage')).not.toHaveTextContent('데이터 충족')
+    expect(document.querySelector('.coverage')).not.toHaveTextContent('100%')
   })
 
   it('부평역 네일숍: 병목 chip은 유지(경고 톤) + 근거 줄, 미산출 안정성은 근거 줄 없이 미산출 안내만', () => {
@@ -369,7 +376,13 @@ describe('AnalysisResult — 근거 줄·행 chip 통합·충족 1줄 (8-C1b, do
     const stability = rowOf('stability')
     expect(stability.querySelector('.perspective__evidence-text')).toBeNull()
     expect(stability).toHaveTextContent('점수를 내지 않았고, 종합점수에서 제외했습니다')
-    expect(coverageItems()).toEqual(['데이터 충족 80%', '가중치 기본(고객밀착형)', '진입장벽 높음'])
+    // 미산출 안정성의 세부지표 4개는 "관점 4/5"에 이미 드러나므로 목록에 넣지 않는다. 가중치 기준 비율은 관점이 빠졌을 때만
+    expect(coverageItems()).toEqual([
+      '관점 4/5 산출(가중치 기준 80%)',
+      '세부지표 없음 3: 업종 소비 증감, 최근 1년 순증감, 버스정류장 밀도',
+      '가중치 기본(고객밀착형)',
+      '진입장벽 높음',
+    ])
   })
 
   it('"신뢰도 낮음" chip은 유지한다(산출된 관점, 표시 테스트 전용 변형)', () => {
@@ -384,7 +397,7 @@ describe('AnalysisResult — 근거 줄·행 chip 통합·충족 1줄 (8-C1b, do
     const r = structuredClone(FIXTURE)
     ;(r.result.종합 as { 가중치_출처: string }).가중치_출처 = '사용자(중요도 1~5)'
     render(<AnalysisResult analysis={r} />)
-    expect(coverageItems()[1]).toBe('가중치 사용자(중요도 1~5)')
+    expect(coverageItems()[2]).toBe('가중치 사용자(중요도 1~5)')   // 12-17: [관점 산출, 세부지표 없음, 가중치, 진입장벽]
   })
 })
 

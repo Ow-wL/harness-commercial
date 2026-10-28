@@ -490,7 +490,8 @@ function NotComputed({ a, b }: { a: AnalyzeResponse; b: AnalyzeResponse }) {
   const coverageA = a.result.종합.데이터_충족률
   const coverageB = b.result.종합.데이터_충족률
   if (coverageA !== coverageB) {
-    notices.push(`데이터 충족률: A ${formatRatio(coverageA)} · B ${formatRatio(coverageB)}`)
+    // 엔진 데이터_충족률 = 점수를 낸 관점의 가중치 비율(세부자료 완성률이 아니다, 12-17)
+    notices.push(`점수를 낸 관점의 가중치 비율: A ${formatRatio(coverageA)} · B ${formatRatio(coverageB)}`)
   }
   if (notices.length === 0) return null
   return (
