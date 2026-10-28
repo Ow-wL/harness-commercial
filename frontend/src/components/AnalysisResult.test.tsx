@@ -6,7 +6,7 @@ import nailShopFixture from '../fixtures/bupyeong-nailshop.json'
 import nailShopGolden from '../../../tests/golden/v0.3/json/full_네일숍.json'
 import { AnalysisResult } from './AnalysisResult.tsx'
 import { EVIDENCE_TAB, getInTab, openTab } from '../test/tabs.ts'
-import { SERVICE_DISCLAIMER } from './DataSources.tsx'
+import { DISCLAIMER_NOTE, SERVICE_DISCLAIMER } from './DataSources.tsx'
 
 /** 실제 backend POST /analyze 응답 캡처(부평역 좌표 · PC방)를 schema 검증 후 결과 화면에 넣는다 */
 const FIXTURE = AnalyzeResponseSchema.parse(fixture)
@@ -139,6 +139,9 @@ describe('AnalysisResult — 실제 /analyze 응답(부평역 · PC방)', () => 
     const sources = getInTab(EVIDENCE_TAB, 'region', { name: '데이터 출처' })
     expect(within(sources).getByRole('heading', { name: '엔진 면책 원문(mvp-0.3)' })).toBeInTheDocument()
     expect(within(sources).getByText(fixture.result.면책)).toBeInTheDocument()
+    // 12-4: 원문 "상대 순위"가 요약의 "순위가 아닙니다"와 충돌하지 않게 원문 아래 화면 주석 한 줄 (원문 불변)
+    expect(fixture.result.면책).toContain('상대 순위')
+    expect(within(sources).getByText(DISCLAIMER_NOTE)).toBeInTheDocument()
   })
 
   it('관점 막대 범례는 50을 "인천 중앙"이 아니라 척도 중간으로 설명한다', () => {

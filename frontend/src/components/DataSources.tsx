@@ -92,6 +92,14 @@ export const SERVICE_DISCLAIMER =
   '공공데이터로 본 참고 지표예요. 창업 결정은 현장 확인과 함께 판단해 주세요. 순위·매출 예측이 아닙니다.'
 
 /** 데이터 출처 · 엔진 면책 원문 (§9 부록, §19.6). 면책은 엔진 `면책` 원문 그대로(라벨과 한 줄 설명만 붙인다). */
+/**
+ * 엔진 면책 원문 아래 화면 주석(12-4, 계획 0-5). 원문 "본 점수는 공공데이터 기반 상대 순위이며…"의 "상대 순위"는 세부지표를 백분위로
+ * 계산한다는 뜻이지 후보지 순위가 아니다 — 요약의 "순위가 아닙니다"와 같은 화면에서 충돌하지 않게 한 줄로 밝힌다. 원문은 바꾸지 않는다.
+ * 팀 v0.6 요청 목록(docs/TASKS.md 12장 3-6)에 문구 수정을 올려 두었다.
+ */
+export const DISCLAIMER_NOTE =
+  "엔진 원문의 '상대 순위'는 세부지표를 백분위로 계산하는 방식을 뜻하며 후보지 순위가 아닙니다. 이 서비스는 점수를 순위나 성공 확률로 쓰지 않습니다."
+
 export function DataSources({ meta, disclaimer }: { meta: EngineResult['meta']; disclaimer: string }) {
   const v05 = isAreaWeightedEngine(meta.엔진버전)
   const sources = v05 ? [...SOURCES, ...SOURCES_V05] : SOURCES
@@ -165,6 +173,7 @@ export function DataSources({ meta, disclaimer }: { meta: EngineResult['meta']; 
       <h3 className="result-section__subtitle">엔진 면책 원문({meta.엔진버전})</h3>
       <p className="result-section__note">분석 엔진이 결과와 함께 내는 문장을 바꾸지 않고 그대로 옮겼습니다.</p>
       <p className="disclaimer">{disclaimer}</p>
+      <p className="result-section__note">{DISCLAIMER_NOTE}</p>
     </section>
   )
 }
