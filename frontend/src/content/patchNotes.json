@@ -25,7 +25,9 @@
         "작업 목록·프로젝트 안내 문서의 운영 반영 상태 정리"
       ],
       "commits": [
-        "92190ec"
+        "92190ec",
+        "d9b3360",
+        "b666eb1"
       ]
     },
     {
@@ -467,6 +469,16 @@
       "source_commit": "78a60d3",
       "engine": "mvp-0.5.1",
       "note": "v0.0.6~v0.0.11 기능과 점수 엔진 v0.5.1을 운영에 반영"
+    },
+    {
+      "id": "2026-10-28-verification-b666eb1",
+      "date": "2026-10-28",
+      "kind": "verification",
+      "result": "passed",
+      "app_version": "v0.0.12",
+      "source_commit": "b666eb1",
+      "engine": "mvp-0.5.1",
+      "note": "API와 지도 인증 성공 상태의 지도·테마·분석·비교·반경·업데이트 내역, 모바일 결과 화면 확인. 운영 트래픽은 바꾸지 않음"
     }
   ]
 }
