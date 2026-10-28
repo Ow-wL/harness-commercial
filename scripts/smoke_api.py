@@ -17,6 +17,7 @@ immutable 캐시와 GeoJSON 해시(data/geo 원본과 같음), /health engine·d
 """
 from __future__ import annotations
 
+import gzip
 import hashlib
 import json
 import math
@@ -39,8 +40,14 @@ SCHOOL_50M = {"lat": 37.502274 + 50 / 110_540, "lng": 126.727619, "biz_code": "R
 GEOJSON = ["인천_행정동경계_2026.geojson", "인천_시군구경계_2026.geojson"]
 DATA_VERSION_HEADER = "x-data-version"
 
-# fetch(path, body=None) -> (status, headers(소문자 키), body bytes, 초)
+# fetch(path, body=None, headers=None) -> (status, headers(소문자 키), body bytes, 초)
 Fetch = Callable[..., tuple]
+GZIP_MAGIC = b"\x1f\x8b"
+
+
+def ungzip(body: bytes) -> bytes:
+    """gzip 본문이면 푼다(원격 urlopen 은 풀지 않는다). TestClient 처럼 이미 풀린 본문은 그대로."""
+    return gzip.decompress(body) if body[:2] == GZIP_MAGIC else body
 
 
 def same(a, b) -> bool:
@@ -57,9 +64,9 @@ def same(a, b) -> bool:
 def http_fetch(base_url: str, timeout: float = 120) -> Fetch:
     base = base_url.rstrip("/")
 
-    def fetch(path, body=None):
+    def fetch(path, body=None, headers=None):
         r = Request(base + path, data=None if body is None else json.dumps(body).encode(),
-                    headers={"Content-Type": "application/json"})
+                    headers={"Content-Type": "application/json", **(headers or {})})
         t = time.perf_counter()
         try:
             with urlopen(r, timeout=timeout) as resp:
@@ -95,11 +102,12 @@ def make_expected() -> dict:
 
 
 def check_static(fetch: Fetch) -> list[str]:
-    """정적 경로·캐시 헤더·GeoJSON 해시. 실패 설명 목록(비면 통과)."""
+    """정적 경로·캐시 헤더·GeoJSON 해시·gzip(12-1)·favicon/robots(12-5). 실패 설명 목록(비면 통과)."""
     fails = []
     html = ""
     for path, want in [("/", 200), ("/health", 200), ("/businesses", 200), ("/docs", 404), ("/redoc", 404),
-                       ("/openapi.json", 404), ("/assets/missing-release.js", 404), ("/analyze", 405)]:
+                       ("/openapi.json", 404), ("/assets/missing-release.js", 404), ("/analyze", 405),
+                       ("/favicon.svg", 200), ("/robots.txt", 200)]:
         s, _, d, _ = fetch(path)
         if s != want:
             fails.append(f"{path}: {s} (기대 {want})")
@@ -110,14 +118,20 @@ def check_static(fetch: Fetch) -> list[str]:
     assets = re.findall(r'(?:src|href)="(/assets/[^" ]+)"', html)
     if not assets:
         fails.append("/ 의 index.html 에 /assets/ 참조가 없다")
+    gz = {"Accept-Encoding": "gzip"}
     for asset in assets:
-        s, h, d, _ = fetch(asset)
+        s, h, d, _ = fetch(asset, None, gz)
         if s != 200 or "immutable" not in h.get("cache-control", ""):
             fails.append(f"{asset}: {s}, cache-control={h.get('cache-control')}")
+        if s == 200 and h.get("content-encoding") != "gzip":                 # 12-1: JS·CSS 는 모두 1KB 를 넘는다
+            fails.append(f"{asset}: gzip 아님(content-encoding={h.get('content-encoding')})")
+        d = ungzip(d)
         if asset.endswith(".js"):
             for g in set(re.findall(r'/assets/[^"\s]+\.geojson', d.decode("utf-8", errors="replace"))):
-                s2, _, d2, _ = fetch(g)
-                got_geo.add(hashlib.sha256(d2).hexdigest() if s2 == 200 else f"status {s2}")
+                s2, h2, d2, _ = fetch(g, None, gz)
+                if s2 == 200 and h2.get("content-encoding") != "gzip":
+                    fails.append(f"{g}: gzip 아님(content-encoding={h2.get('content-encoding')})")
+                got_geo.add(hashlib.sha256(ungzip(d2)).hexdigest() if s2 == 200 else f"status {s2}")
     if got_geo != want_geo:
         fails.append(f"GeoJSON 해시 불일치({len(got_geo)}개 받음, {len(want_geo)}개 기대)")
     return fails

@@ -21,6 +21,7 @@ def dist(tmp_path_factory):
     (d / "index.html").write_text(INDEX_HTML, encoding="utf-8")
     (d / "favicon.ico").write_bytes(b"ico")
     (d / "assets" / "index-abc.js").write_text("console.log(1)", encoding="utf-8")
+    (d / "assets" / "big-abc.js").write_text("x" * 5000, encoding="utf-8")          # gzip 대상(>= GZIP_MIN_BYTES)
     (d / "assets" / GEOJSON).write_text('{"type":"FeatureCollection","features":[]}', encoding="utf-8")
     (root / "secret.txt").write_text("outside dist", encoding="utf-8")
     return d
@@ -50,6 +51,26 @@ def test_hashed_assets_are_served_with_long_cache(client):
     # 행정동 경계: Vite 는 한글 파일명을 URL 인코딩해 참조한다
     geo = client.get("/assets/%EC%9D%B8%EC%B2%9C_%ED%96%89%EC%A0%95%EB%8F%99%EA%B2%BD%EA%B3%84_2026-TEST.geojson")
     assert geo.status_code == 200 and geo.json()["type"] == "FeatureCollection"
+
+
+def test_gzip_for_large_assets_and_json_only_when_accepted(client):
+    """12-1: Accept-Encoding: gzip 이면 큰 본문(정적·JSON)은 gzip, 작은 본문·identity 요청은 그대로. 캐시·데이터 버전 헤더 유지."""
+    big = client.get("/assets/big-abc.js", headers={"Accept-Encoding": "gzip"})
+    assert big.status_code == 200 and big.headers.get("content-encoding") == "gzip"
+    assert big.text == "x" * 5000                                   # TestClient(httpx) 가 풀어 준 본문
+    assert big.headers["cache-control"] == "public, max-age=31536000, immutable"
+    small = client.get("/assets/index-abc.js", headers={"Accept-Encoding": "gzip"})
+    assert small.status_code == 200 and "content-encoding" not in small.headers
+    plain = client.get("/assets/big-abc.js", headers={"Accept-Encoding": "identity"})
+    assert plain.status_code == 200 and "content-encoding" not in plain.headers and plain.text == "x" * 5000
+    analyze = client.post("/analyze", json={"lat": 37.4894, "lng": 126.7246, "biz_code": "R10406"},
+                          headers={"Accept-Encoding": "gzip"})
+    assert analyze.status_code == 200 and analyze.headers.get("content-encoding") == "gzip"
+    assert analyze.headers["x-data-version"] == client.get("/health").json()["data"]["version"]
+    assert analyze.json()["result"]["meta"]["업종코드"] == "R10406"
+    err = client.post("/analyze", json={"lat": 37.5665, "lng": 126.978, "biz_code": "R10406"},
+                      headers={"Accept-Encoding": "gzip"})
+    assert err.status_code == 422 and "content-encoding" not in err.headers   # 작은 오류 본문은 압축하지 않는다
 
 
 def test_dist_root_files_are_served(client):

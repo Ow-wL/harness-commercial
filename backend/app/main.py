@@ -37,6 +37,7 @@ from contextlib import asynccontextmanager
 from typing import Annotated, Any, Iterable, Literal, Optional
 
 from fastapi import FastAPI, Response
+from fastapi.middleware.gzip import GZipMiddleware
 from pydantic import BaseModel, Field, StrictFloat, StrictInt, StrictStr
 
 from scoring_engine import ENGINE_VERSION, RADIUS_OPTIONS_M, config as C, scoring
@@ -51,6 +52,9 @@ from scoring_engine.service import AnalysisService
 
 logger = logging.getLogger("backend.warm")
 DATA_VERSION_HEADER = "X-Data-Version"   # /analyze·/nearby-stores 성공 응답의 데이터 버전 id (9-C4, D-033)
+# 12-1: 응답 gzip. StaticFiles 도 Cloud Run 도 압축하지 않아 JS 525KB·행정동 GeoJSON 611KB 가 원본 크기로 내려갔다(약 1.38MB →
+# gzip 약 0.40MB). Accept-Encoding: gzip 요청에만, 이 크기 이상의 본문만(작은 JSON·오류 응답은 그대로). 헤더(X-Data-Version·Cache-Control)는 유지된다
+GZIP_MIN_BYTES = 1024
 
 
 class Business(BaseModel):
@@ -237,6 +241,7 @@ def create_app(service: Optional[AnalysisService] = None, warm_biz: Optional[Ite
     # production(frontend 서빙)에서는 API 문서를 공개하지 않는다 (D-018). 인증이 아니다 — API 자체는 그대로 public
     docs = {} if not frontend_dist else {"docs_url": None, "redoc_url": None, "openapi_url": None}
     app = FastAPI(title="인천 상권분석 API", lifespan=lifespan, **docs)
+    app.add_middleware(GZipMiddleware, minimum_size=GZIP_MIN_BYTES)
     install_error_handlers(app)
     app.state.service = None
     app.state.warm = None

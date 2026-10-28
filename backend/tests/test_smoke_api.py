@@ -21,8 +21,8 @@ def client(real_service):
 
 
 def fetch_of(client):
-    def fetch(path, body=None):
-        r = client.get(path) if body is None else client.post(path, json=body)
+    def fetch(path, body=None, headers=None):
+        r = client.get(path, headers=headers) if body is None else client.post(path, json=body, headers=headers)
         return r.status_code, {k.lower(): v for k, v in r.headers.items()}, r.content, 0.01
     return fetch
 
