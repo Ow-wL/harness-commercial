@@ -27,7 +27,8 @@
       "commits": [
         "92190ec",
         "d9b3360",
-        "b666eb1"
+        "b666eb1",
+        "b412e71"
       ]
     },
     {
@@ -479,6 +480,16 @@
       "source_commit": "b666eb1",
       "engine": "mvp-0.5.1",
       "note": "API와 지도 인증 성공 상태의 지도·테마·분석·비교·반경·업데이트 내역, 모바일 결과 화면 확인. 운영 트래픽은 바꾸지 않음"
+    },
+    {
+      "id": "2026-10-28-production",
+      "date": "2026-10-28",
+      "kind": "production",
+      "result": "done",
+      "app_version": "v0.0.12",
+      "source_commit": "b666eb1",
+      "engine": "mvp-0.5.1",
+      "note": "모바일 결과 화면·지도 다시 불러오기·업데이트 내역 문구 수정을 운영에 반영"
     }
   ]
 }

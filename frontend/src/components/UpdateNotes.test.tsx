@@ -61,7 +61,9 @@ describe('업데이트 내역 (D-031)', () => {
     expect(article('v0.0.10')).toHaveTextContent('운영 반영 2026.10.25 · v0.0.11 배포에 포함')
     expect(article('v0.0.11')).toHaveTextContent('운영 반영 2026.10.25')
     expect(article('v0.0.11')).not.toHaveTextContent('배포에 포함')
-    expect(article('v0.0.12').querySelector('.updates__live')).toBeNull()        // 아직 운영 전환 기록 없음
+    // 배포 기록은 추가만 하므로 이미 기록된 운영 반영일은 바뀌지 않는다 — "아직 없음"처럼 다음 전환 때 깨지는 단언은 두지 않는다
+    expect(article('v0.0.12')).toHaveTextContent('운영 반영 2026.10.28')
+    expect(article('v0.0.12')).not.toHaveTextContent('배포에 포함')
     // 상세 보기: 무트래픽 검증 기록과 커밋 해시(검증 기록은 운영 반영과 따로 남는다)
     const v0010 = article('v0.0.10')
     expect(v0010).toHaveTextContent('2026.10.25 무트래픽 검증 통과')
