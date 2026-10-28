@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+Disallow: /analyze
+Disallow: /nearby-stores
+Disallow: /health
+Disallow: /businesses

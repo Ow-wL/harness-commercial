@@ -35,11 +35,11 @@
 - [ ] 12-22 (0차 마무리) 사람 확인 기록: 카페·PC방·안정성 미산출 업종(네일숍)에서 "무슨 자료로 계산했고 무엇이 빠졌는지"를 화면만 보고 말할 수 있는지 사용자(또는 예비창업자 1~2명) 확인 → 배포 후보 전체 check `--jobs 5` + E2E 1회 → 무트래픽 리비전 → 전환 승인.
 
 ### 12-A 바로 고칠 것 (작음)
-- [ ] 12-1 정적 파일·JSON gzip: Starlette `GZipMiddleware`(최소 크기 지정, `/assets`·GeoJSON·`/analyze` 포함). 헤더 계약 테스트(`backend/tests`), `smoke_api.py` 헤더 검사에 `Content-Encoding` 추가, Docker build·무트래픽 리비전에서 크기 대조(원본 약 1.38MB → gzip 약 0.40MB). 검증 C+E.
+- [x] 12-1 (2026-10-29) 정적 파일·JSON gzip — `GZipMiddleware(minimum_size=1024)`, `test_frontend` gzip 1건(큰 자산·/analyze JSON gzip + X-Data-Version·Cache-Control 유지, 작은 본문·identity·422는 비압축), `smoke_api.py` 정적 검사에 Accept-Encoding: gzip 요청·content-encoding 확인·gzip 해제 후 GeoJSON 해시. 검증 C: pytest test_frontend·test_smoke_api 22건. Docker build·무트래픽 리비전 크기 대조는 12-22. 원래 항목: Starlette `GZipMiddleware`(최소 크기 지정, `/assets`·GeoJSON·`/analyze` 포함). 헤더 계약 테스트(`backend/tests`), `smoke_api.py` 헤더 검사에 `Content-Encoding` 추가, Docker build·무트래픽 리비전에서 크기 대조(원본 약 1.38MB → gzip 약 0.40MB). 검증 C+E.
 - [x] 12-2 (2026-10-29) `README.md` 현행화 — 4~5·9행을 앱 v0.0.13 + 엔진 v0.5.1 운영, 0차 진행 중으로. 검증 A(diff 확인). 원래 항목: 4~5·9행의 "v0.4 현재 운영·v0.5 운영 미배포·8차 진행 중·운영 미배포" 표기를 앱 v0.0.13 + 엔진 v0.5.1 운영 상태로. 검증 A.
 - [ ] 12-3 결과 공유 링크 + 최근 분석 기록: 좌표·업종·반경(+비교 B)을 URL 쿼리에 싣고 첫 로드 때 "같은 조건으로 다시 분석"으로 복원(저장한 점수는 쓰지 않는다 — 데이터·엔진 버전이 바뀔 수 있음). 최근 분석은 로컬 저장·익명·조건만. App 상태 테스트·E2E 흐름 추가. 검증 B(+E2E).
 - [x] 12-4 (2026-10-29) 엔진 면책 원문 "상대 순위" 충돌 — `DataSources.DISCLAIMER_NOTE` 한 줄을 원문 아래에(원문 불변), 팀 v0.6 요청은 12장 3-6 목록. 검증: vitest AnalysisResult·patchNotes 41건, lint. 원래 항목: 팀에 v0.6 문구 수정 요청(기록만) + 화면 원문 아래 한 줄 주석("엔진 원문의 '상대 순위'는 백분위 계산 방식을 뜻하며 후보지 순위가 아닙니다"). 원문은 바꾸지 않는다. 검증 B.
-- [ ] 12-5 favicon·`<meta name="description">`·OG·`robots.txt`: `frontend/public` 신설, `frontend.py` 루트 파일 서빙 확인, dist 파일 목록 테스트 갱신. 운영 주소·식별정보는 메타에 넣지 않는다. 검증 B+E.
+- [x] 12-5 (2026-10-29) favicon·meta·OG·robots — `frontend/public/favicon.svg`·`robots.txt`(API 경로 Disallow), `index.html` description·og:title/description/type/locale·icon(URL·식별정보 없음), `src/indexHtml.test.ts` 3건, `smoke_api.py` 정적 검사에 /favicon.svg·/robots.txt 200. 검증 B+E: vitest 15건, lint, production build(아래). 원래 항목: `frontend/public` 신설, `frontend.py` 루트 파일 서빙 확인, dist 파일 목록 테스트 갱신. 운영 주소·식별정보는 메타에 넣지 않는다. 검증 B+E.
 - [x] 12-6 (2026-10-29) 주소 검색 실패 문구 — "‘X’에 맞는 주소를 찾지 못했습니다. 역·건물 이름이 아니라 도로명·번지로 적어 보세요(예: 부평대로 1)."(조사 회피). 12-21과 같은 커밋. 원래 항목: 조사 어긋남("‘부평역’로") 수정 — 조사를 피하는 문장으로. `AddressSearch` 테스트 문구 갱신. 검증 B.
 
 ### 12-B 운영·개발 체계
