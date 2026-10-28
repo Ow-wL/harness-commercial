@@ -65,6 +65,23 @@ beforeEach(() => {
   vi.spyOn(console, 'warn').mockImplementation(() => {})
 })
 
+describe('AddressSearch — 지원 범위 안내·예시 주소 (12-21)', () => {
+  it('폼 아래에 "도로명·지번 주소만" 안내와 예시 버튼 3개가 있고, 예시를 누르면 입력란에 넣고 바로 1회 검색한다', async () => {
+    const { calls, onSelect } = setup()
+    open()
+    expect(screen.getByText('도로명·지번 주소만 찾습니다. 역·건물·가게 이름은 아직 되지 않습니다.')).toBeInTheDocument()
+    const examples = ['부평대로 1', '인하로 497-23', '인천타워대로 99']
+    for (const q of examples) expect(screen.getByRole('button', { name: q })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: '인하로 497-23' }))
+    expect(input()).toHaveValue('인하로 497-23')
+    expect(calls).toHaveLength(1)
+    expect(calls[0]!.options.query).toBe('인하로 497-23')
+    expect(onSelect).not.toHaveBeenCalled()                 // 검색만, 선택은 결과를 눌러야
+    await respond(calls[0], 200, forward([{ road: '인천광역시 남동구 인하로 497-23', sido: '인천광역시', x: '126.73', y: '37.45' }]))
+    expect(status()).toHaveTextContent('‘인하로 497-23’ 검색 결과 1건')
+  })
+})
+
 describe('AddressSearch — 주소로 찾기 (7-B4, ADDRESS_DESIGN §5.2 A)', () => {
   it('펼침 버튼으로 보이는 라벨·입력·검색 버튼을 연다. 입력 중에는 부르지 않고, 제출 1회에 호출 1회(trim·인천시청 기준·10건)', async () => {
     const { calls } = setup()
@@ -163,7 +180,7 @@ describe('AddressSearch — 주소로 찾기 (7-B4, ADDRESS_DESIGN §5.2 A)', ()
     type('없는주소123')
     submit()
     await respond(calls[0], 200, { v2: { status: 'OK', meta: { totalCount: 0, page: 1, count: 0 }, addresses: [], errorMessage: '' } })
-    expect(status()).toHaveTextContent('‘없는주소123’로 찾은 주소가 없습니다. 도로명·번지까지 적어 보세요.')
+    expect(status()).toHaveTextContent('‘없는주소123’에 맞는 주소를 찾지 못했습니다. 역·건물 이름이 아니라 도로명·번지로 적어 보세요(예: 부평대로 1).')
     expect(input()).toHaveValue('없는주소123')
     expect(screen.queryByRole('list')).not.toBeInTheDocument()
 

@@ -39,6 +39,23 @@
   color: var(--color-text-secondary);
 }
 
+/* 지원 범위 안내·예시(12-21): 작은 글자, 예시 버튼은 ghost small 가로 나열 */
+.address-search__hint {
+  margin: 0;
+  font: var(--text-small);
+  color: var(--color-text-muted);
+}
+
+.address-search__examples {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-2);
+  margin: 0;
+  font: var(--text-small);
+  color: var(--color-text-muted);
+}
+
 .address-search__results {
   display: flex;
   flex-direction: column;

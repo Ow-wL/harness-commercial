@@ -13,3 +13,9 @@ export const INCHEON_SIDO = '인천광역시'
 export function incheonFirst(items: GeocodeItem[]): GeocodeItem[] {
   return [...items].sort((a, b) => Number(b.sido === INCHEON_SIDO) - Number(a.sido === INCHEON_SIDO))
 }
+
+/**
+ * 예시 주소(12-21): 운영 NAVER Geocoder 에서 2026-10-29 검색 결과 1건을 확인한 인천 도로명 주소 3개(부평역 인근·남동구 인하로·송도).
+ * 장소 이름이 아니라 "도로명 + 번지" 형태를 보여 주는 용도다. 분석에 쓰는 좌표는 사용자가 고른 결과의 adapter 값이다.
+ */
+export const SEARCH_EXAMPLES = ['부평대로 1', '인하로 497-23', '인천타워대로 99'] as const

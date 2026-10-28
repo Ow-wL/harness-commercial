@@ -1,7 +1,7 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState, type FormEvent } from 'react'
 import { geocode, type GeocodeItem, type GeocoderErrorKind, type LatLngPoint } from '../map/geocoder.ts'
 import type { NaverMapsApi } from '../map/naverMaps.ts'
-import { INCHEON_SIDO, incheonFirst, SEARCH_COUNT, SEARCH_ORIGIN, SEARCH_VISIBLE } from '../lib/addressSearch.ts'
+import { INCHEON_SIDO, incheonFirst, SEARCH_COUNT, SEARCH_EXAMPLES, SEARCH_ORIGIN, SEARCH_VISIBLE } from '../lib/addressSearch.ts'
 import { Icon } from './Icon.tsx'
 import './AddressSearch.css'
 
@@ -100,13 +100,7 @@ export function AddressSearch({
     setPhase((p) => (p.status === 'loading' ? { status: 'idle' } : p))
   }
 
-  const submit = (e: FormEvent) => {
-    e.preventDefault()
-    const q = query.trim()
-    if (q === '') {
-      setBlank(true)                                       // 공백만: 호출하지 않는다
-      return
-    }
+  const search = (q: string) => {
     setBlank(false)
     setShowAll(false)
     const mine = ++seq.current
@@ -117,6 +111,22 @@ export function AddressSearch({
       else if (r.status === 'empty') setPhase({ status: 'empty', query: q })
       else setPhase({ status: 'error', query: q, kind: r.kind })
     })
+  }
+
+  const submit = (e: FormEvent) => {
+    e.preventDefault()
+    const q = query.trim()
+    if (q === '') {
+      setBlank(true)                                       // 공백만: 호출하지 않는다
+      return
+    }
+    search(q)
+  }
+
+  /** 예시 주소(12-21): 입력란에 넣고 바로 검색한다 — 제출과 같은 경로(요청 1회, 늦은 응답 폐기) */
+  const example = (q: string) => {
+    setQuery(q)
+    search(q)
   }
 
   const select = (item: GeocodeItem) => {
@@ -138,7 +148,7 @@ export function AddressSearch({
     phase.status === 'loading'
       ? '주소를 찾는 중…'
       : phase.status === 'empty'
-        ? `‘${phase.query}’로 찾은 주소가 없습니다. 도로명·번지까지 적어 보세요.`
+        ? `‘${phase.query}’에 맞는 주소를 찾지 못했습니다. 역·건물 이름이 아니라 도로명·번지로 적어 보세요(예: ${SEARCH_EXAMPLES[0]}).`
         : phase.status === 'error'
           ? phase.kind === 'invalid'
             ? '검색어를 확인해 주세요. 도로명·번지까지 적어 보세요.'
@@ -201,6 +211,16 @@ export function AddressSearch({
               검색
             </button>
           </form>
+          {/* 지원 범위 안내 + 검증된 예시 (12-21, 계획 0-7): 장소 이름 검색은 1차(12-14)에서 */}
+          <p className="address-search__hint">도로명·지번 주소만 찾습니다. 역·건물·가게 이름은 아직 되지 않습니다.</p>
+          <p className="address-search__examples">
+            <span className="address-search__examples-label">예시</span>
+            {SEARCH_EXAMPLES.map((q) => (
+              <button key={q} type="button" className="button-ghost button-ghost--small" disabled={disabled} onClick={() => example(q)}>
+                {q}
+              </button>
+            ))}
+          </p>
           <p className="address-search__status" aria-live="polite" id={listLabelId}>
             {status}
           </p>
