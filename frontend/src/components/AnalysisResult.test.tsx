@@ -381,6 +381,8 @@ describe('AnalysisResult — 근거 줄·행 chip 통합·충족 1줄 (8-C1b, do
       '지점 좌표',
       '구 단위',
     ])
+    // 스크린리더: 숫자 뒤에 칩이 바로 붙지 않게 숨은 구분말 — "… 679,748명 · 자료 단위 구 단위"
+    expect(rowOf('market').querySelector('.perspective__evidence')).toHaveTextContent('679,748명 · 자료 단위 구 단위')
   })
 
   it('자료 단위 칩: 미산출 관점에는 없고, v0.5 반경 배분 인구는 "반경 500m 추정"', () => {

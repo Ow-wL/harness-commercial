@@ -156,7 +156,13 @@ function PerspectiveRow({
               ))}
             </span>
           )}
-          {unit && <span className="perspective__unit">{unit}</span>}
+          {unit && (
+            <>
+              {/* 스크린리더용 구분 — 화면의 " · "는 CSS ::after 라 글자에 없고, 칩이 숫자 바로 뒤에 붙어 읽히지 않게 */}
+              <span className="visually-hidden"> · 자료 단위 </span>
+              <span className="perspective__unit">{unit}</span>
+            </>
+          )}
         </span>
       )}
     </>
