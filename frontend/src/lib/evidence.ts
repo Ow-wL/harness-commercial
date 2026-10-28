@@ -13,7 +13,7 @@ import { formatDistance, formatRadius, type Indicator } from './format.ts'
 /** 정수 표기(천 단위 구분). 인구처럼 소수가 붙어 오는 값은 정수로만 맞춘다 */
 const count = (n: number) => Math.round(n).toLocaleString('ko-KR')
 /** 0–1 비율 → 소수 1자리 % (3년 생존율 0.523 → 52.3%) */
-const percent = (r: number) => `${(r * 100).toFixed(1)}%`
+export const percent = (r: number) => `${(r * 100).toFixed(1)}%`
 /** 실효 동종 수(소수 1자리일 수 있음) — 엔진 값 그대로, 천 단위 구분만 */
 export const decimal = (n: number) => n.toLocaleString('ko-KR', { maximumFractionDigits: 1 })
 
@@ -81,9 +81,10 @@ function parts(ind: Indicator, guName: string, business: string, radiusM: number
       break
     }
     case 'stability': {
-      const { '3년_생존율': survival, 인천_업종평균_3년생존율: incheon } = ind.raw
-      // 인천 업종평균은 같은 업종의 비교 기준값(엔진 raw) — 생존율이 있을 때만 함께 쓴다
-      if (survival !== null) out.push(`3년 생존율 ${percent(survival)}`, `인천 업종평균 ${percent(incheon)}`)
+      const { '3년_생존율': survival } = ind.raw
+      // raw.인천_업종평균_3년생존율 은 업종 구분 없는 고정 기준선(엔진 C_BASELINE_SURVIVAL_3Y, 2021년 인천 소상공인통계)이라
+      // "같은 업종 평균"으로 읽히는 근거 줄에는 쓰지 않는다(12-16). 상세 근거의 계산 기준에서 출처·한계와 함께 보인다
+      if (survival !== null) out.push(`3년 생존율 ${percent(survival)}`)
       break
     }
   }

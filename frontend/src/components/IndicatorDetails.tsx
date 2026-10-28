@@ -1,7 +1,7 @@
 import { useId, useLayoutEffect, useState } from 'react'
 import type { EngineResult } from '../api/schemas.ts'
 import { calcUnitLabel, flagItems } from '../lib/flags.ts'
-import { decimal } from '../lib/evidence.ts'
+import { decimal, percent } from '../lib/evidence.ts'
 import { confidenceLabel, formatRadius, formatRatio, formatScore, notComputedText, type Indicator } from '../lib/format.ts'
 import { Chip } from './Chip.tsx'
 import { Icon } from './Icon.tsx'
@@ -198,7 +198,16 @@ function CalcBasis({ indicator: ind, radiusM }: { indicator: Indicator; radiusM:
     const excluded = ind.raw.학교구역_제외_학교수
     if (excluded != null && excluded > 0) items.push(`학교 200m 안 초·중·고 ${excluded}곳은 유인시설 가점에서 뺐습니다(학교 주변 영업 규제 업종).`)
   }
-  if (ind.key === 'stability' && ind.raw.임대료_해석) items.push(`임대료: ${ind.raw.임대료_해석}`)
+  if (ind.key === 'stability') {
+    // raw.인천_업종평균_3년생존율 = 엔진 고정 기준선(C_BASELINE_SURVIVAL_3Y, 업종 무관). 점수 입력이 아니라 raw 설명용 값이다 (12-16)
+    if (ind.raw['3년_생존율'] !== null) {
+      items.push(
+        `참고 기준선 ${percent(ind.raw.인천_업종평균_3년생존율)}: 인천시 소상공인통계(2021년 기준)의 3년 생존율로, ` +
+          '업종 구분이 없어 이 업종의 인천 평균이 아닙니다. 점수 계산에는 쓰지 않습니다.',
+      )
+    }
+    if (ind.raw.임대료_해석) items.push(`임대료: ${ind.raw.임대료_해석}`)
+  }
   if (items.length === 0) return null
   return (
     <div className="detail__flags">

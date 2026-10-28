@@ -23,7 +23,7 @@ describe('evidenceLine — 실제 응답 fixture', () => {
       customer: '타겟 연령 거주 5,290명 · 비중 15.4%',
       competition: '반경 500m PC방 12곳 · 점포당 잠재수요 4,433명',
       location: '부평역까지 직선거리 85m',
-      stability: '3년 생존율 52.3% · 인천 업종평균 55.2% · 구 단위',
+      stability: '3년 생존율 52.3% · 구 단위',
     })
   })
 
@@ -81,8 +81,7 @@ describe('evidenceLine — golden v0.3 29개: raw 값 포맷만(재계산 없음
         add(raw.최근접역_거리m, 'distance')
         break
       case 'stability':
-        add(raw['3년_생존율'], 'percent')
-        add(raw.인천_업종평균_3년생존율, 'percent')
+        add(raw['3년_생존율'], 'percent')                          // 기준선(인천_업종평균_3년생존율)은 근거 줄에 쓰지 않는다 (12-16)
         break
     }
     return nums

@@ -152,10 +152,24 @@ describe('AnalysisResult — 실제 /analyze 응답(부평역 · PC방)', () => 
     renderResult()
     expect(FIXTURE.result.지표[4].score).not.toBeNull()
     const stability = perspectiveRows().find((r) => r.dataset.key === 'stability')!
-    expect(stability).toHaveTextContent('3년 생존율 52.3% · 인천 업종평균 55.2% · 구 단위')
+    expect(stability).toHaveTextContent('3년 생존율 52.3% · 구 단위')
     expect(stability).not.toHaveTextContent('시군구 단위 데이터')
     const warnings = getInTab(EVIDENCE_TAB, 'region', { name: '주의할 점' })
     expect(warnings).not.toHaveTextContent('단위 데이터로 계산했습니다')
+  })
+
+  it('고정 기준선 55.2%는 근거 줄의 "인천 업종평균"이 아니라 상세 근거 계산 기준에 출처·한계와 함께 보인다 (12-16)', () => {
+    renderResult()
+    const stability = perspectiveRows().find((r) => r.dataset.key === 'stability')!
+    expect(stability).not.toHaveTextContent('업종평균')
+    openTab(EVIDENCE_TAB)
+    const toggle = document.getElementById('detail-toggle-stability')!
+    fireEvent.click(toggle)
+    const panel = toggle.closest('.detail')!
+    expect(panel).toHaveTextContent('참고 기준선 55.2%')
+    expect(panel).toHaveTextContent('업종 구분이 없어 이 업종의 인천 평균이 아닙니다')
+    expect(panel).toHaveTextContent('점수 계산에는 쓰지 않습니다')
+    expect(FIXTURE.result.지표[4].raw.인천_업종평균_3년생존율).toBe(0.552)   // 엔진 고정값 C_BASELINE_SURVIVAL_3Y
   })
 
   it('데이터 출처는 정규화_기준 한 줄 대신 관점별 비교 대상을 보여 준다', () => {
