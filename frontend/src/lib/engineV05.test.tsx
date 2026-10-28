@@ -234,9 +234,12 @@ describe('공개 화면에 지오비전 퍼즐 수치·원자료를 넣지 않�
     }
   }
   walk(SRC)
+  // 파일은 수집 단계에서 한 번만 읽는다 — 첫 케이스 안에서 읽으면 다른 테스트 파일과 동시에 돌 때 5초 제한을
+  // 넘길 수 있었다(2026-10-28 배포 후보 전체 check, 기계 부하 중 2회 재현). 검사 대상·금지어는 그대로다
+  const contents = files.map((f) => [f, readFileSync(f, 'utf-8')] as const)
 
   it.each(['지오비전', '퍼즐', 'SKT', '3~5배', '1/3~1/5', '18명', '외부방문자'])('"%s" 가 화면 소스·fixture 에 없다', (word) => {
-    const hits = files.filter((f) => readFileSync(f, 'utf-8').includes(word))
+    const hits = contents.filter(([, text]) => text.includes(word)).map(([f]) => f)
     expect(hits).toEqual([])
   })
 })
