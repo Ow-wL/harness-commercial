@@ -5,6 +5,8 @@
   python scripts/check.py --fast               golden regression 제외 — 작업 중 확인용, 완료 판정 아님
   python scripts/check.py --only KEY[,KEY...]  고른 단계만 — 작업 중 영향 범위 확인용, 전체 check 통과가 아니다
   python scripts/check.py --list               단계 키 목록
+  python scripts/check.py --jobs N             Python 테스트 단계(core·v0_4·v0_5·v0_5_1·backend)를 최대 N개 동시에 —
+                                               검사 내용은 같고 실행 순서만 겹친다(11-6). 기본 1 = 순차(지금과 같다)
 
 단계 키: imports · integrity · team-tests · core(엔진 v0.3·데이터·golden·스크립트) · v0_4 · v0_5 · v0_5_1 · backend ·
 frontend · patch-notes. 단계를 추가할 때는 steps() 에 한 줄(키 포함)을 넣는다. 대상 폴더가 아직 없으면 SKIP(사유 표시)이며
@@ -31,8 +33,51 @@ ENV_V05 = dict(ENV, SCORING_ENGINE_VERSION="v0_5")
 ENV_V051 = dict(ENV, SCORING_ENGINE_VERSION="v0_5_1")
 
 
+# --jobs 로 동시에 돌려도 되는 단계: 각자 별도 프로세스·별도 엔진 환경변수이고, 파일 쓰기는 테스트 임시 폴더, 서버 포트는 OS가
+# 고른 빈 포트라 서로 겹치지 않는다(11-6 점검). frontend(vitest 자체가 다중 스레드, 부하 때 시간 초과 이력)는 순차로 둔다
+PARALLEL_KEYS = {"core", "v0_4", "v0_5", "v0_5_1", "backend"}
+
+
 def step(name, cmd, cwd=ROOT, when=True, why_skip="", env=None, key=""):
     return {"name": name, "cmd": cmd, "cwd": cwd, "when": when, "why_skip": why_skip, "env": env or ENV, "key": key}
+
+
+def _shell(s) -> bool:
+    return os.name == "nt" and s["cmd"][0] == "npm"
+
+
+def run_step(s) -> tuple:
+    """한 단계를 지금 출력 흐름에 그대로 실행한다 (순차)."""
+    print(f"\n━━ {s['name']}", flush=True)
+    t = time.perf_counter()
+    rc = subprocess.call(s["cmd"], cwd=s["cwd"], env=s["env"], shell=_shell(s))
+    return (s["name"], "PASS" if rc == 0 else "FAIL", f"exit {rc}" if rc else "", time.perf_counter() - t)
+
+
+def run_parallel(batch, jobs: int) -> list:
+    """여러 단계를 최대 jobs 개 동시에 실행한다. 출력은 단계별 임시 파일에 모았다가 모두 끝난 뒤 원래 순서대로 이어 붙인다
+    (로그가 섞이지 않게). 결과(단계·PASS/FAIL·종료 코드·소요)는 순차 실행과 같은 형식이다."""
+    import tempfile
+    from concurrent.futures import ThreadPoolExecutor
+
+    def one(s):
+        with tempfile.TemporaryFile(mode="w+b") as out:
+            t = time.perf_counter()
+            rc = subprocess.call(s["cmd"], cwd=s["cwd"], env=s["env"], stdout=out, stderr=subprocess.STDOUT, shell=_shell(s))
+            dt = time.perf_counter() - t
+            out.seek(0)
+            log = out.read().decode("utf-8", errors="replace")
+        return log, (s["name"], "PASS" if rc == 0 else "FAIL", f"exit {rc}" if rc else "", dt)
+
+    print(f"\n━━ 동시 실행 {len(batch)}단계 (--jobs {jobs}): " + ", ".join(s["key"] for s in batch), flush=True)
+    with ThreadPoolExecutor(max_workers=jobs) as pool:
+        done = list(pool.map(one, batch))
+    results = []
+    for s, (log, result) in zip(batch, done):
+        print(f"\n━━ {s['name']}  ({result[3]:.1f}s, 동시 실행)", flush=True)
+        print(log, end="" if log.endswith("\n") else "\n", flush=True)
+        results.append(result)
+    return results
 
 
 def steps(fast: bool):
@@ -107,21 +152,40 @@ def main() -> int:
             print(f"--only 키가 없거나 모른다: {sorted(unknown) or '(빈 값)'} — 가능한 키: {', '.join(keys)}", file=sys.stderr)
             return 2
         all_steps = [s for s in all_steps if s["key"] in only]
+    jobs = 1
+    if "--jobs" in sys.argv:
+        i = sys.argv.index("--jobs")
+        value = sys.argv[i + 1] if i + 1 < len(sys.argv) else ""
+        jobs = int(value) if value.isdigit() else 0
+        if jobs < 1:
+            print("--jobs 는 1 이상의 정수", file=sys.stderr)
+            return 2
     results = []
+    started = time.perf_counter()
+    batch = []
+
+    def flush_batch():
+        if batch:
+            results.extend(run_parallel(list(batch), jobs) if len(batch) > 1 else [run_step(batch[0])])
+            batch.clear()
+
     for s in all_steps:
         if not s["when"]:
+            flush_batch()
             results.append((s["name"], "SKIP", s["why_skip"], 0.0))
             continue
-        print(f"\n━━ {s['name']}", flush=True)
-        t = time.perf_counter()
-        rc = subprocess.call(s["cmd"], cwd=s["cwd"], env=s["env"], shell=(os.name == "nt" and s["cmd"][0] == "npm"))
-        results.append((s["name"], "PASS" if rc == 0 else "FAIL", f"exit {rc}" if rc else "",
-                        time.perf_counter() - t))
+        if jobs > 1 and s["key"] in PARALLEL_KEYS:
+            batch.append(s)            # 이어지는 동시 실행 가능 단계를 모은다(단계 순서는 그대로)
+            continue
+        flush_batch()
+        results.append(run_step(s))
+    flush_batch()
     print("\n" + "═" * 72)
     for name, status, note, dt in results:
         print(f"  {status:4s}  {name}  {note}  ({dt:.1f}s)")
     failed = [r for r in results if r[1] == "FAIL"]
     print("═" * 72)
+    print(f"  총 {time.perf_counter() - started:.1f}s" + (f" (--jobs {jobs})" if jobs > 1 else ""))
     partial = []
     if fast:
         partial.append("fast — golden 제외")

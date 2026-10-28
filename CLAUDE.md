@@ -45,7 +45,8 @@ Explore → Plan → Implement → Test → Verify → Report
 코드 작성만으로 완료로 판단하지 않는다. **작업 중에는 영향받는 검사를 실행하고, 여러 수정이 모인 배포 후보가 확정되면 전체 check를 한 번 실행한다.** 작업 단위의 완료 = 아래 변경별 검증 통과, 배포 후보의 완료 = 최종 소스 기준 전체 check 통과.
 
 ```powershell
-.\scripts\check.ps1                               # 전체 — 모든 단계 (약 17~30분, 엔진 pytest 4단계가 약 85%)
+.\scripts\check.ps1                               # 전체 — 모든 단계 순차 (약 17~35분, 엔진 pytest 4단계가 약 85%)
+.\scripts\check.ps1 --jobs 5                      # 전체 — 같은 단계·같은 검사, Python 테스트 5단계 동시 (약 11분, D-034) — 전체 check로 인정
 .\scripts\check.ps1 --only frontend,patch-notes   # 고른 단계만 (키 목록: --list) — 전체 check 아님
 ```
 ```bash

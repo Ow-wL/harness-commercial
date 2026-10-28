@@ -19,6 +19,7 @@
 ```powershell
 .\scripts\setup.ps1      # .venv 생성 + Python 의존성 설치 (Python 3.10+)
 .\scripts\check.ps1      # 전체 검증 — 배포 후보 완료 판정 (원본 무결성, 엔진, golden, backend, frontend, 패치노트)
+.\scripts\check.ps1 --jobs 5         # 같은 전체 검증을 Python 테스트 동시 실행으로 (약 11분)
 .\scripts\check.ps1 --only frontend   # 작업 중 고른 단계만 (--list 로 키 확인, 전체 check 아님 — CLAUDE.md 검증 규칙)
 ```
 bash: `scripts/setup.sh`, `scripts/check.sh`. frontend 의존성은 `frontend/`에서 `npm install` (Node `^20.19` 또는 `>=22.12`).
