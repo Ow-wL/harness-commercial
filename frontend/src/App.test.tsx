@@ -101,12 +101,14 @@ const CATALOG = {
   total: 3,
 }
 
-type Reply = { status: number; body: unknown } | 'network-error' | Promise<{ status: number; body: unknown }>
+/** headers: 응답 헤더(9-C4 X-Data-Version 등). 없으면 Content-Type 만 */
+type ReplyBody = { status: number; body: unknown; headers?: Record<string, string> }
+type Reply = ReplyBody | 'network-error' | Promise<ReplyBody>
 
-const json = (status: number, body: unknown) =>
+const json = (status: number, body: unknown, headers: Record<string, string> = {}) =>
   new Response(typeof body === 'string' ? body : JSON.stringify(body), {
     status,
-    headers: { 'Content-Type': typeof body === 'string' ? 'text/plain' : 'application/json' },
+    headers: { 'Content-Type': typeof body === 'string' ? 'text/plain' : 'application/json', ...headers },
   })
 
 /** 구버전 서버(8-D2 이전, 현재 운영)의 GET /health — engine 필드가 없다 → 반경 선택 없음 (8-D3) */
@@ -138,8 +140,8 @@ function mockApi({
             : queue.shift()
     if (reply === undefined) throw new Error(`예상하지 못한 요청: ${url}`)
     if (reply === 'network-error') throw new TypeError('Failed to fetch')
-    const { status, body } = await reply
-    return json(status, body)
+    const { status, body, headers } = await reply
+    return json(status, body, headers)
   })
   vi.stubGlobal('fetch', fetchMock)
   return fetchMock
@@ -3078,7 +3080,7 @@ describe('분석 반경 (8-D3, D-024, docs/UX_REDESIGN.md 4.3~4.6)', () => {
       await act(async () => resolveA(ok(at(fixture, 500))))                  // A(mvp-0.4) 나중
       expect(await screen.findByText('분석 결과를 표시할 수 없습니다')).toBeInTheDocument()
       expect(queryScoreTable()).not.toBeInTheDocument()
-      expect(console.error).toHaveBeenCalledWith('[api] A·B 엔진버전이 다릅니다', { a: 'mvp-0.4', b: 'mvp-0.3' })
+      expect(console.error).toHaveBeenCalledWith('[api] A·B 엔진·데이터 버전이 다릅니다', { a: ['mvp-0.4', null], b: ['mvp-0.3', null] })
       // 캐시를 버렸으므로 이전 300m A 도 다시 요청한다
       fireEvent.click(screen.getAllByRole('button', { name: /^비교 (종료|취소)$/ })[0]!)
       fireEvent.click(chip('300m'))
@@ -3125,7 +3127,7 @@ describe('분석 반경 (8-D3, D-024, docs/UX_REDESIGN.md 4.3~4.6)', () => {
       await act(async () => new Promise((r) => setTimeout(r, 30)))
       expect(queryScoreTable()).not.toBeInTheDocument()
       expect(await screen.findByText('분석 결과를 표시할 수 없습니다')).toBeInTheDocument()
-      expect(console.error).toHaveBeenCalledWith('[api] A·B 엔진버전이 다릅니다', { a: 'mvp-0.4', b: 'mvp-0.3' })
+      expect(console.error).toHaveBeenCalledWith('[api] A·B 엔진·데이터 버전이 다릅니다', { a: ['mvp-0.4', null], b: ['mvp-0.3', null] })
     })
 
     it('엔진버전 대조 — A(mvp-0.4)가 먼저, B(mvp-0.3)가 나중에 와도 같은 오류', async () => {
@@ -3500,4 +3502,68 @@ describe('업데이트 내역 (D-031) — 지도 실패에도 열리고, 열고 
   })
 
   const overallRowText = () => within(getScoreTable()).getAllByRole('row')[1]!.textContent ?? ''
+})
+
+describe('데이터 버전 (9-C4, D-033) — 응답 헤더 X-Data-Version 과 /health data', () => {
+  const AS_OF = {
+    shops: '2026-06-30', panel: '2026-08-31', market_panel: '2026-08', stability_pc: '2026-05-07',
+    stability_food: '2026-09-29', stations: '2024-12', schools: '2026-03', rent: '2026Q2',
+  }
+  const HEALTH = { ...OLD_HEALTH, data: { version: '2026-06', as_of: AS_OF } }
+  const v = (version: string) => ({ 'X-Data-Version': version })
+  const ok = (body: unknown, version?: string) => ({ status: 200, body, headers: version ? v(version) : undefined })
+
+  it('결과 머리줄에 "데이터 2026-06 기준", 데이터 출처 표·관점 설명 기준일은 /health data.as_of 로 채운다', async () => {
+    mockApi({ health: { status: 200, body: HEALTH }, analyze: [ok(fixture, '2026-06')], nearby: [ok(nearbyFixture, '2026-06')] })
+    render(<App />)
+    await selectBupyeongPcBang()
+    fireEvent.click(analyzeButton())
+    await screen.findByRole('heading', { level: 1, name: '부평구 부평1동 · PC방 분석' })
+    expect(document.querySelector('.result__eyebrow')).toHaveTextContent('분석 결과 · 반경 500m · 데이터 2026-06 기준')
+    openTab(EVIDENCE_TAB)
+    const sources = screen.getByRole('table', { name: '사용한 데이터와 기준시점' })
+    expect(sources).toHaveTextContent('2026-06-30')
+    expect(sources).toHaveTextContent('2026년 2분기')                      // rent 2026Q2
+    expect(sources).toHaveTextContent('2024-12 / 2026-03')                 // stations / schools
+    expect(sources).not.toHaveTextContent('—')
+    expect(screen.getByText('이 결과는 데이터 2026-06 기준입니다.')).toBeInTheDocument()
+  })
+
+  it('/health 에 data 가 없는 서버(구버전)면 머리줄 표시 없음, 기준일은 "—" — 정적 날짜로 채우지 않는다', async () => {
+    mockApi({ analyze: [ok(fixture)], nearby: [ok(nearbyFixture)] })
+    render(<App />)
+    await selectBupyeongPcBang()
+    fireEvent.click(analyzeButton())
+    await screen.findByRole('heading', { level: 1, name: '부평구 부평1동 · PC방 분석' })
+    expect(document.querySelector('.result__eyebrow')).not.toHaveTextContent('데이터')
+    openTab(EVIDENCE_TAB)
+    const sources = screen.getByRole('table', { name: '사용한 데이터와 기준시점' })
+    expect(sources).toHaveTextContent('—')
+    expect(sources).not.toHaveTextContent('2026-06-30')
+  })
+
+  it('A·B 의 데이터 버전이 다르면 한 비교로 보이지 않고(계약 오류) 결과 캐시를 버린다', async () => {
+    const fetchMock = mockApi({
+      health: { status: 200, body: HEALTH },
+      analyze: [ok(fixture, '2026-06'), ok(guwolFixture, '2026-09')],
+      nearby: [ok(nearbyFixture, '2026-06'), ok(guwolNearbyFixture, '2026-09')],
+    })
+    render(<App />)
+    await selectBupyeongPcBang()
+    fireEvent.click(analyzeButton())
+    await findList('PC방 점포 목록')
+    fireEvent.click(screen.getAllByRole('button', { name: '다른 위치와 비교' })[0]!)
+    const bCard = () => screen.getByRole('region', { name: 'B 비교 위치' })
+    fireEvent.change(within(bCard()).getByLabelText('B 위도'), { target: { value: '37.4475' } })
+    fireEvent.change(within(bCard()).getByLabelText('B 경도'), { target: { value: '126.7015' } })
+    fireEvent.click(within(bCard()).getByRole('button', { name: 'B 위치로 선택' }))
+    fireEvent.click(within(bCard()).getByRole('button', { name: 'B 분석하기' }))
+    expect(await screen.findByText('분석 결과를 표시할 수 없습니다')).toBeInTheDocument()
+    expect(queryScoreTable()).not.toBeInTheDocument()
+    expect(console.error).toHaveBeenCalledWith('[api] A·B 엔진·데이터 버전이 다릅니다', {
+      a: [fixture.result.meta.엔진버전, '2026-06'],
+      b: [guwolFixture.result.meta.엔진버전, '2026-09'],
+    })
+    expect(analyzeCalls(fetchMock)).toHaveLength(2)
+  })
 })

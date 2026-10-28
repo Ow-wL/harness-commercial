@@ -14,7 +14,7 @@ import { OverallScore } from '../components/OverallScore.tsx'
 import { RADIUS_HELP, RADIUS_HELP_V05, RadiusControl } from '../components/RadiusControl.tsx'
 import { ScoreReadingGuide } from '../components/ScoreGuide.tsx'
 import { WarningPanel } from '../components/WarningPanel.tsx'
-import { PERSPECTIVE_GUIDE, perspectiveGuide } from '../content/scoreGuide.ts'
+import { fillDataDates, PERSPECTIVE_GUIDE, perspectiveGuide } from '../content/scoreGuide.ts'
 import pcV05Fixture from '../fixtures/bupyeong-pcbang-v05.json'
 import schoolFixture from '../fixtures/school-zone-pcbang-v05.json'
 import nearbyFixture from '../fixtures/bupyeong-pcbang-nearby.json'
@@ -148,8 +148,10 @@ describe('v0.5 비교 기준·한계 문구', () => {
       '번화가·신도시 상업지는 외부 방문객이 많아, 거주인구와 종사자를 기준으로 계산한 경쟁성(점포당 잠재수요)이 실제 수요를 충분히 반영하지 못할 수 있습니다.',
     )
     expect(g.limits.join(' ')).toContain('상권의 우수성이나 성공 가능성의 순위가 아닙니다')
-    expect(perspectiveGuide('competition', 'mvp-0.4')).toBe(PERSPECTIVE_GUIDE.competition)
-    expect(perspectiveGuide('market', 'mvp-0.5')).toBe(PERSPECTIVE_GUIDE.market)
+    // 엔진 v0.4 는 기본 설명, v0.5 도 시장성은 기본 설명(사용 데이터 문장의 기준일 자리만 채운다, 9-C4)
+    const base = (key: 'competition' | 'market') => ({ ...PERSPECTIVE_GUIDE[key], data: fillDataDates(PERSPECTIVE_GUIDE[key].data, null) })
+    expect(perspectiveGuide('competition', 'mvp-0.4')).toEqual(base('competition'))
+    expect(perspectiveGuide('market', 'mvp-0.5')).toEqual(base('market'))
   })
 
   it('반경 안내: v0.5 는 고객성도 반경을 따른다고 쓴다(v0.4 문구 "고객성은 바뀌지 않습니다"를 쓰지 않는다)', () => {
@@ -218,7 +220,7 @@ describe('mvp-0.5.1(분동 배분 수정, D-029)은 v0.5와 같은 응답 형태
     expect(EngineResultSchema.safeParse(r).success).toBe(true)
     expect(['mvp-0.3', 'mvp-0.4', 'mvp-0.5', 'mvp-0.5.1'].map(isAreaWeightedEngine)).toEqual([false, false, true, true])
     expect(scoreHelp('mvp-0.5.1')).toEqual(scoreHelp('mvp-0.5'))
-    expect(perspectiveGuide('competition', 'mvp-0.5.1')).toBe(perspectiveGuide('competition', 'mvp-0.5'))
+    expect(perspectiveGuide('competition', 'mvp-0.5.1')).toEqual(perspectiveGuide('competition', 'mvp-0.5'))
     render(<DataSources meta={r.meta} disclaimer={r.면책} />)
     expect(screen.getByText('2025년 2분기')).toBeInTheDocument()
   })

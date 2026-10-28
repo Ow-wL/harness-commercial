@@ -24,6 +24,7 @@ import {
   nearestStation,
 } from '../lib/format.ts'
 import { compareBand } from '../lib/attentionBand.ts'
+import { dataVersionLabel, dataVersionOf, ResultDataVersionContext } from '../lib/dataVersion.ts'
 import { dataLimits, displayWarnings, isSchoolZoneWarning } from '../lib/warnings.ts'
 import { AnalysisResult } from './AnalysisResult.tsx'
 import { AttentionBand } from './AttentionBand.tsx'
@@ -66,6 +67,8 @@ export function CompareResult({
   const biz = a.result.meta.업종
   const [explanations, setExplanations] = useState(false)
   const radiusM = a.result.meta.분석반경_m
+  // 9-C4: A·B 는 같은 데이터 버전일 때만 한 비교로 보인다(App) — A 의 버전을 쓴다
+  const dataVersion = dataVersionOf(a)
   const { tab, setTab, reveal } = useResultTabs<CompareTab>('summary')
   const idBase = useTabIdBase()
   const overlap = radiusOverlap(a.context, b.context, radiusM)
@@ -76,6 +79,7 @@ export function CompareResult({
   ]
 
   return (
+    <ResultDataVersionContext.Provider value={dataVersion}>
     <TabRevealContext.Provider value={reveal}>
       <section className={`compare result--quiet${explanations ? ' result--explained' : ''}`} aria-labelledby={COMPARE_IDS.title}>
         <div className="result__head">
@@ -84,7 +88,11 @@ export function CompareResult({
               <h1 id={COMPARE_IDS.title} className="compare__title" tabIndex={-1}>
                 두 위치 비교 · {biz}
               </h1>
-              <span> · 반경 {formatRadius(radiusM)}</span>
+              <span>
+                {' '}
+                · 반경 {formatRadius(radiusM)}
+                {dataVersion && ` · ${dataVersionLabel(dataVersion)}`}
+              </span>
             </div>
             <span className="result__eyebrow-actions">
               <button type="button" className="link-button" onClick={onChangeConditions}>
@@ -149,6 +157,7 @@ export function CompareResult({
         </div>
       </section>
     </TabRevealContext.Provider>
+    </ResultDataVersionContext.Provider>
   )
 }
 

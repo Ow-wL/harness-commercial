@@ -78,7 +78,7 @@
 - [x] 9-C1 구조(2026-10-19, 별도 세션): 역할 키 로더(`DATA_VERSION`, 매니페스트 없으면 `data/runtime` 동작 바이트 동일), `/health data`, `/nearby-stores as_of` 데이터 메타, `scripts/etl/`(원본 ETL 실행 사본 7개 + `validate_version.py`·`build_version.py`·`diff_report.py`·`run_etl.py`), 테스트 48건. 그 세션의 전체 check 통과(v0.3 347·v0.4 61·backend 137·frontend 646). 운영 미반영.
 - [ ] 9-C2 첫 데이터 버전 `2026-09`: 상가 2026-09-30 파일(2026-10-31 등록 예정) 수동 수집 → `build_version` → `validate_version` → `diff_report` → V7 한계값 조정 → 사용자 검토. 인허가(PC방) 데이터셋 ID 확인. 생활이동 202609 ZIP. 상가·인구·SGIS·생활이동 ETL 경로는 이때 처음 실제 원본으로 실행한다(저장소에 원본이 없어 미실행).
 - [ ] 9-C3 이미지·배포: Dockerfile build arg `DATA_VERSION`(DATA_VERSIONING §6), 무트래픽 리비전 → warm → smoke → 전환(사용자 승인), `docs/DEPLOYMENT_*.md` 기록.
-- [ ] 9-C4 프런트(묶음 A 뒤): `/health data.version`을 결과 캐시 키·A/B 대조에 추가, 데이터 출처 표·점포 안내·`scoreGuide.ts` 날짜를 API 값으로(정적 날짜 제거 테스트), "데이터 YYYY-MM 기준" 표시.
+- [x] 9-C4 프런트(2026-10-28, D-033, v0.0.13 — 운영 미배포): 응답 헤더 `X-Data-Version`(backend `/analyze`·`/nearby-stores`, 본문 그대로) → 결과 캐시·A/B 비교 대조, 결과 머리줄 "데이터 YYYY-MM 기준", 데이터 출처 표·관점 설명 기준일은 `/health data.as_of`(모르면 "—"·괄호째 생략, 정적 날짜 제거 테스트). 원래 항목: `/health data.version`을 결과 캐시 키·A/B 대조에 추가, 데이터 출처 표·점포 안내·`scoreGuide.ts` 날짜를 API 값으로(정적 날짜 제거 테스트), "데이터 YYYY-MM 기준" 표시.
 - [ ] 9-C5 반자동화: 월 1회 수집 알림(상가 분기 등록 후), 검증·보고서 자동 실행. 포털 약관·봇 차단 확인 전에는 다운로드 자동화 없음.
 
 ### 9-B 점포 레이어 (묶음 B, D-026, `DESIGN.md` §19.8) — 커밋(master, 9-R1 수정과 함께) · 2026-10-25 운영 반영

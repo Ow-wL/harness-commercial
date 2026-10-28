@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from 'react'
 import type { AnalyzeResponse } from '../api/schemas.ts'
 import { singleBand } from '../lib/attentionBand.ts'
+import { dataVersionLabel, dataVersionOf, ResultDataVersionContext } from '../lib/dataVersion.ts'
 import { formatDistance, formatRadius, locationName, nearestStation } from '../lib/format.ts'
 import { headline } from '../lib/headline.ts'
 import { AttentionBand } from './AttentionBand.tsx'
@@ -48,6 +49,7 @@ export function AnalysisResult({
   eyebrowAction?: ReactNode
 }) {
   const { context, result } = analysis
+  const dataVersion = dataVersionOf(analysis)   // 9-C4: 응답 헤더 X-Data-Version (모르면 null)
   const [explanations, setExplanations] = useState(false)
   const { tab, setTab, reveal } = useResultTabs<ResultTab>('summary')
   const idBase = useTabIdBase()
@@ -65,11 +67,15 @@ export function AnalysisResult({
   ]
 
   return (
+    <ResultDataVersionContext.Provider value={dataVersion}>
     <TabRevealContext.Provider value={reveal}>
       <article className={`result result--quiet${explanations ? ' result--explained' : ''}`}>
         <div className="result__head">
           <p className="result__eyebrow">
-            <span>분석 결과 · 반경 {formatRadius(result.meta.분석반경_m)}</span>
+            <span>
+              분석 결과 · 반경 {formatRadius(result.meta.분석반경_m)}
+              {dataVersion && ` · ${dataVersionLabel(dataVersion)}`}
+            </span>
             {eyebrowAction}
           </p>
           <h1 id="result-title" className="result__title" tabIndex={-1}>
@@ -157,6 +163,7 @@ export function AnalysisResult({
         </div>
       </article>
     </TabRevealContext.Provider>
+    </ResultDataVersionContext.Provider>
   )
 }
 

@@ -1,6 +1,7 @@
 /**
  * Backend API 호출 (TASKS 4-4). frontend는 이 경로만 부른다: GET /businesses, POST /analyze,
- * POST /nearby-stores(4차, 분석 성공 뒤 같은 좌표·업종으로 반경 안 동종 점포), GET /health(8-D3, 반경 광고만).
+ * POST /nearby-stores(4차, 분석 성공 뒤 같은 좌표·업종으로 반경 안 동종 점포), GET /health(8-D3 반경 광고, 9-C4 데이터 메타).
+ * 성공 응답 헤더 X-Data-Version(9-C4)은 파싱한 응답 객체에 붙여 둔다(lib/dataVersion.ts).
  * 개발 서버에서는 vite proxy가 같은 경로를 FastAPI로 넘긴다(vite.config.ts).
  *
  * 모든 응답은 schemas.ts의 Zod schema로 검증한다. 검증 실패는 조용히 넘기지 않고
@@ -20,6 +21,7 @@ import {
   type Health,
   type NearbyStoresResponse,
 } from './schemas.ts'
+import { DATA_VERSION_HEADER, stampDataVersion } from '../lib/dataVersion.ts'
 
 export type ApiFailure =
   | { kind: 'api'; status: number; error: ErrorResponse['error'] }      // backend 오류 계약 응답 (422·500)
@@ -63,14 +65,16 @@ async function request<T>(endpoint: string, schema: z.ZodType<T>, init: RequestI
 
   if (res.ok) {
     const parsed = schema.safeParse(body)
-    return parsed.success ? { ok: true, data: parsed.data } : schemaFailure(endpoint, res.status, parsed.error.issues)
+    return parsed.success
+      ? { ok: true, data: stampDataVersion(parsed.data, res.headers.get(DATA_VERSION_HEADER)) }
+      : schemaFailure(endpoint, res.status, parsed.error.issues)
   }
   const err = ErrorResponseSchema.safeParse(body)
   if (err.success) return { ok: false, failure: { kind: 'api', status: res.status, error: err.data.error } }
   return schemaFailure(endpoint, res.status, err.error.issues)
 }
 
-/** GET /health — 반경 광고(engine)만 쓴다 (8-D3). */
+/** GET /health — 반경 광고(engine, 8-D3)와 데이터 메타(data, 9-C4)를 쓴다. */
 export function fetchHealth(signal?: AbortSignal): Promise<ApiResult<Health>> {
   return request('/health', HealthSchema, { signal })
 }

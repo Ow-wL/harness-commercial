@@ -430,7 +430,13 @@ export const EngineInfoSchema = z.strictObject({
   default_radius_m: z.number().int().positive(),
 })
 
-export const HealthSchema = z.object({ engine: EngineInfoSchema.optional() })
+/** 데이터 버전 메타 (묶음 C·9-C4, docs/DATA_VERSIONING.md §4). 구버전 서버는 없다 */
+export const DataInfoSchema = z.object({
+  version: z.string(),
+  as_of: z.record(z.string(), z.string()),
+})
+
+export const HealthSchema = z.object({ engine: EngineInfoSchema.optional(), data: DataInfoSchema.optional() })
 
 // ─── GET /businesses ─────────────────────────────────────────────────
 

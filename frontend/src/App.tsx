@@ -42,6 +42,7 @@ import {
 } from './lib/format.ts'
 import { headline } from './lib/headline.ts'
 import { singleBand } from './lib/attentionBand.ts'
+import { DataInfoContext, dataVersionOf, type DataInfo } from './lib/dataVersion.ts'
 import { ResultCache } from './lib/resultCache.ts'
 import { storeGlyphFor } from './lib/storeIcons.ts'
 import { buildStoreLinks } from './lib/storeLinks.ts'
@@ -104,22 +105,24 @@ const isInvalidRadius = (f: ApiFailure) => f.kind === 'api' && f.error.code === 
  * 같은 비교 세대(업종·반경이 같은 A·B 요청)인데 엔진버전이 다른지 (4.5). 반경이 다르면 아직 다른 세대(다시 분석 중)라
  * 판정하지 않는다 — 그 세대의 다른 쪽 응답이 도착할 때 다시 본다. A·B 어느 쪽이 먼저 와도 나중 쪽에서 검사한다(8-D3 검수).
  */
-/** A 결과와 B 결과가 한 비교로 함께 보일 수 있는지: 같은 업종·같은 반경 요청이고 엔진버전도 같다 */
+/** 두 응답이 같은 엔진·같은 데이터 버전에서 나왔는지 (데이터 버전은 응답 헤더 X-Data-Version, 9-C4·D-033) */
+function sameVersions(a: AnalyzeResponse, b: AnalyzeResponse): boolean {
+  return a.result.meta.엔진버전 === b.result.meta.엔진버전 && dataVersionOf(a) === dataVersionOf(b)
+}
+
+/** A 결과와 B 결과가 한 비교로 함께 보일 수 있는지: 같은 업종·같은 반경 요청이고 엔진·데이터 버전도 같다 */
 function consistentCompare(a: Analysis, c: Extract<CompareState, { status: 'success' }>): boolean {
   return (
     a.status === 'success' &&
     a.request.biz_code === c.request.biz_code &&
     requestRadius(a.request) === requestRadius(c.request) &&
-    a.response.result.meta.엔진버전 === c.response.result.meta.엔진버전
+    sameVersions(a.response, c.response)
   )
 }
 
+/** 같은 비교 세대인데 엔진 또는 데이터 버전이 다르면 한 비교에 섞지 않는다 (4.5, 9-C4) */
 function mixedEngines(aReq: AnalyzeRequest, a: AnalyzeResponse, bReq: AnalyzeRequest, b: AnalyzeResponse): boolean {
-  return (
-    aReq.biz_code === bReq.biz_code &&
-    requestRadius(aReq) === requestRadius(bReq) &&
-    a.result.meta.엔진버전 !== b.result.meta.엔진버전
-  )
+  return aReq.biz_code === bReq.biz_code && requestRadius(aReq) === requestRadius(bReq) && !sameVersions(a, b)
 }
 
 /** 서버가 바뀌어 반경 선택을 잃었을 때(4.6 공통 복구) 알리는 문구 */
@@ -143,6 +146,8 @@ function App() {
   const [radiusOptions, setRadiusOptions] = useState<number[]>([])
   // 서버 엔진 버전(/health engine.version) — 반경 안내 문구만 쓴다(v0.5 는 고객성도 반경을 따른다, D-028)
   const [serverEngine, setServerEngine] = useState<string | null>(null)
+  // 서버 데이터 메타(/health data, 9-C4) — 결과 화면의 데이터 출처·설명 기준일. 구버전 서버·실패면 null
+  const [dataInfo, setDataInfo] = useState<DataInfo | null>(null)
   const [radius, setRadius] = useState(DEFAULT_RADIUS_M)
   const [prevRadius, setPrevRadius] = useState<number | null>(null)
   const [radiusNotice, setRadiusNotice] = useState<string | null>(null)
@@ -232,17 +237,33 @@ function App() {
     return () => ac.abort()
   }, [businessesLoad])
 
-  // GET /health — 반경 광고만 본다(8-D3). 실패·구버전 응답이면 반경 선택 없음(지금과 같은 화면·요청)
+  // GET /health — 반경 광고(8-D3)와 데이터 메타(9-C4). 실패·구버전 응답이면 반경 선택 없음·기준일 없음(지금과 같은 화면·요청)
   useEffect(() => {
     const ac = new AbortController()
     fetchHealth(ac.signal)
       .then((r) => {
         setRadiusOptions(r.ok && r.data.engine ? r.data.engine.radius_options : [])
         setServerEngine(r.ok && r.data.engine ? r.data.engine.version : null)
+        setDataInfo(r.ok && r.data.data ? r.data.data : null)
       })
       .catch(() => {})                                     // 취소된 요청
     return () => ac.abort()
   }, [])
+
+  // 9-C4: 보이는 결과의 데이터 버전이 알고 있는 서버 메타와 다르면(리비전 전환 직후 등) /health 를 다시 읽어 기준일을 맞춘다.
+  // 맞출 때까지 결과 화면은 기준일을 비워 둔다(asOfFor) — 다른 버전의 날짜를 보이지 않는다
+  const shownDataVersion = analysis.status === 'success' ? dataVersionOf(analysis.response) : null
+  const knownDataVersion = dataInfo?.version ?? null
+  useEffect(() => {
+    if (shownDataVersion === null || shownDataVersion === knownDataVersion) return
+    const ac = new AbortController()
+    fetchHealth(ac.signal)
+      .then((r) => {
+        if (r.ok && r.data.data) setDataInfo(r.data.data)
+      })
+      .catch(() => {})                                     // 취소된 요청
+    return () => ac.abort()
+  }, [shownDataVersion, knownDataVersion])
 
   const reloadBusinesses = () => {
     setBusinesses({ status: 'loading' })
@@ -287,7 +308,10 @@ function App() {
    */
   const rejectMixedEngines = useCallback(
     (point: LatLng, a: AnalyzeResponse, b: AnalyzeResponse) => {
-      console.error('[api] A·B 엔진버전이 다릅니다', { a: a.result.meta.엔진버전, b: b.result.meta.엔진버전 })
+      console.error('[api] A·B 엔진·데이터 버전이 다릅니다', {
+        a: [a.result.meta.엔진버전, dataVersionOf(a)],
+        b: [b.result.meta.엔진버전, dataVersionOf(b)],
+      })
       resultCache.current.clear()
       cancelNearbyB()
       setCompare({ status: 'error', location: point, failure: { kind: 'schema', endpoint: '/analyze', status: 200 } })
@@ -608,6 +632,8 @@ function App() {
       const options = engineInfo ? engineInfo.radius_options : []
       setRadiusOptions(options)
       setServerEngine(engineInfo ? engineInfo.version : null)
+      const dataMeta = r.ok && r.data.data ? r.data.data : null
+      setDataInfo(dataMeta)
       if (options.length >= 2 && options.includes(request.radius_m)) {
         console.error(`[api] 반경 ${request.radius_m}m 문제(${problem})지만 서버가 아직 광고합니다 — 복구하지 않습니다`)
         return
@@ -617,7 +643,11 @@ function App() {
       setPrevRadius(null)
       // 확인된 엔진이 캐시와 같을 때만 반경 500 항목을 재사용한다. 다른 엔진이거나 버전을 알리지 않는 구버전 서버면
       // 이전 캐시를 쓸 근거가 없으므로 전부 버리고 새 서버에서 다시 조회한다(8-D3 검수)
-      if (engineInfo && engineInfo.version === resultCache.current.engineVersion) {
+      if (
+        engineInfo &&
+        engineInfo.version === resultCache.current.engineVersion &&
+        (dataMeta?.version ?? null) === resultCache.current.dataVersion
+      ) {
         resultCache.current.dropRadiusOtherThan(DEFAULT_RADIUS_M)
       } else {
         resultCache.current.clear()
@@ -1162,6 +1192,7 @@ function App() {
       : panelLabel
 
   return (
+    <DataInfoContext.Provider value={dataInfo}>
     <div
       className="app"
       data-phase={result ? 'result' : 'select'}
@@ -1350,6 +1381,7 @@ function App() {
         </div>
       )}
     </div>
+    </DataInfoContext.Provider>
   )
 }
 

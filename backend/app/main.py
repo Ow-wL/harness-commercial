@@ -21,7 +21,8 @@ FastAPI backend (TASKS 3-1, docs/DECISIONS.md D-012).
           GET /health 의 engine.radius_options 로 광고한다(프런트는 2개 이상일 때만 반경 선택을 보인다).
 데이터 버전(묶음 C, docs/DATA_VERSIONING.md): GET /health 의 data = {version, as_of: {역할 키: 자료 기준일}} — 이 프로세스가 읽은
           RuntimeData 의 버전 메타(환경변수 DATA_VERSION, 기본 data/runtime = 2026-06). /nearby-stores 의 as_of 도 같은 메타(shops)에서 온다.
-          /analyze 응답 스키마는 바꾸지 않는다(프런트 Zod strict).
+          /analyze 응답 스키마는 바꾸지 않는다(프런트 Zod strict). 대신 /analyze·/nearby-stores 성공 응답 헤더 X-Data-Version 에
+          데이터 버전 id 를 싣는다 — 프런트가 결과마다 데이터 버전을 알아 결과 캐시·A/B 비교를 버전별로 나눈다(9-C4, D-033).
 frontend: frontend_dist(또는 환경변수 FRONTEND_DIST)를 주면 Vite build 를 같은 origin 에서 서빙한다 — API route 다음에
           붙어서 API 가 항상 우선, 나머지 GET 은 SPA fallback (backend/app/frontend.py, D-018). 주지 않으면 API 만.
 오류 계약: backend/app/errors.py (3-5) — 사용자 입력·분석 불가 422, 내부 오류 500 + request_id
@@ -35,7 +36,7 @@ import threading
 from contextlib import asynccontextmanager
 from typing import Annotated, Any, Iterable, Literal, Optional
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Response
 from pydantic import BaseModel, Field, StrictFloat, StrictInt, StrictStr
 
 from scoring_engine import ENGINE_VERSION, RADIUS_OPTIONS_M, config as C, scoring
@@ -49,6 +50,7 @@ from .frontend import mount_frontend
 from scoring_engine.service import AnalysisService
 
 logger = logging.getLogger("backend.warm")
+DATA_VERSION_HEADER = "X-Data-Version"   # /analyze·/nearby-stores 성공 응답의 데이터 버전 id (9-C4, D-033)
 
 
 class Business(BaseModel):
@@ -294,8 +296,12 @@ def create_app(service: Optional[AnalysisService] = None, warm_biz: Optional[Ite
         """분석 가능한 업종 (엔진 config). service·warm 상태와 무관하게 즉시 응답한다."""
         return business_catalog()
 
+    def stamp_data_version(response: Response) -> None:
+        """성공 응답에 이 프로세스의 데이터 버전 id 를 헤더로 싣는다 (9-C4, D-033). 응답 본문은 그대로다."""
+        response.headers[DATA_VERSION_HEADER] = data_health()["version"]
+
     @app.post("/analyze", response_model=AnalyzeResponse, responses=ERROR_RESPONSES)
-    def analyze(req: AnalyzeRequest) -> AnalyzeResponse:
+    def analyze(req: AnalyzeRequest, response: Response) -> AnalyzeResponse:
         """좌표·업종 분석. warm 되지 않은 업종은 ReferenceCache 가 요청 시 계산한다 (warm 완료를 기다리지 않음)."""
         if req.biz_code not in C.CODE_NAME:
             raise ApiError(INVALID_BUSINESS)
@@ -309,13 +315,14 @@ def create_app(service: Optional[AnalysisService] = None, warm_biz: Optional[Ite
         result = app.state.service.analyze(ctx, req.biz_code, user_weights=req.user_weights,
                                            importance=req.importance, user_licenses=req.user_licenses,
                                            radius_m=radius)
+        stamp_data_version(response)
         return AnalyzeResponse(
             context=AnalyzeContext(lat=ctx.lat, lng=ctx.lng, gu_code=ctx.gu_code, gu_name=ctx.gu_name,
                                    dong_name=ctx.dong_name, label=ctx.label, rent_area=ctx.rent_area),
             result=result)
 
     @app.post("/nearby-stores", response_model=NearbyStoresResponse, responses=ERROR_RESPONSES)
-    def nearby_stores(req: NearbyStoresRequest) -> NearbyStoresResponse:
+    def nearby_stores(req: NearbyStoresRequest, response: Response) -> NearbyStoresResponse:
         """반경(요청 radius_m, 생략이면 config.RADIUS_M) 안 같은 업종 점포 (표시용). 엔진 경쟁성과 같은 거리·반경·업종 기준 (scoring_engine/nearby.py).
         /analyze 와 같은 순서로 검증한다: 업종 → 반경 → 좌표(ContextBuilder). 엔진 analyze 는 부르지 않는다."""
         if req.biz_code not in C.CODE_NAME:
@@ -324,6 +331,7 @@ def create_app(service: Optional[AnalysisService] = None, warm_biz: Optional[Ite
         ctx = resolve_context(req.lat, req.lng)
         finder = nearby_finder()
         stores = finder.find(ctx.lat, ctx.lng, req.biz_code, radius_m=radius)
+        stamp_data_version(response)
         return NearbyStoresResponse(lat=ctx.lat, lng=ctx.lng, biz_code=req.biz_code, radius_m=radius,
                                     as_of=finder.as_of, count=len(stores),
                                     stores=[NearbyStore(**vars(s)) for s in stores])

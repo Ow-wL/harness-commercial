@@ -1,28 +1,46 @@
 import { isAreaWeightedEngine, type EngineResult } from '../api/schemas.ts'
+import { useContext } from 'react'
+import { dataVersionLabel, formatAsOf, ResultDataVersionContext, useResultAsOf } from '../lib/dataVersion.ts'
+
+type Source = {
+  perspective: string
+  name: string
+  /** 기준일을 서버 데이터 메타(GET /health data.as_of)에서 가져오는 역할 키 — 여러 개면 " / "로 잇는다 */
+  roles?: readonly string[]
+  /** 데이터 버전 역할이 아닌 고정 기준(역할 기준일 뒤에 ", "로 붙인다) */
+  fixed?: string
+}
 
 /**
- * 데이터 출처·기준시점 표 (DESIGN.md §9 부록). 현재 API에 출처가 없으므로 정적 내용이다.
- * 근거: sources/team_v0.3/00_README.md "데이터 출처", docs/DATA.md. 데이터가 바뀌면 함께 갱신한다.
+ * 데이터 출처·기준시점 표 (DESIGN.md §9 부록). 출처 이름은 정적, 기준일은 9-C4부터 서버 데이터 메타(역할 키)로 채운다 —
+ * 데이터 버전이 바뀌면 화면 날짜도 따라 바뀐다. 기준일을 모르면(구버전 서버·버전 불일치) "—"로 둔다(정적 날짜로 채우지 않는다).
+ * 근거: sources/team_v0.3/00_README.md "데이터 출처", docs/DATA.md, docs/DATA_VERSIONING.md §2(역할 키).
  */
-const SOURCES = [
-  { perspective: '경쟁성 · 입지성', name: '소상공인시장진흥공단 상가(상권)정보', asOf: '2026-06-30' },
-  { perspective: '고객성', name: '행안부 행정동 성별·연령별 인구, SGIS 행정구역 통계', asOf: '2026-08-31, 2024' },
-  { perspective: '시장성', name: '서울시 수도권 생활이동(KT)', asOf: '2026-08' },
-  { perspective: '입지성', name: '전국도시철도 역사정보, 전국초중등학교 위치', asOf: '2024-12 / 2026-03' },
-  { perspective: '안정성', name: '행안부 인허가: 인터넷컴퓨터게임시설제공업', asOf: '2026-05-07' },
-  { perspective: '안정성', name: '행안부 인허가: 일반음식점·휴게음식점 (인천)', asOf: '2026-09-29' },
-  { perspective: '안정성 (임대료)', name: '한국부동산원 R-ONE 소규모상가 임대료', asOf: '2026년 2분기' },
-  { perspective: '초보자 접근성', name: '법령(식품위생법 등 9개)', asOf: '2026-10-02 확인' },
-] as const
+const SOURCES: readonly Source[] = [
+  { perspective: '경쟁성 · 입지성', name: '소상공인시장진흥공단 상가(상권)정보', roles: ['shops'] },
+  { perspective: '고객성', name: '행안부 행정동 성별·연령별 인구, SGIS 행정구역 통계', roles: ['panel'], fixed: '2024' },
+  { perspective: '시장성', name: '서울시 수도권 생활이동(KT)', roles: ['market_panel'] },
+  { perspective: '입지성', name: '전국도시철도 역사정보, 전국초중등학교 위치', roles: ['stations', 'schools'] },
+  { perspective: '안정성', name: '행안부 인허가: 인터넷컴퓨터게임시설제공업', roles: ['stability_pc'] },
+  { perspective: '안정성', name: '행안부 인허가: 일반음식점·휴게음식점 (인천)', roles: ['stability_food'] },
+  { perspective: '안정성 (임대료)', name: '한국부동산원 R-ONE 소규모상가 임대료', roles: ['rent'] },
+  { perspective: '초보자 접근성', name: '법령(식품위생법 등 9개)', fixed: '2026-10-02 확인' },
+]
+
+/** 표의 기준시점 칸: 역할 기준일(모르면 "—") + 고정 기준 */
+function sourceAsOf(s: Source, asOf: Readonly<Record<string, string>> | null): string {
+  const roleDates = s.roles?.map((r) => (asOf?.[r] ? formatAsOf(asOf[r]) : '—')).join(' / ')
+  return [roleDates, s.fixed].filter(Boolean).join(', ')
+}
 
 /** 엔진 v0.5(D-028)만 쓰는 자료 — 반경 인구 면적 배분용 경계(지도·행정동 판정 경계와 별개) */
-const SOURCES_V05 = [
+const SOURCES_V05: readonly Source[] = [
   {
     perspective: '고객성 · 경쟁성 (인구 배분)',
     name: 'SGIS 행정구역 통계 및 경계 (행정동, 2026년 7월 개편 전)',
-    asOf: '2025년 2분기',
+    fixed: '2025년 2분기',
   },
-] as const
+]
 
 /**
  * 관점별 점수 비교 대상 (docs/SCORE_EXPLANATION_AUDIT.md 4장, 엔진 v0.3 코드 기준 정적 내용).
@@ -78,11 +96,14 @@ export function DataSources({ meta, disclaimer }: { meta: EngineResult['meta']; 
   const v05 = isAreaWeightedEngine(meta.엔진버전)
   const sources = v05 ? [...SOURCES, ...SOURCES_V05] : SOURCES
   const rows = v05 ? comparisonsV05(meta.분석반경_m) : comparisons(meta.분석반경_m)
+  const asOf = useResultAsOf()
+  const dataVersion = useContext(ResultDataVersionContext)
   return (
     <section id="data-sources" className="result-section" aria-labelledby="sources-title">
       <h2 id="sources-title" className="result-section__title">
         데이터 출처
       </h2>
+      {dataVersion && <p className="result-section__note">이 결과는 {dataVersionLabel(dataVersion)}입니다.</p>}
       <div className="table-scroll">
         <table className="data-table">
           <caption className="visually-hidden">사용한 데이터와 기준시점</caption>
@@ -97,7 +118,7 @@ export function DataSources({ meta, disclaimer }: { meta: EngineResult['meta']; 
             {sources.map((s) => (
               <tr key={s.name}>
                 <th scope="row">{s.name}</th>
-                <td className="nowrap">{s.asOf}</td>
+                <td className="nowrap">{sourceAsOf(s, asOf)}</td>
                 <td className="nowrap">{s.perspective}</td>
               </tr>
             ))}

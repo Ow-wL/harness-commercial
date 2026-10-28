@@ -39,7 +39,7 @@ export const PERSPECTIVE_GUIDE: Record<PerspectiveKey, PerspectiveGuide> = {
       '상권 성격은 처음에 쇼핑 목적 유입 비중으로 설계했지만 인천 11개 구 중 값이 있는 곳이 2곳뿐이라 ' +
       '출근·귀가 유입 비율로 바꿨습니다.',
     data:
-      '수도권 생활이동(KT, 2026-08)의 구별 유입 인원과 시간대별 유입. 지점이 속한 구의 값을 인천 11개 구와 비교합니다.',
+      '수도권 생활이동(KT, {market_panel})의 구별 유입 인원과 시간대별 유입. 지점이 속한 구의 값을 인천 11개 구와 비교합니다.',
     limits: [
       '구 단위 데이터라 같은 구 안에서는 어디를 골라도 같은 점수입니다.',
       '비교 대상이 11개 구뿐이라 세부지표 점수가 약 9점 간격으로 끊깁니다.',
@@ -59,7 +59,7 @@ export const PERSPECTIVE_GUIDE: Record<PerspectiveKey, PerspectiveGuide> = {
       '유입 규모(시장성)와 따로 "내 손님이 이 동네에 있는가"를 보기 위해 두었습니다. ' +
       '상권 평가 연구의 구매력·수요 요인을 참고했지만, 타겟 연령 일치를 직접 뒷받침하는 문헌은 약합니다.',
     data:
-      '행안부 행정동 성·연령별 인구(2026-08), SGIS 종사자·1인 가구(2024). ' +
+      '행안부 행정동 성·연령별 인구({panel_month}), SGIS 종사자·1인 가구(2024). ' +
       '지점이 들어 있는 행정동의 값을 인천 158개 행정동과 비교합니다.',
     limits: [
       '지점이 들어 있는 행정동 하나만 봅니다. 반경이 이웃 동에 걸쳐도 반영하지 않습니다.',
@@ -75,7 +75,7 @@ export const PERSPECTIVE_GUIDE: Record<PerspectiveKey, PerspectiveGuide> = {
       '실태조사에서 경쟁 심화가 자주 꼽혀 두었습니다. 점포 수만 세면 먹자골목처럼 모여야 손님이 오는 상권이 나쁘게 나오므로, ' +
       '수요 대비 점포 수를 주력 지표로 삼았습니다. 같은 업종이 한 곳도 없으면 기회인지 수요가 없는 것인지 구분할 수 없어 점수를 내지 않습니다.',
     data:
-      '소상공인시장진흥공단 상가(상권)정보(2026-06-30)와 행정동 주민등록 총인구. 추정 거주인구는 반경에 걸친 행정동마다 ' +
+      '소상공인시장진흥공단 상가(상권)정보({shops})와 행정동 주민등록 총인구. 추정 거주인구는 반경에 걸친 행정동마다 ' +
       '"반경 안 점포 수 ÷ 그 동 전체 점포 수"(최대 1)만큼 그 동 인구를 나눠 더한 값이며, 유입(유동)인구는 쓰지 않습니다. ' +
       '지점 반경 값을 인천 158개 행정동의 점포 중심 지점에서 같은 방식으로 계산한 값과 비교합니다. ' +
       '점포당 잠재수요는 반경 안에 같은 업종 점포가 있는 비교 지점만 씁니다.',
@@ -140,7 +140,7 @@ const GUIDE_V05_OVERRIDES: Partial<Record<PerspectiveKey, PerspectiveGuide>> = {
       PERSPECTIVE_GUIDE.customer.origin +
       ' 엔진 v0.5부터 행정동 크기 차이가 점수를 좌우하지 않도록 경쟁성과 같은 반경 인구로 계산합니다.',
     data:
-      '행안부 행정동 성·연령별 인구(2026-08), SGIS 종사자·1인 가구(2024), SGIS 행정동 경계(2025년 2분기). ' +
+      '행안부 행정동 성·연령별 인구({panel_month}), SGIS 종사자·1인 가구(2024), SGIS 행정동 경계(2025년 2분기). ' +
       '반경에 걸친 행정동마다 "원과 겹치는 면적 ÷ 그 동 면적"만큼 그 동 인구를 나눠 더합니다. ' +
       '같은 계산을 인천 158개 행정동 중심점(동네 평균 지점)에서 한 값과 비교합니다. 상업지 후보지끼리의 순위가 아닙니다.',
     limits: [
@@ -163,7 +163,7 @@ const GUIDE_V05_OVERRIDES: Partial<Record<PerspectiveKey, PerspectiveGuide>> = {
       ' 엔진 v0.5에서는 직장가를 반영하려고 종사자를 잠재수요에 더했고, 인구 배분을 점포 분포 대신 행정동 경계 면적으로 바꿔 ' +
       '번화가에 인구가 몰린 것처럼 계산되던 편향을 줄였습니다.',
     data:
-      '소상공인시장진흥공단 상가(상권)정보(2026-06-30), 행정동 주민등록 총인구·SGIS 종사자, SGIS 행정동 경계(2025년 2분기, 면적 배분). ' +
+      '소상공인시장진흥공단 상가(상권)정보({shops}), 행정동 주민등록 총인구·SGIS 종사자, SGIS 행정동 경계(2025년 2분기, 면적 배분). ' +
       '지점 반경 값을 인천 158개 행정동 중심점(동네 평균 지점)에서 같은 방식으로 계산한 값과 비교합니다. ' +
       '점포당 잠재수요는 반경 안에 같은 업종 점포가 있는 비교 지점만 씁니다. ' +
       '"같은 업종 N곳"과 지도 점포 목록은 업종이 정확히 같은 점포이고, 실효 동종 수는 점수 계산에만 씁니다.',
@@ -193,9 +193,31 @@ const GUIDE_V05_OVERRIDES: Partial<Record<PerspectiveKey, PerspectiveGuide>> = {
   },
 }
 
-/** 엔진 버전에 맞는 관점 설명 (v0.5 는 고객성·경쟁성·입지성이 다르다). */
-export function perspectiveGuide(key: PerspectiveKey, engineVersion: string): PerspectiveGuide {
-  return (isAreaWeightedEngine(engineVersion) && GUIDE_V05_OVERRIDES[key]) || PERSPECTIVE_GUIDE[key]
+/**
+ * 자료 기준일 자리표시(9-C4): `{shops}`·`{market_panel}`·`{panel_month}`(panel 기준일의 연-월)는 서버 데이터 메타
+ * (GET /health data.as_of)로 채운다. 기준일을 모르면(구버전 서버·버전 불일치) 자리표시와 그 괄호·쉼표를 함께 지운다 —
+ * 정적 날짜로 채우지 않는다. 데이터 버전 역할이 아닌 날짜(SGIS 2024, 경계 2025년 2분기)는 문장에 그대로 둔다.
+ */
+export function fillDataDates(text: string, asOf: Readonly<Record<string, string>> | null): string {
+  const value = (token: string): string | null => {
+    if (token === 'panel_month') return asOf?.panel ? asOf.panel.slice(0, 7) : null
+    return asOf?.[token] ?? null
+  }
+  return text.replace(/\(\{(\w+)\}\)|, \{(\w+)\}/g, (_m, inParens?: string, afterComma?: string) => {
+    const v = value((inParens ?? afterComma)!)
+    if (inParens) return v ? `(${v})` : ''
+    return v ? `, ${v}` : ''
+  })
+}
+
+/** 엔진 버전에 맞는 관점 설명 (v0.5 는 고객성·경쟁성·입지성이 다르다). 사용 데이터 문장의 기준일은 asOf 로 채운다 */
+export function perspectiveGuide(
+  key: PerspectiveKey,
+  engineVersion: string,
+  asOf: Readonly<Record<string, string>> | null = null,
+): PerspectiveGuide {
+  const guide = (isAreaWeightedEngine(engineVersion) && GUIDE_V05_OVERRIDES[key]) || PERSPECTIVE_GUIDE[key]
+  return { ...guide, data: fillDataDates(guide.data, asOf) }
 }
 
 /** 관점 설명 항목 제목 (화면 dt). */

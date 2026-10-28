@@ -133,7 +133,7 @@ V8(별도 스크립트) `diff_report.py`: 부평역 29업종을 두 버전으로
 - 실행 중 프로세스에서 데이터를 바꾸지 않으므로 `RuntimeData`·`ReferenceCache` 무효화는 자동(새 프로세스). 디스크 캐시·멀티 워커는 계속 미도입(D-016).
 - 이미지에 데이터 버전을 넣는 방법(제안, 이번 단위에서 Dockerfile은 바꾸지 않았다): build arg `DATA_VERSION`(기본 비움 = `data/runtime`),
   값이 있으면 `COPY data/versions/${DATA_VERSION}/ data/versions/${DATA_VERSION}/` + `ENV DATA_VERSION=${DATA_VERSION}`.
-- 프런트(별도 단위): `/health data.version`을 엔진 버전 대조(S5·S8)와 같은 규칙으로 결과 캐시 키·A/B 비교 계약에 더한다.
+- 프런트(9-C4 완료, 2026-10-28, D-033): backend 가 `/analyze`·`/nearby-stores` 성공 응답 헤더 `X-Data-Version`에 데이터 버전 id 를 싣고(본문 스키마 그대로), 프런트는 결과마다 그 버전으로 결과 캐시(버전이 바뀌면 전체 폐기)·A/B 비교 계약(엔진·데이터 버전이 같을 때만 한 비교)을 나눈다. 화면 기준일은 `/health data.as_of`(결과 버전과 다르면 비움 → `/health` 재조회). 아래 줄은 9-C4 전의 기록이다 —
   그 전까지는 데이터 버전이 바뀐 리비전으로 전환할 때 열린 화면의 결과 캐시가 이전 데이터 결과를 보여 줄 수 있다 → 전환 공지·새로고침.
 
 ## 7. 수집(fetch) — 수동 다운로드 절차 (자동 다운로드 코드 없음)
@@ -175,7 +175,7 @@ V8(별도 스크립트) `diff_report.py`: 부평역 29업종을 두 버전으로
 > - [ ] 9-2 첫 데이터 버전 `2026-09`: 상가 2026-09-30 파일(2026-10-31 등록 예정) 수동 수집 → `build_version` → `validate_version` → `diff_report` → V7 한계값 조정 → 사용자 검토.
 >   인허가(PC방) 데이터셋 ID 확인. 생활이동 202609 ZIP. 상가·인구·SGIS·생활이동 ETL 경로는 이때 처음 실제 원본으로 실행한다.
 > - [ ] 9-3 이미지·배포: Dockerfile build arg `DATA_VERSION`(§6), 무트래픽 리비전 → warm → smoke → 전환(사용자 승인), `docs/DEPLOYMENT_*.md` 기록.
-> - [ ] 9-4 프런트(묶음 A 뒤): `/health data.version`을 결과 캐시 키·A/B 대조에 추가, 데이터 출처 표·점포 안내·`scoreGuide.ts` 날짜를 API 값으로(정적 날짜 제거 테스트), "데이터 YYYY-MM 기준" 표시.
+> - [x] 9-4 프런트(2026-10-28 완료, TASKS 9-C4 · D-033): `/health data.version`을 결과 캐시 키·A/B 대조에 추가, 데이터 출처 표·점포 안내·`scoreGuide.ts` 날짜를 API 값으로(정적 날짜 제거 테스트), "데이터 YYYY-MM 기준" 표시.
 > - [ ] 9-5 반자동화: 월 1회 수집 알림(상가 분기 등록 후), 검증·보고서 자동 실행. 포털 약관·봇 차단 확인 전에는 다운로드 자동화 없음.
 
 ## 10. 이번 단위에서 확인한 것 / 못 한 것

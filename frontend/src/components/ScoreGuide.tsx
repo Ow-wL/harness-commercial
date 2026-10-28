@@ -1,6 +1,7 @@
 import { useId, useState, type ReactNode } from 'react'
 import { isAreaWeightedEngine, type EngineResult } from '../api/schemas.ts'
 import { GUIDE_LABELS, perspectiveGuide } from '../content/scoreGuide.ts'
+import { useResultAsOf } from '../lib/dataVersion.ts'
 import { BOTTLENECK_WARN_BELOW, formatRatio, groupName, MIN_COVERAGE, type Indicator } from '../lib/format.ts'
 import { Icon } from './Icon.tsx'
 import './ScoreGuide.css'
@@ -55,7 +56,7 @@ export function PerspectiveGuide({
   /** meta.엔진버전 — v0.5 는 고객성·경쟁성·입지성 설명이 다르다 (content/scoreGuide.ts) */
   engineVersion: string
 }) {
-  const guide = perspectiveGuide(ind.key, engineVersion)
+  const guide = perspectiveGuide(ind.key, engineVersion, useResultAsOf())
   const applied = summary.적용_가중치[ind.key]
   const userWeighted = summary.가중치_출처 !== '기본(업종그룹)'
 
