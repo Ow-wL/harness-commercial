@@ -8,6 +8,8 @@ import { AttentionBand } from './AttentionBand.tsx'
 import { BeginnerAccess } from './BeginnerAccess.tsx'
 import { CoverageMeta } from './CoverageMeta.tsx'
 import { DataSources, SERVICE_DISCLAIMER } from './DataSources.tsx'
+import { GapsLine } from './GapsLine.tsx'
+import { gapLines } from '../lib/gaps.ts'
 import { IndicatorDetails } from './IndicatorDetails.tsx'
 import { LocationSummary } from './LocationSummary.tsx'
 import { OverallScore } from './OverallScore.tsx'
@@ -22,8 +24,8 @@ type ResultTab = 'summary' | 'stores' | 'evidence'
 
 /**
  * 분석 결과 패널 (A3, DESIGN.md §19.1·§19.5, docs/UX_REDESIGN.md 2.1).
- * 기본 머리: 위치 제목 · 종합 점수 · 접힌 주의 요약. 역·주소는 위치 정보에서 펼친다.
- * 요약은 다섯 관점 막대 중심. 설명 함께 보기를 켜면 헤드라인·근거 줄·충족 정보가 나온다.
+ * 기본 머리: 위치 제목 · 종합 점수 · "확인 필요" 한 줄(12-20) · 접힌 주의 요약. 역·주소는 위치 정보에서 펼친다.
+ * 요약은 다섯 관점 막대 + 근거 한 줄·자료 단위 칩(12-20 안 B, 기본 노출). 설명 함께 보기를 켜면 헤드라인·높음/낮음·충족 정보가 나온다.
  * 탭: 요약(관점을 누르면 상세 근거의 그 관점) · 주변 점포 · 상세 근거
  * (관점별 근거 · 주의할 점 · 초보자 접근성 · 위치 · 데이터 출처와 엔진 면책 원문).
  * 입력은 AnalyzeResponseSchema로 검증된 값만 받는다. 엔진 값은 그대로 보여 준다.
@@ -101,6 +103,7 @@ export function AnalysisResult({
             </div>
           </details>
           <OverallScore summary={result.종합} engineVersion={result.meta.엔진버전} />
+          <GapsLine items={gapLines(analysis)} />
           <p className="result__headline">
             <HeadlineText text={headline(result)} />
           </p>

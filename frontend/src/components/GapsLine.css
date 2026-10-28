@@ -1,0 +1,25 @@
+/* "확인 필요" 한 줄 (12-20): 안쪽 표면, 작은 글자. 조각 구분 "·"은 앞 조각 끝에(좁은 폭에서 줄이 "·"로 시작하지 않게) */
+.gaps {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px var(--space-2);
+  margin: var(--space-3) 0 0;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-muted);
+  font: var(--text-small);
+  color: var(--color-text-secondary);
+}
+
+.gaps__label {
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.gaps__item:not(:last-child)::after {
+  content: "·";
+  content: "·" / "";
+  margin-left: var(--space-2);
+  color: var(--color-text-muted);
+}

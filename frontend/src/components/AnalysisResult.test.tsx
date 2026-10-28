@@ -357,6 +357,17 @@ describe('AnalysisResult — 근거 줄·행 chip 통합·충족 1줄 (8-C1b, do
     expect(rowOf('location').querySelector('.perspective__evidence-text')).toHaveTextContent('부평역까지 직선거리 85m')
   })
 
+  it('"확인 필요" 한 줄(12-20): 종합 점수 아래, 이 결과의 빠진 자료·공간 단위를 규칙 문장으로', () => {
+    renderResult()
+    const gaps = document.querySelector('.result__head .gaps')!
+    expect(gaps).toHaveTextContent('확인 필요')
+    expect([...gaps.querySelectorAll('.gaps__item')].map((el) => el.textContent)).toEqual([
+      '임대료 미반영',
+      '유입·생존율은 구 단위 자료',
+      '잠재수요는 거주 인구만(방문객 유동 없음)',
+    ])
+  })
+
   it('자료 단위 칩(12-18): 산출된 관점마다 근거 줄 끝에 상시 — 구 단위·행정동 단위·반경·지점 좌표', () => {
     renderResult()
     const unitOf = (key: string) => rowOf(key).querySelector('.perspective__unit')?.textContent ?? null

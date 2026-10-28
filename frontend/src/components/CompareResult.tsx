@@ -25,6 +25,8 @@ import {
 } from '../lib/format.ts'
 import { compareBand } from '../lib/attentionBand.ts'
 import { dataVersionLabel, dataVersionOf, ResultDataVersionContext } from '../lib/dataVersion.ts'
+import { gapLines } from '../lib/gaps.ts'
+import { GapsLine } from './GapsLine.tsx'
 import { dataLimits, displayWarnings, isSchoolZoneWarning } from '../lib/warnings.ts'
 import { AnalysisResult } from './AnalysisResult.tsx'
 import { AttentionBand } from './AttentionBand.tsx'
@@ -107,6 +109,7 @@ export function CompareResult({
             <SiteRow side="A" analysis={a} onShowDetail={onShowDetail} />
             <SiteRow side="B" analysis={b} onShowDetail={onShowDetail} />
           </div>
+          <CompareGaps a={a} b={b} />
           <details className="result__location">
             <summary>위치 정보</summary>
             <SiteLocation side="A" analysis={a} address={addresses?.A} />
@@ -480,6 +483,19 @@ function ScoreComparison({ a, b }: { a: AnalyzeResponse; b: AnalyzeResponse }) {
         함께 확인하세요. 미산출 관점은 0점으로 보지 않고 차이를 계산하지 않습니다.
       </p>
     </section>
+  )
+}
+
+/** "확인 필요" 한 줄(12-20): A·B 가 같으면 하나, 다르면 A·B 각각 */
+function CompareGaps({ a, b }: { a: AnalyzeResponse; b: AnalyzeResponse }) {
+  const ga = gapLines(a)
+  const gb = gapLines(b)
+  if (ga.length === gb.length && ga.every((t, i) => t === gb[i])) return <GapsLine items={ga} />
+  return (
+    <>
+      <GapsLine prefix="A" items={ga} />
+      <GapsLine prefix="B" items={gb} />
+    </>
   )
 }
 

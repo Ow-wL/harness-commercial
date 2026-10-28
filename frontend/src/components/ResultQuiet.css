@@ -61,7 +61,8 @@
   cursor: pointer;
 }
 
-.result--quiet:not(.result--explained) .perspective__evidence-text,
+/* 12-20 안 B(사용자 결정 2026-10-29): 근거 줄(.perspective__evidence-text)과 자료 단위 칩은 간단 화면에도 보인다.
+   숨기는 것은 가장 높음/낮음 라벨·미산출 긴 안내·헤드라인·눈금·충족/가중치 줄뿐이다. */
 .result--quiet:not(.result--explained) .perspective__strongest,
 .result--quiet:not(.result--explained) .perspective__lowest,
 .result--quiet:not(.result--explained) .perspective__missing-note,
@@ -71,10 +72,7 @@
   display: none;
 }
 
-/* 남아 있는 병목·신뢰도 경고만 한 줄로. 숨긴 라벨 뒤의 구분점은 만들지 않는다. */
-.result--quiet:not(.result--explained) .perspective__evidence > :not(:last-child)::after { content: none; }
-.result--quiet:not(.result--explained) .perspective__bottleneck + .perspective__low-confidence { margin-left: 8px; }
-.result--quiet:not(.result--explained) .perspective__evidence:not(:has(.perspective__bottleneck, .perspective__low-confidence)) { display: none; }
+/* 간단 화면의 근거 줄: 숨긴 라벨(display:none)의 구분점은 그려지지 않으므로 따로 지우지 않는다(12-20). */
 .result--quiet .perspective__button { min-height: 56px; padding-block: 16px; }
 .result--quiet .perspective__track { height: 4px; }
 .result--quiet .perspective__marker { display: none; }
