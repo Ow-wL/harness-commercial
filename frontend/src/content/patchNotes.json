@@ -40,7 +40,8 @@
         "cce985c",
         "44e7bf2",
         "c0ebd5b",
-        "1d79da6"
+        "1d79da6",
+        "d534c75"
       ]
     },
     {
@@ -598,6 +599,16 @@
       "source_commit": "c0ebd5b",
       "engine": "mvp-0.5.1",
       "note": "API 48건·압축·탭 아이콘과 지도 인증 성공 상태의 분석·확인 필요 줄·자료 단위·비교·반경·테마·업데이트 내역, 모바일 비교 화면 확인. 운영 트래픽은 바꾸지 않음"
+    },
+    {
+      "id": "2026-10-29-production-c0ebd5b",
+      "date": "2026-10-29",
+      "kind": "production",
+      "result": "done",
+      "app_version": "v0.0.14",
+      "source_commit": "c0ebd5b",
+      "engine": "mvp-0.5.1",
+      "note": "점수 설명 표기 수정·요약 기본 노출·주소 검색 안내·압축을 운영에 반영"
     }
   ]
 }
