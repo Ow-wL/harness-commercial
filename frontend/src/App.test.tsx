@@ -3567,3 +3567,132 @@ describe('데이터 버전 (9-C4, D-033) — 응답 헤더 X-Data-Version 과 /h
     expect(analyzeCalls(fetchMock)).toHaveLength(2)
   })
 })
+
+describe('조건 공유 링크 (12-3, 계획 1-1) — 쿼리 조건으로 같은 조건을 다시 분석, 점수는 싣지 않는다', () => {
+  const ok = (body: unknown, version?: string) => ({ status: 200, body, headers: version ? { 'X-Data-Version': version } : undefined })
+  const bodyOf = (call: unknown[]) => JSON.parse((call[1] as RequestInit).body as string)
+  const HEALTH_V05 = {
+    status: 200,
+    body: {
+      ...OLD_HEALTH,
+      engine: { version: 'mvp-0.5.1', radius_options: [300, 500, 1000], default_radius_m: 500 },
+      data: { version: '2026-06', as_of: {} },
+    },
+  }
+  const notice = () => document.querySelector('.share-notice')
+  const open = (query: string) => window.history.replaceState(null, '', `/${query}`)
+  /** fixture 를 반경 r 로 바꾼 사본 (점수는 그대로 — 요청·응답 반경 일치만 본다) */
+  function at<T>(fx: T, r: number): T {
+    const c = structuredClone(fx) as { result: { meta: Record<string, unknown>; 지표: { raw: Record<string, unknown> }[] } }
+    c.result.meta.분석반경_m = r
+    c.result.지표[2]!.raw.반경m = r
+    return c as T
+  }
+  const nearbyAt = <T,>(fx: T, r: number): T => ({ ...(structuredClone(fx) as object), radius_m: r }) as T
+
+  it('링크로 열면 업종 목록·/health 뒤 그 조건으로 /analyze 를 보내고 결과를 보인다. 주소창 쿼리는 결과 조건(+데이터 묶음·엔진)으로 둔다', async () => {
+    open('?lat=37.4894&lng=126.7246&biz=R10406')
+    const fetchMock = mockApi({ health: HEALTH_V05, analyze: [ok(fixture, '2026-06')], nearby: [ok(nearbyFixture, '2026-06')] })
+    render(<App />)
+    await screen.findByRole('heading', { level: 1, name: '부평구 부평1동 · PC방 분석' })
+    expect(analyzeCalls(fetchMock)).toHaveLength(1)
+    expect(bodyOf(analyzeCalls(fetchMock)[0]!)).toEqual({ lat: 37.4894, lng: 126.7246, biz_code: 'R10406', radius_m: 500 })
+    expect(notice()).toHaveTextContent('공유 링크의 조건으로 다시 분석했습니다 — 저장된 점수가 아니라 지금 서버의 결과입니다.')
+    expect(notice()).not.toHaveTextContent('지원하지 않아')
+    expect(notice()).not.toHaveTextContent('결과가 그때와 다를 수 있습니다')
+    // 주소창: 결과 조건 + 그 결과의 데이터 묶음·엔진(링크를 받는 쪽이 버전 차이를 안내할 수 있게)
+    await waitFor(() => expect(window.location.search).toBe('?lat=37.4894&lng=126.7246&biz=R10406&r=500&data=2026-06&engine=mvp-0.3'))
+    // 조건 바꾸기 → 결과·안내·쿼리 모두 없음
+    fireEvent.click(screen.getByRole('button', { name: /조건.*바꾸기|바꾸기/ }))
+    expect(notice()).not.toBeInTheDocument()
+    await waitFor(() => expect(window.location.search).toBe(''))
+  })
+
+  it('B 좌표가 있으면 A 성공 뒤 같은 업종·반경으로 B 를 분석해 비교 화면을 연다', async () => {
+    open('?lat=37.4894&lng=126.7246&biz=R10406&r=500&blat=37.4475&blng=126.7015')
+    const fetchMock = mockApi({
+      health: HEALTH_V05,
+      analyze: [ok(fixture, '2026-06'), ok(guwolFixture, '2026-06')],
+      nearby: [ok(nearbyFixture, '2026-06'), ok(guwolNearbyFixture, '2026-06')],
+    })
+    render(<App />)
+    await screen.findByRole('heading', { level: 1, name: '두 위치 비교 · PC방' })
+    expect(analyzeCalls(fetchMock).map(bodyOf)).toEqual([
+      { lat: 37.4894, lng: 126.7246, biz_code: 'R10406', radius_m: 500 },
+      { lat: 37.4475, lng: 126.7015, biz_code: 'R10406', radius_m: 500 },
+    ])
+    await waitFor(() => expect(window.location.search).toBe('?lat=37.4894&lng=126.7246&biz=R10406&r=500&blat=37.4475&blng=126.7015&data=2026-06&engine=mvp-0.3'))
+  })
+
+  it('링크의 반경을 서버가 광고하면 그 반경으로, 광고하지 않으면(구버전) 기본 반경으로 분석하며 안내한다', async () => {
+    open('?lat=37.4894&lng=126.7246&biz=R10406&r=1000')
+    const fetchMock = mockApi({
+      health: HEALTH_V05,
+      analyze: [ok(at(fixture, 1000), '2026-06')],
+      nearby: [ok(nearbyAt(nearbyFixture, 1000), '2026-06')],
+    })
+    const { unmount } = render(<App />)
+    await screen.findByRole('heading', { level: 1, name: '부평구 부평1동 · PC방 분석' })
+    expect(bodyOf(analyzeCalls(fetchMock)[0]!)).toEqual({ lat: 37.4894, lng: 126.7246, biz_code: 'R10406', radius_m: 1000 })
+    unmount()
+
+    open('?lat=37.4894&lng=126.7246&biz=R10406&r=1000')
+    const oldServer = mockApi({ analyze: [ok(fixture)], nearby: [ok(nearbyFixture)] })   // 구버전 /health: 반경 광고 없음
+    render(<App />)
+    await screen.findByRole('heading', { level: 1, name: '부평구 부평1동 · PC방 분석' })
+    expect(bodyOf(analyzeCalls(oldServer)[0]!)).toEqual({ lat: 37.4894, lng: 126.7246, biz_code: 'R10406' })
+    expect(notice()).toHaveTextContent('링크의 반경 1km는 이 서버가 지원하지 않아 500m로 분석합니다.')
+  })
+
+  it('링크의 데이터 묶음·엔진이 지금 서버와 다르면 결과가 다를 수 있다고 안내한다', async () => {
+    open('?lat=37.4894&lng=126.7246&biz=R10406&data=2026-05&engine=mvp-0.5')
+    mockApi({ health: HEALTH_V05, analyze: [ok(fixture, '2026-06')], nearby: [ok(nearbyFixture, '2026-06')] })
+    render(<App />)
+    await screen.findByRole('heading', { level: 1, name: '부평구 부평1동 · PC방 분석' })
+    expect(notice()).toHaveTextContent(
+      '링크를 만들 때는 데이터 묶음 2026-05 · 엔진 mvp-0.5였고 지금은 데이터 묶음 2026-06 · 엔진 mvp-0.5.1입니다. 결과가 그때와 다를 수 있습니다.',
+    )
+  })
+
+  it('링크의 업종이 이 서버 목록에 없으면 위치만 가져오고 분석하지 않는다', async () => {
+    open('?lat=37.4894&lng=126.7246&biz=Z99999')
+    const fetchMock = mockApi({ health: HEALTH_V05 })
+    render(<App />)
+    await waitFor(() => expect(notice()).toHaveTextContent('공유 링크의 업종을 이 서버에서 찾을 수 없어 위치만 가져왔습니다'))
+    expect(screen.getByTestId('map')).toHaveAttribute('data-selected', '37.4894,126.7246')
+    expect(analyzeCalls(fetchMock)).toHaveLength(0)
+    expect(analyzeButton()).toBeDisabled()                 // 업종을 고르기 전
+  })
+
+  it('잘못된 링크(좌표 범위 밖)는 무시한다 — 보통 첫 화면', async () => {
+    open('?lat=95&lng=126.7246&biz=R10406')
+    const fetchMock = mockApi({ health: HEALTH_V05 })
+    render(<App />)
+    await waitFor(() => expect(screen.getByRole('combobox', { name: '업종' })).toBeEnabled())
+    expect(analyzeCalls(fetchMock)).toHaveLength(0)
+    expect(screen.getByTestId('map')).toHaveAttribute('data-selected', '')
+    expect(notice()).not.toBeInTheDocument()
+  })
+
+  it('보통 흐름으로 분석해도 주소창 쿼리가 결과 조건이 되고, "링크 복사"는 그 주소를 클립보드에 넣는다 (막히면 입력란으로)', async () => {
+    mockApi({ health: HEALTH_V05, analyze: [ok(fixture, '2026-06')], nearby: [ok(nearbyFixture, '2026-06')] })
+    const writeText = vi.fn(async () => {})
+    vi.stubGlobal('navigator', { ...window.navigator, clipboard: { writeText } })
+    render(<App />)
+    await selectBupyeongPcBang()
+    fireEvent.click(analyzeButton())
+    await screen.findByRole('heading', { level: 1, name: '부평구 부평1동 · PC방 분석' })
+    const expected = `${window.location.origin}/?lat=37.4894&lng=126.7246&biz=R10406&r=500&data=2026-06&engine=mvp-0.3`
+    await waitFor(() => expect(window.location.href).toBe(expected))
+    expect(notice()).not.toBeInTheDocument()               // 링크로 연 것이 아니면 안내 없음
+
+    fireEvent.click(screen.getByRole('button', { name: '링크 복사' }))
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('링크를 복사했습니다'))
+    expect(writeText).toHaveBeenCalledWith(expected)
+
+    writeText.mockRejectedValueOnce(new Error('denied'))
+    fireEvent.click(screen.getByRole('button', { name: '링크 복사' }))
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('직접 복사하세요'))
+    expect(screen.getByRole('textbox', { name: '공유 링크' })).toHaveValue(expected)
+  })
+})

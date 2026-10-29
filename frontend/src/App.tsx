@@ -8,7 +8,7 @@ import {
   type AnalyzeRequest,
   type ApiFailure,
 } from './api/client.ts'
-import type { AnalyzeResponse, NearbyStoresResponse } from './api/schemas.ts'
+import type { AnalyzeResponse, BusinessCatalog, NearbyStoresResponse } from './api/schemas.ts'
 import { AnalysisResult, HeadlineText } from './components/AnalysisResult.tsx'
 import { AnalysisLoading } from './components/AnalysisStatus.tsx'
 import { BandPeek } from './components/AttentionBand.tsx'
@@ -23,6 +23,7 @@ import { MapView, type LatLng, type MapCompare, type MapStore } from './componen
 import { MoreBelow } from './components/MoreBelow.tsx'
 import { NearbyStores } from './components/NearbyStores.tsx'
 import { RadiusControl } from './components/RadiusControl.tsx'
+import { ResultTools } from './components/ResultTools.tsx'
 import { ReferenceAddress } from './components/ReferenceAddress.tsx'
 import { UpdateNotes } from './components/UpdateNotes.tsx'
 import type { SdkState } from './map/naverMaps.ts'
@@ -42,7 +43,8 @@ import {
 } from './lib/format.ts'
 import { headline } from './lib/headline.ts'
 import { singleBand } from './lib/attentionBand.ts'
-import { DataInfoContext, dataVersionOf, type DataInfo } from './lib/dataVersion.ts'
+import { DataInfoContext, dataVersionLabel, dataVersionOf, type DataInfo } from './lib/dataVersion.ts'
+import { parseShareQuery, shareQuery, shareUrl, versionsDiffer, type ShareConditions } from './lib/shareLink.ts'
 import { ResultCache } from './lib/resultCache.ts'
 import { storeGlyphFor } from './lib/storeIcons.ts'
 import { buildStoreLinks } from './lib/storeLinks.ts'
@@ -152,6 +154,20 @@ function App() {
   const [prevRadius, setPrevRadius] = useState<number | null>(null)
   const [radiusNotice, setRadiusNotice] = useState<string | null>(null)
   // 비교 중 반경 변경(또는 반경 복구)으로 A·B를 다시 분석하는 동안·A가 실패한 동안의 B 위치 (S9·S11). 비교를 유지한다
+  // 조건 공유 링크(12-3, 계획 1-1): 첫 로드 때 쿼리의 조건을 읽어 두고, 업종 목록·/health 가 오면 **같은 조건으로 다시 분석**한다.
+  // 링크에 점수는 없다(데이터 묶음·엔진이 바뀌면 결과가 달라질 수 있어 저장된 점수를 보여 주지 않는다). 링크의 버전이 지금 서버와
+  // 다르면 안내한다. B 좌표는 A 성공 뒤 비교로 이어 간다(pendingB)
+  // undefined = 아직 읽지 않음(적용 함수가 처음 불릴 때 주소창을 읽는다), null = 링크 없음·적용 끝
+  const shareLinkRef = useRef<ShareConditions | null | undefined>(undefined)
+  const [sharePending, setSharePending] = useState(() => parseShareQuery(window.location.search) !== null)
+  const [shareNotice, setShareNotice] = useState<string | null>(null)
+  // 적용에 필요한 두 응답(업종 목록·/health)의 도착 여부와 값 — fetch 콜백에서 바로 읽는다(상태 반영을 기다리지 않는다)
+  const shareInputs = useRef<{ catalog: BusinessCatalog | null; health: { options: number[]; engine: string | null; data: string | null } | null }>({
+    catalog: null,
+    health: null,
+  })
+  const shareLoaded = useRef({ businesses: false, health: false })
+  const applyShareRef = useRef<() => void>(() => {})
   const [compareReload, setCompareReloadState] = useState<LatLng | null>(null)
   const compareReloadRef = useRef(compareReload)
   const setCompareReload = useCallback((next: LatLng | null) => {
@@ -232,7 +248,12 @@ function App() {
   useEffect(() => {
     const ac = new AbortController()
     fetchBusinesses(ac.signal)
-      .then((r) => setBusinesses(r.ok ? { status: 'ready', catalog: r.data } : { status: 'error', failure: r.failure }))
+      .then((r) => {
+        setBusinesses(r.ok ? { status: 'ready', catalog: r.data } : { status: 'error', failure: r.failure })
+        shareInputs.current.catalog = r.ok ? r.data : null
+        shareLoaded.current.businesses = true
+        applyShareRef.current()                            // 공유 링크(12-3): 두 응답이 다 오면 1회 적용
+      })
       .catch(() => {})                                     // 취소된 요청
     return () => ac.abort()
   }, [businessesLoad])
@@ -245,6 +266,14 @@ function App() {
         setRadiusOptions(r.ok && r.data.engine ? r.data.engine.radius_options : [])
         setServerEngine(r.ok && r.data.engine ? r.data.engine.version : null)
         setDataInfo(r.ok && r.data.data ? r.data.data : null)
+        // 공유 링크(12-3): 실패·구버전이어도 "알아봤다" — 적용을 더 기다리지 않는다
+        shareInputs.current.health = {
+          options: r.ok && r.data.engine ? r.data.engine.radius_options : [],
+          engine: r.ok && r.data.engine ? r.data.engine.version : null,
+          data: r.ok && r.data.data ? r.data.data.version : null,
+        }
+        shareLoaded.current.health = true
+        applyShareRef.current()
       })
       .catch(() => {})                                     // 취소된 요청
     return () => ac.abort()
@@ -341,6 +370,7 @@ function App() {
     cancelNearby()
     resetCompare()                                         // A가 없으면 비교도 없다
     setCompareReload(null)
+    setShareNotice(null)
     sendTour({ type: 'conditions-shown' })                 // 결과 안내가 열려 있었으면 닫는다(완료로 치지 않음)
   }
 
@@ -349,7 +379,7 @@ function App() {
    * 캐시 적중이면 요청하지 않는다(S2). 저장은 활성 요청의 성공 응답만(늦은 응답은 seq 가 달라 화면·캐시 모두 반영 안 함, S7).
    */
   const startA = useCallback(
-    (request: AnalyzeRequest, opts: { keepCompare?: boolean; origin?: AnalysisOrigin } = {}) => {
+    (request: AnalyzeRequest, opts: { keepCompare?: boolean; origin?: AnalysisOrigin; onSuccess?: (request: AnalyzeRequest) => void } = {}) => {
       epoch.current++
       inflight.current?.controller.abort()
       inflight.current = null
@@ -371,6 +401,7 @@ function App() {
         showNearbyFromCache(request, cached.nearby)
         checkB(cached.analyze)
         sendTour({ type: 'analyzed' })
+        opts.onSuccess?.(request)                          // 공유 링크의 B(12-3): 같은 업종·반경으로 이어서
         return
       }
       const current = { seq: ++seq.current, controller: new AbortController() }
@@ -405,6 +436,7 @@ function App() {
           loadNearby(request)                              // 실패해도 분석 결과는 그대로 둔다
           checkB(r.data)
           sendTour({ type: 'analyzed' })
+          opts.onSuccess?.(request)                        // 공유 링크의 B(12-3). A 가 실패하면 B 는 없다
         })
         .catch(() => {})                                   // 취소된 요청
     },
@@ -677,6 +709,67 @@ function App() {
     requestCompareRef.current = requestCompare
     radiusProblemRef.current = (request, problem) => void recoverRadius(request, problem)
   })
+
+  // 공유 링크 적용(12-3): 업종 목록과 /health 응답 콜백이 부른다 — 둘 다 온 뒤 1회. 업종을 모르면(목록 실패 포함) 위치만 가져온다.
+  // 반경은 서버가 광고할 때만 링크 값, 아니면 기본 반경으로 분석하며 안내한다. 링크의 데이터 묶음·엔진이 지금 서버와 다르면
+  // 결과가 다를 수 있다고 안내한다. B 좌표는 A 성공 뒤 같은 업종·반경으로 비교를 잇는다(startA thenB)
+  useLayoutEffect(() => {
+    applyShareRef.current = () => {
+      if (shareLinkRef.current === undefined) shareLinkRef.current = parseShareQuery(window.location.search)
+      const link = shareLinkRef.current
+      if (!link || !shareLoaded.current.businesses || !shareLoaded.current.health) return
+      shareLinkRef.current = null
+      setSharePending(false)
+      const point = { lat: link.lat, lng: link.lng }
+      setLocation(point)
+      const { catalog, health } = shareInputs.current
+      const known = catalog?.groups.some((g) => g.businesses.some((b) => b.code === link.biz)) ?? false
+      if (!known) {
+        setShareNotice('공유 링크의 업종을 이 서버에서 찾을 수 없어 위치만 가져왔습니다. 업종을 골라 분석하세요.')
+        return
+      }
+      setBizCode(link.biz)
+      const options = health?.options ?? []
+      const enabled = options.length >= 2
+      const notes = ['공유 링크의 조건으로 다시 분석했습니다 — 저장된 점수가 아니라 지금 서버의 결과입니다.']
+      let r = DEFAULT_RADIUS_M
+      if (link.radius !== null && link.radius !== DEFAULT_RADIUS_M) {
+        if (enabled && options.includes(link.radius)) r = link.radius
+        else notes.push(`링크의 반경 ${formatRadius(link.radius)}는 이 서버가 지원하지 않아 ${formatRadius(DEFAULT_RADIUS_M)}로 분석합니다.`)
+      }
+      const now = { data: health?.data ?? null, engine: health?.engine ?? null }
+      if (versionsDiffer(link, now)) {
+        const label = (v: { data: string | null; engine: string | null }) =>
+          [v.data && dataVersionLabel(v.data), v.engine && `엔진 ${v.engine}`].filter(Boolean).join(' · ')
+        notes.push(`링크를 만들 때는 ${label(link)}였고 지금은 ${label(now)}입니다. 결과가 그때와 다를 수 있습니다.`)
+      }
+      setRadius(r)
+      setPrevRadius(null)
+      setShareNotice(notes.join(' '))
+      const b = link.b
+      startA(buildRequest(point, link.biz, r, enabled), b ? { onSuccess: (request) => requestCompareRef.current(b, request) } : {})
+    }
+  })
+
+  // 지금 보이는 결과의 조건 = 공유 링크. 결과가 있으면 주소창 쿼리도 같게 둔다(replaceState — 뒤로 가기 항목을 만들지 않는다).
+  // 결과가 없으면 쿼리를 지운다. 링크 조건을 아직 적용하기 전에는 주소를 건드리지 않는다
+  const currentShare: ShareConditions | null =
+    analysis.status === 'success'
+      ? {
+          lat: analysis.request.lat,
+          lng: analysis.request.lng,
+          biz: analysis.request.biz_code,
+          radius: analysis.request.radius_m ?? null,
+          b: compare.status === 'success' ? compare.location : null,
+          data: dataVersionOf(analysis.response),
+          engine: analysis.response.result.meta.엔진버전,
+        }
+      : null
+  const currentQuery = currentShare ? `?${shareQuery(currentShare)}` : ''
+  useEffect(() => {
+    if (sharePending || window.location.search === currentQuery) return
+    window.history.replaceState(null, '', `${window.location.pathname}${currentQuery}${window.location.hash}`)
+  }, [sharePending, currentQuery])
 
   const selectLocation = (point: LatLng) => {
     if (analyzing) return                                  // 분석 중 새 선택은 무시 (§8.12)
@@ -990,8 +1083,13 @@ function App() {
   )
   // 반경: 결과가 있으면 조건 바에(radiusInBar), 분석 전·실패·다시 분석 중이면 조건 패널 ③에 (한 번에 하나만 그린다)
   const radiusNotes =
-    radiusNotice || (radiusInBar && radiusEnabled && (radiusStatus || narrowHint)) ? (
+    radiusNotice || shareNotice || (radiusInBar && radiusEnabled && (radiusStatus || narrowHint)) ? (
       <div className="panel__notes">
+        {shareNotice && (
+          <p className="radius-notice share-notice" role="status">
+            {shareNotice}
+          </p>
+        )}
         {radiusNotice && (
           <p className="radius-notice" role="status">
             {radiusNotice}
@@ -1024,15 +1122,18 @@ function App() {
     if (compareView === 'summary') {
       // AnalysisResult는 한 번에 하나만 마운트한다(고정 id, COMPARE_DESIGN.md 6장). 점포 목록은 보이는 기준 위치의 것만(5차-B5)
       panelBody = (
-        <CompareResult
-          a={result}
-          b={compare.response}
-          nearby={compareStores(storeSide, storeSide === 'A' ? result : compare.response, true)}
-          onShowDetail={showCompareDetail}
-          onEnd={endCompare}
-          onChangeConditions={cancelAnalysis}
-          addresses={{ A: addressOf(result), B: addressOf(compare.response) }}
-        />
+        <>
+          <ResultTools shareUrl={currentShare ? shareUrl(currentShare) : null} />
+          <CompareResult
+            a={result}
+            b={compare.response}
+            nearby={compareStores(storeSide, storeSide === 'A' ? result : compare.response, true)}
+            onShowDetail={showCompareDetail}
+            onEnd={endCompare}
+            onChangeConditions={cancelAnalysis}
+            addresses={{ A: addressOf(result), B: addressOf(compare.response) }}
+          />
+        </>
       )
       panelFoot = foot(
         <>
@@ -1099,6 +1200,7 @@ function App() {
       <>
         {/* ④ 결과 안내 (묶음 D): 결과 머리 위 인라인 — 반경 버튼(조건 바)·"다른 위치와 비교"(패널 아래)를 글로 가리킨다 */}
         {resultCoach}
+        <ResultTools shareUrl={currentShare ? shareUrl(currentShare) : null} />
         <AnalysisResult
         analysis={result}
         eyebrowAction={replayHelp('result')}

@@ -19,6 +19,8 @@ beforeEach(() => {
 
 afterEach(() => {
   cleanup()
+  // 조건 공유 링크(12-3): App 이 결과 조건을 주소창 쿼리에 두므로, 다음 테스트가 그 링크로 열리지 않게 주소를 되돌린다
+  window.history.replaceState(null, '', '/')
 })
 
 // jsdom에는 ResizeObserver가 없다. App이 sticky 헤더 높이를 관찰하므로(스크롤 여백) 아무 일도 하지 않는 대역을 둔다.

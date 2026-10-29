@@ -1,0 +1,34 @@
+/* 결과 활용 줄 (1차): 결과 머리 위, 작은 ghost 버튼 한 줄. 인쇄에서는 숨긴다(print.css) */
+.result-tools {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.result-tools__row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+}
+
+.result-tools__button {
+  height: 36px;
+  font: var(--text-small);
+  font-weight: 600;
+}
+
+.result-tools__status {
+  margin: 0;
+  font: var(--text-small);
+  color: var(--color-text-secondary);
+}
+
+.result-tools__fallback {
+  margin: 0;
+}
+
+.result-tools__url {
+  width: 100%;
+  font: var(--text-small);
+}
