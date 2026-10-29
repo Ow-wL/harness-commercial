@@ -3806,8 +3806,13 @@ describe('후보 보관함 (12-25, 계획 1-2) — 로컬 저장, 저장 당시 
     window.localStorage.removeItem('fieldNotes.v1')
   })
 
-  it('"보관" → 저장 안내·버튼 개수, 보관함의 "같은 조건으로 다시 분석"은 조건을 되살려 다시 분석(캐시 적중이면 요청 없음)하고 스냅샷이 아니라고 안내한다', async () => {
-    const fetchMock = mockApi({ analyze: [ok(fixture, '2026-06')], nearby: [ok(nearbyFixture, '2026-06')] })
+  it('"보관" → 저장 안내·버튼 개수, 보관함의 "같은 조건으로 다시 분석"은 조건을 되살려 캐시를 우회해 서버에 다시 요청하고(12-28-R2) 스냅샷이 아니라고 안내한다', async () => {
+    const fresh = structuredClone(fixture) as typeof fixture
+    fresh.result.종합.점수 = 63.1                                   // 서버가 그사이 바뀐 상황
+    const fetchMock = mockApi({
+      analyze: [ok(fixture, '2026-06'), ok(fresh, '2026-06')],
+      nearby: [ok(nearbyFixture, '2026-06'), ok(nearbyFixture, '2026-06')],
+    })
     render(<App />)
     expect(screen.getByRole('button', { name: '보관함 0곳' })).toBeInTheDocument()
     await selectBupyeongPcBang()
@@ -3827,7 +3832,7 @@ describe('후보 보관함 (12-25, 계획 1-2) — 로컬 저장, 저장 당시 
       versions: { data: '2026-06', engine: 'mvp-0.3' },
     })
 
-    // 조건을 바꾼 뒤 보관함에서 다시 분석 → 같은 조건(캐시 적중, /analyze 추가 요청 없음), 안내 문구
+    // 조건을 바꾼 뒤 보관함에서 다시 분석 → 같은 조건으로 /analyze 를 다시 보내고(캐시 우회) 새 응답을 보인다
     fireEvent.click(screen.getByRole('button', { name: /바꾸기/ }))
     fireEvent.click(screen.getByRole('button', { name: '보관함 1곳' }))
     const dialog = screen.getByRole('dialog', { name: '후보 보관함' })
@@ -3835,7 +3840,9 @@ describe('후보 보관함 (12-25, 계획 1-2) — 로컬 저장, 저장 당시 
     fireEvent.click(within(dialog).getByRole('button', { name: '같은 조건으로 다시 분석' }))
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     await screen.findByRole('heading', { level: 1, name: '부평구 부평1동 · PC방 분석' })
-    expect(analyzeCalls(fetchMock)).toHaveLength(1)
+    expect(analyzeCalls(fetchMock)).toHaveLength(2)
+    expect(JSON.parse((analyzeCalls(fetchMock)[1]![1] as RequestInit).body as string)).toEqual({ lat: 37.4894, lng: 126.7246, biz_code: 'R10406' })
+    await waitFor(() => expect(screen.getByRole('region', { name: '종합 적합도' })).toHaveTextContent('63.1'))
     expect(document.querySelector('.share-notice')).toHaveTextContent('보관함의 조건으로 다시 분석했습니다 — 저장 당시 결과가 아니라 지금 서버의 결과입니다.')
     expect(screen.getByTestId('map')).toHaveAttribute('data-selected', '37.4894,126.7246')
 

@@ -3,7 +3,7 @@ import { AnalyzeResponseSchema } from '../api/schemas.ts'
 import fixture from '../fixtures/bupyeong-pcbang-v05.json'
 import { stampDataVersion } from '../lib/dataVersion.ts'
 import { FIELD_NOTES_KEY, writeFieldNotes } from '../lib/fieldNotes.ts'
-import { siteFrom } from '../lib/savedSites.ts'
+import { readSavedSites, SAVED_SITES_KEY, siteFrom } from '../lib/savedSites.ts'
 import { SavedSites } from './SavedSites.tsx'
 
 const response = stampDataVersion(AnalyzeResponseSchema.parse(fixture), '2026-06')
@@ -38,6 +38,17 @@ describe('후보 보관함 화면 (12-25)', () => {
     expect(onReanalyze).toHaveBeenCalledWith(expect.objectContaining({ id: site.id }))
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()     // 다시 분석하면 닫힌다
     expect(button).toHaveFocus()
+  })
+
+  it('손상 항목이 저장소에 섞여 있어도 readSavedSites 가 거르므로 모달은 정상 항목만 그린다 — 렌더 예외 없음 (12-28-R4)', () => {
+    window.localStorage.setItem(
+      SAVED_SITES_KEY,
+      JSON.stringify([{ ...site, id: 'broken', snapshot: { locationName: '부평구 부평1동', perspectives: [null], gaps: [] } }, site]),
+    )
+    render(<SavedSites sites={readSavedSites()} onReanalyze={() => {}} onMemo={() => {}} onRemove={() => {}} />)
+    fireEvent.click(screen.getByRole('button', { name: '보관함 1곳' }))
+    expect(within(screen.getByRole('dialog')).getAllByRole('article')).toHaveLength(1)
+    window.localStorage.removeItem(SAVED_SITES_KEY)
   })
 
   it('비어 있으면 안내, Escape 로 닫고 버튼으로 포커스가 돌아온다', () => {

@@ -392,7 +392,7 @@ function App() {
    * 캐시 적중이면 요청하지 않는다(S2). 저장은 활성 요청의 성공 응답만(늦은 응답은 seq 가 달라 화면·캐시 모두 반영 안 함, S7).
    */
   const startA = useCallback(
-    (request: AnalyzeRequest, opts: { keepCompare?: boolean; origin?: AnalysisOrigin; onSuccess?: (request: AnalyzeRequest) => void } = {}) => {
+    (request: AnalyzeRequest, opts: { keepCompare?: boolean; origin?: AnalysisOrigin; onSuccess?: (request: AnalyzeRequest) => void; fresh?: boolean } = {}) => {
       epoch.current++
       inflight.current?.controller.abort()
       inflight.current = null
@@ -405,7 +405,9 @@ function App() {
           rejectMixedEngines(c.location, response, c.response)
         }
       }
-      const cached = resultCache.current.get(request)
+      // fresh(12-28-R2): 보관함 "같은 조건으로 다시 분석"처럼 사용자가 명시적으로 지금 서버의 결과를 요구하면 캐시를 읽지 않고 요청한다
+      // (응답은 캐시에 다시 저장된다 — 엔진·데이터 버전이 바뀌었으면 ResultCache 가 전체를 비운다)
+      const cached = opts.fresh ? undefined : resultCache.current.get(request)
       if (cached) {
         seq.current++
         setAnalysis({ status: 'success', request, response: cached.analyze })
@@ -1085,7 +1087,7 @@ function App() {
       })
     }
   }
-  /** 보관함의 "같은 조건으로 다시 분석": 저장한 조건으로 지금 서버에서 새로 분석한다 — 스냅샷은 보여 주지 않는다 */
+  /** 보관함의 "같은 조건으로 다시 분석": 저장한 조건으로 **지금 서버에 다시 요청**한다(캐시 우회, 12-28-R2) — 스냅샷은 보여 주지 않는다 */
   const reanalyzeSaved = (site: SavedSite) => {
     if (analyzing || bRequesting) return
     cancelAnalysis()
@@ -1101,7 +1103,7 @@ function App() {
         ? '보관함의 조건으로 다시 분석했습니다 — 저장 당시 결과가 아니라 지금 서버의 결과입니다.'
         : `보관함의 조건으로 다시 분석했습니다 — 저장 당시 결과가 아니라 지금 서버의 결과입니다. 반경 ${formatRadius(wanted)}는 이 서버가 지원하지 않아 ${formatRadius(DEFAULT_RADIUS_M)}로 분석합니다.`,
     )
-    startA(buildRequest(point, site.conditions.biz, r, radiusEnabled))
+    startA(buildRequest(point, site.conditions.biz, r, radiusEnabled), { fresh: true })
   }
 
   // 현장 확인 기록(12-27): 지금 결과의 조건 키로 이 브라우저 저장소에서 읽는다(렌더에서 읽기, 쓰기는 콜백). 저장소가 막혀 있으면

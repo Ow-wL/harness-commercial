@@ -13,7 +13,7 @@ describe('현장 확인 카드 규칙 (12-27, 계획 1-4) — 결과의 지표·
     const cards = fieldChecks(res(pcV05))
     expect(cards.map((c) => c.id)).toEqual(['competitors', 'rent', 'market-gu'])
     expect(cards[0]!.because).toBe('반경 500m 안 PC방 12곳 · 점포당 잠재수요(거주+종사자) 1,925명 — 점포 목록은 주변 점포 탭')
-    expect(cards[1]!.because).toBe('이 위치는 임대료 조사 상권 밖이라 임대료가 점수에 들어가지 않았습니다')
+    expect(cards[1]!.because).toBe('이 위치에는 임대료 조사 상권이 연결되지 않아 임대료를 점수에 반영하지 않았습니다')
     expect(cards[2]!.because).toBe('유입 인구는 부평구 구 단위 자료(하루 유입 679,748명) — 이 자리의 유동은 담지 않습니다')
     for (const c of cards) expect(c.record).toHaveLength(3)
   })
@@ -50,7 +50,7 @@ describe('현장 확인 카드 규칙 (12-27, 계획 1-4) — 결과의 지표·
   it('문장에 순위·확률·추천·단정(비싸다/유망) 표현이 없다', () => {
     for (const fx of [pc, pcV05, nail, school, songdo]) {
       for (const c of fieldChecks(res(fx))) {
-        for (const text of [c.title, c.because, ...c.record]) expect(text).not.toMatch(/순위|확률|추천|유망|비싸|싸다|보장/)
+        for (const text of [c.title, c.because, ...c.record]) expect(text).not.toMatch(/순위|확률|추천|유망|비싸|싸다|보장|상권 밖|대상 밖/)   // 12-28-R3: 조사 대상 밖 단정 금지
       }
     }
   })

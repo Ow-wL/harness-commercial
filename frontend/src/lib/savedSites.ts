@@ -33,20 +33,27 @@ export type SavedSite = {
 
 export type SaveOutcome = { ok: true; sites: SavedSite[]; updated: boolean } | { ok: false; reason: 'full' | 'storage' }
 
-function isSite(v: unknown): v is SavedSite {
-  if (!v || typeof v !== 'object') return false
-  const s = v as Record<string, unknown>
-  const c = s.conditions as Record<string, unknown> | undefined
-  const snap = s.snapshot as Record<string, unknown> | undefined
-  return (
-    typeof s.id === 'string' &&
-    typeof s.key === 'string' &&
-    typeof s.savedAt === 'string' &&
-    !!c && typeof c.lat === 'number' && typeof c.lng === 'number' && typeof c.biz === 'string' && typeof c.bizName === 'string' &&
-    !!snap && typeof snap.locationName === 'string' && Array.isArray(snap.perspectives) && Array.isArray(snap.gaps) &&
-    !!s.versions && typeof (s.versions as Record<string, unknown>).engine === 'string' &&
-    typeof s.memo === 'string'
-  )
+const isRecord = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v)
+const isFiniteNumber = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v)
+const isNullableNumber = (v: unknown): v is number | null => v === null || isFiniteNumber(v)
+const isNullableString = (v: unknown): v is string | null => v === null || typeof v === 'string'
+
+/**
+ * 저장 항목 전체 스키마 검증 (12-28-R4): 화면이 읽는 모든 필드(좌표·반경·점수·관점 원소·점포 수·확인 필요·버전·메모)를 확인한다.
+ * 손상·부분·옛 형식 항목은 통째로 버린다 — 보관함 모달이 formatScore·toLocaleString 에서 예외를 내지 않게.
+ */
+export function isSite(v: unknown): v is SavedSite {
+  if (!isRecord(v)) return false
+  const { conditions: c, snapshot: snap, versions } = v
+  if (typeof v.id !== 'string' || typeof v.key !== 'string' || typeof v.savedAt !== 'string' || typeof v.memo !== 'string') return false
+  if (!isRecord(c) || !isFiniteNumber(c.lat) || !isFiniteNumber(c.lng) || Math.abs(c.lat) > 90 || Math.abs(c.lng) > 180) return false
+  if (typeof c.biz !== 'string' || typeof c.bizName !== 'string' || !(c.radius === null || (isFiniteNumber(c.radius) && c.radius > 0))) return false
+  if (!isRecord(snap) || typeof snap.locationName !== 'string' || !isNullableNumber(snap.overall) || !isFiniteNumber(snap.stores)) return false
+  if (!Array.isArray(snap.perspectives)) return false
+  if (!snap.perspectives.every((p) => isRecord(p) && typeof p.key === 'string' && typeof p.label === 'string' && isNullableNumber(p.score))) return false
+  if (!Array.isArray(snap.gaps) || !snap.gaps.every((g) => typeof g === 'string')) return false
+  if (!isRecord(versions) || !isNullableString(versions.data) || typeof versions.engine !== 'string') return false
+  return true
 }
 
 export function readSavedSites(): SavedSite[] {

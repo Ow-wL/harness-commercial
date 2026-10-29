@@ -3,7 +3,7 @@ import fixture from '../fixtures/bupyeong-pcbang-v05.json'
 import guwol from '../fixtures/compare-guwol-pcbang.json'
 import songdo from '../fixtures/compare-songdo-pcbang.json'
 import { stampDataVersion } from './dataVersion.ts'
-import { readSavedSites, removeSite, SAVED_SITES_KEY, SAVED_SITES_MAX, saveSite, siteFrom, updateSiteMemo } from './savedSites.ts'
+import { isSite, readSavedSites, removeSite, SAVED_SITES_KEY, SAVED_SITES_MAX, saveSite, siteFrom, updateSiteMemo } from './savedSites.ts'
 
 const bupyeong = stampDataVersion(AnalyzeResponseSchema.parse(fixture), '2026-06')
 const req = { lat: 37.4894, lng: 126.7246, biz_code: 'R10406', radius_m: 500 }
@@ -61,6 +61,37 @@ describe('후보 보관함 (12-25, 계획 1-2) — 로컬 저장 최대 3곳, �
     const good = siteFrom(req, bupyeong)
     window.localStorage.setItem(SAVED_SITES_KEY, JSON.stringify([{ id: 'x' }, good, { ...good, id: 'g2' }, { ...good, id: 'g3' }, { ...good, id: 'g4' }]))
     expect(readSavedSites().map((s) => s.id)).toEqual([good.id, 'g2', 'g3'])
+  })
+
+  it('손상·부분 항목은 필드 하나만 어긋나도 버린다 — 관점 원소 null·점수 누락·점포 수 누락·좌표 범위 밖·버전 없음 (12-28-R4, Codex 재현)', () => {
+    const good = siteFrom(req, bupyeong)
+    expect(isSite(good)).toBe(true)
+    const broken: Record<string, unknown>[] = [
+      { ...good, snapshot: { ...good.snapshot, perspectives: [null] } },
+      { ...good, snapshot: { ...good.snapshot, perspectives: [{ key: 'market' }] } },
+      { ...good, snapshot: { locationName: '부평구 부평1동', perspectives: [], gaps: [] } },      // overall·stores 누락(Codex 사례)
+      { ...good, snapshot: { ...good.snapshot, overall: 'high' } },
+      { ...good, snapshot: { ...good.snapshot, stores: null } },
+      { ...good, snapshot: { ...good.snapshot, gaps: [1] } },
+      { ...good, conditions: { ...good.conditions, lat: 95 } },
+      { ...good, conditions: { ...good.conditions, lat: Number.NaN } },
+      { ...good, conditions: { ...good.conditions, radius: 0 } },
+      { ...good, versions: { engine: 'mvp-0.5.1' } },
+      { ...good, versions: null },
+      { ...good, memo: 3 },
+      { ...good, conditions: [] },
+    ]
+    for (const b of broken) expect(isSite(b), JSON.stringify(b).slice(0, 80)).toBe(false)
+    window.localStorage.setItem(SAVED_SITES_KEY, JSON.stringify([broken[0], good, broken[2]]))
+    expect(readSavedSites().map((s) => s.id)).toEqual([good.id])
+    // null 점수(미산출)·null 반경(서버 기본)·null 데이터 묶음은 정상
+    const nullish = {
+      ...good,
+      snapshot: { ...good.snapshot, overall: null, perspectives: [{ key: 'market', label: '시장성', score: null }] },
+      conditions: { ...good.conditions, radius: null },
+      versions: { data: null, engine: 'mvp-0.3' },
+    }
+    expect(isSite(nullish)).toBe(true)
   })
 
   it('저장소가 막혀 있으면 storage 사유로 거절한다', () => {

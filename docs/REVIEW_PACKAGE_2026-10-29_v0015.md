@@ -74,6 +74,19 @@
 ### 2-9. 공유 안내 정리 — 검수 자료 커밋
 - 브라우저 확인(5장)에서 공유 링크로 연 뒤 조건 바의 반경을 바꿔도 "공유 링크의 조건으로 다시 분석했습니다" 안내가 남는 것을 보고, `changeRadius` 에서 `shareNotice` 를 지우도록 했다(안내는 링크·보관함 조건으로 낸 그 결과까지만). App 테스트 1건 보강(반경 변경 뒤 안내 없음), `App.test.tsx` 전체 182건 + shareLink 14건 재통과. 이 변경은 전체 check(4-1) **뒤**의 코드 변경이다 — 배포 후보 확정 때 전체 check 를 다시 1회 돌린다.
 
+### 2-10. Codex 1차 검수 지적 수정 (R1~R4, `docs/CODEX_REVIEW_2026-10-29_v0015.md`) — 재검수 요청
+| 지적 | 수정 | 회귀 테스트 | 재검증 |
+|---|---|---|---|
+| R1 [P1] 인쇄 잘림 | `main.tsx` 에서 `print.css` 를 App 뒤에 import, 앱 껍데기·패널·스크롤 영역 배치/높이/overflow 를 `!important` 로 문서 흐름·자동 높이(mobile `.app[data-screen] .panel`·`[data-folded]` 포함), 다크 토큰을 밝은 값으로 되돌림. 정책: 모든 탭을 여러 페이지로, 세부지표 아코디언은 인쇄 대상 아님 | `print.test.ts` 6건(로딩 순서·!important·토큰) | Playwright chromium + production `dist-e2e`, print 미디어, fixture API: 다크 1280·라이트 1280·다크 375 모두 패널 static 전체 폭, 문서 높이 4,882/4,882/6,071px, PDF 7페이지, 마지막 현장 카드·메모·출처·면책 포함, h1 #17202b. 결과 JSON·PDF·PNG 는 세션 scratchpad `print/`(Codex 재현 스크립트와 같은 방식 — 재검수 때 `.gstack/review-v0015/print-repro.mjs` 를 다시 돌리면 된다) |
+| R2 [P2] 보관함 재분석이 캐시 반환 | `startA({ fresh: true })` — 캐시를 읽지 않고 서버에 요청(응답은 캐시 저장), `reanalyzeSaved` 가 사용 | App 테스트: 두 번째 응답 63.1 → `/analyze` 2회·새 점수 표시 | — |
+| R3 [P2] 임대료 "조사 상권 밖" 단정 | "이 위치에는 임대료 조사 상권이 연결되지 않아 임대료를 점수에 반영하지 않았습니다"(D-015) | fieldChecks 금지 표현에 상권 밖·대상 밖, FieldChecks 문구 단언 | — |
+| R4 [P2] 손상 보관함 항목 | `isSite` 전체 스키마 검증(좌표 범위·반경·점수 null\|유한·관점 원소·점포 수·gaps·versions·memo) | savedSites 손상 13종 거절 + null 허용, SavedSites 손상 섞인 저장소 렌더 | — |
+
+수정 뒤 검증: 단위 테스트(위) + typecheck·lint, 최종 소스 전체 check `--jobs 5` 와 E2E `--only e2e` 재실행(결과는 아래 4-2). 보호 경로 변경 0.
+
+### 4-2. 수정 뒤 전체 check·E2E
+(실행 뒤 기록)
+
 ### 2-7. 공통·마무리 — `b5abd96`
 - E2E `frontend/e2e/smoke.spec.ts` 5번째 흐름(공유 링크로 열기 → 결과·URL → 반경 표 → 현장 확인 탭·확인함 → 보관 → 보관함 모달 → 장소 이름 없음 → 조건 바꾸기로 쿼리 제거). README·CLAUDE·계획·DESIGN §19.10·패치노트 `work` 4줄.
 - 패치노트 v0.0.15 `changes` 3줄(사용자 요약) — 장소 검색 줄 "서버에 검색 키가 설정된 경우"가 운영 키 없이 배포될 때 사용자에게 적절한 표현인지 봐 달라.
