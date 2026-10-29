@@ -89,8 +89,10 @@
 |---|---|---|---|
 | R5 [P2] 긴 현장 메모가 인쇄에서 앞 두 줄만 남음(rows=2 textarea) | 메모가 있을 때만 인쇄용 `.field-check__memo-print`(값 그대로, `aria-hidden`)를 두고 화면에서는 숨김, `print.css` 가 textarea 를 숨기고 전문을 `pre-wrap`·`overflow-wrap: anywhere` 로 표시. 빈 메모는 placeholder 를 찍지 않는다 | FieldChecks(메모 있는 카드에만 전문 요소)·print.test(규칙) | Codex 의 `.gstack/review-v0015/print-recheck.mjs`(Edge, 14줄 메모) + `check-print-memos.py` 를 그대로 실행: 다크 1280·라이트 1280·다크 375 PDF 모두 시작·끝 표식 포함(6페이지), 페이지 이미지에서 메모 박스 전문 확인 |
 
-### 4-3. R5 수정 뒤 전체 check·E2E
-(실행 뒤 기록)
+### 4-3. R5 수정 뒤 전체 check·E2E (`b7979c4`, 2026-10-29)
+- E2E `--only e2e`: 5흐름 통과(54.4초).
+- 전체 check 5회차(단독, `.venv` python, `--jobs 5`): **19단계 통과, SKIP 0, 재실행 없음**, 407.9초(core 381 · v0_4 61 · v0_5 104 · v0_5_1 40 · backend 157 · frontend 49파일 907 · patch-notes). 로그 `full-check-v0015-run5.log`. 이 커밋이 재검수 기준이다.
+- 보호 경로 변경 0.
 
 ### 4-2. 수정 뒤 전체 check·E2E (`b5b8746`, 2026-10-29)
 - E2E `--only e2e`: 5흐름 통과(80.1초 — 아래 3회차 전체 check 와 동시에 돌려 첫 흐름이 1분).
