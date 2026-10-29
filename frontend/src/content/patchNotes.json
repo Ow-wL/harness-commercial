@@ -26,7 +26,22 @@
         "장소 이름 검색: backend /places 프록시(NAVER 검색, 키 없으면 꺼짐·/health 광고, 로그에 검색어 없음) + \"장소 이름\" 입력 방법(조건 패널·시트·비교 B)",
         "E2E 1차 흐름 추가, 결정 D-036, DESIGN §19.10, Codex 검수 자료(docs/REVIEW_PACKAGE_2026-10-29_v0015.md)"
       ],
-      "commits": []
+      "commits": [
+        "584b433",
+        "b71cf07",
+        "2a22e38",
+        "8ccef55",
+        "80d1b1e",
+        "7d8655b",
+        "b5abd96",
+        "e4ad1ff",
+        "0018bed",
+        "b5b8746",
+        "712e869",
+        "b7979c4",
+        "b3e0532",
+        "c83fd41"
+      ]
     },
     {
       "version": "v0.0.14",
@@ -67,7 +82,8 @@
         "44e7bf2",
         "c0ebd5b",
         "1d79da6",
-        "d534c75"
+        "d534c75",
+        "2282f8d"
       ]
     },
     {
@@ -635,6 +651,16 @@
       "source_commit": "c0ebd5b",
       "engine": "mvp-0.5.1",
       "note": "점수 설명 표기 수정·요약 기본 노출·주소 검색 안내·압축을 운영에 반영"
+    },
+    {
+      "id": "2026-10-29-verification-b7979c4",
+      "date": "2026-10-29",
+      "kind": "verification",
+      "result": "passed",
+      "app_version": "v0.0.15",
+      "source_commit": "b7979c4",
+      "engine": "mvp-0.5.1",
+      "note": "API 48건·압축과 지도 인증 성공 상태의 공유 링크·반경별 표·현장 확인·보관함·모바일 화면 확인. 장소 이름 검색은 서버 키가 없어 꺼진 채. 운영 트래픽은 바꾸지 않음"
     }
   ]
 }
