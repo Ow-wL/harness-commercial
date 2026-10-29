@@ -105,5 +105,16 @@ export function errorView(failure: ApiFailure): ErrorView {
         action: { kind: 'retry', label: '다시 시도', primary: true },
         requestId: error.request_id,
       }
+    case 'invalid_query':
+    case 'places_unavailable':
+    case 'places_upstream':
+      // 12-14 장소 검색 코드 — /places 는 PlaceSearch 가 자기 상태 문구로 다루고 분석 경로에서는 오지 않는다. 혹시 오면 서버 문제로
+      return {
+        tone: 'danger',
+        placement: 'result',
+        title: '분석 중 문제가 생겼습니다',
+        body: '잠시 후 다시 시도해 주세요.',
+        action: { kind: 'retry', label: '다시 시도', primary: true },
+      }
   }
 }

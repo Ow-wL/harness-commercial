@@ -399,6 +399,9 @@ export const USER_ERROR_CODES = [
   'location_outside',
   'no_data_nearby',
   'invalid_radius',                               // 8-D2: 서버 엔진이 받지 않는 분석 반경 (D-024)
+  'invalid_query',                                // 12-14: 장소 검색어 비었거나 너무 김 (D-036)
+  'places_unavailable',                           // 12-14: 서버에 검색 키 없음 (503)
+  'places_upstream',                              // 12-14: NAVER 검색 응답 없음·오류 (502)
 ] as const
 
 export const ErrorCodeSchema = z.enum([...USER_ERROR_CODES, 'internal_error'])
@@ -436,7 +439,30 @@ export const DataInfoSchema = z.object({
   as_of: z.record(z.string(), z.string()),
 })
 
-export const HealthSchema = z.object({ engine: EngineInfoSchema.optional(), data: DataInfoSchema.optional() })
+/** 12-14: 장소 이름 검색 광고 — 서버에 검색 키가 있을 때만 enabled. 없는 서버(구버전)는 필드 자체가 없다 */
+const PlacesInfoSchema = z.object({ enabled: z.boolean() })
+
+export const HealthSchema = z.object({
+  engine: EngineInfoSchema.optional(),
+  data: DataInfoSchema.optional(),
+  places: PlacesInfoSchema.optional(),
+})
+
+// ─── GET /places (12-14, D-036) ───────────────────────────────────────
+
+/** 장소 검색 결과 1건 — 좌표 선택용. 분석 행정동은 /analyze 가 좌표로 판정한다 */
+export const PlaceItemSchema = z.strictObject({
+  name: z.string(),
+  category: z.string(),
+  road_address: z.string().nullable(),
+  jibun_address: z.string().nullable(),
+  lat: z.number().min(-90).max(90),
+  lng: z.number().min(-180).max(180),
+})
+
+export const PlacesResponseSchema = z
+  .strictObject({ count: z.number().int().nonnegative(), places: z.array(PlaceItemSchema) })
+  .refine((r) => r.count === r.places.length, { message: 'count 가 places 길이와 다릅니다' })
 
 // ─── GET /businesses ─────────────────────────────────────────────────
 
@@ -486,3 +512,5 @@ export type NearbyStore = z.infer<typeof NearbyStoreSchema>
 export type NearbyStoresResponse = z.infer<typeof NearbyStoresResponseSchema>
 export type EngineInfo = z.infer<typeof EngineInfoSchema>
 export type Health = z.infer<typeof HealthSchema>
+export type PlaceItem = z.infer<typeof PlaceItemSchema>
+export type PlacesResponse = z.infer<typeof PlacesResponseSchema>

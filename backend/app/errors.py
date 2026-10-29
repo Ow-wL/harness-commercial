@@ -27,6 +27,9 @@ NO_DATA_NEARBY = "no_data_nearby"
 INVALID_BUSINESS = "invalid_business"
 INVALID_ANALYSIS_OPTIONS = "invalid_analysis_options"
 INVALID_RADIUS = "invalid_radius"                   # 8-D2: 엔진이 받지 않는 분석 반경 (D-024)
+INVALID_QUERY = "invalid_query"                     # 12-14: 장소 검색어 비었거나 너무 김 (D-036)
+PLACES_UNAVAILABLE = "places_unavailable"           # 12-14: 서버에 검색 키가 없다 (503)
+PLACES_UPSTREAM = "places_upstream"                 # 12-14: NAVER 검색 응답 없음·오류 (502)
 INTERNAL_ERROR = "internal_error"
 
 MESSAGES = {
@@ -37,6 +40,9 @@ MESSAGES = {
     INVALID_BUSINESS: "지원하지 않는 업종 코드입니다.",
     INVALID_ANALYSIS_OPTIONS: "분석 옵션(중요도·가중치)이 올바르지 않습니다.",
     INVALID_RADIUS: "지원하지 않는 분석 반경입니다.",
+    INVALID_QUERY: "검색어는 1~60자여야 합니다.",
+    PLACES_UNAVAILABLE: "이 서버에는 장소 이름 검색이 설정되어 있지 않습니다.",
+    PLACES_UPSTREAM: "장소 검색 서비스가 응답하지 않습니다. 잠시 뒤 다시 시도하세요.",
     INTERNAL_ERROR: "서버 내부 오류가 발생했습니다.",
 }
 
@@ -52,12 +58,14 @@ class ErrorResponse(BaseModel):
 
 
 class ApiError(Exception):
-    """사용자가 고칠 수 있는 오류 (422). message 는 사용자에게 보여도 안전한 문구만."""
+    """사용자가 고칠 수 있는 오류 (기본 422). message 는 사용자에게 보여도 안전한 문구만.
+    status: 12-14 장소 검색의 503(설정 없음)·502(상류 오류)처럼 같은 오류 계약 모양으로 다른 상태를 낼 때만 바꾼다."""
 
-    def __init__(self, code: str, message: Optional[str] = None):
+    def __init__(self, code: str, message: Optional[str] = None, status: int = 422):
         super().__init__(code)
         self.code = code
         self.message = message or MESSAGES[code]
+        self.status = status
 
 
 def error_json(status: int, detail: ErrorDetail) -> JSONResponse:
@@ -67,7 +75,7 @@ def error_json(status: int, detail: ErrorDetail) -> JSONResponse:
 def install_error_handlers(app: FastAPI) -> None:
     @app.exception_handler(ApiError)
     async def api_error(request: Request, exc: ApiError) -> JSONResponse:
-        return error_json(422, ErrorDetail(code=exc.code, message=exc.message))
+        return error_json(exc.status, ErrorDetail(code=exc.code, message=exc.message))
 
     @app.exception_handler(RequestValidationError)
     async def request_validation(request: Request, exc: RequestValidationError) -> JSONResponse:

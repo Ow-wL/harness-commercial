@@ -15,11 +15,13 @@ import {
   ErrorResponseSchema,
   HealthSchema,
   NearbyStoresResponseSchema,
+  PlacesResponseSchema,
   type AnalyzeResponse,
   type BusinessCatalog,
   type ErrorResponse,
   type Health,
   type NearbyStoresResponse,
+  type PlacesResponse,
 } from './schemas.ts'
 import { DATA_VERSION_HEADER, stampDataVersion } from '../lib/dataVersion.ts'
 
@@ -90,6 +92,11 @@ export function analyze(body: AnalyzeRequest, signal?: AbortSignal): Promise<Api
     body: JSON.stringify(body),
     signal,
   })
+}
+
+/** GET /places?q= — 장소 이름 검색 프록시(12-14, D-036). 서버가 /health places.enabled 로 광고할 때만 부른다 */
+export function searchPlaces(query: string, signal?: AbortSignal): Promise<ApiResult<PlacesResponse>> {
+  return request(`/places?${new URLSearchParams({ q: query })}`, PlacesResponseSchema, { signal })
 }
 
 /** POST /nearby-stores — body는 분석 요청과 같은 좌표·업종 (backend NearbyStoresRequest). */

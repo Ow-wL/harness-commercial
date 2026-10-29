@@ -123,10 +123,12 @@ function mockApi({
   analyze = [] as Reply[],
   nearby = [] as Reply[],
   health = { status: 200, body: OLD_HEALTH } as Reply | Reply[],
+  places = [] as Reply[],
 } = {}) {
   const queue = [...analyze]
   const nearbyQueue = [...nearby]
   const healthQueue = Array.isArray(health) ? [...health] : [health]
+  const placesQueue = [...places]
   const fetchMock = vi.fn(async (url: string) => {
     const reply =
       url === '/businesses'
@@ -137,7 +139,9 @@ function mockApi({
             : healthQueue[0]
           : url === '/nearby-stores'
             ? nearbyQueue.shift()
-            : queue.shift()
+            : url.startsWith('/places?')
+              ? placesQueue.shift()
+              : queue.shift()
     if (reply === undefined) throw new Error(`예상하지 못한 요청: ${url}`)
     if (reply === 'network-error') throw new TypeError('Failed to fetch')
     const { status, body, headers } = await reply
@@ -3873,5 +3877,63 @@ describe('인쇄 (12-15, 계획 1-3)', () => {
     fireEvent.click(screen.getByRole('button', { name: '인쇄' }))
     expect(print).toHaveBeenCalledTimes(1)
     expect(screen.getByRole('heading', { level: 1, name: '부평구 부평1동 · PC방 분석' })).toBeInTheDocument()
+  })
+})
+
+describe('장소 이름으로 찾기 (12-14, 계획 1-6, D-036) — 서버가 /health 로 광고할 때만', () => {
+  const HEALTH_PLACES = { status: 200, body: { ...OLD_HEALTH, places: { enabled: true } } }
+  const PLACES = {
+    status: 200,
+    body: { count: 1, places: [{ name: '부평역 1호선', category: '교통', road_address: '인천광역시 부평구 부평대로 1', jibun_address: null, lat: 37.4894, lng: 126.7246 }] },
+  }
+  const method = (name: string) => within(screen.getAllByRole('group', { name: '위치 입력 방법' })[0]!).queryByRole('button', { name })
+
+  it('광고 없는 서버(구버전·enabled false)에는 "장소 이름" 입력 방법이 없고 주소 안내는 기존 문구', async () => {
+    mockApi()
+    render(<App />)
+    await waitFor(() => expect(screen.getByRole('combobox', { name: '업종' })).toBeEnabled())
+    expect(method('장소 이름')).toBeNull()
+    expect(screen.getAllByRole('group', { name: '위치 입력 방법' })).toHaveLength(2)   // 조건 패널 + mobile 시트, 둘 다 없음
+  })
+
+  it('광고하면 "장소 이름"이 있고, 검색 결과를 고르면 그 좌표가 위치가 된다(분석 없음, /places 1회). 주소 안내는 장소 이름을 가리킨다', async () => {
+    const fetchMock = mockApi({ health: HEALTH_PLACES, places: [PLACES] })
+    render(<App />)
+    await waitFor(() => expect(method('장소 이름')).toBeInTheDocument())
+    fireEvent.click(method('장소 이름')!)
+    fireEvent.change(screen.getByRole('textbox', { name: '장소 이름' }), { target: { value: '부평역' } })
+    fireEvent.submit(screen.getByRole('search', { name: '장소 이름 검색' }))
+    const list = await screen.findByRole('list', { name: /검색 결과 1건/ })
+    fireEvent.click(within(list).getByRole('button'))
+    expect(screen.getByTestId('map')).toHaveAttribute('data-selected', '37.4894,126.7246')
+    expect(analyzeCalls(fetchMock)).toHaveLength(0)
+    expect(fetchMock.mock.calls.filter(([url]) => String(url).startsWith('/places?'))).toHaveLength(1)
+    expect(screen.queryByRole('list', { name: /검색 결과/ })).not.toBeInTheDocument()
+    // 선택 뒤 포커스는 위치 요약(주소 검색과 같은 규칙)
+    expect(document.activeElement).toHaveClass('location__selected')
+  })
+
+  it('비교 B 카드에도 "B 장소 이름으로 찾기"가 있고, 결과를 고르면 B 좌표만 바뀐다', async () => {
+    const fetchMock = mockApi({
+      health: HEALTH_PLACES,
+      analyze: [{ status: 200, body: fixture }],
+      nearby: [{ status: 200, body: nearbyFixture }],
+      places: [{ ...PLACES, body: { count: 1, places: [{ ...PLACES.body.places[0]!, lat: 37.4475, lng: 126.7015 }] } }],
+    })
+    render(<App />)
+    await selectBupyeongPcBang()
+    fireEvent.click(analyzeButton())
+    await screen.findByRole('heading', { level: 1, name: '부평구 부평1동 · PC방 분석' })
+    fireEvent.click(screen.getAllByRole('button', { name: '다른 위치와 비교' })[0]!)
+    const bCard = screen.getByRole('region', { name: 'B 비교 위치' })
+    fireEvent.click(within(bCard).getByRole('button', { name: 'B 장소 이름으로 찾기' }))
+    fireEvent.change(within(bCard).getByRole('textbox', { name: 'B 장소 이름' }), { target: { value: '구월' } })
+    fireEvent.submit(within(bCard).getByRole('search', { name: 'B 장소 이름 검색' }))
+    const list = await within(bCard).findByRole('list', { name: /검색 결과 1건/ })
+    fireEvent.click(within(list).getByRole('button'))
+    expect(bCard).toHaveTextContent('선택됨 · 37.4475, 126.7015')
+    expect(screen.getByTestId('map')).toHaveAttribute('data-selected', '37.4894,126.7246')   // A 그대로
+    expect(analyzeCalls(fetchMock)).toHaveLength(1)
+    expect(document.activeElement).toBe(within(bCard).getByRole('button', { name: 'B 분석하기' }))
   })
 })

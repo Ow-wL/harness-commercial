@@ -156,6 +156,8 @@ function App() {
   const [serverEngine, setServerEngine] = useState<string | null>(null)
   // 서버 데이터 메타(/health data, 9-C4) — 결과 화면의 데이터 출처·설명 기준일. 구버전 서버·실패면 null
   const [dataInfo, setDataInfo] = useState<DataInfo | null>(null)
+  // 장소 이름 검색 광고(/health places.enabled, 12-14) — 있을 때만 "장소 이름" 입력 방법을 보인다
+  const [placesReady, setPlacesReady] = useState(false)
   const [radius, setRadius] = useState(DEFAULT_RADIUS_M)
   const [prevRadius, setPrevRadius] = useState<number | null>(null)
   const [radiusNotice, setRadiusNotice] = useState<string | null>(null)
@@ -275,6 +277,7 @@ function App() {
         setRadiusOptions(r.ok && r.data.engine ? r.data.engine.radius_options : [])
         setServerEngine(r.ok && r.data.engine ? r.data.engine.version : null)
         setDataInfo(r.ok && r.data.data ? r.data.data : null)
+        setPlacesReady(r.ok && r.data.places ? r.data.places.enabled : false)
         // 공유 링크(12-3): 실패·구버전이어도 "알아봤다" — 적용을 더 기다리지 않는다
         shareInputs.current.health = {
           options: r.ok && r.data.engine ? r.data.engine.radius_options : [],
@@ -298,6 +301,7 @@ function App() {
     fetchHealth(ac.signal)
       .then((r) => {
         if (r.ok && r.data.data) setDataInfo(r.data.data)
+        if (r.ok) setPlacesReady(r.data.places ? r.data.places.enabled : false)
       })
       .catch(() => {})                                     // 취소된 요청
     return () => ac.abort()
@@ -675,6 +679,7 @@ function App() {
       setServerEngine(engineInfo ? engineInfo.version : null)
       const dataMeta = r.ok && r.data.data ? r.data.data : null
       setDataInfo(dataMeta)
+      setPlacesReady(r.ok && r.data.places ? r.data.places.enabled : false)
       if (options.length >= 2 && options.includes(request.radius_m)) {
         console.error(`[api] 반경 ${request.radius_m}m 문제(${problem})지만 서버가 아직 광고합니다 — 복구하지 않습니다`)
         return
@@ -1265,6 +1270,7 @@ function App() {
         onChangeConditions={cancelAnalysis}
         bAddress={<ReferenceAddress sdk={sdk} point={compare.location} />}
         searchApi={searchApi}
+        placesReady={placesReady}
         searchResetKey={bPickSeq}
       />
     )
@@ -1340,6 +1346,7 @@ function App() {
           address={<ReferenceAddress sdk={sdk} point={location} />}
           hasAddress={Boolean(pickedAddress?.roadAddress ?? pickedAddress?.jibunAddress)}
           searchApi={searchApi}
+          placesReady={placesReady}
           method={locationMethod}
           methodFocus={methodFocus}
           onMethodChange={setLocationMethod}
@@ -1547,8 +1554,9 @@ function App() {
               {/* 조건 패널과 같은 segmented·같은 상태 (B5): 주소·좌표를 누르면 패널로 가서 그 폼을 바로 연다 */}
               <LocationMethodSwitch
                 // 주소 기능이 꺼지면 조건 패널처럼 지도 안내로 본다
-                value={locationMethod === 'address' && !searchApi ? 'map' : locationMethod}
+                value={(locationMethod === 'address' && !searchApi) || (locationMethod === 'place' && !placesReady) ? 'map' : locationMethod}
                 addressReady={searchApi !== null}
+                placesReady={placesReady}
                 disabled={analyzing}
                 onChange={(m) => {
                   setLocationMethod(m)

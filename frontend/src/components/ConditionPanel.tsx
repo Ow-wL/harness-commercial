@@ -7,6 +7,7 @@ import { AddressSearch } from './AddressSearch.tsx'
 import { CoordinateForm } from './CoordinateForm.tsx'
 import { Icon } from './Icon.tsx'
 import { LocationMethodSwitch, type LocationMethod } from './LocationMethodSwitch.tsx'
+import { PlaceSearch } from './PlaceSearch.tsx'
 import type { LatLng } from './MapView.tsx'
 import { CoachMark, ReplayHelpButton } from './CoachMark.tsx'
 import './ConditionPanel.css'
@@ -47,6 +48,7 @@ export function ConditionPanel({
   address,
   hasAddress = false,
   searchApi,
+  placesReady = false,
   method,
   methodFocus = 0,
   onMethodChange,
@@ -73,6 +75,8 @@ export function ConditionPanel({
   searchApi?: NaverMapsApi | null
   /** 참고 주소 줄이 실제로 그려지는지 (있으면 좌표를 접는다, P3) */
   hasAddress?: boolean
+  /** 서버가 장소 이름 검색을 광고하는지 (12-14) — 있을 때만 "장소 이름" 입력 방법 */
+  placesReady?: boolean
   /** 위치 입력 방법 (P2·P3) — App이 들고 mobile 지도 sheet와 같이 쓴다 */
   method: LocationMethod
   /** mobile 지도 sheet에서 방법을 고르면 올린다 — 그 폼의 첫 입력칸으로 포커스 */
@@ -115,6 +119,7 @@ export function ConditionPanel({
         address={address}
         hasAddress={hasAddress}
         searchApi={searchApi ?? null}
+        placesReady={placesReady}
         method={method}
         methodFocus={methodFocus}
         onMethodChange={onMethodChange}
@@ -169,6 +174,7 @@ function LocationField({
   address,
   hasAddress,
   searchApi,
+  placesReady,
   method,
   methodFocus,
   onMethodChange,
@@ -183,6 +189,7 @@ function LocationField({
   /** 참고 주소 줄이 실제로 있을 때만 좌표를 접는다 — 주소가 없으면 좌표가 유일한 요약이다 */
   hasAddress: boolean
   searchApi: NaverMapsApi | null
+  placesReady: boolean
   method: LocationMethod
   /** 바뀔 때마다 고른 방법의 첫 입력칸으로 포커스 (mobile 지도 sheet에서 연 경우) */
   methodFocus: number
@@ -197,8 +204,8 @@ function LocationField({
   const summaryRef = useRef<HTMLDivElement>(null)
   const bodyRef = useRef<HTMLDivElement>(null)
   const mapButtonRef = useRef<HTMLButtonElement>(null)
-  // Geocoder가 꺼지면 "주소로 찾기"가 없어진다 — 그동안은 지도 안내를 보인다
-  const shown: LocationMethod = method === 'address' && !searchApi ? 'map' : method
+  // Geocoder가 꺼지면 "주소로 찾기"가, 서버 광고가 없으면 "장소 이름"이 없어진다 — 그동안은 지도 안내를 보인다
+  const shown: LocationMethod = (method === 'address' && !searchApi) || (method === 'place' && !placesReady) ? 'map' : method
 
   // 주소 검색 결과를 고르면 위치 요약으로 포커스 (§10 Q2). 고른 좌표가 그려진 뒤에 옮긴다
   const [focusSummary, setFocusSummary] = useState(0)
@@ -268,6 +275,7 @@ function LocationField({
       <LocationMethodSwitch
         value={shown}
         addressReady={searchApi !== null}
+        placesReady={placesReady}
         disabled={disabled}
         onChange={choose}
         mapButtonRef={mapButtonRef}
@@ -285,8 +293,10 @@ function LocationField({
             onSelect={selectFromSearch}
             onFocusLost={onSearchFocusLost}
             embedded
+            placesReady={placesReady}
           />
         )}
+        {shown === 'place' && placesReady && <PlaceSearch disabled={disabled} onSelect={selectFromSearch} embedded />}
         {shown === 'coords' && (
           <CoordinateForm id={`${methodId}-coords`} initial={location} disabled={disabled} onSubmit={onLocationInput} />
         )}

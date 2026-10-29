@@ -29,6 +29,7 @@ export function AddressSearch({
   onFocusLost,
   labelPrefix = '',
   embedded = false,
+  placesReady = false,
 }: {
   api: NaverMapsApi
   disabled: boolean
@@ -39,6 +40,8 @@ export function AddressSearch({
   labelPrefix?: string
   /** 펼침 버튼 없이 폼을 늘 연다 — 위치 입력 방법 segmented에서 "주소로 찾기"를 고른 동안 (P2·P3). 결과를 골라도 폼은 남고 목록만 닫힌다 */
   embedded?: boolean
+  /** 서버가 장소 이름 검색(12-14)을 광고하면 안내 문구가 그쪽을 가리킨다 */
+  placesReady?: boolean
 }) {
   const [openState, setOpen] = useState(false)
   const open = embedded || openState
@@ -211,8 +214,12 @@ export function AddressSearch({
               검색
             </button>
           </form>
-          {/* 지원 범위 안내 + 검증된 예시 (12-21, 계획 0-7): 장소 이름 검색은 1차(12-14)에서 */}
-          <p className="address-search__hint">도로명·지번 주소만 찾습니다. 역·건물·가게 이름은 아직 되지 않습니다.</p>
+          {/* 지원 범위 안내 + 검증된 예시 (12-21, 계획 0-7). 장소 이름 검색(12-14)이 켜진 서버면 그쪽을 가리킨다 */}
+          <p className="address-search__hint">
+            {placesReady
+              ? '도로명·지번 주소만 찾습니다. 역·건물·가게 이름은 "장소 이름"에서 찾으세요.'
+              : '도로명·지번 주소만 찾습니다. 역·건물·가게 이름은 아직 되지 않습니다.'}
+          </p>
           <p className="address-search__examples">
             <span className="address-search__examples-label">예시</span>
             {SEARCH_EXAMPLES.map((q) => (

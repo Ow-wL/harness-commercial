@@ -5,6 +5,7 @@ import type { ErrorAction } from '../lib/errorView.ts'
 import { useSearchFocusRecovery } from '../lib/useSearchFocusRecovery.ts'
 import type { NaverMapsApi } from '../map/naverMaps.ts'
 import { AddressSearch } from './AddressSearch.tsx'
+import { PlaceSearch } from './PlaceSearch.tsx'
 import { compareBand } from '../lib/attentionBand.ts'
 import { formatScore, locationName } from '../lib/format.ts'
 import { BandPeek } from './AttentionBand.tsx'
@@ -33,6 +34,7 @@ export function ComparePanel({
   onChangeConditions,
   bAddress,
   searchApi,
+  placesReady = false,
   searchResetKey,
 }: {
   a: AnalyzeResponse
@@ -46,6 +48,8 @@ export function ComparePanel({
   bAddress?: ReactNode
   /** Geocoder가 준비된 SDK (7-B5). 있을 때만 B 카드에 "B 주소로 찾기"를 그린다 — 고른 좌표는 `onLocationSubmit`으로 */
   searchApi?: NaverMapsApi | null
+  /** 서버가 장소 이름 검색(12-14)을 광고하면 B 카드에도 "B 장소 이름으로 찾기" */
+  placesReady?: boolean
   /** B 선택 초기화 세대(App의 pickB마다 바뀜). 바뀌면 B 주소 검색을 새로 그려 진행 중 검색·입력·결과를 버린다 */
   searchResetKey?: number
 }) {
@@ -132,8 +136,10 @@ export function ComparePanel({
             labelPrefix="B "
             onSelect={onLocationSubmit}
             onFocusLost={onSearchFocusLost}
+            placesReady={placesReady}
           />
         )}
+        {placesReady && <PlaceSearch key={`place-${searchResetKey}`} disabled={loading} labelPrefix="B " onSelect={onLocationSubmit} />}
         <CoordinateForm
           // 지도에서 고른 좌표로 입력란을 새로 채운다(좌표가 바뀌면 새로 그린다 → 제출 뒤 포커스는 App이 "B 분석하기"로 옮긴다)
           key={location ? `${location.lat},${location.lng}` : 'empty'}

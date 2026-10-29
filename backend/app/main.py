@@ -15,7 +15,8 @@ FastAPI backend (TASKS 3-1, docs/DECISIONS.md D-012).
 
 엔드포인트: GET /health (3-1), GET /businesses (3-2, 엔진 config.BIZ_GROUP 그대로),
             POST /analyze (3-3, ContextBuilder → AnalysisService, 엔진 결과는 변형 없이 result 에),
-            POST /nearby-stores (4차, 반경 안 동종 점포 목록 — /analyze 와 같은 좌표 검증·엔진 반경·업종 기준, D-019)
+            POST /nearby-stores (4차, 반경 안 동종 점포 목록 — /analyze 와 같은 좌표 검증·엔진 반경·업종 기준, D-019),
+            GET /places?q= (12-14, 장소 이름 검색 프록시 — backend/app/places.py, 키가 없으면 503, /health places.enabled 로 광고, D-036)
 분석 반경(8-D2, D-024): /analyze·/nearby-stores 의 선택 필드 radius_m(생략 = config.RADIUS_M 500). 엔진이 받는 값
           (scoring_engine.RADIUS_OPTIONS_M — v0.3 은 500 하나, v0.4 는 300·500·1,000)만, 그 밖은 422 invalid_radius.
           GET /health 의 engine.radius_options 로 광고한다(프런트는 2개 이상일 때만 반경 선택을 보인다).
@@ -46,8 +47,10 @@ from scoring_engine.nearby import NearbyStoreFinder
 from scoring_engine.runtime import resolve_data_version
 
 from .errors import (ERROR_RESPONSES, INVALID_ANALYSIS_OPTIONS, INVALID_BUSINESS, INVALID_COORDINATE,
-                     INVALID_RADIUS, LOCATION_OUTSIDE, NO_DATA_NEARBY, ApiError, install_error_handlers)
+                     INVALID_QUERY, INVALID_RADIUS, LOCATION_OUTSIDE, NO_DATA_NEARBY, PLACES_UNAVAILABLE,
+                     PLACES_UPSTREAM, ApiError, install_error_handlers)
 from .frontend import mount_frontend
+from .places import MAX_QUERY_CHARS, PlacesClient, PlacesUpstreamError
 from scoring_engine.service import AnalysisService
 
 logger = logging.getLogger("backend.warm")
@@ -124,6 +127,20 @@ class NearbyStore(BaseModel):
     lat: float
     lng: float
     distance_m: int                  # 분석 지점과의 직선거리(m). 도보 거리가 아니다
+
+
+class PlaceItem(BaseModel):
+    name: str                        # 장소 이름 (NAVER title, 태그 제거)
+    category: str
+    road_address: Optional[str]
+    jibun_address: Optional[str]
+    lat: float                       # 좌표 선택용 — 분석 행정동은 /analyze 가 좌표로 판정한다
+    lng: float
+
+
+class PlacesResponse(BaseModel):
+    count: int
+    places: list[PlaceItem]
 
 
 class NearbyStoresResponse(BaseModel):
@@ -220,11 +237,13 @@ class WarmProgress:
 
 
 def create_app(service: Optional[AnalysisService] = None, warm_biz: Optional[Iterable[str]] = None,
-               frontend_dist: Optional[str] = None) -> FastAPI:
+               frontend_dist: Optional[str] = None, places: Optional[PlacesClient] = None) -> FastAPI:
     """service: 주입하면 그대로 쓴다 (RuntimeData 를 다시 읽지 않음). None 이면 lifespan 에서 1회 생성.
     warm_biz: background warm 대상. None 이면 config.CODE_NAME 29개 전체.
-    frontend_dist: Vite build(dist/) 경로. 주면 API 뒤에 정적 파일·SPA fallback 을 붙인다 (D-018)."""
+    frontend_dist: Vite build(dist/) 경로. 주면 API 뒤에 정적 파일·SPA fallback 을 붙인다 (D-018).
+    places: 장소 검색 프록시(12-14). None 이면 환경변수 키로 만든다(키가 없으면 기능 꺼짐)."""
     biz_codes = list(C.CODE_NAME) if warm_biz is None else list(warm_biz)
+    places_client = places if places is not None else PlacesClient.from_env()
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
@@ -293,6 +312,8 @@ def create_app(service: Optional[AnalysisService] = None, warm_biz: Optional[Ite
                            "default_radius_m": C.RADIUS_M},
                 # 묶음 C: 데이터 버전과 역할별 자료 기준일 (docs/DATA_VERSIONING.md §4)
                 "data": data_health(),
+                # 12-14: 장소 이름 검색 광고 — 프런트는 enabled 일 때만 "장소 이름" 입력 방법을 보인다
+                "places": {"enabled": places_client.enabled},
                 "warm": warm.snapshot() if warm is not None else
                 {"completed": 0, "total": len(biz_codes), "done": False, "failed": False, "error": None}}
 
@@ -341,8 +362,22 @@ def create_app(service: Optional[AnalysisService] = None, warm_biz: Optional[Ite
                                     as_of=finder.as_of, count=len(stores),
                                     stores=[NearbyStore(**vars(s)) for s in stores])
 
+    @app.get("/places", response_model=PlacesResponse, responses=ERROR_RESPONSES)
+    def places_search(q: str) -> PlacesResponse:
+        """장소 이름 검색 프록시 (12-14, D-036). 검색어는 서버 로그에 남기지 않는다. 결과는 좌표 선택용일 뿐이다."""
+        query = q.strip()
+        if not query or len(query) > MAX_QUERY_CHARS:
+            raise ApiError(INVALID_QUERY)
+        if not places_client.enabled:
+            raise ApiError(PLACES_UNAVAILABLE, status=503)
+        try:
+            found = places_client.search(query)
+        except PlacesUpstreamError as e:
+            raise ApiError(PLACES_UPSTREAM, status=502) from e
+        return PlacesResponse(count=len(found), places=[PlaceItem(**vars(p)) for p in found])
+
     if frontend_dist:   # API route 를 모두 등록한 뒤에 붙인다 — route 순서상 API 가 먼저 매칭된다
-        mount_frontend(app, frontend_dist, api_paths={"/health", "/businesses", "/analyze", "/nearby-stores"},
+        mount_frontend(app, frontend_dist, api_paths={"/health", "/businesses", "/analyze", "/nearby-stores", "/places"},
                        hidden_paths={"/docs", "/docs/oauth2-redirect", "/redoc", "/openapi.json"})
     return app
 
