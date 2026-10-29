@@ -84,8 +84,11 @@
 
 수정 뒤 검증: 단위 테스트(위) + typecheck·lint, 최종 소스 전체 check `--jobs 5` 와 E2E `--only e2e` 재실행(결과는 아래 4-2). 보호 경로 변경 0.
 
-### 4-2. 수정 뒤 전체 check·E2E
-(실행 뒤 기록)
+### 4-2. 수정 뒤 전체 check·E2E (`b5b8746`, 2026-10-29)
+- E2E `--only e2e`: 5흐름 통과(80.1초 — 아래 3회차 전체 check 와 동시에 돌려 첫 흐름이 1분).
+- 전체 check 3회차(`.venv` python, `--jobs 5`, E2E 와 동시 실행): 18단계 통과, **frontend 1건 실패** — `App.test.tsx` "첫 방문 안내 … ④결과 안내 → 확인하면 끝나고 저장된다"에서 `localStorage onboarding` 이 `done` 이 아님(905/906). 이전 기록(TASKS 10-5·9-R2)과 같은 **간헐 실패**로, 단독 실행 3회(8건씩) 모두 통과. 원인은 미확인 그대로다(부하 중 타이밍 의심). 로그 `full-check-v0015-run3.log`.
+- 전체 check 4회차(단독 실행): **19단계 통과, SKIP 0**, 417.9초(core 381 · v0_4 61 · v0_5 104 · v0_5_1 40 · backend 157 · frontend 49파일 906 · patch-notes). 로그 `full-check-v0015-run4.log`. 이 커밋이 재검수 기준이다.
+- 보호 경로 변경 0(`git diff --stat 2e0c4d0..HEAD -- sources scoring_engine/v0_3 data/runtime tests/golden` 비어 있음).
 
 ### 2-7. 공통·마무리 — `b5abd96`
 - E2E `frontend/e2e/smoke.spec.ts` 5번째 흐름(공유 링크로 열기 → 결과·URL → 반경 표 → 현장 확인 탭·확인함 → 보관 → 보관함 모달 → 장소 이름 없음 → 조건 바꾸기로 쿼리 제거). README·CLAUDE·계획·DESIGN §19.10·패치노트 `work` 4줄.
