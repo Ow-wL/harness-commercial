@@ -18,8 +18,8 @@ export function ResultTools({
   shareUrl: string | null
   /** 인쇄 (브라우저 인쇄 대화상자) */
   onPrint?: () => void
-  /** 보관함에 저장. saved: 같은 조건이 이미 보관돼 있음(누르면 지금 결과로 갱신) */
-  save?: { saved: boolean; full: boolean; onSave: () => void }
+  /** 보관함에 저장. saved: 같은 조건이 이미 보관돼 있음(누르면 지금 결과로 갱신). message: 저장 결과 안내(App) */
+  save?: { saved: boolean; onSave: () => void; message: string | null }
 }) {
   const [status, setStatus] = useState<string | null>(null)
   const [fallback, setFallback] = useState(false)
@@ -68,6 +68,11 @@ export function ResultTools({
       {status && (
         <p className="result-tools__status" role="status">
           {status}
+        </p>
+      )}
+      {save?.message && (
+        <p className="result-tools__status" role="status">
+          {save.message}
         </p>
       )}
       {fallback && shareUrl && (

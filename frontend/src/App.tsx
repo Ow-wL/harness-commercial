@@ -25,6 +25,7 @@ import { NearbyStores } from './components/NearbyStores.tsx'
 import { RadiusControl } from './components/RadiusControl.tsx'
 import { RadiusTable } from './components/RadiusTable.tsx'
 import { ResultTools } from './components/ResultTools.tsx'
+import { SavedSites } from './components/SavedSites.tsx'
 import { ReferenceAddress } from './components/ReferenceAddress.tsx'
 import { UpdateNotes } from './components/UpdateNotes.tsx'
 import type { SdkState } from './map/naverMaps.ts'
@@ -49,6 +50,7 @@ import { parseShareQuery, shareQuery, shareUrl, versionsDiffer, type ShareCondit
 import { readFieldNotes, writeFieldNotes, type FieldNote, type FieldNotes } from './lib/fieldNotes.ts'
 import { radiusRows } from './lib/radiusTable.ts'
 import { cacheKey, ResultCache } from './lib/resultCache.ts'
+import { readSavedSites, removeSite, saveSite, siteFrom, updateSiteMemo, type SavedSite } from './lib/savedSites.ts'
 import { storeGlyphFor } from './lib/storeIcons.ts'
 import { buildStoreLinks } from './lib/storeLinks.ts'
 import { useNearbyRequest, type RadiusProblem } from './lib/useNearbyRequest.ts'
@@ -1056,6 +1058,42 @@ function App() {
     />
   ) : null
 
+  // 후보 보관함(12-25): 이 브라우저 저장소의 목록을 state 로 들고, 저장·메모·삭제 때 같이 쓴다. 같은 조건은 스냅샷만 갱신
+  const [savedSites, setSavedSites] = useState<SavedSite[]>(() => readSavedSites())
+  const [saveMessage, setSaveMessage] = useState<{ key: string; text: string } | null>(null)
+  const saveCurrent = () => {
+    if (analysis.status !== 'success') return
+    const site = siteFrom(analysis.request, analysis.response)
+    const outcome = saveSite(savedSites, site)
+    if (outcome.ok) {
+      setSavedSites(outcome.sites)
+      setSaveMessage({ key: site.key, text: outcome.updated ? '보관함의 이 후보를 지금 결과로 갱신했습니다.' : `보관함에 저장했습니다(${outcome.sites.length}/3). 저장 당시 결과와 메모는 조건 바의 보관함에서 봅니다.` })
+    } else {
+      setSaveMessage({
+        key: site.key,
+        text: outcome.reason === 'full' ? '보관함이 가득 찼습니다(3곳). 조건 바의 보관함에서 하나를 지우고 다시 저장하세요.' : '이 브라우저에 저장할 수 없습니다(저장소 사용 불가).',
+      })
+    }
+  }
+  /** 보관함의 "같은 조건으로 다시 분석": 저장한 조건으로 지금 서버에서 새로 분석한다 — 스냅샷은 보여 주지 않는다 */
+  const reanalyzeSaved = (site: SavedSite) => {
+    if (analyzing || bRequesting) return
+    cancelAnalysis()
+    const point = { lat: site.conditions.lat, lng: site.conditions.lng }
+    setLocation(point)
+    setBizCode(site.conditions.biz)
+    const wanted = site.conditions.radius ?? DEFAULT_RADIUS_M
+    const r = radiusEnabled && radiusOptions.includes(wanted) ? wanted : DEFAULT_RADIUS_M
+    setRadius(r)
+    setPrevRadius(null)
+    setShareNotice(
+      r === wanted
+        ? '보관함의 조건으로 다시 분석했습니다 — 저장 당시 결과가 아니라 지금 서버의 결과입니다.'
+        : `보관함의 조건으로 다시 분석했습니다 — 저장 당시 결과가 아니라 지금 서버의 결과입니다. 반경 ${formatRadius(wanted)}는 이 서버가 지원하지 않아 ${formatRadius(DEFAULT_RADIUS_M)}로 분석합니다.`,
+    )
+    startA(buildRequest(point, site.conditions.biz, r, radiusEnabled))
+  }
+
   // 현장 확인 기록(12-27): 지금 결과의 조건 키로 이 브라우저 저장소에서 읽는다(렌더에서 읽기, 쓰기는 콜백). 저장소가 막혀 있으면
   // 메모리 사본(fieldNotesLocal)으로 이번 화면 동안만 유지한다. 비교 중 A·B 전체 결과는 그 결과의 조건 키
   const [fieldNotesLocal, setFieldNotesLocal] = useState<{ key: string; notes: FieldNotes } | null>(null)
@@ -1237,7 +1275,14 @@ function App() {
       <>
         {/* ④ 결과 안내 (묶음 D): 결과 머리 위 인라인 — 반경 버튼(조건 바)·"다른 위치와 비교"(패널 아래)를 글로 가리킨다 */}
         {resultCoach}
-        <ResultTools shareUrl={currentShare ? shareUrl(currentShare) : null} />
+        <ResultTools
+          shareUrl={currentShare ? shareUrl(currentShare) : null}
+          save={{
+            saved: analysis.status === 'success' && savedSites.some((s) => s.key === cacheKey(analysis.request)),
+            onSave: saveCurrent,
+            message: analysis.status === 'success' && saveMessage?.key === cacheKey(analysis.request) ? saveMessage.text : null,
+          }}
+        />
         <AnalysisResult
         analysis={result}
         eyebrowAction={replayHelp('result')}
@@ -1378,6 +1423,13 @@ function App() {
         {radiusInBar && radiusControl}
         {/* 업데이트 내역(D-031): 지도 영역 밖이라 지도 SDK가 실패해도 열 수 있다. 열고 닫아도 분석·비교 상태는 그대로 */}
         <UpdateNotes />
+        {/* 후보 보관함(12-25): 지도 영역 밖. 다시 분석은 저장한 조건으로 지금 서버에서 새로(스냅샷을 결과로 보이지 않는다) */}
+        <SavedSites
+          sites={savedSites}
+          onReanalyze={reanalyzeSaved}
+          onMemo={(id, memo) => setSavedSites(updateSiteMemo(savedSites, id, memo))}
+          onRemove={(id) => setSavedSites(removeSite(savedSites, id))}
+        />
         {/* 테마 전환(묶음 A, §19.7): 누르면 그 선택을 저장하고 패널·지도가 함께 바뀐다. 아이콘은 "바뀔 테마"가 아니라 지금 상태 반대 행동 */}
         <button
           type="button"

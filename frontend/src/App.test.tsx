@@ -3790,3 +3790,71 @@ describe('현장 확인 카드 탭 (12-27, 계획 1-4) — 체크·메모는 조
     expect(screen.getByRole('textbox', { name: '후보 점포의 임대 조건 확인 메모' })).toHaveValue('월세 150')
   })
 })
+
+describe('후보 보관함 (12-25, 계획 1-2) — 로컬 저장, 저장 당시 결과와 다시 분석을 구분', () => {
+  const ok = (body: unknown, version?: string) => ({ status: 200, body, headers: version ? { 'X-Data-Version': version } : undefined })
+  beforeEach(() => {
+    window.localStorage.removeItem('savedSites.v1')
+    window.localStorage.removeItem('fieldNotes.v1')
+  })
+
+  it('"보관" → 저장 안내·버튼 개수, 보관함의 "같은 조건으로 다시 분석"은 조건을 되살려 다시 분석(캐시 적중이면 요청 없음)하고 스냅샷이 아니라고 안내한다', async () => {
+    const fetchMock = mockApi({ analyze: [ok(fixture, '2026-06')], nearby: [ok(nearbyFixture, '2026-06')] })
+    render(<App />)
+    expect(screen.getByRole('button', { name: '보관함 0곳' })).toBeInTheDocument()
+    await selectBupyeongPcBang()
+    fireEvent.click(analyzeButton())
+    await screen.findByRole('heading', { level: 1, name: '부평구 부평1동 · PC방 분석' })
+
+    fireEvent.click(screen.getByRole('button', { name: '보관' }))
+    expect(screen.getByText(/보관함에 저장했습니다\(1\/3\)/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '보관함 1곳' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '보관됨 · 갱신' })).toHaveAttribute('aria-pressed', 'true')
+    const stored = JSON.parse(window.localStorage.getItem('savedSites.v1')!)
+    expect(stored).toHaveLength(1)
+    expect(stored[0]).toMatchObject({
+      key: '37.4894,126.7246,R10406,500',
+      conditions: { lat: 37.4894, lng: 126.7246, biz: 'R10406', bizName: 'PC방', radius: null },
+      snapshot: { locationName: '부평구 부평1동', overall: fixture.result.종합.점수, stores: 12 },
+      versions: { data: '2026-06', engine: 'mvp-0.3' },
+    })
+
+    // 조건을 바꾼 뒤 보관함에서 다시 분석 → 같은 조건(캐시 적중, /analyze 추가 요청 없음), 안내 문구
+    fireEvent.click(screen.getByRole('button', { name: /바꾸기/ }))
+    fireEvent.click(screen.getByRole('button', { name: '보관함 1곳' }))
+    const dialog = screen.getByRole('dialog', { name: '후보 보관함' })
+    expect(dialog).toHaveTextContent('저장 당시 결과')
+    fireEvent.click(within(dialog).getByRole('button', { name: '같은 조건으로 다시 분석' }))
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    await screen.findByRole('heading', { level: 1, name: '부평구 부평1동 · PC방 분석' })
+    expect(analyzeCalls(fetchMock)).toHaveLength(1)
+    expect(document.querySelector('.share-notice')).toHaveTextContent('보관함의 조건으로 다시 분석했습니다 — 저장 당시 결과가 아니라 지금 서버의 결과입니다.')
+    expect(screen.getByTestId('map')).toHaveAttribute('data-selected', '37.4894,126.7246')
+
+    // 삭제 → 0곳, "보관" 버튼으로 돌아온다
+    fireEvent.click(screen.getByRole('button', { name: '보관함 1곳' }))
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: '삭제' }))
+    expect(screen.getByRole('button', { name: '보관함 0곳' })).toBeInTheDocument()
+    fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' })
+    expect(screen.getByRole('button', { name: '보관' })).toHaveAttribute('aria-pressed', 'false')
+  })
+
+  it('3곳이 차 있으면 새 조건은 저장하지 않고 안내한다', async () => {
+    const full = [1, 2, 3].map((i) => ({
+      id: `s${i}`, key: `k${i}`, savedAt: '2026-10-29T00:00:00.000Z',
+      conditions: { lat: 37 + i, lng: 126, biz: 'R10406', bizName: 'PC방', radius: null },
+      snapshot: { locationName: `동 ${i}`, overall: 50, perspectives: [], stores: 0, gaps: [] },
+      versions: { data: null, engine: 'mvp-0.3' }, memo: '',
+    }))
+    window.localStorage.setItem('savedSites.v1', JSON.stringify(full))
+    mockApi({ analyze: [ok(fixture)], nearby: [ok(nearbyFixture)] })
+    render(<App />)
+    await selectBupyeongPcBang()
+    fireEvent.click(analyzeButton())
+    await screen.findByRole('heading', { level: 1, name: '부평구 부평1동 · PC방 분석' })
+    fireEvent.click(screen.getByRole('button', { name: '보관' }))
+    expect(screen.getByText(/보관함이 가득 찼습니다\(3곳\)/)).toBeInTheDocument()
+    expect(JSON.parse(window.localStorage.getItem('savedSites.v1')!)).toHaveLength(3)
+    expect(screen.getByRole('button', { name: '보관함 3곳' })).toBeInTheDocument()
+  })
+})
