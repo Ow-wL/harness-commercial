@@ -127,3 +127,52 @@ test('지도 인증 실패 — 테마 반복 전환에도 앱이 유지되고, �
   expect(await page.locator('script[src^="https://oapi.map.naver.com/openapi/v3/"]').count()).toBeLessThanOrEqual(1)
   expect(pageErrors).toEqual([])
 })
+
+test('1차 활용 — 공유 링크로 열기 · 반경별 표 · 현장 확인 탭 · 보관함 · 인쇄 버튼 · 장소 이름(키 없음) (12-3·26·27·25·15·14)', async ({ page }) => {
+  test.setTimeout(300_000)
+  const pageErrors: string[] = []
+  page.on('pageerror', (e) => pageErrors.push(e.message))
+  await page.route('https://oapi.map.naver.com/**', (route) =>
+    route.fulfill({ status: 200, contentType: 'application/javascript', body: fakeNaverSdk('working') }),
+  )
+  // 공유 링크: 조건만 싣고 같은 조건으로 다시 분석한다(점수 없음). 첫 분석은 warm 전이라 길 수 있다
+  await page.goto(`/?lat=${BUPYEONG.lat}&lng=${BUPYEONG.lng}&biz=R10406&r=500`)
+  await expect(page.getByRole('heading', { level: 1, name: '부평구 부평1동 · PC방 분석' })).toBeVisible({ timeout: 180_000 })
+  await expect(page.locator('.share-notice')).toContainText('공유 링크의 조건으로 다시 분석했습니다')
+  await expect(overall(page)).toContainText('62.3')
+  await expect(page).toHaveURL(/\?lat=37\.4894&lng=126\.7246&biz=R10406&r=500&data=2026-06&engine=mvp-0\.5\.1$/)
+  await expect(page.getByRole('button', { name: '링크 복사' })).toBeVisible()
+  await expect(page.getByRole('button', { name: '인쇄' })).toBeVisible()      // 인쇄 대화상자는 열지 않는다
+
+  // 반경별 비교 표: 지금 반경만 채워지고 나머지는 "분석하기"
+  const table = page.getByRole('table', { name: /반경별 종합/ })
+  await expect(table).toContainText('500m · 지금62.3')
+  await expect(table.getByRole('button', { name: '300m 분석하기' })).toBeVisible()
+  await expect(table.getByRole('button', { name: '1km 분석하기' })).toBeVisible()
+
+  // 현장 확인 탭: 카드 3장, 확인함 → 이 브라우저에 저장
+  await page.getByRole('tab', { name: /현장 확인/ }).click()
+  await expect(page.locator('.field-check')).toHaveCount(3)
+  await page.getByRole('checkbox', { name: '확인함' }).first().check()
+
+  // 보관함: 저장 당시 결과 라벨, 현장 확인 진행
+  await page.getByRole('button', { name: '보관', exact: true }).click()
+  await expect(page.getByRole('button', { name: '보관함 1곳' })).toBeVisible()
+  await page.getByRole('button', { name: '보관함 1곳' }).click()
+  const dialog = page.getByRole('dialog', { name: '후보 보관함' })
+  await expect(dialog).toContainText('저장 당시 결과')
+  await expect(dialog).toContainText('데이터 묶음 2026-06 · 엔진 mvp-0.5.1')
+  await expect(dialog).toContainText('현장 확인 1/3 확인함')
+  await page.keyboard.press('Escape')
+  await expect(dialog).toHaveCount(0)
+
+  // 장소 이름 검색: 이 backend 에는 검색 키가 없다 → /health 가 끔을 광고하고 입력 방법에 없다, /places 는 503
+  const health = await (await page.request.get('/health')).json()
+  expect(health.places).toEqual({ enabled: false })
+  expect((await page.request.get('/places?q=부평역')).status()).toBe(503)
+  await page.getByRole('button', { name: /바꾸기/ }).click()
+  await expect(page.getByRole('group', { name: '위치 입력 방법' }).first()).toBeVisible()
+  await expect(page.getByRole('group', { name: '위치 입력 방법' }).first()).not.toContainText('장소 이름')
+  await expect(page).toHaveURL(/\/$/)                                      // 결과가 없으면 쿼리도 없다
+  expect(pageErrors).toEqual([])
+})
