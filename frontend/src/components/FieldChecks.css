@@ -96,3 +96,8 @@
   font: var(--text-small);
   resize: vertical;
 }
+
+/* 인쇄용 메모 전문(12-28-R5) — 화면에서는 없고 print.css 가 켠다 */
+.field-check__memo-print {
+  display: none;
+}

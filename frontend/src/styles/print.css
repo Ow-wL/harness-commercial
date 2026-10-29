@@ -182,6 +182,24 @@
     content: '';
   }
 
+  /* 현장 카드 메모(12-28-R5): rows=2 textarea 는 종이에서 앞 두 줄만 남는다 → 숨기고 줄바꿈을 보존한 전문을 찍는다 */
+  .field-check__memo {
+    display: none !important;
+  }
+
+  .field-check__memo-print {
+    display: block !important;
+    margin: 4px 0 0;
+    padding: 6px 8px;
+    border: 1px solid #bbb;
+    border-radius: 6px;
+    font-size: 10pt;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    color: #111;
+  }
+
   .result,
   .compare {
     break-inside: auto;

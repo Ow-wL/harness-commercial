@@ -73,6 +73,13 @@ export function FieldChecks({
                       value={note.memo}
                       onChange={(e) => onChange(c.id, { ...note, memo: e.target.value })}
                     />
+                    {/* 인쇄용 메모 전문(12-28-R5): rows=2 textarea 는 종이에서 앞 두 줄만 남으므로 줄바꿈을 보존한 텍스트로 전부 출력한다.
+                        화면에서는 숨긴다(FieldChecks.css). 빈 메모는 아무것도 찍지 않는다(placeholder 를 기록처럼 내지 않는다) */}
+                    {note.memo.trim() !== '' && (
+                      <p className="field-check__memo-print" aria-hidden="true">
+                        {note.memo}
+                      </p>
+                    )}
                   </div>
                 )}
               </article>

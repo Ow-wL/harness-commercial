@@ -49,6 +49,14 @@ describe('print.css', () => {
     expect(rule('.result--quiet .result__headline,\n  .result--quiet .perspective__strongest,\n  .result--quiet .perspective__lowest,\n  .result--quiet .result__secondary,\n  .result--quiet .coverage')).toMatch(/display:\s*block !important/)
   })
 
+  it('현장 카드 메모는 textarea 대신 줄바꿈을 보존한 전문 요소로 찍는다 (12-28-R5)', () => {
+    expect(rule('.field-check__memo')).toMatch(/display:\s*none !important/)
+    const print = rule('.field-check__memo-print')
+    expect(print).toMatch(/display:\s*block !important/)
+    expect(print).toMatch(/white-space:\s*pre-wrap/)
+    expect(print).toMatch(/overflow-wrap:\s*anywhere/)
+  })
+
   it('다크 테마라도 종이에서는 밝은 토큰(글자 #17202b, 표면 흰색)으로 되돌린다', () => {
     const tokens = rule(':root:not([data-theme="light"])')
     expect(tokens).toMatch(/--color-text-primary:\s*#17202b/i)

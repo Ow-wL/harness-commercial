@@ -84,6 +84,14 @@
 
 수정 뒤 검증: 단위 테스트(위) + typecheck·lint, 최종 소스 전체 check `--jobs 5` 와 E2E `--only e2e` 재실행(결과는 아래 4-2). 보호 경로 변경 0.
 
+### 2-11. Codex 재검수 지적 R5 수정 — 재검수 요청
+| 지적 | 수정 | 회귀 테스트 | 재검증 |
+|---|---|---|---|
+| R5 [P2] 긴 현장 메모가 인쇄에서 앞 두 줄만 남음(rows=2 textarea) | 메모가 있을 때만 인쇄용 `.field-check__memo-print`(값 그대로, `aria-hidden`)를 두고 화면에서는 숨김, `print.css` 가 textarea 를 숨기고 전문을 `pre-wrap`·`overflow-wrap: anywhere` 로 표시. 빈 메모는 placeholder 를 찍지 않는다 | FieldChecks(메모 있는 카드에만 전문 요소)·print.test(규칙) | Codex 의 `.gstack/review-v0015/print-recheck.mjs`(Edge, 14줄 메모) + `check-print-memos.py` 를 그대로 실행: 다크 1280·라이트 1280·다크 375 PDF 모두 시작·끝 표식 포함(6페이지), 페이지 이미지에서 메모 박스 전문 확인 |
+
+### 4-3. R5 수정 뒤 전체 check·E2E
+(실행 뒤 기록)
+
 ### 4-2. 수정 뒤 전체 check·E2E (`b5b8746`, 2026-10-29)
 - E2E `--only e2e`: 5흐름 통과(80.1초 — 아래 3회차 전체 check 와 동시에 돌려 첫 흐름이 1분).
 - 전체 check 3회차(`.venv` python, `--jobs 5`, E2E 와 동시 실행): 18단계 통과, **frontend 1건 실패** — `App.test.tsx` "첫 방문 안내 … ④결과 안내 → 확인하면 끝나고 저장된다"에서 `localStorage onboarding` 이 `done` 이 아님(905/906). 이전 기록(TASKS 10-5·9-R2)과 같은 **간헐 실패**로, 단독 실행 3회(8건씩) 모두 통과. 원인은 미확인 그대로다(부하 중 타이밍 의심). 로그 `full-check-v0015-run3.log`.

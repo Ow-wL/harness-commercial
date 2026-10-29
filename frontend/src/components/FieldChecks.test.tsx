@@ -19,6 +19,11 @@ describe('현장 확인 카드 화면 (12-27)', () => {
     const rentDone = screen.getByRole('checkbox', { name: '확인함', checked: true })
     expect(rentDone.closest('.field-check')).toHaveClass('field-check--done')
     expect(screen.getByRole('textbox', { name: '후보 점포의 임대 조건 확인 메모' })).toHaveValue('월세 150')
+    // 인쇄용 메모 전문(12-28-R5): 메모가 있는 카드에만, 값 그대로(줄바꿈 보존은 print.css pre-wrap). 빈 메모 카드에는 없다
+    const prints = document.querySelectorAll('.field-check__memo-print')
+    expect(prints).toHaveLength(1)
+    expect(prints[0]).toHaveTextContent('월세 150')
+    expect(prints[0]!.closest('.field-check')).toBe(screen.getByRole('textbox', { name: '후보 점포의 임대 조건 확인 메모' }).closest('.field-check'))
     // 체크·메모 변경
     fireEvent.click(screen.getAllByRole('checkbox', { name: '확인함' })[0]!)
     expect(onChange).toHaveBeenCalledWith('competitors', { done: true, memo: '' })
