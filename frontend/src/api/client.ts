@@ -94,9 +94,14 @@ export function analyze(body: AnalyzeRequest, signal?: AbortSignal): Promise<Api
   })
 }
 
-/** GET /places?q= — 장소 이름 검색 프록시(12-14, D-036). 서버가 /health places.enabled 로 광고할 때만 부른다 */
+/** POST /places {q} — 장소 이름 검색 프록시(12-14, D-036). 서버가 /health places.enabled 로 광고할 때만 부른다. 본문이라 요청 로그에 검색어가 남지 않는다 */
 export function searchPlaces(query: string, signal?: AbortSignal): Promise<ApiResult<PlacesResponse>> {
-  return request(`/places?${new URLSearchParams({ q: query })}`, PlacesResponseSchema, { signal })
+  return request('/places', PlacesResponseSchema, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ q: query }),
+    signal,
+  })
 }
 
 /** POST /nearby-stores — body는 분석 요청과 같은 좌표·업종 (backend NearbyStoresRequest). */

@@ -108,7 +108,7 @@ def check_static(fetch: Fetch) -> list[str]:
     for path, want in [("/", 200), ("/health", 200), ("/businesses", 200), ("/docs", 404), ("/redoc", 404),
                        ("/openapi.json", 404), ("/assets/missing-release.js", 404), ("/analyze", 405),
                        ("/favicon.svg", 200), ("/robots.txt", 200),
-                       ("/places", 422)]:                       # 12-14: q 없음 → invalid_request (키 유무와 무관)
+                       ("/places", 405)]:                       # 12-14: POST 전용(GET 405, 키 유무와 무관)
         s, _, d, _ = fetch(path)
         if s != want:
             fails.append(f"{path}: {s} (기대 {want})")

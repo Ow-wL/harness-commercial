@@ -7,8 +7,8 @@ python -m uvicorn backend.app.main:app --reload
 ```
 
 구조
-- `app/main.py` — `create_app(service=None, warm_biz=None, frontend_dist=None, places=None)` + module-level `app`. `GET /health`, `GET /businesses`, `POST /analyze`, `POST /nearby-stores`, `GET /places?q=`(12-14).
-- `app/places.py` — 장소 이름 검색 프록시(D-036): 환경변수 `NAVER_SEARCH_CLIENT_ID`·`NAVER_SEARCH_CLIENT_SECRET`(운영은 Cloud Run Secret)가 있을 때만 켜지고 `/health`의 `places.enabled`로 광고한다. 없으면 `GET /places`는 503 `places_unavailable`. 검색어·결과를 서버 로그에 남기지 않는다. 결과는 좌표 선택용이며 분석 행정동은 `/analyze`가 좌표로 판정한다.
+- `app/main.py` — `create_app(service=None, warm_biz=None, frontend_dist=None, places=None)` + module-level `app`. `GET /health`, `GET /businesses`, `POST /analyze`, `POST /nearby-stores`, `POST /places {q}`(12-14).
+- `app/places.py` — 장소 이름 검색 프록시(D-036): 환경변수 `NAVER_SEARCH_CLIENT_ID`·`NAVER_SEARCH_CLIENT_SECRET`(운영은 Cloud Run Secret)가 있을 때만 켜지고 `/health`의 `places.enabled`로 광고한다. 없으면 `POST /places`는 503 `places_unavailable`. 검색어·결과를 서버 로그에 남기지 않는다(본문 요청이라 요청 로그 경로에도 없다). 결과는 좌표 선택용이며 분석 행정동은 `/analyze`가 좌표로 판정한다.
 - `app/errors.py` — 오류 응답 모델(`ErrorResponse`)·error code·exception handler.
 - `app/frontend.py` — production에서 Vite build(`FRONTEND_DIST`)를 같은 origin으로 서빙: `/assets/*`, SPA fallback. API route 뒤에 붙어 API가 우선 (D-018). 이 모드에서는 `/docs`·`/redoc`·`/openapi.json`을 끈다(404, 인증 아님). 환경변수가 없으면 API만(문서 유지).
 - `tests/` — `python -m pytest -q backend` (`scripts/check.py`가 `backend/app`이 있으면 자동 실행).

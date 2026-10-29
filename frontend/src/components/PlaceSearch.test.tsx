@@ -16,8 +16,8 @@ afterEach(() => vi.unstubAllGlobals())
 const status = () => document.querySelector('.address-search__status')!
 
 describe('장소 이름으로 찾기 (12-14)', () => {
-  it('제출 때만 GET /places?q= 를 1회 부르고, 결과를 고르면 좌표 그대로 onSelect, 인천 밖은 표시로만 알린다', async () => {
-    const fetchMock = vi.fn(async (url: string) => (url.startsWith('/places?') ? json(200, PLACES) : json(404, {})))
+  it('제출 때만 POST /places {q} 를 1회 부르고, 결과를 고르면 좌표 그대로 onSelect, 인천 밖은 표시로만 알린다', async () => {
+    const fetchMock = vi.fn<(url: string, init?: RequestInit) => Promise<Response>>(async (url) => (url === '/places' ? json(200, PLACES) : json(404, {})))
     vi.stubGlobal('fetch', fetchMock)
     const onSelect = vi.fn()
     render(<PlaceSearch disabled={false} onSelect={onSelect} embedded />)
@@ -26,7 +26,8 @@ describe('장소 이름으로 찾기 (12-14)', () => {
     expect(fetchMock).not.toHaveBeenCalled()
     fireEvent.submit(screen.getByRole('search', { name: '장소 이름 검색' }))
     expect(fetchMock).toHaveBeenCalledTimes(1)
-    expect(fetchMock.mock.calls[0]![0]).toBe('/places?q=%EB%B6%80%ED%8F%89%EC%97%AD')
+    expect(fetchMock.mock.calls[0]![0]).toBe('/places')
+    expect(JSON.parse((fetchMock.mock.calls[0]![1] as RequestInit).body as string)).toEqual({ q: '부평역' })   // 다듬은 검색어, 본문으로
     const list = await screen.findByRole('list', { name: /검색 결과 2건/ })
     const buttons = within(list).getAllByRole('button')
     expect(buttons[0]).toHaveTextContent('부평역 1호선 · 지하철,전철')

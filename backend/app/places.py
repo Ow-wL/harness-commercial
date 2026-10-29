@@ -2,11 +2,12 @@
 장소 이름 검색 프록시 (TASKS 12-14, 계획 1-6, D-036).
 
 NAVER 검색(지역) API 는 비밀키(Client ID·Secret)가 필요해 프런트가 직접 부를 수 없다 → backend 가 대신 부른다.
-  GET /places?q=부평역  →  {"count": n, "places": [{"name", "category", "road_address", "jibun_address", "lat", "lng"}]}
+  POST /places {"q": "부평역"}  →  {"count": n, "places": [{"name", "category", "road_address", "jibun_address", "lat", "lng"}]}
+  (POST 본문 — GET 쿼리였다면 uvicorn·Cloud Run 요청 로그의 경로에 검색어가 남는다. 본문은 요청 로그에 찍히지 않는다)
 - 키는 환경변수 NAVER_SEARCH_CLIENT_ID / NAVER_SEARCH_CLIENT_SECRET (운영은 Cloud Run Secret). 없으면 기능을 끈다
   (GET /health places.enabled=false, GET /places 503 places_unavailable) — 프런트는 광고가 있을 때만 "장소 이름" 입력 방법을 보인다.
 - 결과는 **좌표 선택일 뿐**이다. 분석 행정동 판정은 /analyze 의 ContextBuilder 가 좌표로 한다(장소 이름·주소로 덮어쓰지 않는다).
-- 검색 원문(q)·결과를 서버 로그에 남기지 않는다. 로그는 상태 코드·소요 시간뿐.
+- 검색 원문(q)·결과를 서버 로그에 남기지 않는다. 로그는 상태 코드·소요 시간뿐(요청 로그에도 경로 `/places` 만).
 - 응답은 표시에 필요한 필드만 옮기고(제목의 <b> 태그·HTML 엔티티 제거), 좌표는 NAVER 의 mapx/mapy(WGS84 × 1e7 정수 문자열)를
   경도·위도로 바꾼다. 좌표가 없는 항목은 뺀다. 인천 밖 결과도 그대로 돌려준다(선택은 막지 않고, 분석이 location_outside 로 거른다).
 """

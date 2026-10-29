@@ -139,7 +139,7 @@ function mockApi({
             : healthQueue[0]
           : url === '/nearby-stores'
             ? nearbyQueue.shift()
-            : url.startsWith('/places?')
+            : url === '/places'
               ? placesQueue.shift()
               : queue.shift()
     if (reply === undefined) throw new Error(`예상하지 못한 요청: ${url}`)
@@ -3907,7 +3907,7 @@ describe('장소 이름으로 찾기 (12-14, 계획 1-6, D-036) — 서버가 /h
     fireEvent.click(within(list).getByRole('button'))
     expect(screen.getByTestId('map')).toHaveAttribute('data-selected', '37.4894,126.7246')
     expect(analyzeCalls(fetchMock)).toHaveLength(0)
-    expect(fetchMock.mock.calls.filter(([url]) => String(url).startsWith('/places?'))).toHaveLength(1)
+    expect(fetchMock.mock.calls.filter(([url]) => url === '/places')).toHaveLength(1)
     expect(screen.queryByRole('list', { name: /검색 결과/ })).not.toBeInTheDocument()
     // 선택 뒤 포커스는 위치 요약(주소 검색과 같은 규칙)
     expect(document.activeElement).toHaveClass('location__selected')

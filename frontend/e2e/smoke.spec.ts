@@ -169,7 +169,7 @@ test('1차 활용 — 공유 링크로 열기 · 반경별 표 · 현장 확인 
   // 장소 이름 검색: 이 backend 에는 검색 키가 없다 → /health 가 끔을 광고하고 입력 방법에 없다, /places 는 503
   const health = await (await page.request.get('/health')).json()
   expect(health.places).toEqual({ enabled: false })
-  expect((await page.request.get('/places?q=부평역')).status()).toBe(503)
+  expect((await page.request.post('/places', { data: { q: '부평역' } })).status()).toBe(503)
   await page.getByRole('button', { name: /바꾸기/ }).click()
   await expect(page.getByRole('group', { name: '위치 입력 방법' }).first()).toBeVisible()
   await expect(page.getByRole('group', { name: '위치 입력 방법' }).first()).not.toContainText('장소 이름')

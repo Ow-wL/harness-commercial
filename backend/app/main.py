@@ -16,7 +16,7 @@ FastAPI backend (TASKS 3-1, docs/DECISIONS.md D-012).
 엔드포인트: GET /health (3-1), GET /businesses (3-2, 엔진 config.BIZ_GROUP 그대로),
             POST /analyze (3-3, ContextBuilder → AnalysisService, 엔진 결과는 변형 없이 result 에),
             POST /nearby-stores (4차, 반경 안 동종 점포 목록 — /analyze 와 같은 좌표 검증·엔진 반경·업종 기준, D-019),
-            GET /places?q= (12-14, 장소 이름 검색 프록시 — backend/app/places.py, 키가 없으면 503, /health places.enabled 로 광고, D-036)
+            POST /places {q} (12-14, 장소 이름 검색 프록시 — backend/app/places.py, 키가 없으면 503, /health places.enabled 로 광고, D-036)
 분석 반경(8-D2, D-024): /analyze·/nearby-stores 의 선택 필드 radius_m(생략 = config.RADIUS_M 500). 엔진이 받는 값
           (scoring_engine.RADIUS_OPTIONS_M — v0.3 은 500 하나, v0.4 는 300·500·1,000)만, 그 밖은 422 invalid_radius.
           GET /health 의 engine.radius_options 로 광고한다(프런트는 2개 이상일 때만 반경 선택을 보인다).
@@ -127,6 +127,10 @@ class NearbyStore(BaseModel):
     lat: float
     lng: float
     distance_m: int                  # 분석 지점과의 직선거리(m). 도보 거리가 아니다
+
+
+class PlacesRequest(BaseModel):
+    q: StrictStr                     # 장소 이름 (본문 — 요청 로그 경로에 검색어가 남지 않게 GET 쿼리를 쓰지 않는다)
 
 
 class PlaceItem(BaseModel):
@@ -362,10 +366,10 @@ def create_app(service: Optional[AnalysisService] = None, warm_biz: Optional[Ite
                                     as_of=finder.as_of, count=len(stores),
                                     stores=[NearbyStore(**vars(s)) for s in stores])
 
-    @app.get("/places", response_model=PlacesResponse, responses=ERROR_RESPONSES)
-    def places_search(q: str) -> PlacesResponse:
-        """장소 이름 검색 프록시 (12-14, D-036). 검색어는 서버 로그에 남기지 않는다. 결과는 좌표 선택용일 뿐이다."""
-        query = q.strip()
+    @app.post("/places", response_model=PlacesResponse, responses=ERROR_RESPONSES)
+    def places_search(req: PlacesRequest) -> PlacesResponse:
+        """장소 이름 검색 프록시 (12-14, D-036). 검색어는 서버 로그(요청 로그 포함)에 남기지 않는다. 결과는 좌표 선택용일 뿐이다."""
+        query = req.q.strip()
         if not query or len(query) > MAX_QUERY_CHARS:
             raise ApiError(INVALID_QUERY)
         if not places_client.enabled:

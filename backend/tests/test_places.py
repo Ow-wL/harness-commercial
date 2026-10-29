@@ -1,5 +1,5 @@
 """
-TASKS 12-14 — 장소 이름 검색 프록시 GET /places (D-036).
+TASKS 12-14 — 장소 이름 검색 프록시 POST /places {q} (D-036).
 
 NAVER 는 부르지 않는다: PlacesClient 에 가짜 fetch 를 주입한다. 계약 = 키 없으면 503 places_unavailable·/health 광고 false,
 검색어 검증 422, 상류 오류 502 places_upstream, 응답은 표시 필드만(제목 태그 제거, mapx/mapy → 경도·위도), 로그에 검색어 없음.
@@ -72,7 +72,7 @@ def test_parse_places_rejects_wrong_shape():
 def test_disabled_when_no_keys_health_advertises_false():
     with make_client(PlacesClient(None, None)) as c:
         assert c.get("/health").json()["places"] == {"enabled": False}
-        r = c.get("/places", params={"q": "부평역"})
+        r = c.post("/places", json={"q": "부평역"})
         assert r.status_code == 503
         assert r.json()["error"]["code"] == "places_unavailable"
 
@@ -87,7 +87,7 @@ def test_search_proxies_and_returns_display_fields_only(caplog):
     ok_fetch.calls.clear()
     with make_client(PlacesClient("id", "secret", fetch=ok_fetch)) as c, caplog.at_level(logging.INFO, logger="backend.places"):
         assert c.get("/health").json()["places"] == {"enabled": True}
-        r = c.get("/places", params={"q": "  부평역 "})
+        r = c.post("/places", json={"q": "  부평역 "})
     assert r.status_code == 200
     body = r.json()
     assert body["count"] == 2
@@ -108,16 +108,18 @@ def test_search_proxies_and_returns_display_fields_only(caplog):
 @pytest.mark.parametrize("q", ["", "   ", "x" * 61])
 def test_query_validation_422(q):
     with make_client(PlacesClient("id", "secret", fetch=ok_fetch)) as c:
-        r = c.get("/places", params={"q": q})
+        r = c.post("/places", json={"q": q})
     assert r.status_code == 422
     assert r.json()["error"]["code"] == "invalid_query"
 
 
-def test_missing_query_param_is_invalid_request():
+def test_missing_query_is_invalid_request_and_get_is_405():
     with make_client(PlacesClient("id", "secret", fetch=ok_fetch)) as c:
-        r = c.get("/places")
-    assert r.status_code == 422
-    assert r.json()["error"]["code"] == "invalid_request"
+        r = c.post("/places", json={})
+        assert r.status_code == 422
+        assert r.json()["error"]["code"] == "invalid_request"
+        assert c.post("/places", json={"q": 1}).status_code == 422          # 문자열만
+        assert c.get("/places", params={"q": "부평역"}).status_code == 405   # GET 쿼리는 받지 않는다(요청 로그에 검색어가 남는다)
 
 
 @pytest.mark.parametrize("fetch", [
@@ -127,7 +129,7 @@ def test_missing_query_param_is_invalid_request():
 ])
 def test_upstream_failures_502_without_details(fetch, caplog):
     with make_client(PlacesClient("id", "secret", fetch=fetch)) as c, caplog.at_level(logging.WARNING, logger="backend.places"):
-        r = c.get("/places", params={"q": "부평역"})
+        r = c.post("/places", json={"q": "부평역"})
     assert r.status_code == 502
     assert r.json()["error"] == {"code": "places_upstream", "message": "장소 검색 서비스가 응답하지 않습니다. 잠시 뒤 다시 시도하세요."}
     assert "부평" not in caplog.text
@@ -139,4 +141,4 @@ def test_places_is_an_api_path_not_spa_fallback(tmp_path):
     (dist / "index.html").write_text("<!doctype html>", encoding="utf-8")
     app = M.create_app(service=fake_service(), warm_biz=[], frontend_dist=str(dist), places=PlacesClient(None, None))
     with TestClient(app) as c:
-        assert c.get("/places", params={"q": "x"}).status_code == 503   # SPA index(200) 가 아니라 API 응답
+        assert c.post("/places", json={"q": "x"}).status_code == 503   # SPA index(200) 가 아니라 API 응답
