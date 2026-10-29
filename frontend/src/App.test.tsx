@@ -3858,3 +3858,20 @@ describe('후보 보관함 (12-25, 계획 1-2) — 로컬 저장, 저장 당시 
     expect(screen.getByRole('button', { name: '보관함 3곳' })).toBeInTheDocument()
   })
 })
+
+describe('인쇄 (12-15, 계획 1-3)', () => {
+  it('결과·비교 요약의 "인쇄"는 브라우저 인쇄를 부르고 상태는 그대로다. 인쇄 머리말은 결과가 있을 때만(화면에서는 숨김)', async () => {
+    mockApi({ analyze: [{ status: 200, body: fixture }], nearby: [{ status: 200, body: nearbyFixture }] })
+    const print = vi.fn()
+    vi.stubGlobal('print', print)
+    render(<App />)
+    expect(document.querySelector('.print-only')).not.toBeInTheDocument()
+    await selectBupyeongPcBang()
+    fireEvent.click(analyzeButton())
+    await screen.findByRole('heading', { level: 1, name: '부평구 부평1동 · PC방 분석' })
+    expect(document.querySelector('.print-only')).toHaveTextContent(/우리동네 상권분석 매니저 · 참고 지표\(순위·매출 예측 아님\) · 앱 v\d+\.\d+\.\d+ · 인쇄 /)
+    fireEvent.click(screen.getByRole('button', { name: '인쇄' }))
+    expect(print).toHaveBeenCalledTimes(1)
+    expect(screen.getByRole('heading', { level: 1, name: '부평구 부평1동 · PC방 분석' })).toBeInTheDocument()
+  })
+})

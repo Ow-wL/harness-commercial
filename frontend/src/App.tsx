@@ -57,6 +57,7 @@ import { useNearbyRequest, type RadiusProblem } from './lib/useNearbyRequest.ts'
 import { useReferenceAddress } from './lib/useReferenceAddress.ts'
 import { useTheme } from './lib/theme.ts'
 import { stepIndex, useOnboarding } from './lib/onboarding.ts'
+import { APP_VERSION } from './lib/patchNotes.ts'
 import { RESULT_TEXT, TOUR_TEXT } from './content/onboarding.ts'
 import { CoachMark, ReplayHelpButton } from './components/CoachMark.tsx'
 import './App.css'
@@ -1058,6 +1059,9 @@ function App() {
     />
   ) : null
 
+  // 인쇄(12-15): 브라우저 인쇄 대화상자. 종이 배치는 styles/print.css(@media print)가 맡고 상태는 바꾸지 않는다
+  const printResult = () => window.print()
+
   // 후보 보관함(12-25): 이 브라우저 저장소의 목록을 state 로 들고, 저장·메모·삭제 때 같이 쓴다. 같은 조건은 스냅샷만 갱신
   const [savedSites, setSavedSites] = useState<SavedSite[]>(() => readSavedSites())
   const [saveMessage, setSaveMessage] = useState<{ key: string; text: string } | null>(null)
@@ -1197,7 +1201,7 @@ function App() {
       // AnalysisResult는 한 번에 하나만 마운트한다(고정 id, COMPARE_DESIGN.md 6장). 점포 목록은 보이는 기준 위치의 것만(5차-B5)
       panelBody = (
         <>
-          <ResultTools shareUrl={currentShare ? shareUrl(currentShare) : null} />
+          <ResultTools shareUrl={currentShare ? shareUrl(currentShare) : null} onPrint={printResult} />
           <CompareResult
             a={result}
             b={compare.response}
@@ -1277,6 +1281,7 @@ function App() {
         {resultCoach}
         <ResultTools
           shareUrl={currentShare ? shareUrl(currentShare) : null}
+          onPrint={printResult}
           save={{
             saved: analysis.status === 'success' && savedSites.some((s) => s.key === cacheKey(analysis.request)),
             onSave: saveCurrent,
@@ -1460,6 +1465,12 @@ function App() {
           </button>
         </div>
         <main id="workspace-panel" ref={panelScrollRef} className="workspace__panel" aria-label={panelLabel}>
+          {/* 인쇄 머리말(12-15): 종이에만 보인다(print.css). 서비스 성격·앱 버전·인쇄 시각 */}
+          {result && (
+            <p className="print-only" aria-hidden="true">
+              우리동네 상권분석 매니저 · 참고 지표(순위·매출 예측 아님) · 앱 {APP_VERSION} · 인쇄 {new Date().toLocaleString('ko-KR')}
+            </p>
+          )}
           {radiusNotes}
           {panelBody}
           {/* 결과·비교 화면에서만 (분석 전 패널은 아래 고정 "분석하기"가 같은 자리) */}
