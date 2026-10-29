@@ -637,6 +637,7 @@ function App() {
     setPrevRadius(radius)
     setRadius(next)
     setRadiusNotice(null)
+    setShareNotice(null)                                   // 링크·보관함 조건으로 분석했다는 안내는 그 결과까지만(12-3)
     const base =
       analysis.status === 'success' || (analysis.status === 'error' && analysis.origin === 'radius')
         ? analysis.request

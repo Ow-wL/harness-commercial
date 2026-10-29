@@ -3638,6 +3638,10 @@ describe('조건 공유 링크 (12-3, 계획 1-1) — 쿼리 조건으로 같은
     const { unmount } = render(<App />)
     await screen.findByRole('heading', { level: 1, name: '부평구 부평1동 · PC방 분석' })
     expect(bodyOf(analyzeCalls(fetchMock)[0]!)).toEqual({ lat: 37.4894, lng: 126.7246, biz_code: 'R10406', radius_m: 1000 })
+    expect(notice()).toBeInTheDocument()
+    // 조건 바에서 반경을 바꾸면 링크 안내는 사라진다(그 결과까지만의 안내)
+    fireEvent.click(within(screen.getByRole('group', { name: '분석 반경' })).getByRole('button', { name: '300m' }))
+    expect(notice()).not.toBeInTheDocument()
     unmount()
 
     open('?lat=37.4894&lng=126.7246&biz=R10406&r=1000')
