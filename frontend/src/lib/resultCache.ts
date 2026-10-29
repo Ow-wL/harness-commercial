@@ -24,6 +24,11 @@ export class ResultCache {
 
   constructor(private readonly size = RESULT_CACHE_SIZE) {}
 
+  /** 읽기만 — 최근 사용 순서를 바꾸지 않는다 (반경별 비교 표가 매 렌더 읽는다, 12-26) */
+  peek(req: AnalyzeRequest): CacheEntry | undefined {
+    return this.entries.get(cacheKey(req))
+  }
+
   get(req: AnalyzeRequest): CacheEntry | undefined {
     const key = cacheKey(req)
     const entry = this.entries.get(key)

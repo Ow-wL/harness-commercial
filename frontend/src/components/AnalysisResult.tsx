@@ -37,6 +37,7 @@ export function AnalysisResult({
   address,
   titlePrefix,
   eyebrowAction,
+  radiusTable,
 }: {
   analysis: AnalyzeResponse
   /** 주변 점포 탭 내용 (App이 별도 요청 상태와 함께 넘긴다) */
@@ -49,6 +50,8 @@ export function AnalysisResult({
   titlePrefix?: string
   /** 머리 맨 위 줄 오른쪽 조작 (비교 중 전체 결과의 "비교로 돌아가기") */
   eyebrowAction?: ReactNode
+  /** 반경별 비교 표 (12-26, App이 결과 캐시로 만든다 — 서버가 반경을 광고하는 단일 결과에서만) */
+  radiusTable?: ReactNode
 }) {
   const { context, result } = analysis
   const dataVersion = dataVersionOf(analysis)   // 9-C4: 응답 헤더 X-Data-Version (모르면 null)
@@ -131,6 +134,7 @@ export function AnalysisResult({
               radiusM={result.meta.분석반경_m}
               onOpen={openDetail}
             />
+            {radiusTable}
             <div className="result__secondary">
               <CoverageMeta
                 summary={result.종합}

@@ -3696,3 +3696,63 @@ describe('조건 공유 링크 (12-3, 계획 1-1) — 쿼리 조건으로 같은
     expect(screen.getByRole('textbox', { name: '공유 링크' })).toHaveValue(expected)
   })
 })
+
+describe('반경별 비교 표 (12-26, 계획 1-5) — 캐시된 반경만 채우고, 빈 반경의 "분석하기"는 반경 변경과 같은 경로', () => {
+  const ok = (body: unknown) => ({ status: 200, body })
+  const V04 = { status: 200, body: { ...OLD_HEALTH, engine: { version: 'mvp-0.4', radius_options: [300, 500, 1000], default_radius_m: 500 } } }
+  function at<T>(fx: T, r: number, overall: number): T {
+    const c = structuredClone(fx) as { result: { meta: Record<string, unknown>; 종합: Record<string, unknown>; 지표: { raw: Record<string, unknown> }[] } }
+    c.result.meta.분석반경_m = r
+    c.result.meta.엔진버전 = 'mvp-0.4'
+    c.result.종합.점수 = overall
+    c.result.지표[2]!.raw.반경m = r
+    return c as T
+  }
+  const nearbyAt = <T,>(fx: T, r: number): T => ({ ...(structuredClone(fx) as object), radius_m: r }) as T
+  const bodyOf = (call: unknown[]) => JSON.parse((call[1] as RequestInit).body as string)
+  const table = () => screen.getByRole('table', { name: /반경별 종합/ })
+  const rows = () => within(table()).getAllByRole('row').slice(1)
+
+  it('500m 결과: 500 행만 채워지고 300·1km 는 "분석하기". 1km 분석하기 → 1km 로 전환·요청, 두 행이 채워지고 범위 문구. 500 으로 돌아가도(캐시) 1km 행이 남는다', async () => {
+    const fetchMock = mockApi({
+      health: V04,
+      analyze: [ok(at(fixture, 500, 62.3)), ok(at(fixture, 1000, 64.8))],
+      nearby: [ok(nearbyAt(nearbyFixture, 500)), ok(nearbyAt(nearbyFixture, 1000))],
+    })
+    render(<App />)
+    await selectBupyeongPcBang()
+    await waitFor(() => expect(screen.getByRole('group', { name: '분석 반경' })).toBeInTheDocument())
+    fireEvent.click(analyzeButton())
+    await screen.findByRole('heading', { level: 1, name: '부평구 부평1동 · PC방 분석' })
+    expect(rows().map((r) => r.textContent)).toEqual([
+      expect.stringContaining('300m 분석하기'),
+      expect.stringMatching(/^500m · 지금62\.3/),
+      expect.stringContaining('1km 분석하기'),
+    ])
+    expect(screen.queryByText(/종합 점수 범위/)).not.toBeInTheDocument()
+
+    fireEvent.click(within(table()).getByRole('button', { name: '1km 분석하기' }))
+    expect(bodyOf(analyzeCalls(fetchMock)[1]!)).toMatchObject({ radius_m: 1000 })
+    await waitFor(() => expect(document.querySelector('.result__eyebrow')).toHaveTextContent('반경 1km'))
+    expect(rows()[1]).toHaveTextContent(/^500m62\.3/)
+    expect(rows()[2]).toHaveTextContent(/^1km · 지금64\.8/)
+    expect(rows()[2]).toHaveAttribute('aria-current', 'true')
+    expect(screen.getByText(/분석한 반경 2개의 종합 점수 범위 62\.3~64\.8/)).toBeInTheDocument()
+
+    // 조건 바의 500m 로 돌아가면 캐시 적중(요청 없음) — 표에는 1km 행이 그대로 남는다
+    fireEvent.click(within(screen.getByRole('group', { name: '분석 반경' })).getByRole('button', { name: '500m' }))
+    await waitFor(() => expect(document.querySelector('.result__eyebrow')).toHaveTextContent('반경 500m'))
+    expect(analyzeCalls(fetchMock)).toHaveLength(2)
+    expect(rows()[1]).toHaveTextContent(/^500m · 지금62\.3/)
+    expect(rows()[2]).toHaveTextContent(/^1km64\.8/)
+  })
+
+  it('반경을 광고하지 않는 서버(구버전)에서는 표가 없다', async () => {
+    mockApi({ analyze: [ok(fixture)], nearby: [ok(nearbyFixture)] })
+    render(<App />)
+    await selectBupyeongPcBang()
+    fireEvent.click(analyzeButton())
+    await screen.findByRole('heading', { level: 1, name: '부평구 부평1동 · PC방 분석' })
+    expect(screen.queryByRole('table', { name: /반경별 종합/ })).not.toBeInTheDocument()
+  })
+})

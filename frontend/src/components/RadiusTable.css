@@ -1,0 +1,62 @@
+/* 반경별 비교 표 (1-5): 요약 탭 아래, 좁은 패널에서는 가로 스크롤 */
+.radius-table {
+  margin-top: 16px;
+}
+
+.radius-table__lead,
+.radius-table__range {
+  margin: 4px 0 0;
+  font: var(--text-small);
+  color: var(--color-text-secondary);
+}
+
+.radius-table__scroll {
+  margin-top: 8px;
+  overflow-x: auto;
+}
+
+.radius-table__table {
+  width: 100%;
+  border-collapse: collapse;
+  font: var(--text-small);
+  white-space: nowrap;
+}
+
+.radius-table__table th,
+.radius-table__table td {
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--color-border);
+  text-align: right;
+}
+
+.radius-table__table th[scope="col"]:first-child,
+.radius-table__table th[scope="row"] {
+  text-align: left;
+}
+
+.radius-table__table thead th {
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+.radius-table__row--current {
+  background: var(--color-surface-muted);
+}
+
+.radius-table__now {
+  font-weight: 400;
+  color: var(--color-text-muted);
+}
+
+.radius-table__overall {
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.radius-table__none {
+  color: var(--color-text-muted);
+}
+
+.radius-table__empty {
+  text-align: left;
+}

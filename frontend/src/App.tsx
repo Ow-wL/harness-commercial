@@ -23,6 +23,7 @@ import { MapView, type LatLng, type MapCompare, type MapStore } from './componen
 import { MoreBelow } from './components/MoreBelow.tsx'
 import { NearbyStores } from './components/NearbyStores.tsx'
 import { RadiusControl } from './components/RadiusControl.tsx'
+import { RadiusTable } from './components/RadiusTable.tsx'
 import { ResultTools } from './components/ResultTools.tsx'
 import { ReferenceAddress } from './components/ReferenceAddress.tsx'
 import { UpdateNotes } from './components/UpdateNotes.tsx'
@@ -45,6 +46,7 @@ import { headline } from './lib/headline.ts'
 import { singleBand } from './lib/attentionBand.ts'
 import { DataInfoContext, dataVersionLabel, dataVersionOf, type DataInfo } from './lib/dataVersion.ts'
 import { parseShareQuery, shareQuery, shareUrl, versionsDiffer, type ShareConditions } from './lib/shareLink.ts'
+import { radiusRows } from './lib/radiusTable.ts'
 import { ResultCache } from './lib/resultCache.ts'
 import { storeGlyphFor } from './lib/storeIcons.ts'
 import { buildStoreLinks } from './lib/storeLinks.ts'
@@ -174,8 +176,11 @@ function App() {
     compareReloadRef.current = next
     setCompareReloadState(next)
   }, [])
-  // 조건 키 (lat, lng, biz, radius) → 분석·점포 응답 (4.3). 적중이면 요청하지 않는다
-  const resultCache = useRef(new ResultCache())
+  // 조건 키 (lat, lng, biz, radius) → 분석·점포 응답 (4.3). 적중이면 요청하지 않는다.
+  // 객체는 state 로 1회 만들고(렌더에서 읽기만 하는 반경별 비교 표가 peek 한다 — ref 는 렌더 중 읽지 않는다, 12-26),
+  // 쓰기(put·clear)는 콜백에서 같은 객체를 ref 로 부른다. 내용이 바뀔 때는 늘 분석 상태도 함께 바뀌어 다시 그려진다
+  const [cacheStore] = useState(() => new ResultCache())
+  const resultCache = useRef(cacheStore)
   // 요청 세대: 새 분석·B 요청·반경 변경·조건 변경·비교 시작/종료/다시 고르기 때 올린다. 반경 복구(/health 재조회)는 시작할 때의
   // 세대가 응답 뒤에도 같을 때만 상태를 바꾼다 — 늦게 온 복구가 더 새 결과를 덮지 않는다(8-D3 검수)
   const epoch = useRef(0)
@@ -1050,6 +1055,20 @@ function App() {
     />
   ) : null
 
+  // 반경별 비교 표(12-26): 서버가 반경을 광고하는 단일 결과에서, 같은 좌표·업종의 다른 반경 결과를 캐시에서 읽기만 한다(peek).
+  // 빈 반경의 "분석하기"는 기존 반경 변경(changeRadius)과 같은 경로 — 그 반경으로 전환해 다시 분석하고 캐시에 남는다
+  const radiusTable =
+    radiusEnabled && result && analysis.status === 'success' && compare.status === 'off' ? (
+      <RadiusTable
+        rows={radiusRows(radiusOptions, result, (r) => {
+          const req = buildRequest(analysis.request, analysis.request.biz_code, r, true)
+          return cacheStore.peek(req)?.analyze ?? null
+        })}
+        busy={radiusBusy}
+        onAnalyze={changeRadius}
+      />
+    ) : null
+
   const showMapFromCompare = () => {
     setMobileScreen('map')
     focusLater(COMPARE_IDS.sheetAction)
@@ -1204,6 +1223,7 @@ function App() {
         <AnalysisResult
         analysis={result}
         eyebrowAction={replayHelp('result')}
+        radiusTable={radiusTable}
         address={addressOf(result)}
         nearbyCount={nearby?.status === 'success' ? nearby.data.count : null}
         nearby={
