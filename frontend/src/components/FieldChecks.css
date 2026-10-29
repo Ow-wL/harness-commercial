@@ -1,0 +1,98 @@
+/* 현장 확인 카드 (1-4): 번호 · 제목 · 근거 한 줄 · 기록할 것 · 확인함/메모 */
+.field-checks__lead {
+  margin: 4px 0 0;
+  font: var(--text-small);
+  color: var(--color-text-secondary);
+}
+
+.field-checks__list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.field-check {
+  padding: 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-muted);
+}
+
+.field-check--done {
+  border-color: var(--color-accent);
+}
+
+.field-check__title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.field-check__index {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--color-accent);
+  color: var(--color-bg);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.field-check__because {
+  display: flex;
+  gap: 6px;
+  margin: 6px 0 0;
+  font: var(--text-small);
+  color: var(--color-text-secondary);
+}
+
+.field-check__because .icon {
+  flex: none;
+  margin-top: 2px;
+}
+
+.field-check__record {
+  margin: 6px 0 0;
+  padding-left: 18px;
+  font: var(--text-small);
+  color: var(--color-text-primary);
+}
+
+.field-check__record li + li {
+  margin-top: 2px;
+}
+
+.field-check__notes {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.field-check__done {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+  font: var(--text-small);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.field-check__memo {
+  width: 100%;
+  min-height: 44px;
+  padding: 6px 8px;
+  font: var(--text-small);
+  resize: vertical;
+}

@@ -8,6 +8,9 @@ import { AttentionBand } from './AttentionBand.tsx'
 import { BeginnerAccess } from './BeginnerAccess.tsx'
 import { CoverageMeta } from './CoverageMeta.tsx'
 import { DataSources, SERVICE_DISCLAIMER } from './DataSources.tsx'
+import { FieldChecks } from './FieldChecks.tsx'
+import { fieldChecks } from '../content/fieldChecks.ts'
+import type { FieldNote, FieldNotes } from '../lib/fieldNotes.ts'
 import { GapsLine } from './GapsLine.tsx'
 import { gapLines } from '../lib/gaps.ts'
 import { IndicatorDetails } from './IndicatorDetails.tsx'
@@ -20,14 +23,14 @@ import { WarningPanel } from './WarningPanel.tsx'
 import './AnalysisResult.css'
 import './ResultQuiet.css'
 
-type ResultTab = 'summary' | 'stores' | 'evidence'
+type ResultTab = 'summary' | 'stores' | 'evidence' | 'field'
 
 /**
  * 분석 결과 패널 (A3, DESIGN.md §19.1·§19.5, docs/UX_REDESIGN.md 2.1).
  * 기본 머리: 위치 제목 · 종합 점수 · "확인 필요" 한 줄(12-20) · 접힌 주의 요약. 역·주소는 위치 정보에서 펼친다.
  * 요약은 다섯 관점 막대 + 근거 한 줄·자료 단위 칩(12-20 안 B, 기본 노출). 설명 함께 보기를 켜면 헤드라인·높음/낮음·충족 정보가 나온다.
  * 탭: 요약(관점을 누르면 상세 근거의 그 관점) · 주변 점포 · 상세 근거
- * (관점별 근거 · 주의할 점 · 초보자 접근성 · 위치 · 데이터 출처와 엔진 면책 원문).
+ * (관점별 근거 · 주의할 점 · 초보자 접근성 · 위치 · 데이터 출처와 엔진 면책 원문) · 현장 확인(12-27 규칙형 카드 3장).
  * 입력은 AnalyzeResponseSchema로 검증된 값만 받는다. 엔진 값은 그대로 보여 준다.
  */
 export function AnalysisResult({
@@ -38,6 +41,7 @@ export function AnalysisResult({
   titlePrefix,
   eyebrowAction,
   radiusTable,
+  fieldNotes,
 }: {
   analysis: AnalyzeResponse
   /** 주변 점포 탭 내용 (App이 별도 요청 상태와 함께 넘긴다) */
@@ -52,6 +56,8 @@ export function AnalysisResult({
   eyebrowAction?: ReactNode
   /** 반경별 비교 표 (12-26, App이 결과 캐시로 만든다 — 서버가 반경을 광고하는 단일 결과에서만) */
   radiusTable?: ReactNode
+  /** 현장 확인 카드의 체크·메모 (12-27, 조건 키별 로컬 저장 — App). 없으면 카드만 */
+  fieldNotes?: { notes: FieldNotes; onChange: (id: string, note: FieldNote) => void }
 }) {
   const { context, result } = analysis
   const dataVersion = dataVersionOf(analysis)   // 9-C4: 응답 헤더 X-Data-Version (모르면 null)
@@ -65,10 +71,12 @@ export function AnalysisResult({
     setTab('evidence')
     setOpenRequest((r) => ({ key, n: (r?.n ?? 0) + 1 }))
   }
+  const checks = fieldChecks(analysis)
   const tabs: TabDef<ResultTab>[] = [
     { key: 'summary', label: '요약' },
     { key: 'stores', label: '주변 점포', count: nearbyCount ?? null },
     { key: 'evidence', label: '상세 근거' },
+    { key: 'field', label: '현장 확인', count: checks.length },
   ]
 
   return (
@@ -166,6 +174,9 @@ export function AnalysisResult({
               <LocationSummary context={context} station={station} />
             </section>
             <DataSources meta={result.meta} disclaimer={result.면책} />
+          </TabPanel>
+          <TabPanel tab="field" selected={tab} idBase={idBase}>
+            <FieldChecks checks={checks} notes={fieldNotes?.notes} onChange={fieldNotes?.onChange} />
           </TabPanel>
         </div>
       </article>

@@ -32,6 +32,7 @@ import { AnalysisResult } from './AnalysisResult.tsx'
 import { AttentionBand } from './AttentionBand.tsx'
 import { DataSources, SERVICE_DISCLAIMER } from './DataSources.tsx'
 import { Icon } from './Icon.tsx'
+import type { FieldNote, FieldNotes } from '../lib/fieldNotes.ts'
 import { TabRevealContext, useResultTabs, useTabIdBase, type TabDef } from '../lib/resultTabs.ts'
 import { TabList, TabPanel } from './ResultTabs.tsx'
 import './CompareResult.css'
@@ -313,6 +314,7 @@ export function CompareDetail({
   nearby,
   nearbyCount,
   address,
+  fieldNotes,
 }: {
   side: CompareSide
   analysis: AnalyzeResponse
@@ -321,6 +323,8 @@ export function CompareDetail({
   nearbyCount?: number | null
   /** 보고 있는 위치의 참고 주소 줄 (7-B3, 그 위치 context 좌표) */
   address?: ReactNode
+  /** 현장 확인 카드 기록 (12-27, 그 위치의 조건 키) */
+  fieldNotes?: { notes: FieldNotes; onChange: (id: string, note: FieldNote) => void }
 }) {
   // 열 때 맨 위부터 보이게 하는 스크롤 초기화와 결과 제목 포커스는 App이 한 번에 한다(6-5)
   return (
@@ -332,6 +336,7 @@ export function CompareDetail({
         nearbyCount={nearbyCount}
         address={address}
         eyebrowAction={<span className="compare-detail__label">두 위치 비교 중 · {SIDE_TITLE[side]} 전체 결과</span>}
+        fieldNotes={fieldNotes}
       />
     </div>
   )

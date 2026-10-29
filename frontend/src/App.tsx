@@ -46,8 +46,9 @@ import { headline } from './lib/headline.ts'
 import { singleBand } from './lib/attentionBand.ts'
 import { DataInfoContext, dataVersionLabel, dataVersionOf, type DataInfo } from './lib/dataVersion.ts'
 import { parseShareQuery, shareQuery, shareUrl, versionsDiffer, type ShareConditions } from './lib/shareLink.ts'
+import { readFieldNotes, writeFieldNotes, type FieldNote, type FieldNotes } from './lib/fieldNotes.ts'
 import { radiusRows } from './lib/radiusTable.ts'
-import { ResultCache } from './lib/resultCache.ts'
+import { cacheKey, ResultCache } from './lib/resultCache.ts'
 import { storeGlyphFor } from './lib/storeIcons.ts'
 import { buildStoreLinks } from './lib/storeLinks.ts'
 import { useNearbyRequest, type RadiusProblem } from './lib/useNearbyRequest.ts'
@@ -1055,6 +1056,22 @@ function App() {
     />
   ) : null
 
+  // 현장 확인 기록(12-27): 지금 결과의 조건 키로 이 브라우저 저장소에서 읽는다(렌더에서 읽기, 쓰기는 콜백). 저장소가 막혀 있으면
+  // 메모리 사본(fieldNotesLocal)으로 이번 화면 동안만 유지한다. 비교 중 A·B 전체 결과는 그 결과의 조건 키
+  const [fieldNotesLocal, setFieldNotesLocal] = useState<{ key: string; notes: FieldNotes } | null>(null)
+  const fieldNotesFor = (request: AnalyzeRequest) => {
+    const key = cacheKey(request)
+    const notes = fieldNotesLocal?.key === key ? fieldNotesLocal.notes : readFieldNotes(key)
+    return {
+      notes,
+      onChange: (id: string, note: FieldNote) => {
+        const next = { ...notes, [id]: note }
+        writeFieldNotes(key, next)
+        setFieldNotesLocal({ key, notes: next })
+      },
+    }
+  }
+
   // 반경별 비교 표(12-26): 서버가 반경을 광고하는 단일 결과에서, 같은 좌표·업종의 다른 반경 결과를 캐시에서 읽기만 한다(peek).
   // 빈 반경의 "분석하기"는 기존 반경 변경(changeRadius)과 같은 경로 — 그 반경으로 전환해 다시 분석하고 캐시에 남는다
   const radiusTable =
@@ -1185,6 +1202,7 @@ function App() {
           nearby={compareStores(side, shown, false)}
           nearbyCount={(side === 'A' ? nearby : nearbyB.state)?.status === 'success' ? shown.result.지표[2].raw.동종점포수 : null}
           address={addressOf(shown)}
+          fieldNotes={fieldNotesFor(side === 'A' && analysis.status === 'success' ? analysis.request : compare.request)}
         />
       )
       panelFoot = foot(
@@ -1224,6 +1242,7 @@ function App() {
         analysis={result}
         eyebrowAction={replayHelp('result')}
         radiusTable={radiusTable}
+        fieldNotes={analysis.status === 'success' ? fieldNotesFor(analysis.request) : undefined}
         address={addressOf(result)}
         nearbyCount={nearby?.status === 'success' ? nearby.data.count : null}
         nearby={

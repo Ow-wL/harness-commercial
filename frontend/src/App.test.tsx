@@ -3756,3 +3756,37 @@ describe('반경별 비교 표 (12-26, 계획 1-5) — 캐시된 반경만 채�
     expect(screen.queryByRole('table', { name: /반경별 종합/ })).not.toBeInTheDocument()
   })
 })
+
+describe('현장 확인 카드 탭 (12-27, 계획 1-4) — 체크·메모는 조건 키별로 이 브라우저에 저장', () => {
+  const ok = (body: unknown) => ({ status: 200, body })
+  const FIELD_TAB = /^현장 확인/
+  beforeEach(() => window.localStorage.removeItem('fieldNotes.v1'))
+
+  it('결과의 "현장 확인" 탭에 카드 3장, 확인함을 켜고 메모를 쓰면 저장되고 다시 열어도(새 마운트·같은 조건) 남아 있다', async () => {
+    mockApi({ analyze: [ok(fixture)], nearby: [ok(nearbyFixture)] })
+    const first = render(<App />)
+    await selectBupyeongPcBang()
+    fireEvent.click(analyzeButton())
+    await screen.findByRole('heading', { level: 1, name: '부평구 부평1동 · PC방 분석' })
+    openTab(FIELD_TAB)
+    expect(screen.getByRole('tab', { name: /현장 확인/ })).toHaveTextContent('3')
+    expect(document.querySelectorAll('.field-check')).toHaveLength(3)
+    fireEvent.click(screen.getAllByRole('checkbox', { name: '확인함' })[0]!)
+    fireEvent.change(screen.getByRole('textbox', { name: '후보 점포의 임대 조건 확인 메모' }), { target: { value: '월세 150' } })
+    expect(JSON.parse(window.localStorage.getItem('fieldNotes.v1')!)['37.4894,126.7246,R10406,500'].notes).toEqual({
+      competitors: { done: true, memo: '' },
+      rent: { done: false, memo: '월세 150' },
+    })
+    first.unmount()
+    window.history.replaceState(null, '', '/')               // 결과 조건 쿼리(12-3)로 자동 분석되지 않게 — 보통 흐름으로 다시 연다
+
+    mockApi({ analyze: [ok(fixture)], nearby: [ok(nearbyFixture)] })
+    render(<App />)
+    await selectBupyeongPcBang()
+    fireEvent.click(analyzeButton())
+    await screen.findByRole('heading', { level: 1, name: '부평구 부평1동 · PC방 분석' })
+    openTab(FIELD_TAB)
+    expect(screen.getAllByRole('checkbox', { name: '확인함' })[0]).toBeChecked()
+    expect(screen.getByRole('textbox', { name: '후보 점포의 임대 조건 확인 메모' })).toHaveValue('월세 150')
+  })
+})
