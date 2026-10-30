@@ -64,7 +64,7 @@ export const FIELD_CHECK_RULES: readonly Rule[] = [
       const { competition } = indicators(a)
       const raw = competition.raw
       const demand =
-        raw.점포당_잠재수요 !== null ? ` · 점포당 잠재수요${demandIncludesWorkers(competition) ? '(거주+종사자)' : ''} ${count(raw.점포당_잠재수요)}명` : ''
+        raw.점포당_잠재수요 !== null ? ` · 가게 한 곳당 주변 ${demandIncludesWorkers(competition) ? '주민·직장인' : '주민'} ${count(raw.점포당_잠재수요)}명` : ''
       return `반경 ${formatRadius(raw.반경m)} 안 ${a.result.meta.업종} ${raw.동종점포수.toLocaleString('ko-KR')}곳${demand} — 점포 목록은 주변 점포 탭`
     },
     record: [

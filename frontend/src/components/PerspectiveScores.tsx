@@ -1,27 +1,32 @@
-import { Fragment } from 'react'
+import { Fragment, useState } from 'react'
 import type { EngineResult } from '../api/schemas.ts'
 import { evidenceLine } from '../lib/evidence.ts'
 import { unitChipLabel } from '../lib/flags.ts'
 import { BOTTLENECK_WARN_BELOW, formatScore, notComputedText, type Indicator } from '../lib/format.ts'
 import { gradeLabel, gradeOf } from '../lib/grade.ts'
+import { orderIndicators, type PerspectiveOrder } from '../lib/perspectiveOrder.ts'
 import { Icon } from './Icon.tsx'
 import './PerspectiveScores.css'
 
 /**
  * 다섯 관점 행 (DESIGN.md §6·§8.2·§8.3, A3 §19.1 요약 탭).
- * 순서는 엔진 지표 배열 그대로(시장성→안정성, 정렬하지 않는다). 막대·숫자는 등급색(13-4: 좋음·보통·약함·주의), 50 기준선.
+ * 순서(13-14): 기본 점수순(높은 → 낮은, 미산출은 맨 아래 — 가장 약한 관점이 항상 맨 아래 같은 자리) 또는 엔진 순서. 정렬은 표시만이며 엔진 값은 그대로.
+ * 막대·숫자는 등급색(13-4: 좋음·보통·약함·주의), 50 기준선. 행을 누르면 근거 줄·자료 단위가 펼쳐진다(첫 화면은 숫자·막대·등급만).
  * 관점 점수는 세부지표 백분위의 가중평균이라 인천 내 순위가 아니다 — 50 기준선은 0~100 척도의 중간일 뿐이다.
  * 행 = [식별색 + 이름][막대][점수] / 둘째 줄: 등급 칩(13-4) · 짧은 라벨(가장 높음·주의·가장 낮음 — 25점 미만 관점은 "주의" 배지, 13-3) ·
  * 자료 등급 낮음 · 근거 줄(8-C1b) · 자료 단위 칩(12-18).
  * 자료 단위 칩은 산출된 관점마다 항상 붙는다 — 구 단위 자료와 지점 좌표 자료가 같은 정밀도로 보이지 않게(계획 0-3).
  * 행 전체가 버튼 — 누르면 상세 근거 탭의 그 관점을 펼친다. 막대는 aria-hidden이고 같은 값을 숫자 텍스트로 준다(§15).
  */
+export type { PerspectiveOrder }
+
 export function PerspectiveScores({
   indicators,
   summary,
   guName,
   business,
   radiusM,
+  order = 'fixed',
   onOpen,
 }: {
   indicators: readonly Indicator[]
@@ -32,9 +37,12 @@ export function PerspectiveScores({
   business: string
   /** 근거 줄의 고객성 "반경 {r} 타겟 연령 거주"(v0.5 반경 인구) — meta.분석반경_m */
   radiusM?: number
-  /** 관점 행을 누르면 그 관점 근거로 (상세 근거 탭) */
+  /** 행 순서(13-14). 기본 엔진 순서 */
+  order?: PerspectiveOrder
+  /** 펼친 행의 "상세 근거 ›"를 누르면 그 관점 근거로 (상세 근거 탭) */
   onOpen?: (key: string) => void
 }) {
+  const [expanded, setExpanded] = useState<string | null>(null)
   const bottleneck = indicators.find((i) => i.key === summary.병목_지표)
   const bottleneckWarn =
     bottleneck !== undefined && bottleneck.score !== null && bottleneck.score < BOTTLENECK_WARN_BELOW
@@ -51,7 +59,7 @@ export function PerspectiveScores({
       </p>
       <p className="visually-hidden">막대의 50은 0~100 척도의 중간이며 순위가 아닙니다.</p>
       <ul className="perspectives__list">
-        {indicators.map((ind) => (
+        {orderIndicators(indicators, order).map((ind) => (
           <PerspectiveRow
             key={ind.key}
             indicator={ind}
@@ -60,6 +68,8 @@ export function PerspectiveScores({
             bottleneckWarn={bottleneckWarn}
             evidence={evidenceLine(ind, guName, business, radiusM)}
             unit={unitChipLabel(ind, radiusM)}
+            expanded={expanded === ind.key}
+            onToggle={() => setExpanded((k) => (k === ind.key ? null : ind.key))}
             onOpen={onOpen}
           />
         ))}
@@ -75,6 +85,8 @@ function PerspectiveRow({
   bottleneckWarn,
   evidence,
   unit,
+  expanded,
+  onToggle,
   onOpen,
 }: {
   indicator: Indicator
@@ -84,6 +96,9 @@ function PerspectiveRow({
   evidence: string | null
   /** 자료 단위 칩(산출된 관점만) */
   unit: string | null
+  /** 근거 줄 펼침(13-14). 접힌 행은 등급·짧은 라벨만 */
+  expanded: boolean
+  onToggle: () => void
   onOpen?: (key: string) => void
 }) {
   const lowConfidence = ind.confidence === 'low'
@@ -148,9 +163,9 @@ function PerspectiveRow({
         )}
       </span>
       {ind.score === null && <span className="perspective__sub perspective__missing-note">{notComputedText(ind)}</span>}
-      {(tags.length > 0 || evidence || unit) && (
+      {tags.length > 0 && <span className="perspective__sub perspective__tags">{tags}</span>}
+      {expanded && (evidence || unit) && (
         <span className="perspective__sub perspective__evidence">
-          {tags}
           {evidence && (
             // " · " 조각 안에서는 줄을 바꾸지 않는다(숫자와 단위가 다음 줄로 떨어지지 않게) — 줄바꿈은 조각 사이에서만
             <span className="perspective__evidence-text">
@@ -179,14 +194,15 @@ function PerspectiveRow({
   )
 
   return (
-    <li className={`perspective persp-${ind.key}`} data-key={ind.key}>
-      {onOpen ? (
-        <button type="button" className="perspective__button" onClick={() => onOpen(ind.key)}>
-          {body}
-          <span className="visually-hidden"> · 근거 자세히</span>
+    <li className={`perspective persp-${ind.key}${expanded ? ' perspective--open' : ''}`} data-key={ind.key}>
+      <button type="button" className="perspective__button" aria-expanded={expanded} onClick={onToggle}>
+        {body}
+        <span className="visually-hidden">{expanded ? ' · 근거 접기' : ' · 근거 펼치기'}</span>
+      </button>
+      {expanded && onOpen && (
+        <button type="button" className="perspective__detail" onClick={() => onOpen(ind.key)}>
+          상세 근거 ›
         </button>
-      ) : (
-        <div className="perspective__button">{body}</div>
       )}
     </li>
   )

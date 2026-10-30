@@ -1,0 +1,104 @@
+/* 거미줄 그래프 (13-13): 링 4개(50 은 점선 기준), 축, 등급색 면 + 점. B(비교)는 빈 면·점선. 모션 없음 */
+.radar {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.radar__svg {
+  max-width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.radar__ring {
+  fill: none;
+  stroke: var(--color-border);
+  stroke-width: 1;
+}
+
+.radar__ring--reference {
+  stroke: var(--color-text-muted);
+  stroke-dasharray: 4 3;
+  stroke-width: 1.2;
+}
+
+.radar__axis {
+  stroke: var(--color-border);
+  stroke-width: 1;
+}
+
+.radar__axis--missing {
+  stroke: var(--color-data-missing);
+  stroke-dasharray: 2 3;
+}
+
+.radar__label {
+  font-size: 12px;
+  font-weight: 600;
+  fill: var(--color-text-secondary);
+}
+
+.radar__series--good { --radar-color: var(--color-grade-good); }
+.radar__series--mid { --radar-color: var(--color-accent); }
+.radar__series--weak { --radar-color: var(--color-grade-weak); }
+.radar__series--alert { --radar-color: var(--color-grade-alert); }
+
+.radar__area {
+  fill: var(--radar-color);
+  fill-opacity: 0.22;
+  stroke: var(--radar-color);
+  stroke-width: 2;
+  stroke-linejoin: round;
+}
+
+.radar__dot {
+  fill: var(--radar-color);
+  stroke: var(--color-surface);
+  stroke-width: 1.5;
+}
+
+/* 비교 B: 빈 면 + 점선, 색은 항상 보조색(A 와 구분은 선 모양·범례 글자) */
+.radar__series--b {
+  --radar-color: var(--color-persp-competition, #6d5ba8);
+}
+
+.radar__series--b .radar__area {
+  fill-opacity: 0.06;
+  stroke-dasharray: 5 3;
+}
+
+.radar__series--b .radar__dot {
+  fill: var(--color-surface);
+  stroke: var(--radar-color);
+  stroke-width: 2;
+}
+
+.radar__legend {
+  display: flex;
+  gap: 14px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}
+
+.radar__legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.radar__legend-swatch {
+  width: 14px;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--color-accent);
+}
+
+.radar__legend-item--b .radar__legend-swatch {
+  background: repeating-linear-gradient(90deg, var(--color-persp-competition, #6d5ba8) 0 4px, transparent 4px 7px);
+}

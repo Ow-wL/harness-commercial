@@ -1,0 +1,190 @@
+/* 이 자리 업종 순위 카드 (13-16): 순위 · 업종 · 막대(등급색) · 점수 pill. 지금 업종은 강조 테두리 */
+.rank-card {
+  margin: 16px 24px 0;
+  padding: 14px 16px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  background: var(--color-surface-muted);
+}
+
+.rank-card__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 12px;
+}
+
+.rank-card__meta,
+.rank-card__status,
+.rank-card__note {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--color-text-muted);
+}
+
+.rank-card__status {
+  margin-top: 10px;
+}
+
+.rank-card__note {
+  margin-top: 10px;
+  color: var(--color-text-secondary);
+}
+
+.rank-card__list {
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.rank-item + .rank-item {
+  border-top: 1px solid var(--color-border);
+}
+
+.rank-item__button {
+  display: grid;
+  grid-template-columns: 24px minmax(90px, 1fr) minmax(60px, 2fr) auto;
+  grid-template-areas:
+    "rank name bar score"
+    "rank weak weak weak";
+  align-items: center;
+  column-gap: 10px;
+  width: 100%;
+  min-height: 40px;
+  padding: 6px 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  text-align: left;
+  color: inherit;
+  cursor: pointer;
+}
+
+.rank-item__button:disabled {
+  cursor: default;
+}
+
+.rank-item__button:not(:disabled):hover .rank-item__name {
+  color: var(--color-accent);
+}
+
+.rank-item__rank {
+  grid-area: rank;
+  font-size: 13px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-muted);
+}
+
+.rank-item--current .rank-item__rank {
+  color: var(--color-accent);
+}
+
+.rank-item__name {
+  grid-area: name;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.rank-item__you {
+  padding: 0 6px;
+  border-radius: var(--radius-pill);
+  background: var(--color-accent-subtle);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 16px;
+  color: var(--color-accent);
+}
+
+.rank-item__reg {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 0 6px;
+  border: 1px solid var(--color-danger);
+  border-radius: var(--radius-pill);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 16px;
+  color: var(--color-danger);
+}
+
+.rank-item__bar {
+  grid-area: bar;
+  position: relative;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--color-data-track);
+}
+
+.rank-item__fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: 3px;
+  background: var(--color-data-bar);
+}
+
+.rank-item__fill--good { background: var(--color-grade-good); }
+.rank-item__fill--weak { background: var(--color-grade-weak); }
+.rank-item__fill--alert { background: var(--color-grade-alert); }
+
+.rank-item__score {
+  grid-area: score;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 16px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-primary);
+}
+
+.rank-item__none {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.rank-item__weak {
+  grid-area: weak;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.rank-card__gap {
+  padding: 2px 0 2px 2px;
+  color: var(--color-text-muted);
+}
+
+.rank-card__toggle {
+  margin-top: 8px;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-accent);
+  cursor: pointer;
+}
+
+@media (max-width: 639px) {
+  .rank-card {
+    margin: 14px 16px 0;
+  }
+
+  .rank-item__button {
+    grid-template-columns: 22px minmax(0, 1fr) auto;
+    grid-template-areas:
+      "rank name score"
+      "rank bar bar"
+      "rank weak weak";
+    row-gap: 4px;
+  }
+}

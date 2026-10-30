@@ -69,7 +69,7 @@ def test_error_contract_same_as_analyze(client, body, code):
 
 def test_analyze_contract_unchanged(client):
     r = client.post("/analyze", json=OK)
-    assert set(r.json()) == {"context", "result"}
+    assert set(r.json()) == {"context", "result", "insights"}
 
 
 def test_get_is_not_allowed(client):

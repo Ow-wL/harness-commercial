@@ -12,8 +12,11 @@ const NAILSHOP = AnalyzeResponseSchema.parse(nailShopFixture)
 
 const LABELS = { market: '시장성', customer: '고객성', competition: '경쟁성', location: '입지성', stability: '안정성' }
 
+const KEY_OF: Record<string, string> = { 시장성: 'market', 고객성: 'customer', 경쟁성: 'competition', 입지성: 'location', 안정성: 'stability' }
+/** 상세 근거의 관점 아코디언(R1: 관점 행 버튼과 이름이 겹치므로 id 로) */
 function openAccordion(label: string) {
-  fireEvent.click(screen.getByRole('button', { name: new RegExp(`^${label}(?!은 무엇을 보나요)`) }))
+  openTab(EVIDENCE_TAB)
+  fireEvent.click(document.getElementById(`detail-toggle-${KEY_OF[label]}`)!)
 }
 
 const guideToggle = (label: string) => screen.getByRole('button', { name: `${label}은 무엇을 보나요` })
@@ -152,7 +155,7 @@ describe('설명 콘텐츠 규칙 (docs/SCORE_GUIDE_SOURCES.md)', () => {
     expect(allText).not.toMatch(/\d+(\.\d+)?\s*%/)
   })
 
-  it('검수 보완 조건을 담는다: 점포당 잠재수요 비교 지점, 종료일 없는 종료 기록', () => {
+  it('검수 보완 조건을 담는다: 가게 한 곳당 주변 주민 비교 지점, 종료일 없는 종료 기록', () => {
     expect(PERSPECTIVE_GUIDE.competition.data).toContain('점포당 잠재수요는 반경 안에 같은 업종 점포가 있는 비교 지점만 씁니다')
     // etl_stability.survival: 종료일이 없으면 폐업으로 세지 않고 코호트에 남는다 (docs/SCORE_GUIDE_SOURCES.md 2-1)
     expect(PERSPECTIVE_GUIDE.stability.limits.some((t) => t.includes('종료일이 없는') && t.includes('높게'))).toBe(true)

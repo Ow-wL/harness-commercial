@@ -1,10 +1,8 @@
 import { useState, type ReactNode } from 'react'
 import type { AnalyzeResponse } from '../api/schemas.ts'
-import { regulationAlert, weakAlert } from '../lib/alerts.ts'
 import { singleBand } from '../lib/attentionBand.ts'
 import { dataVersionLabel, dataVersionOf, ResultDataVersionContext } from '../lib/dataVersion.ts'
 import { formatDistance, formatRadius, locationName, nearestStation } from '../lib/format.ts'
-import { headline } from '../lib/headline.ts'
 import { AttentionBand } from './AttentionBand.tsx'
 import { BeginnerAccess } from './BeginnerAccess.tsx'
 import { CoverageMeta } from './CoverageMeta.tsx'
@@ -16,25 +14,23 @@ import { GapsLine } from './GapsLine.tsx'
 import { gapLines } from '../lib/gaps.ts'
 import { IndicatorDetails } from './IndicatorDetails.tsx'
 import { LocationSummary } from './LocationSummary.tsx'
-import { OverallScore } from './OverallScore.tsx'
-import { PerspectiveScores } from './PerspectiveScores.tsx'
-import { RegulationBanner, WeakPerspectiveLine } from './ResultAlerts.tsx'
+import { PerspectiveScores, type PerspectiveOrder } from './PerspectiveScores.tsx'
+import { RadarChart } from './RadarChart.tsx'
+import { ScoreCard } from './ScoreCard.tsx'
 import { TabRevealContext, useResultTabs, useTabIdBase, type TabDef } from '../lib/resultTabs.ts'
 import { TabList, TabPanel } from './ResultTabs.tsx'
 import { WarningPanel } from './WarningPanel.tsx'
 import './AnalysisResult.css'
 import './ResultQuiet.css'
 
-type ResultTab = 'summary' | 'stores' | 'evidence' | 'field'
+type ResultTab = 'evidence' | 'stores' | 'field' | 'radius'
 
 /**
- * 분석 결과 패널 (A3, DESIGN.md §19.1·§19.5, docs/UX_REDESIGN.md 2.1).
- * 기본 머리: 위치 제목 · (학교구역 규제 배너, 13-1) · 종합 점수(등급·규제 배지) · (주의 관점 한 줄, 13-3) · "확인 필요" 한 줄(12-20) ·
- * 접힌 주의 요약. 역·주소는 위치 정보에서 펼친다.
- * 요약은 다섯 관점 막대 + 근거 한 줄·자료 단위 칩(12-20 안 B, 기본 노출). 설명 함께 보기를 켜면 헤드라인·높음/낮음·충족 정보가 나온다.
- * 탭: 요약(관점을 누르면 상세 근거의 그 관점) · 주변 점포 · 상세 근거
- * (관점별 근거 · 주의할 점 · 초보자 접근성 · 위치 · 데이터 출처와 엔진 면책 원문) · 현장 확인(12-27 규칙형 카드 3장).
- * 입력은 AnalyzeResponseSchema로 검증된 값만 받는다. 엔진 값은 그대로 보여 준다.
+ * 분석 결과 — 대시보드 (R1 13-10~13-14·13-19, DESIGN.md §20, 팀 점검 보고서 시안 규칙 1~5).
+ * 읽는 순서: 위치·업종 → (규제 배너) → 종합 점수 + 등급 + 한 줄 결론 + (주의 관점 한 줄) → 다섯 관점(거미줄 + 점수순 막대, 근거는 행을 펼쳐서)
+ * → 시간대·인구 카드(13-15) → 이 자리 업종 순위(13-16) → 결과 활용 줄·안내(B3: 첫 화면에서 아래로) → 탭(상세 근거 · 주변 점포 · 현장 확인 ·
+ * 반경별 비교) → 접힌 "데이터 한계 N개"(B4: 확인 필요 줄 + 주의 요약을 한 곳에) → 면책 한 줄.
+ * 입력은 AnalyzeResponseSchema로 검증된 값만 받는다. 엔진 값은 그대로 보여 준다(정렬·등급·결론은 표시만).
  */
 export function AnalysisResult({
   analysis,
@@ -45,6 +41,10 @@ export function AnalysisResult({
   eyebrowAction,
   radiusTable,
   fieldNotes,
+  tools,
+  notes,
+  timeCard,
+  rankCard,
 }: {
   analysis: AnalyzeResponse
   /** 주변 점포 탭 내용 (App이 별도 요청 상태와 함께 넘긴다) */
@@ -57,37 +57,46 @@ export function AnalysisResult({
   titlePrefix?: string
   /** 머리 맨 위 줄 오른쪽 조작 (비교 중 전체 결과의 "비교로 돌아가기") */
   eyebrowAction?: ReactNode
-  /** 반경별 비교 표 (12-26, App이 결과 캐시로 만든다 — 서버가 반경을 광고하는 단일 결과에서만) */
+  /** 반경별 비교 표 (12-26, App이 결과 캐시로 만든다 — 서버가 반경을 광고하는 단일 결과에서만) → "반경별 비교" 탭 */
   radiusTable?: ReactNode
   /** 현장 확인 카드의 체크·메모 (12-27, 조건 키별 로컬 저장 — App). 없으면 카드만 */
   fieldNotes?: { notes: FieldNotes; onChange: (id: string, note: FieldNote) => void }
+  /** 결과 활용 줄(링크 복사·인쇄·보관, 12-15·12-25) — 다섯 관점 아래(B3) */
+  tools?: ReactNode
+  /** 안내(공유 링크·보관함 다시 분석·첫 방문 결과 안내) — 다섯 관점 아래(B3) */
+  notes?: ReactNode
+  /** 시간대·인구 카드 (13-15) */
+  timeCard?: ReactNode
+  /** 이 자리 업종 순위 카드 (13-16) */
+  rankCard?: ReactNode
 }) {
   const { context, result } = analysis
   const dataVersion = dataVersionOf(analysis)   // 9-C4: 응답 헤더 X-Data-Version (모르면 null)
   const [explanations, setExplanations] = useState(false)
-  const { tab, setTab, reveal } = useResultTabs<ResultTab>('summary')
+  const [order, setOrder] = useState<PerspectiveOrder>('score')
+  const { tab, setTab, reveal } = useResultTabs<ResultTab>('evidence')
   const idBase = useTabIdBase()
   const station = nearestStation(result.지표)
-  // 관점 행을 누르면 상세 근거 탭의 그 관점을 펼치고 그리로 간다
+  // 관점 행의 "상세 근거 ›"를 누르면 상세 근거 탭의 그 관점을 펼치고 그리로 간다
   const [openRequest, setOpenRequest] = useState<{ key: string; n: number } | null>(null)
   const openDetail = (key: string) => {
     setTab('evidence')
     setOpenRequest((r) => ({ key, n: (r?.n ?? 0) + 1 }))
   }
   const checks = fieldChecks(analysis)
-  const regulation = regulationAlert(analysis)
-  const weak = weakAlert(analysis)
+  const gaps = gapLines(analysis)
+  const band = singleBand(analysis)
   const tabs: TabDef<ResultTab>[] = [
-    { key: 'summary', label: '요약' },
-    { key: 'stores', label: '주변 점포', count: nearbyCount ?? null },
     { key: 'evidence', label: '상세 근거' },
+    { key: 'stores', label: '주변 점포', count: nearbyCount ?? null },
     { key: 'field', label: '현장 확인', count: checks.length },
+    ...(radiusTable ? [{ key: 'radius' as const, label: '반경별 비교' }] : []),
   ]
 
   return (
     <ResultDataVersionContext.Provider value={dataVersion}>
     <TabRevealContext.Provider value={reveal}>
-      <article className={`result result--quiet${explanations ? ' result--explained' : ''}`}>
+      <article className={`result result--quiet result--dash${explanations ? ' result--explained' : ''}`}>
         <div className="result__head">
           <p className="result__eyebrow">
             <span>
@@ -104,8 +113,10 @@ export function AnalysisResult({
                 <span className="visually-hidden">·</span>{' '}
               </>
             )}
+            {/* 접근 이름 "부평구 부평1동 · PC방 분석" — 구분 공백은 span 밖 글자로 */}
             {locationName(context)}{' '}
-            <span className="visually-hidden">· {result.meta.업종} 분석</span>
+            <span className="result__title-biz">· {result.meta.업종}</span>{' '}
+            <span className="visually-hidden">분석</span>
           </h1>
           <details className="result__location">
             <summary>위치 정보</summary>
@@ -118,20 +129,21 @@ export function AnalysisResult({
               {address}
             </div>
           </details>
-          <RegulationBanner alert={regulation} />
-          <OverallScore summary={result.종합} engineVersion={result.meta.엔진버전} regulated={regulation !== null} />
-          <WeakPerspectiveLine alert={weak} />
-          <GapsLine items={gapLines(analysis)} />
-          <p className="result__headline">
-            <HeadlineText text={headline(result)} />
-          </p>
-          <AttentionBand lines={singleBand(analysis)} moreTarget="warnings" />
+          <ScoreCard analysis={analysis} />
         </div>
-        <TabList label="결과 보기" tabs={tabs} selected={tab} onSelect={setTab} idBase={idBase} />
-        <div className="result__body">
-          <TabPanel tab="summary" selected={tab} idBase={idBase}>
-            <div className="result__section-head">
-              <span>다섯 관점</span>
+
+        <section className="result__perspectives" aria-labelledby="perspectives-heading">
+          <div className="result__section-head">
+            <h2 id="perspectives-heading" className="result__section-title">다섯 관점</h2>
+            <div className="result__section-actions">
+              <button
+                type="button"
+                className={`result__order${order === 'score' ? ' result__order--on' : ''}`}
+                aria-pressed={order === 'score'}
+                onClick={() => setOrder((o) => (o === 'score' ? 'fixed' : 'score'))}
+              >
+                {order === 'score' ? '점수순' : '기본 순서'}
+              </button>
               <button
                 type="button"
                 className="result__explain"
@@ -141,36 +153,41 @@ export function AnalysisResult({
                 {explanations ? '간단히 보기' : '설명 함께 보기'}
               </button>
             </div>
+          </div>
+          <div className="result__persp-grid">
+            <RadarChart series={[{ id: 'a', name: locationName(context), items: result.지표 }]} />
             <PerspectiveScores
               summary={result.종합}
               indicators={result.지표}
               guName={context.gu_name}
               business={result.meta.업종}
               radiusM={result.meta.분석반경_m}
+              order={order}
               onOpen={openDetail}
             />
-            {radiusTable}
-            <div className="result__secondary">
-              <CoverageMeta
-                summary={result.종합}
-                indicators={result.지표}
-                group={result.meta.업종그룹}
-                access={result.초보자_접근성}
-              />
-              <p className="result__hint">관점을 누르면 근거를 자세히 볼 수 있습니다.</p>
-              <p className="result__disclaimer">{SERVICE_DISCLAIMER}</p>
-            </div>
-            <p className="result__brief-note">참고 지표 · 순위나 성공 확률이 아닙니다.</p>
-          </TabPanel>
-          <TabPanel tab="stores" selected={tab} idBase={idBase}>
-            {nearby ?? <p className="result-section__empty">점포 목록이 없습니다.</p>}
-          </TabPanel>
+          </div>
+          <p className="result__persp-note">막대·거미줄의 점선 50은 인천 동네 평균 지점입니다 · 행을 누르면 근거가 펼쳐집니다.</p>
+        </section>
+
+        {timeCard}
+        {rankCard}
+        {notes}
+        {tools}
+
+        <TabList label="자세히 보기" tabs={tabs} selected={tab} onSelect={setTab} idBase={idBase} />
+        <div className="result__body">
           <TabPanel tab="evidence" selected={tab} idBase={idBase}>
             <IndicatorDetails
               indicators={result.지표}
               summary={result.종합}
               meta={result.meta}
               openRequest={openRequest}
+            />
+            <CoverageMeta
+              summary={result.종합}
+              indicators={result.지표}
+              group={result.meta.업종그룹}
+              access={result.초보자_접근성}
             />
             <WarningPanel analysis={analysis} />
             <BeginnerAccess access={result.초보자_접근성} />
@@ -182,10 +199,24 @@ export function AnalysisResult({
             </section>
             <DataSources meta={result.meta} disclaimer={result.면책} />
           </TabPanel>
+          <TabPanel tab="stores" selected={tab} idBase={idBase}>
+            {nearby ?? <p className="result-section__empty">점포 목록이 없습니다.</p>}
+          </TabPanel>
           <TabPanel tab="field" selected={tab} idBase={idBase}>
             <FieldChecks checks={checks} notes={fieldNotes?.notes} onChange={fieldNotes?.onChange} />
           </TabPanel>
+          {radiusTable && (
+            <TabPanel tab="radius" selected={tab} idBase={idBase}>
+              {radiusTable}
+            </TabPanel>
+          )}
         </div>
+
+        {/* 데이터 한계 (B4): "확인 필요" 줄과 주의 요약을 접힌 한 곳에. 규제 배너·주의 관점 한 줄은 위에서 펼쳐 보였고 여기엔 원문 요약·이동 링크 */}
+        <AttentionBand lines={band} moreTarget="warnings" label="데이터 한계" extraCount={gaps.length}>
+          <GapsLine items={gaps} />
+        </AttentionBand>
+        <p className="result__disclaimer result__disclaimer--foot">{SERVICE_DISCLAIMER}</p>
       </article>
     </TabRevealContext.Provider>
     </ResultDataVersionContext.Provider>
@@ -194,7 +225,7 @@ export function AnalysisResult({
 
 const LABELS = /(시장성|고객성|경쟁성|입지성|안정성)/
 
-/** 헤드라인 글자에서 관점 이름만 굵게, "가장 높고" 앞의 이름은 주색 (시안 .headline b / .hi). 문장은 바꾸지 않는다 */
+/** 문장에서 관점 이름만 굵게, "가장 높고" 앞의 이름은 주색 (시안 .headline b / .hi). 문장은 바꾸지 않는다. 모바일 시트가 쓴다 */
 export function HeadlineText({ text }: { text: string }) {
   const highAt = text.indexOf('가장 높')
   const parts = text.split(LABELS)

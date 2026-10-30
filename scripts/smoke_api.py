@@ -12,7 +12,8 @@
 검사: 정적 경로(/·/health·/businesses 200, /docs·/redoc·/openapi.json·없는 asset 404, GET /analyze 405), 번들의 JS·CSS
 immutable 캐시와 GeoJSON 해시(data/geo 원본과 같음), /health engine·data·warm(--wait-warm 동안 완료를 기다림),
 48건 전체 응답 일치(숫자 상대·절대 1e-9), 성공 응답 헤더 X-Data-Version == /health data.version(9-C4), 부평역 PC방 반경별
-동종 점포 수 == 점포 목록 수, 학교 50m PC방 학교구역 경고 첫 줄(엔진 v0.5 계열), 지원하지 않는 반경 422 invalid_radius.
+동종 점포 수 == 점포 목록 수, 학교 50m PC방 학교구역 경고 첫 줄(엔진 v0.5 계열), 지원하지 않는 반경 422 invalid_radius,
+/rank 부평역 500m(13-16: GET 405, 업종 29개·종합 내림차순·PC방 포함 — 기대값에 rank 가 있으면 본문도 대조, 없으면 대조만 건너뜀).
 서비스 주소는 인자로만 받는다 — 저장소 문서에 쓰지 않는다(D-031 공개 범위).
 """
 from __future__ import annotations
@@ -37,6 +38,7 @@ CENTROID_SITE = ("아라1동중심", "아라1동")          # 분동(v0.5.1 D-02
 BIZ = ["R10406", "I21201", "G20405", "P10501"]
 BUPYEONG = {"lat": 37.4894, "lng": 126.7246, "biz_code": "R10406"}
 SCHOOL_50M = {"lat": 37.502274 + 50 / 110_540, "lng": 126.727619, "biz_code": "R10406"}
+RANK_BODY = {"lat": 37.4894, "lng": 126.7246, "radius_m": 500}        # 13-16: /rank 부평역 (기본 반경)
 GEOJSON = ["인천_행정동경계_2026.geojson", "인천_시군구경계_2026.geojson"]
 DATA_VERSION_HEADER = "x-data-version"
 
@@ -98,7 +100,37 @@ def make_expected() -> dict:
                     a, n = c.post("/analyze", json=body), c.post("/nearby-stores", json=body)
                     out["cases"].append({"site": name, "body": body, "status": [a.status_code, n.status_code],
                                          "analyze": a.json(), "nearby": n.json()})
+        out["rank"] = c.post("/rank", json=RANK_BODY).json()           # 13-16: 부평역 500m 업종 순위 (v0.0.17 이후 기대값)
     return out
+
+
+def check_rank(fetch: Fetch, expected: dict) -> tuple[list[str], dict]:
+    """13-16 /rank 부평역 500m: 29개 업종, 종합 내림차순(null 끝), PC방 포함. 기대값에 rank 가 있으면(v0.0.17 이후 생성) 본문 대조,
+    없으면(이전 기대값) 대조는 건너뛴다 — 실패로 보지 않는다."""
+    fails = []
+    s, _, d, t = fetch("/rank", RANK_BODY)
+    summary = {"status": s, "latency_ms": round(t * 1000)}
+    if s != 200:
+        return [f"/rank 부평역: {s} (기대 200)"], summary
+    body = json.loads(d)
+    items = body.get("items") or []
+    scores = [i.get("overall") for i in items]
+    present = [x for x in scores if x is not None]
+    summary.update({"count": body.get("count"), "top": [(i["name"], i["overall"]) for i in items[:3]],
+                    "nulls": len(scores) - len(present)})
+    if body.get("count") != 29 or len(items) != 29:
+        fails.append(f"/rank 부평역: 업종 {body.get('count')}개 (기대 29)")
+    if present != sorted(present, reverse=True) or scores[len(present):] != [None] * (len(scores) - len(present)):
+        fails.append("/rank 부평역: 종합 내림차순(null 끝)이 아니다")
+    if not any(i.get("biz_code") == "R10406" and i.get("name") == "PC방" for i in items):
+        fails.append("/rank 부평역: PC방이 없다")
+    if "rank" in expected:
+        summary["compared"] = True
+        if not same(body, expected["rank"]):
+            fails.append("/rank 부평역: 기대값과 다르다")
+    else:
+        summary["compared"] = False
+    return fails, summary
 
 
 def check_static(fetch: Fetch) -> list[str]:
@@ -108,7 +140,8 @@ def check_static(fetch: Fetch) -> list[str]:
     for path, want in [("/", 200), ("/health", 200), ("/businesses", 200), ("/docs", 404), ("/redoc", 404),
                        ("/openapi.json", 404), ("/assets/missing-release.js", 404), ("/analyze", 405),
                        ("/favicon.svg", 200), ("/robots.txt", 200),
-                       ("/places", 405)]:                       # 12-14: POST 전용(GET 405, 키 유무와 무관)
+                       ("/places", 405),                        # 12-14: POST 전용(GET 405, 키 유무와 무관)
+                       ("/rank", 405)]:                         # 13-16: POST 전용
         s, _, d, _ = fetch(path)
         if s != want:
             fails.append(f"{path}: {s} (기대 {want})")
@@ -195,6 +228,8 @@ def check_api(fetch: Fetch, expected: dict, engine: str | None = None, wait_warm
     summary["invalid_radius"] = [s, code]
     if [s, code] != [422, "invalid_radius"]:
         fails.append(f"반경 750m: {s} {code} (기대 422 invalid_radius)")
+    rank_fails, summary["rank"] = check_rank(fetch, expected)
+    fails += rank_fails
     return fails, summary
 
 

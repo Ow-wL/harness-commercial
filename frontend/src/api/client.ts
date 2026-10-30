@@ -9,6 +9,7 @@
  * 오류 분기는 error.code로만 한다(D-014). message는 표시용이다.
  */
 import type { z } from 'zod'
+import type { RankResponse, StationsResponse } from './schemas.ts'
 import {
   AnalyzeResponseSchema,
   BusinessCatalogSchema,
@@ -22,6 +23,8 @@ import {
   type Health,
   type NearbyStoresResponse,
   type PlacesResponse,
+  RankResponseSchema,
+  StationsResponseSchema,
 } from './schemas.ts'
 import { DATA_VERSION_HEADER, stampDataVersion } from '../lib/dataVersion.ts'
 
@@ -102,6 +105,21 @@ export function searchPlaces(query: string, signal?: AbortSignal): Promise<ApiRe
     body: JSON.stringify({ q: query }),
     signal,
   })
+}
+
+/** POST /rank {lat,lng,radius_m} — 이 지점의 29개 업종 종합점수 순위(R1 13-16). 업종은 보내지 않는다(기본 가중치) */
+export function fetchRank(body: { lat: number; lng: number; radius_m?: number }, signal?: AbortSignal): Promise<ApiResult<RankResponse>> {
+  return request('/rank', RankResponseSchema, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+    signal,
+  })
+}
+
+/** GET /stations — 엔진이 읽은 인천권 역 211개(13-17 자동완성). 외부 API 없음 */
+export function fetchStations(signal?: AbortSignal): Promise<ApiResult<StationsResponse>> {
+  return request('/stations', StationsResponseSchema, { signal })
 }
 
 /** POST /nearby-stores — body는 분석 요청과 같은 좌표·업종 (backend NearbyStoresRequest). */

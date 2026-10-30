@@ -24,7 +24,10 @@ import { MoreBelow } from './components/MoreBelow.tsx'
 import { NearbyStores } from './components/NearbyStores.tsx'
 import { RadiusControl } from './components/RadiusControl.tsx'
 import { RadiusTable } from './components/RadiusTable.tsx'
+import { RankCard } from './components/RankCard.tsx'
 import { ResultTools } from './components/ResultTools.tsx'
+import { TimeInsightsCard } from './components/TimeInsightsCard.tsx'
+import { useRank } from './lib/useRank.ts'
 import { SavedSites } from './components/SavedSites.tsx'
 import { ReferenceAddress } from './components/ReferenceAddress.tsx'
 import { UpdateNotes } from './components/UpdateNotes.tsx'
@@ -43,7 +46,7 @@ import {
   storeAddress,
   storeName,
 } from './lib/format.ts'
-import { headline } from './lib/headline.ts'
+import { conclusion } from './lib/conclusion.ts'
 import { singleBand } from './lib/attentionBand.ts'
 import { DataInfoContext, dataVersionLabel, dataVersionOf, type DataInfo } from './lib/dataVersion.ts'
 import { parseShareQuery, shareQuery, shareUrl, versionsDiffer, type ShareConditions } from './lib/shareLink.ts'
@@ -198,6 +201,12 @@ function App() {
     onRadiusProblem: (request: AnalyzeRequest, problem: RadiusProblem) => radiusProblemRef.current(request, problem),
   }
   const [mobileScreen, setMobileScreen] = useState<MobileScreen>('map')
+  // 대시보드 배치(R1 13-10): 결과가 있으면 결과 전폭 + 지도 작은 카드. 카드를 누르면 지도 배치(기존 A3)로 — 새 결과가 오면 다시 대시보드
+  // 어느 결과에서 지도를 크게 봤는지 — 결과가 바뀌면 자동으로 대시보드로 돌아간다(effect 없이 파생)
+  const [mapExpandedFor, setMapExpandedFor] = useState<AnalyzeResponse | null>(null)
+  const [fitSeq, setFitSeq] = useState(0)
+  // 대시보드에서 패널을 아래로 내리면 지도 카드는 내용 위에 떠 있지 않게 숨기고 작은 "지도" 버튼만 남긴다(크기는 그대로 — 지도 재맞춤 없음)
+  const [panelScrolled, setPanelScrolled] = useState(false)
   // NAVER SDK 상태 (7-B2, docs/ADDRESS_DESIGN.md §5.1): MapView가 onSdkState로 올린다. 참고 주소는 ready + geocoder ready일 때만 조회한다.
   // 로더를 여기서 다시 부르거나 SDK를 다시 넣지 않는다
   const [sdk, setSdk] = useState<SdkState>({ status: 'loading' })
@@ -907,6 +916,28 @@ function App() {
   }, [focusRequest])
 
   const result = analysis.status === 'success' ? analysis.response : null
+  // 이 자리 업종 순위(13-16): 단일 결과의 좌표·반경으로 — 비교 중에는 요청하지 않는다(A 결과 카드에만)
+  const rankState = useRank(
+    analysis.status === 'success' && compare.status === 'off'
+      ? { lat: analysis.request.lat, lng: analysis.request.lng, ...(analysis.request.radius_m !== undefined ? { radius_m: analysis.request.radius_m } : {}) }
+      : null,
+  )
+  const mapExpanded = result !== null && mapExpandedFor === result
+  const expandMap = () => {
+    setMapExpandedFor(result)
+    setFitSeq((n) => n + 1)                                // 커진 지도에 지점·반경을 다시 맞춘다
+  }
+  // 비교 B 고르기 중에는 지도를 눌러야 하므로 지도 배치. 비교 요약·전체 결과는 다시 대시보드
+  const pickingB = compare.status !== 'off' && compare.status !== 'success'
+  // mobile(<640)은 화면 전환 방식(지도 화면 ↔ 패널 화면) 그대로 — 대시보드 배치는 데스크톱·태블릿만
+  const layout: 'dashboard' | 'map' = result && !mapExpanded && !pickingB && !isMobile() ? 'dashboard' : 'map'
+  useEffect(() => {
+    const el = panelScrollRef.current
+    if (!el) return
+    const read = () => setPanelScrolled(el.scrollTop > 160)
+    el.addEventListener('scroll', read, { passive: true })
+    return () => el.removeEventListener('scroll', read)
+  }, [layout])
   // 지금 보이는 점포 기준 (§3.3·4.3): 비교가 아니면 A. 비교 중에는 B 성공 뒤에만 — 요약은 고른 기준, 전체 결과는 그 위치.
   // B 고르기·분석 중·실패에는 없다(목록·마커를 숨긴다)
   const visibleSide: CompareSide | null =
@@ -1171,7 +1202,8 @@ function App() {
   const radiusNotes =
     radiusNotice || shareNotice || (radiusInBar && radiusEnabled && (radiusStatus || narrowHint)) ? (
       <div className="panel__notes">
-        {shareNotice && (
+        {/* 분석이 안 됐을 때(인천 밖 링크 등)는 "다시 분석했습니다" 안내를 숨긴다 — 오류 안내와 겹치지 않게(13-20 D4) */}
+        {shareNotice && analysis.status !== 'error' && (
           <p className="radius-notice share-notice" role="status">
             {shareNotice}
           </p>
@@ -1286,19 +1318,35 @@ function App() {
     panelLabel = '분석 결과'
     panelBody = (
       <>
-        {/* ④ 결과 안내 (묶음 D): 결과 머리 위 인라인 — 반경 버튼(조건 바)·"다른 위치와 비교"(패널 아래)를 글로 가리킨다 */}
-        {resultCoach}
-        <ResultTools
-          shareUrl={currentShare ? shareUrl(currentShare) : null}
-          onPrint={printResult}
-          save={{
-            saved: analysis.status === 'success' && savedSites.some((s) => s.key === cacheKey(analysis.request)),
-            onSave: saveCurrent,
-            message: analysis.status === 'success' && saveMessage?.key === cacheKey(analysis.request) ? saveMessage.text : null,
-          }}
-        />
         <AnalysisResult
         analysis={result}
+        /* ④ 결과 안내(묶음 D)·결과 활용 줄(12-15·12-25)은 다섯 관점 아래(B3 — 첫 화면은 점수·관점부터) */
+        notes={resultCoach}
+        timeCard={<TimeInsightsCard analysis={result} />}
+        rankCard={
+          <RankCard
+            state={rankState}
+            currentBiz={result.result.meta.업종코드}
+            busy={analyzing}
+            onPick={(biz) => {
+              // 같은 자리·같은 반경으로 업종만 바꿔 다시 분석(캐시 적중이면 요청 없음)
+              if (analysis.status !== 'success') return
+              setBizCode(biz)
+              startA(buildRequest({ lat: analysis.request.lat, lng: analysis.request.lng }, biz, radius, radiusEnabled))
+            }}
+          />
+        }
+        tools={
+          <ResultTools
+            shareUrl={currentShare ? shareUrl(currentShare) : null}
+            onPrint={printResult}
+            save={{
+              saved: analysis.status === 'success' && savedSites.some((s) => s.key === cacheKey(analysis.request)),
+              onSave: saveCurrent,
+              message: analysis.status === 'success' && saveMessage?.key === cacheKey(analysis.request) ? saveMessage.text : null,
+            }}
+          />
+        }
         eyebrowAction={replayHelp('result')}
         radiusTable={radiusTable}
         fieldNotes={analysis.status === 'success' ? fieldNotesFor(analysis.request) : undefined}
@@ -1399,6 +1447,8 @@ function App() {
       data-phase={result ? 'result' : 'select'}
       data-screen={mobileScreen}
       data-compare={comparing ? 'on' : 'off'}
+      data-layout={layout}
+      data-map-card={layout === 'dashboard' && panelScrolled ? 'hidden' : undefined}
     >
       <div className="app__map" ref={mapRef}>
         {/* 지도 영역 오류 격리: 지도에서 예외가 나도 지도 칸만 실패 안내로 바뀌고 패널(분석·결과·비교)은 그대로다 */}
@@ -1408,7 +1458,8 @@ function App() {
             onSdkState={setSdk}
             // mobile 지도↔패널 전환 신호: 크기 알림 없이 지도 화면으로 돌아와도 크기 맞춤·미룬 정보창 처리 (6-4)
             // tablet 패널 접기도 같은 신호 — 지도 크기는 그대로라 zoom은 바꾸지 않고 컨트롤 띠·미룬 정보창만 다시 본다(D-022 순위 8)
-            layoutKey={`${mobileScreen}:${panelFolded ? 'folded' : 'open'}`}
+            layoutKey={`${mobileScreen}:${panelFolded ? 'folded' : 'open'}:${layout}`}
+            fitSeq={fitSeq}
             selected={location}
             radiusM={radius}
             markerTone={markerTone}
@@ -1428,7 +1479,23 @@ function App() {
             compare={mapCompare}
           />
         </MapErrorBoundary>
+        {/* 대시보드(13-10): 지도 카드 전체가 "크게 보기". 지도 배치로 돌아오면 왼쪽 위에 "결과로 돌아가기" */}
+        {layout === 'dashboard' && sdk.status !== 'failed' && (
+          <button type="button" className="map-card__expand" onClick={expandMap} aria-label="지도 크게 보기">
+            <span>지도 크게 보기</span>
+          </button>
+        )}
+        {layout === 'map' && result && (
+          <button type="button" className="map-card__collapse" onClick={() => setMapExpandedFor(null)}>
+            ‹ 결과로 돌아가기
+          </button>
+        )}
       </div>
+      {layout === 'dashboard' && panelScrolled && (
+        <button type="button" className="map-card__pill" onClick={expandMap}>
+          지도 보기
+        </button>
+      )}
       <header ref={headerRef} className="app-header bar" data-map-obstacle>
         <span className="bar__brand">
           <span className="bar__logo" aria-hidden="true" />
@@ -1456,7 +1523,7 @@ function App() {
           <Icon name={theme === 'dark' ? 'sun' : 'moon'} size={20} />
         </button>
       </header>
-      <div className="panel" data-map-obstacle data-folded={panelFolded || undefined}>
+      <div className="panel" data-map-obstacle={layout === 'map' || undefined} data-folded={panelFolded || undefined}>
         {/* tablet(640~1100px)에서만 보인다 — 패널을 접어 지도를 넓게 본다 (P9) */}
         <div className="panel__fold">
           {/* 펼친 상태에서는 패널 제목과 겹치므로 접혔을 때만 */}
@@ -1522,7 +1589,7 @@ function App() {
                 </span>
               </p>
               <p className="map-sheet__headline">
-                <HeadlineText text={headline(result.result)} />
+                <HeadlineText text={conclusion(result).text} />
               </p>
               {/* 참고 주소 한 줄(7-B2, 말줄임 · 작은 높이에서는 숨김 — ReferenceAddress.css). 분석에 쓴 context 좌표 */}
               {addressOf(result)}

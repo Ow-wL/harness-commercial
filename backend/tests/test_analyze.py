@@ -48,7 +48,7 @@ def analyze(client, **body):
 # ── happy path ───────────────────────────────────────────
 def test_bupyeong_pc_bang(client):
     body = analyze(client)
-    assert set(body) == {"context", "result"}
+    assert set(body) == {"context", "result", "insights"}
     assert body["context"] == BUPYEONG_CONTEXT                                # 일반 ContextBuilder 경로, rent_area null
     meta = body["result"]["meta"]
     assert meta["업종코드"] == "R10406" and meta["행정동"] == "부평구 부평1동"
@@ -174,5 +174,36 @@ def test_openapi_exposes_analyze_schemas(client):
     assert set(s["AnalyzeRequest"]["required"]) == {"lat", "lng", "biz_code"}
     assert set(s["AnalyzeRequest"]["properties"]) == {"lat", "lng", "biz_code", "importance", "user_weights",
                                                       "user_licenses", "radius_m"}       # radius_m: 8-D2 선택 필드
-    assert set(s["AnalyzeResponse"]["properties"]) == {"context", "result"}
+    assert set(s["AnalyzeResponse"]["properties"]) == {"context", "result", "insights"}
     assert set(s["AnalyzeContext"]["properties"]) == set(BUPYEONG_CONTEXT)
+
+
+# ── 13-15 insights (추가 설명 자료 — result 와 별개, 점수에 쓰이지 않음) ───────────
+def test_insights_bupyeong_inflow_matches_market_panel(client):
+    from scoring_engine import config as C
+    body = analyze(client)
+    ins = body["insights"]
+    assert set(ins) == {"inflow", "hours_profile", "hours_profile_note"}
+    inflow = ins["inflow"]
+    assert set(inflow) == {"gu_code", "gu_name", "as_of", "daily", "by_hour", "work_ratio"}
+    assert (inflow["gu_code"], inflow["gu_name"]) == ("28237", "부평구")
+    assert inflow["as_of"] == client.get("/health").json()["data"]["as_of"]["market_panel"]
+    assert inflow["daily"] > 0 and len(inflow["by_hour"]) == 24 and all(v >= 0 for v in inflow["by_hour"])
+    rt = client.app_ref.state.service.rt
+    row = rt.market[rt.market["시군구코드"] == "28237"].iloc[0]
+    assert inflow["daily"] == float(row["일평균_유입"])
+    assert inflow["by_hour"] == [float(row[f"h{h:02d}"]) for h in range(24)]          # 원값 그대로(정규화 없음)
+    assert inflow["work_ratio"] == float(row["work_ratio"])
+    assert len(ins["hours_profile"]) == 24 and abs(sum(ins["hours_profile"]) - 1) < 1e-9
+    assert ins["hours_profile"] == [float(x) for x in C.HOUR_PROFILE["R10406"]]
+    assert ins["hours_profile_note"] == M.HOURS_PROFILE_NOTE
+    assert "추정치" in ins["hours_profile_note"]
+
+
+def test_insights_failure_does_not_fail_analyze(real_service, monkeypatch):
+    """insights 생성이 깨져도 /analyze 는 성공하고 result 는 그대로 — insights 만 null."""
+    monkeypatch.setattr(M, "build_insights", lambda *a, **k: (_ for _ in ()).throw(RuntimeError("boom")))
+    with TestClient(M.create_app(service=real_service, warm_biz=[])) as c:
+        r = c.post("/analyze", json={**BUPYEONG, "biz_code": "R10406"})
+        assert r.status_code == 200 and r.json()["insights"] is None
+        assert r.json()["result"]["meta"]["업종코드"] == "R10406"

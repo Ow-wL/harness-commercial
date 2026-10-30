@@ -1,0 +1,48 @@
+/* 역 이름 제안 (13-17): 입력란 아래 칩 목록 */
+.station-suggest {
+  margin-top: 8px;
+}
+
+.station-suggest__title {
+  margin: 0 0 4px;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.station-suggest__list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.station-suggest__item {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface);
+  font: inherit;
+  font-size: 13px;
+  color: var(--color-text-primary);
+  cursor: pointer;
+}
+
+.station-suggest__item:hover:not(:disabled) {
+  border-color: var(--color-accent-border);
+  color: var(--color-accent);
+}
+
+.station-suggest__transfer {
+  padding: 0 5px;
+  border-radius: var(--radius-pill);
+  background: var(--color-accent-subtle);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-accent);
+}

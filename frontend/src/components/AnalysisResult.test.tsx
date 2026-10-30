@@ -7,6 +7,7 @@ import nailShopGolden from '../../../tests/golden/v0.3/json/full_네일숍.json'
 import { AnalysisResult } from './AnalysisResult.tsx'
 import { EVIDENCE_TAB, getInTab, openTab } from '../test/tabs.ts'
 import { DISCLAIMER_NOTE, SERVICE_DISCLAIMER } from './DataSources.tsx'
+import { conclusion } from '../lib/conclusion.ts'
 
 /** 실제 backend POST /analyze 응답 캡처(부평역 좌표 · PC방)를 schema 검증 후 결과 화면에 넣는다 */
 const FIXTURE = AnalyzeResponseSchema.parse(fixture)
@@ -20,6 +21,12 @@ const PERSPECTIVE_LABELS = ['시장성', '고객성', '경쟁성', '입지성', 
 function perspectiveRows() {
   const list = within(screen.getByRole('region', { name: '5대 관점' })).getByRole('list')
   return within(list).getAllByRole('listitem')
+}
+
+/** R1 13-14: 근거 줄·자료 단위는 행을 펼칠 때만 — 사용자처럼 행을 누른다 */
+function expandRow(row: HTMLElement) {
+  fireEvent.click(row.querySelector('.perspective__button')!)
+  return row
 }
 
 describe('AnalysisResult — 실제 /analyze 응답(부평역 · PC방)', () => {
@@ -65,8 +72,11 @@ describe('AnalysisResult — 실제 /analyze 응답(부평역 · PC방)', () => 
     expect(overall).not.toHaveTextContent(/상위\s*\d/)
   })
 
-  it('5대 관점을 고정 순서로, 점수를 숫자 텍스트로 보여 준다', () => {
+  it('5대 관점은 기본 점수순(높은 → 낮은, 13-14), "기본 순서"로 바꾸면 엔진 순서, 점수는 숫자 텍스트', () => {
     renderResult()
+    const byScore = [...fixture.result.지표].sort((a, b) => b.score! - a.score!).map((i) => i.key)
+    expect(perspectiveRows().map((r) => r.dataset.key)).toEqual(byScore)
+    fireEvent.click(screen.getByRole('button', { name: '점수순' }))
     const rows = perspectiveRows()
     expect(rows.map((r) => r.dataset.key)).toEqual(['market', 'customer', 'competition', 'location', 'stability'])
     rows.forEach((row, i) => {
@@ -88,12 +98,17 @@ describe('AnalysisResult — 실제 /analyze 응답(부평역 · PC방)', () => 
     // A3: 종합 점수 옆 "가장 강한 관점·병목" 요약은 헤드라인과 겹쳐 뺐다 — 헤드라인이 같은 사실을 말한다
     const summary = screen.getByRole('region', { name: '종합 적합도' })
     expect(summary).not.toHaveTextContent('가장 강한 관점')
-    expect(document.querySelector('.result__headline')).toHaveTextContent('고객성이 가장 높고, 경쟁성이 가장 낮습니다')
+    // R1 13-12: 한 줄 결론 템플릿(고객성 강점 ≥70 · 경쟁성 약점 <40)
+    expect(document.querySelector('.score-card__conclusion')).toHaveTextContent(conclusion(FIXTURE).text)
+    expect(conclusion(FIXTURE).rule).toBe('strong-weak')
   })
 
-  it('관점 행을 누르면 상세 근거 탭의 그 관점을 펼치고 그 제목으로 포커스가 간다 (A3)', () => {
+  it('관점 행을 누르면 근거가 펼쳐지고, "상세 근거 ›"는 상세 근거 탭의 그 관점을 펼치고 그 제목으로 포커스가 간다 (A3 → R1)', () => {
     renderResult()
-    fireEvent.click(within(perspectiveRows()[4]!).getByRole('button'))
+    const row = perspectiveRows().find((r) => r.dataset.key === 'stability')!
+    expandRow(row)
+    expect(row.querySelector('.perspective__button')).toHaveAttribute('aria-expanded', 'true')
+    fireEvent.click(within(row).getByRole('button', { name: '상세 근거 ›' }))
     expect(screen.getByRole('tab', { name: '상세 근거' })).toHaveAttribute('aria-selected', 'true')
     const toggle = document.getElementById('detail-toggle-stability')!
     expect(toggle).toHaveAttribute('aria-expanded', 'true')
@@ -154,7 +169,7 @@ describe('AnalysisResult — 실제 /analyze 응답(부평역 · PC방)', () => 
   it('산출된 안정성의 해상도는 근거 줄 끝 자료 단위 칩 "구 단위" 한 번 — 행 chip·주의할 점 해상도 줄은 없다 (8-C1b, 12-18)', () => {
     renderResult()
     expect(FIXTURE.result.지표[4].score).not.toBeNull()
-    const stability = perspectiveRows().find((r) => r.dataset.key === 'stability')!
+    const stability = expandRow(perspectiveRows().find((r) => r.dataset.key === 'stability')!)
     expect(stability.querySelector('.perspective__evidence-text')).toHaveTextContent('3년 생존율 52.3%')
     expect(stability.querySelector('.perspective__unit')).toHaveTextContent('구 단위')
     expect(stability).not.toHaveTextContent('시군구 단위 데이터')
@@ -221,7 +236,7 @@ describe('AnalysisResult — 실제 /analyze 응답(부평역 · 네일숍): 안
 
   it('세부 분석에서도 미산출 안정성의 "계산했습니다" note 대신 coverage 기반 안내를 보여 준다', () => {
     render(<AnalysisResult analysis={analysis} />)
-    fireEvent.click(screen.getByRole('button', { name: /^안정성/ }))
+    fireEvent.click(document.getElementById('detail-toggle-stability')!)            // 상세 근거 아코디언(관점 행과 이름이 겹친다)
     expect(screen.queryByText(engineStability.note)).not.toBeInTheDocument()
     expect(screen.getAllByText(NOT_COMPUTED)).toHaveLength(2)                         // 막대 행 + 세부 분석
     expect(screen.getByText('계산 단위').nextSibling).toHaveTextContent('산출하지 않음')
@@ -267,9 +282,9 @@ describe('AnalysisResult — 관점 score=null 인 정상 엔진 결과', () => 
     expect(stability).toHaveTextContent('종합점수에서 제외했습니다')
     expect(stability).not.toHaveTextContent(/\d+\.\d점/)
 
-    fireEvent.click(screen.getByRole('button', { name: /^안정성/ }))
-    // 펼친 패널 안의 관점 설명 버튼("안정성은 무엇을 보나요")과 구분한다
-    expect(screen.getByRole('button', { name: /^안정성(?!은 무엇을 보나요)/ })).toHaveTextContent('데이터 없음')
+    const toggle = document.getElementById('detail-toggle-stability')!
+    fireEvent.click(toggle)
+    expect(toggle).toHaveTextContent('데이터 없음')
   })
 
   it('커버리지 부족으로 미산출된 안정성은 엔진 note 대신 실제 충족률(15%)로 안내한다', () => {
@@ -292,19 +307,21 @@ describe('AnalysisResult — 관점 score=null 인 정상 엔진 결과', () => 
 })
 
 describe('AnalysisResult — 헤드라인·주의 요약 띠 (8-C1a)', () => {
-  it('A3 머리 순서: 제목 → 종합 점수 → 헤드라인 → 띠(부평역 PC방: 학교 0곳 1줄) → 탭', () => {
+  it('대시보드 순서(R1): 제목 → 종합 점수 → 한 줄 결론 → 다섯 관점 → 탭 → 접힌 데이터 한계(부평역 PC방: 학교 0곳 1줄)', () => {
     renderResult()
     const title = screen.getByRole('heading', { level: 1 })
-    const head = document.querySelector<HTMLElement>('.result__headline')!
-    expect(head).toHaveTextContent('고객성이 가장 높고, 경쟁성이 가장 낮습니다')
-    const band = screen.getByRole('region', { name: '주의 요약' })
+    const head = document.querySelector<HTMLElement>('.score-card__conclusion')!
+    expect(head).toHaveTextContent(conclusion(FIXTURE).text)
+    const band = screen.getByRole('region', { name: '데이터 한계' })
     fireEvent.click(band.querySelector('summary')!)
     const overall = screen.getByRole('region', { name: '종합 적합도' })
-    const tabs = screen.getByRole('tablist', { name: '결과 보기' })
+    const perspectives = screen.getByRole('region', { name: '5대 관점' })
+    const tabs = screen.getByRole('tablist', { name: '자세히 보기' })
     expect(title.compareDocumentPosition(overall) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     expect(overall.compareDocumentPosition(head) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
-    expect(head.compareDocumentPosition(band) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
-    expect(band.compareDocumentPosition(tabs) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(head.compareDocumentPosition(perspectives) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(perspectives.compareDocumentPosition(tabs) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(tabs.compareDocumentPosition(band) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     const links = within(band).getAllByRole('link')
     expect(links).toHaveLength(1)
     expect(links[0]).toHaveAccessibleName('안내: 학교 주변 규제 업종 · 300m 안 초·중·고 0곳')
@@ -313,7 +330,7 @@ describe('AnalysisResult — 헤드라인·주의 요약 띠 (8-C1a)', () => {
 
   it('띠 줄을 누르면 그 섹션 제목으로 포커스가 옮겨 간다', () => {
     renderResult()
-    const band = screen.getByRole('region', { name: '주의 요약' })
+    const band = screen.getByRole('region', { name: '데이터 한계' })
     fireEvent.click(band.querySelector('summary')!)
     fireEvent.click(within(band).getByRole('link'))
     expect(document.activeElement).toBe(document.getElementById('access-title'))
@@ -321,7 +338,7 @@ describe('AnalysisResult — 헤드라인·주의 요약 띠 (8-C1a)', () => {
 
   it('부평역 네일숍: 병목 → 미산출 → 기타 3줄, 주의할 점 섹션 문장은 그대로', () => {
     render(<AnalysisResult analysis={AnalyzeResponseSchema.parse(nailShopFixture)} />)
-    const band = screen.getByRole('region', { name: '주의 요약' })
+    const band = screen.getByRole('region', { name: '데이터 한계' })
     fireEvent.click(band.querySelector('summary')!)
     expect(within(band).getAllByRole('link').map((a) => a.getAttribute('aria-label'))).toEqual([
       '경고: 경쟁성 1.2점 · 주의 관점(25점 미만) — 종합과 별개 위험 요인',
@@ -348,21 +365,21 @@ describe('AnalysisResult — 근거 줄·행 chip 통합·충족 1줄 (8-C1b, do
     expect(document.querySelector('.coverage')).not.toHaveTextContent('신뢰도')
   })
 
-  it('유지·합침: 막대 아래 한 줄 = 짧은 라벨 + 근거 줄(raw), 해상도는 줄 끝 "· 구 단위"', () => {
+  it('유지·합침: 짧은 라벨 줄 + 펼친 근거 줄(raw), 해상도는 줄 끝 "· 구 단위"', () => {
     renderResult()
-    expect(rowOf('customer').querySelector('.perspective__evidence')).toHaveTextContent(
-      '가장 높음타겟 연령 거주 5,290명 · 비중 15.4%',
-    )
-    expect(rowOf('competition').querySelector('.perspective__evidence')).toHaveTextContent(
-      '가장 낮음반경 500m PC방 12곳 · 점포당 잠재수요 4,433명',
-    )
-    expect(rowOf('market').querySelector('.perspective__evidence-text')).toHaveTextContent('부평구 하루 유입 679,748명')
-    expect(rowOf('location').querySelector('.perspective__evidence-text')).toHaveTextContent('부평역까지 직선거리 85m')
+    // 한 번에 한 행만 펼쳐진다(아코디언) — 행마다 펼치고 확인한다
+    expect(expandRow(rowOf('customer')).querySelector('.perspective__tags')).toHaveTextContent('가장 높음')
+    expect(rowOf('customer').querySelector('.perspective__evidence')).toHaveTextContent('타겟 연령 거주 5,290명 · 비중 15.4%')
+    expect(expandRow(rowOf('competition')).querySelector('.perspective__tags')).toHaveTextContent('가장 낮음')
+    expect(rowOf('competition').querySelector('.perspective__evidence')).toHaveTextContent('반경 500m PC방 12곳 · 가게 한 곳당 주변 주민 4,433명')
+    expect(rowOf('customer').querySelector('.perspective__evidence')).toBeNull()
+    expect(expandRow(rowOf('market')).querySelector('.perspective__evidence-text')).toHaveTextContent('부평구 하루 유입 679,748명')
+    expect(expandRow(rowOf('location')).querySelector('.perspective__evidence-text')).toHaveTextContent('부평역까지 직선거리 85m')
   })
 
-  it('"확인 필요" 한 줄(12-20): 종합 점수 아래, 이 결과의 빠진 자료·공간 단위를 규칙 문장으로', () => {
+  it('"확인 필요" 한 줄(12-20 → R1 B4): 접힌 "데이터 한계" 안, 이 결과의 빠진 자료·공간 단위를 규칙 문장으로', () => {
     renderResult()
-    const gaps = document.querySelector('.result__head .gaps')!
+    const gaps = document.querySelector('.band .gaps')!
     expect(gaps).toHaveTextContent('확인 필요')
     expect([...gaps.querySelectorAll('.gaps__item')].map((el) => el.textContent)).toEqual([
       '임대료 미반영',
@@ -371,9 +388,9 @@ describe('AnalysisResult — 근거 줄·행 chip 통합·충족 1줄 (8-C1b, do
     ])
   })
 
-  it('자료 단위 칩(12-18): 산출된 관점마다 근거 줄 끝에 상시 — 구 단위·행정동 단위·반경·지점 좌표', () => {
+  it('자료 단위 칩(12-18): 산출된 관점마다 펼친 근거 줄 끝에 — 구 단위·행정동 단위·반경·지점 좌표', () => {
     renderResult()
-    const unitOf = (key: string) => rowOf(key).querySelector('.perspective__unit')?.textContent ?? null
+    const unitOf = (key: string) => expandRow(rowOf(key)).querySelector('.perspective__unit')?.textContent ?? null   // 한 행씩 펼친다
     expect(['market', 'customer', 'competition', 'location', 'stability'].map(unitOf)).toEqual([
       '구 단위',
       '행정동 단위',
@@ -382,24 +399,26 @@ describe('AnalysisResult — 근거 줄·행 chip 통합·충족 1줄 (8-C1b, do
       '구 단위',
     ])
     // 스크린리더: 숫자 뒤에 칩이 바로 붙지 않게 숨은 구분말 — "… 679,748명 · 자료 단위 구 단위"
-    expect(rowOf('market').querySelector('.perspective__evidence')).toHaveTextContent('679,748명 · 자료 단위 구 단위')
+    expect(expandRow(rowOf('market')).querySelector('.perspective__evidence')).toHaveTextContent('679,748명 · 자료 단위 구 단위')
   })
 
   it('자료 단위 칩: 미산출 관점에는 없고, v0.5 반경 배분 인구는 "반경 500m 추정"', () => {
     render(<AnalysisResult analysis={AnalyzeResponseSchema.parse(nailShopFixture)} />)
+    expandRow(rowOf('stability'))
     expect(rowOf('stability').querySelector('.perspective__unit')).toBeNull()
     document.body.innerHTML = ''
     const v05 = structuredClone(FIXTURE)
     Object.assign(v05.result.지표[1].raw, { 인구_기준: '반경 500m 배분' })         // 표시 테스트 전용 변형(v0.5 raw)
     render(<AnalysisResult analysis={v05} />)
+    expandRow(rowOf('customer'))
     expect(rowOf('customer').querySelector('.perspective__unit')).toHaveTextContent('반경 500m 추정')
   })
 
-  it('충족 1줄(12-17): "관점 5/5 산출 · 세부지표 없음 4: … · 가중치 기본(목적방문형) · 진입장벽 중간" — "데이터 충족 100%"는 쓰지 않는다', () => {
+  it('충족 1줄(12-17): "관점 5/5 산출 · 일부 자료가 없어 4개 항목은 빼고 계산: … · 가중치 기본(목적방문형) · 진입장벽 중간" — "데이터 충족 100%"는 쓰지 않는다', () => {
     renderResult()
     expect(coverageItems()).toEqual([
       '관점 5/5 산출',
-      '세부지표 없음 4: 업종 소비 증감, 최근 1년 순증감, 버스정류장 밀도, 상권 임대료(소규모상가)',
+      '일부 자료가 없어 4개 항목은 빼고 계산: 업종 소비 증감, 최근 1년 순증감, 버스정류장 밀도, 상권 임대료(소규모상가)',
       '가중치 기본(목적방문형)',
       '진입장벽 중간',
     ])
@@ -409,16 +428,16 @@ describe('AnalysisResult — 근거 줄·행 chip 통합·충족 1줄 (8-C1b, do
 
   it('부평역 네일숍: 병목 chip은 유지(경고 톤) + 근거 줄, 미산출 안정성은 근거 줄 없이 미산출 안내만', () => {
     render(<AnalysisResult analysis={AnalyzeResponseSchema.parse(nailShopFixture)} />)
-    const competition = rowOf('competition')
+    const competition = expandRow(rowOf('competition'))
     expect(within(competition).getByText('주의', { selector: '.perspective__bottleneck' })).toBeInTheDocument()
-    expect(competition).toHaveTextContent('반경 500m 네일숍 125곳 · 점포당 잠재수요 426명')
-    const stability = rowOf('stability')
+    expect(competition).toHaveTextContent('반경 500m 네일숍 125곳 · 가게 한 곳당 주변 주민 426명')
+    const stability = expandRow(rowOf('stability'))
     expect(stability.querySelector('.perspective__evidence-text')).toBeNull()
     expect(stability).toHaveTextContent('점수를 내지 않았고, 종합점수에서 제외했습니다')
     // 미산출 안정성의 세부지표 4개는 "관점 4/5"에 이미 드러나므로 목록에 넣지 않는다. 가중치 기준 비율은 관점이 빠졌을 때만
     expect(coverageItems()).toEqual([
       '관점 4/5 산출(가중치 기준 80%)',
-      '세부지표 없음 3: 업종 소비 증감, 최근 1년 순증감, 버스정류장 밀도',
+      '일부 자료가 없어 3개 항목은 빼고 계산: 업종 소비 증감, 최근 1년 순증감, 버스정류장 밀도',
       '가중치 기본(고객밀착형)',
       '진입장벽 높음',
     ])
@@ -428,6 +447,7 @@ describe('AnalysisResult — 근거 줄·행 chip 통합·충족 1줄 (8-C1b, do
     const r = structuredClone(FIXTURE)
     ;(r.result.지표[0] as { confidence: string }).confidence = 'low'
     render(<AnalysisResult analysis={r} />)
+    expandRow(rowOf('market'))
     expect(within(rowOf('market')).getByText('자료 등급 낮음')).toBeInTheDocument()
     expect(within(rowOf('market')).queryByText('신뢰도 낮음')).toBeNull()
     expect(rowOf('market').querySelector('.perspective__evidence-text')).toHaveTextContent('부평구 하루 유입 679,748명')

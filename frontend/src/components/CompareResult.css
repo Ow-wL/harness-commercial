@@ -336,23 +336,46 @@
   background: var(--color-data-bar-muted);
 }
 
+/* 13-20 D3: 점을 키우고 A·B 글자를 점 안에 — 색·채움만으로 구분하지 않는다 */
 .compare-row__a,
 .compare-row__b {
   position: absolute;
-  top: 2px;
-  width: 12px;
-  height: 12px;
-  margin-left: -6px;
+  top: -2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  margin-left: -9px;
   border-radius: 50%;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
 }
 
 .compare-row__a {
   background: var(--color-accent);
+  color: var(--color-text-inverse);
+}
+
+.compare-row__a::after {
+  content: "A";
 }
 
 .compare-row__b {
-  border: 2.5px solid var(--color-persp-competition);
+  border: 2px solid var(--color-persp-competition);
   background: var(--color-surface);
+  color: var(--color-persp-competition);
+}
+
+.compare-row__b::after {
+  content: "B";
+}
+
+/* 관점마다 더 높은 쪽 숫자를 굵게(동점이면 둘 다 보통) */
+.compare-row__hi {
+  font-weight: 800;
+  color: var(--color-text-primary);
 }
 
 .compare-row__vals {

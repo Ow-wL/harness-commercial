@@ -55,9 +55,10 @@ function parts(ind: Indicator, guName: string, business: string, radiusM: number
       const raw = ind.raw
       out.push(`반경 ${formatRadius(raw.반경m)} ${business} ${raw.동종점포수.toLocaleString('ko-KR')}곳`)
       const effective = effectiveSameCount(ind)
-      if (effective !== undefined) out.push(`비슷한 업종 포함 약 ${decimal(effective)}곳`)
+      // 13-19(팀 D1): '실효 동종 수'·'점포당 잠재수요' 대신 쉬운말. 정확한 용어는 상세 근거(원시값)에 남는다
+      if (effective !== undefined) out.push(`비슷한 가게까지 치면 약 ${decimal(effective)}곳`)
       if (raw.점포당_잠재수요 !== null) {
-        out.push(`점포당 잠재수요${demandIncludesWorkers(ind) ? '(거주+종사자)' : ''} ${count(raw.점포당_잠재수요)}명`)
+        out.push(`가게 한 곳당 주변 ${demandIncludesWorkers(ind) ? '주민·직장인' : '주민'} ${count(raw.점포당_잠재수요)}명`)
       }
       break
     }

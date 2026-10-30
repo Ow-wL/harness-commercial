@@ -12,7 +12,7 @@ describe('현장 확인 카드 규칙 (12-27, 계획 1-4) — 결과의 지표·
   it('부평역 PC방(v0.5): 같은 업종 점포 · 임대 조건 · 유동 관찰 — 근거 줄은 엔진 값 그대로', () => {
     const cards = fieldChecks(res(pcV05))
     expect(cards.map((c) => c.id)).toEqual(['competitors', 'rent', 'market-gu'])
-    expect(cards[0]!.because).toBe('반경 500m 안 PC방 12곳 · 점포당 잠재수요(거주+종사자) 1,925명 — 점포 목록은 주변 점포 탭')
+    expect(cards[0]!.because).toBe('반경 500m 안 PC방 12곳 · 가게 한 곳당 주변 주민·직장인 1,925명 — 점포 목록은 주변 점포 탭')
     expect(cards[1]!.because).toBe('이 위치에는 임대료 조사 상권이 연결되지 않아 임대료를 점수에 반영하지 않았습니다')
     expect(cards[2]!.because).toBe('유입 인구는 부평구 구 단위 자료(하루 유입 679,748명) — 이 자리의 유동은 담지 않습니다')
     for (const c of cards) expect(c.record).toHaveLength(3)

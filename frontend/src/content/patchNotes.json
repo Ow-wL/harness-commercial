@@ -3,6 +3,32 @@
   "renumbered_until": "v0.0.10",
   "releases": [
     {
+      "version": "v0.1.0",
+      "date": "2026-10-31",
+      "title": "결과 화면을 대시보드로",
+      "changes": [
+        {
+          "type": "improved",
+          "text": "결과가 화면 전체에 펼쳐지고 지도는 작은 카드로 접힙니다. 한 줄 결론과 거미줄 그래프, 점수순 관점 막대를 더했습니다."
+        },
+        {
+          "type": "added",
+          "text": "같은 자리에서 점수가 높은 업종 순위(29개)와 시간대·인구 카드(구 단위 24시간 유입, 영업시간 겹침)를 더했습니다."
+        },
+        {
+          "type": "improved",
+          "text": "역 이름으로 위치 고르기, 업종 선택의 학교 주변 규제 표시, 비교 화면 A·B 점, 쉬운 용어, 접힌 \"데이터 한계\"."
+        }
+      ],
+      "work": [
+        "R1 대시보드 리디자인(docs/IMPROVEMENT_PLAN_2026-10-30.md 4장, TASKS 13-10~13-22, DESIGN §20): App data-layout dashboard/map(결과 전폭 + 지도 카드 320×200, unmount 없이 크기만, 스크롤 시 카드 숨김·\"지도 보기\" 버튼, MapView fitSeq), AnalysisResult 재구성(ScoreCard·RadarChart·점수순 PerspectiveScores·행 펼침·탭 상세 근거/주변 점포/현장 확인/반경별 비교·접힌 데이터 한계·면책 한 줄)",
+        "lib/conclusion(팀 B1 템플릿 4규칙 + content/conclusion 쉬운말), lib/grade 등급 적용 확대, lib/timeInsights + TimeInsightsCard(/analyze insights — backend 추가 필드: 구 단위 24시간 유입·업종 HOUR_PROFILE·추정치 주석), RankCard + lib/useRank(/rank 캐시), StationSuggest + lib/stations(/stations 211개)",
+        "backend: POST /rank(29업종, 기본 가중치, LRU 64, warm 뒤 1.9초·캐시 15ms), GET /stations(엔진 역 목록 1회 변환), /analyze insights(result 밖·선택, 실패 시 null), smoke_api rank 검사·405, 테스트 178건",
+        "용어(팀 D1): 비슷한 가게까지 치면 약 N곳 · 가게 한 곳당 주변 주민·직장인 N명 · 일부 자료가 없어 N개 항목은 빼고 계산 · 반경 안 인구는 동 면적 비율로 나눠 추정 · 잠재수요 유동 한계 문구(번화가). D2 버튼 쌓기, D3 A/B 글자 점·높은 쪽 굵게, D4 분석 실패 시 공유 안내 숨김, D5 규제 표시, D6 반경 표 가로 스크롤"
+      ],
+      "commits": []
+    },
+    {
       "version": "v0.0.16",
       "date": "2026-10-31",
       "title": "점수보다 먼저 보여야 할 것",

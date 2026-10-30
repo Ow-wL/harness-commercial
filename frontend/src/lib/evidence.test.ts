@@ -21,7 +21,7 @@ describe('evidenceLine — 실제 응답 fixture', () => {
     expect(lines(pc)).toEqual({
       market: '부평구 하루 유입 679,748명',
       customer: '타겟 연령 거주 5,290명 · 비중 15.4%',
-      competition: '반경 500m PC방 12곳 · 점포당 잠재수요 4,433명',
+      competition: '반경 500m PC방 12곳 · 가게 한 곳당 주변 주민 4,433명',
       location: '부평역까지 직선거리 85m',
       stability: '3년 생존율 52.3%',
     })
@@ -29,7 +29,7 @@ describe('evidenceLine — 실제 응답 fixture', () => {
 
   it('부평역 네일숍: 미산출 안정성은 근거 줄 없음(null — 기존 미산출 안내 자리)', () => {
     const l = lines(nail)
-    expect(l.competition).toBe('반경 500m 네일숍 125곳 · 점포당 잠재수요 426명')
+    expect(l.competition).toBe('반경 500m 네일숍 125곳 · 가게 한 곳당 주변 주민 426명')
     expect(l.stability).toBeNull()
   })
 

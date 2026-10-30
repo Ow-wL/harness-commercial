@@ -17,6 +17,8 @@ export default defineConfig(({ mode }) => {
         '/nearby-stores': backend,
         '/health': backend,                                // 8-D3: 반경 광고(engine.radius_options)
         '/places': backend,                                // 12-14: 장소 이름 검색 프록시
+        '/rank': backend,                                  // 13-16: 한 지점의 업종 종합점수 순위
+        '/stations': backend,                              // 13-17: 인천권 역 목록
       },
       fs: {
         // 행정동 경계는 data/geo 원본을 그대로 읽는다 (frontend로 복사하지 않는다, DECISIONS D-009)

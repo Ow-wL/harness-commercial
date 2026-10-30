@@ -1,3 +1,4 @@
+import { REGULATED_BUSINESS_CODES } from '../content/regulatedBusinesses.ts'
 import { useId, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import type { ApiFailure } from '../api/client.ts'
 import type { BusinessCatalog } from '../api/schemas.ts'
@@ -367,6 +368,10 @@ function BusinessSelect({
           </span>
         )}
       </div>
+      {/* 13-18(팀 D5): 학교 주변 규제 업종을 고르면 분석 전에 미리 알린다(점수·경고 판정은 엔진 — 결과의 규제 배너) */}
+      {bizCode !== null && REGULATED_BUSINESS_CODES.has(bizCode) && (
+        <p className="field__hint field__hint--reg">학교 주변 규제 업종 — 학교 200m 안이면 점수와 별개로 영업 가능 여부를 먼저 확인해야 해요.</p>
+      )}
       {businesses.status === 'error' && (
         <div className="field__error-row" role="alert">
           <p className="field__error">

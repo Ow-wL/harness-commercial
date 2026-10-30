@@ -25,10 +25,11 @@ export function gapLines({ context, result }: AnalyzeResponse): string[] {
   const gu = [guLevel(market) && '유입', guLevel(stability) && '생존율'].filter((s): s is string => Boolean(s))
   if (gu.length > 0) out.push(`${gu.join('·')}은 구 단위 자료`)
 
-  if (customer.score !== null && isRadiusPopulation(customer)) out.push('반경 인구는 면적 배분 추정')
+  if (customer.score !== null && isRadiusPopulation(customer)) out.push('반경 안 인구는 동 면적 비율로 나눠 추정')
 
   if (competition.score !== null) {
-    out.push(demandIncludesWorkers(competition) ? '잠재수요에 방문객 유동 없음' : '잠재수요는 거주 인구만(방문객 유동 없음)')
+    // 팀 점검 보고서 6장 제안 문구: 번화가·신도시 상업지는 외부 방문객이 많아 경쟁성이 실제보다 낮게 나올 수 있다
+    out.push(demandIncludesWorkers(competition) ? '잠재수요에 방문객 유동 없음(번화가는 경쟁성이 실제보다 낮게 나올 수 있음)' : '잠재수요는 거주 인구만(방문객 유동 없음)')
   }
   return out
 }

@@ -215,3 +215,33 @@ button.perspective__button:hover .perspective__label {
   white-space: nowrap;
   vertical-align: 1px;
 }
+
+/* 접힌 행(13-14): 등급·짧은 라벨 줄만. 펼치면 근거 줄 + "상세 근거 ›" */
+.perspective__tags {
+  grid-column: 2 / 4;
+  margin-top: 2px;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.perspective__tags > :not(:last-child)::after {
+  content: " · ";
+  font-weight: 400;
+  color: var(--color-text-muted);
+}
+
+.perspective__detail {
+  display: inline-block;
+  margin: -4px 0 8px calc(64px + 12px);
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-accent);
+  cursor: pointer;
+}
+
+.result--quiet .perspective__button { min-height: 40px; padding-block: 8px; }
+.result--quiet .perspective--open .perspective__button { padding-bottom: 4px; }

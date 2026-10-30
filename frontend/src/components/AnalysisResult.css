@@ -349,3 +349,94 @@
 .workspace__panel .data-table thead th {
   white-space: nowrap;
 }
+
+/* ─── 대시보드 (R1 13-10~13-14, DESIGN.md §20) ─── */
+.result__title-biz {
+  font-weight: 500;
+  color: var(--color-text-secondary);
+}
+
+.result--dash .result__section-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.result--dash .result__section-actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.result__order {
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+
+.result__order--on {
+  color: var(--color-accent);
+  font-weight: 600;
+}
+
+/* 다섯 관점: 결과 영역이 넓으면(대시보드) 거미줄 | 막대 두 칸, 좁으면(지도 배치의 360~400px 패널·mobile) 위아래 — 패널 폭 기준(컨테이너 쿼리) */
+.result--dash {
+  container-type: inline-size;
+}
+
+.result--dash .result__perspectives {
+  padding: 4px 24px 0;
+}
+
+.result__persp-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  justify-items: center;
+  align-items: center;
+  gap: 8px 24px;
+  margin-top: 4px;
+}
+
+.result__persp-grid > .perspectives {
+  width: 100%;
+}
+
+@container (min-width: 640px) {
+  .result__persp-grid {
+    grid-template-columns: minmax(200px, 240px) minmax(0, 1fr);
+    justify-items: stretch;
+  }
+}
+
+.result__persp-note {
+  margin: 8px 0 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--color-text-muted);
+}
+
+.result--dash .result__disclaimer--foot {
+  margin: 14px 24px 20px;
+}
+
+.result--dash .band--disclosure {
+  margin: 12px 24px 0;
+}
+
+@media (max-width: 639px) {
+  .result--dash .result__perspectives {
+    padding: 4px 16px 0;
+  }
+
+  .result--dash .result__disclaimer--foot,
+  .result--dash .band--disclosure {
+    margin-left: 16px;
+    margin-right: 16px;
+  }
+}

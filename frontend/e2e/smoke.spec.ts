@@ -157,6 +157,7 @@ test('1차 활용 — 공유 링크로 열기 · 반경별 표 · 현장 확인 
   await expect(page.getByRole('button', { name: '인쇄' })).toBeVisible()      // 인쇄 대화상자는 열지 않는다
 
   // 반경별 비교 표: 지금 반경만 채워지고 나머지는 "분석하기"
+  await page.getByRole('tab', { name: /반경별 비교/ }).click()                 // R1 13-10: 반경별 표는 탭 안
   const table = page.getByRole('table', { name: /반경별 종합/ })
   await expect(table).toContainText('500m · 지금62.3')
   await expect(table.getByRole('button', { name: '300m 분석하기' })).toBeVisible()

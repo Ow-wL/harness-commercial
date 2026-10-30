@@ -41,7 +41,7 @@ def test_api_result_equals_direct_service_call(app_client, real_service, case):
     r = client.post("/analyze", json={"lat": lat, "lng": lng, "biz_code": biz, **extra})
     assert r.status_code == 200, r.text
     body = r.json()
-    assert set(body) == {"context", "result"}
+    assert set(body) == {"context", "result", "insights"}
 
     builder = app.state.context_builder                       # API 가 쓰는 바로 그 ContextBuilder
     ctx = builder.build(lat, lng)

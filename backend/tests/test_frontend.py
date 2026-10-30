@@ -92,9 +92,17 @@ def test_api_routes_win_over_spa_fallback(client):
     assert res.status_code == 422 and res.json()["error"]["code"] == "invalid_business"
 
 
-def test_api_path_with_other_method_is_405_not_index(client):
-    res = client.get("/analyze")
+@pytest.mark.parametrize("method, path", [("get", "/analyze"), ("get", "/rank"), ("post", "/stations")])
+def test_api_path_with_other_method_is_405_not_index(client, method, path):
+    res = getattr(client, method)(path)
     assert res.status_code == 405 and "root" not in res.text
+
+
+def test_rank_and_stations_win_over_spa_fallback(client):
+    """13-16·13-17: 새 API 경로도 SPA fallback 보다 먼저 매칭된다."""
+    assert client.get("/stations").json()["count"] == 211
+    res = client.post("/rank", json={"lat": 37.4894, "lng": 126.7246, "radius_m": 750})
+    assert res.status_code == 422 and res.json()["error"]["code"] == "invalid_radius"
 
 
 def test_unknown_non_get_is_404(client):

@@ -14,9 +14,13 @@ FastAPI backend (TASKS 3-1, docs/DECISIONS.md D-012).
 테스트: create_app(service=공유 서비스, warm_biz=[...]) — RuntimeData 를 다시 읽지 않고 지정 업종만 warm.
 
 엔드포인트: GET /health (3-1), GET /businesses (3-2, 엔진 config.BIZ_GROUP 그대로),
-            POST /analyze (3-3, ContextBuilder → AnalysisService, 엔진 결과는 변형 없이 result 에),
+            POST /analyze (3-3, ContextBuilder → AnalysisService, 엔진 결과는 변형 없이 result 에;
+                           13-15 선택 필드 insights = 시군구 시간대 유입 원값 + 업종 영업 시간대 프로파일 — result 와 별개, 실패하면 null),
             POST /nearby-stores (4차, 반경 안 동종 점포 목록 — /analyze 와 같은 좌표 검증·엔진 반경·업종 기준, D-019),
             POST /places {q} (12-14, 장소 이름 검색 프록시 — backend/app/places.py, 키가 없으면 503, /health places.enabled 로 광고, D-036)
+            POST /rank {lat, lng, radius_m?} (13-16, 한 지점의 29개 업종 기본 가중치 종합점수 순위 — "점수가 높은 업종"일 뿐 추천이 아니다.
+                       엔진 analyze 29회, 프로세스 안 LRU 캐시 RANK_CACHE_MAX 건 — 같은 좌표·반경 재요청은 다시 계산하지 않는다)
+            GET /stations (13-17, 엔진이 이미 읽은 인천권 물리적 역 목록 — RuntimeData.stations, xlsx 를 다시 읽지 않는다. 노선명은 없다)
 분석 반경(8-D2, D-024): /analyze·/nearby-stores 의 선택 필드 radius_m(생략 = config.RADIUS_M 500). 엔진이 받는 값
           (scoring_engine.RADIUS_OPTIONS_M — v0.3 은 500 하나, v0.4 는 300·500·1,000)만, 그 밖은 422 invalid_radius.
           GET /health 의 engine.radius_options 로 광고한다(프런트는 2개 이상일 때만 반경 선택을 보인다).
@@ -32,8 +36,10 @@ ContextBuilder 는 첫 /analyze 때 1회 만들어 app.state 에 둔다 (lazy �
 from __future__ import annotations
 
 import logging
+import math
 import os
 import threading
+from collections import OrderedDict
 from contextlib import asynccontextmanager
 from typing import Annotated, Any, Iterable, Literal, Optional
 
@@ -107,9 +113,30 @@ class AnalyzeContext(BaseModel):
     rent_area: Optional[str]     # MVP 일반 좌표는 R-ONE 임대료 상권을 연결하지 않아 항상 null (D-015)
 
 
+class HourlyInflow(BaseModel):
+    """시군구 생활이동 시간대 유입 (13-15) — 엔진이 시장성에 쓰는 RuntimeData.market 행의 원값 그대로(정규화하지 않음)."""
+    gu_code: str
+    gu_name: str
+    as_of: Optional[str]         # 시장성 패널 자료 기준일 (데이터 버전 메타 market_panel)
+    daily: float                 # 일평균_유입
+    by_hour: list[float]         # h00..h23 24개
+    work_ratio: Optional[float]
+
+
+HOURS_PROFILE_NOTE = "업종별 영업 시간대 프로파일은 추정치입니다"
+
+
+class AnalyzeInsights(BaseModel):
+    """/analyze 의 추가 설명 자료 (13-15). result 와 별개이며 점수에 쓰이지 않는다 — 만들다 실패하면 insights 는 null 이고 요청은 성공한다."""
+    inflow: Optional[HourlyInflow]           # 시군구 행이 없으면 null
+    hours_profile: Optional[list[float]]     # 엔진 config.HOUR_PROFILE[업종] (24개, 합 1) — 업종에 없으면 null
+    hours_profile_note: Optional[str]        # HOURS_PROFILE_NOTE (hours_profile 이 있을 때)
+
+
 class AnalyzeResponse(BaseModel):
     context: AnalyzeContext
     result: dict[str, Any]       # AnalysisService.analyze 반환 dict 그대로 (엔진 JSON 계약: docs/ENGINE.md)
+    insights: Optional[AnalyzeInsights] = None   # 13-15: 추가 설명 자료 (선택, result 는 그대로)
 
 
 class NearbyStoresRequest(BaseModel):
@@ -155,6 +182,119 @@ class NearbyStoresResponse(BaseModel):
     as_of: str                       # 상가(상권)정보 자료 기준일 (데이터 버전 메타 — RuntimeData.as_of("shops"))
     count: int                       # == len(stores) == 같은 조건 /analyze 의 경쟁성.raw.동종점포수
     stores: list[NearbyStore]        # 가까운 순
+
+
+class RankRequest(BaseModel):
+    lat: Latitude
+    lng: Longitude
+    radius_m: Optional[RadiusM] = None                    # /analyze 와 같은 규칙 (invalid_radius)
+
+
+class RankWeakest(BaseModel):
+    key: str                         # 지표 key (종합.병목_지표)
+    label: str                       # 지표 label (예: "경쟁성")
+    score: Optional[float]           # 그 지표 점수 (없으면 null)
+
+
+class RankItem(BaseModel):
+    biz_code: str                    # config.CODE_NAME 키
+    name: str                        # meta.업종
+    group: str                       # meta.업종그룹
+    overall: Optional[float]         # 종합.점수 (산출 불가면 null — 목록 끝)
+    weakest: Optional[RankWeakest]   # 종합.병목_지표 에 해당하는 지표 (없으면 null)
+    coverage: Optional[float]        # 종합.데이터_충족률 (없으면 null)
+    regulated: bool                  # 경고 첫 줄이 학교구역 규제(⚠ … 학교 주변 영업 규제 업종) — 프런트 lib/warnings.isSchoolZoneWarning 과 같은 규칙
+    warnings: int                    # len(경고)
+
+
+class RankResponse(BaseModel):
+    """한 지점의 업종별 종합점수 순위 — 기본 가중치만. '점수가 높은 업종'이지 추천이 아니다(면책 정책)."""
+    lat: float
+    lng: float
+    radius_m: int
+    gu_name: str
+    dong_name: str
+    count: int                       # == len(items) == len(config.CODE_NAME)
+    items: list[RankItem]            # overall 내림차순(동점은 CODE_NAME 순서, null 은 끝)
+
+
+class Station(BaseModel):
+    name: str                        # 표시명 (정규화된 역명 + "역", 예: "부평역")
+    lat: float
+    lng: float
+    lines: list[str]                 # 노선명 — 엔진이 읽은 구조에 노선명이 없어 항상 [] (line_count 참고)
+    transfer: bool                   # 환승 병합 결과 노선 레코드가 2개 이상
+    line_count: int                  # 병합된 노선별 레코드 수 (엔진 stations.노선수)
+
+
+class StationsResponse(BaseModel):
+    count: int
+    as_of: Optional[str]             # 역사 자료 기준일 (데이터 버전 메타 stations)
+    stations: list[Station]
+
+
+RANK_CACHE_MAX = 64                  # 13-16: 프로세스 안 /rank 결과 캐시 상한 (좌표 6자리·반경 키)
+
+
+def rank_items(results: dict[str, dict]) -> list[RankItem]:
+    """엔진 결과(업종코드 → analyze dict, CODE_NAME 순서) → 순위 항목. 정렬은 scoring_engine.service.ranking 과 같이
+    종합점수 내림차순·stable(동점은 CODE_NAME 순서), 종합점수 null 은 끝."""
+    items = []
+    for biz in C.CODE_NAME:
+        res = results.get(biz)
+        if res is None:
+            continue
+        total = res["종합"]
+        weak_key = total.get("병목_지표")
+        weak = None
+        if weak_key is not None:
+            ind = next((i for i in res["지표"] if i["key"] == weak_key), None)
+            if ind is not None:
+                weak = RankWeakest(key=ind["key"], label=ind["label"], score=ind.get("score"))
+        warnings = res.get("경고") or []
+        first = warnings[0] if warnings and isinstance(warnings[0], str) else ""
+        items.append(RankItem(biz_code=biz, name=res["meta"]["업종"], group=res["meta"]["업종그룹"],
+                              overall=total.get("점수"), weakest=weak, coverage=total.get("데이터_충족률"),
+                              regulated=first.startswith("⚠") and "학교 주변 영업 규제 업종" in first,
+                              warnings=len(warnings)))
+    items.sort(key=lambda it: (it.overall is None, -(it.overall if it.overall is not None else 0.0)))
+    return items
+
+
+def build_insights(rt, biz: str, gu_code: str, gu_name: str) -> AnalyzeInsights:
+    """13-15: RuntimeData.market(시군구 행)과 엔진 config.HOUR_PROFILE 로 설명 자료를 만든다. 점수 계산과 무관. 예외는 호출자가 처리."""
+    inflow = None
+    rows = rt.market[rt.market["시군구코드"] == gu_code]
+    if not rows.empty:
+        g = rows.iloc[0]
+        try:
+            as_of = rt.as_of("market_panel")
+        except KeyError:
+            as_of = None
+        work_ratio = g.get("work_ratio")
+        inflow = HourlyInflow(gu_code=gu_code, gu_name=gu_name, as_of=as_of, daily=float(g["일평균_유입"]),
+                              by_hour=[float(g[f"h{h:02d}"]) for h in range(24)],
+                              work_ratio=None if work_ratio is None or not math.isfinite(float(work_ratio))
+                              else float(work_ratio))
+    profile = getattr(C, "HOUR_PROFILE", {}).get(biz)
+    return AnalyzeInsights(inflow=inflow,
+                           hours_profile=[float(x) for x in profile] if profile is not None else None,
+                           hours_profile_note=HOURS_PROFILE_NOTE if profile is not None else None)
+
+
+def station_list(stations_df) -> list[Station]:
+    """RuntimeData.stations(etl_location.load_stations 결과: name·lat·lng·가중치·노선수) → 표시용 목록. 이름순."""
+    out = []
+    for row in stations_df.to_dict("records"):
+        lat, lng = float(row["lat"]), float(row["lng"])
+        if not (math.isfinite(lat) and math.isfinite(lng)):
+            continue
+        name = str(row["name"]).strip()
+        n_lines = int(row.get("노선수") or 1)
+        out.append(Station(name=name if name.endswith("역") else f"{name}역", lat=lat, lng=lng,
+                           lines=[], transfer=n_lines > 1, line_count=n_lines))
+    out.sort(key=lambda s: s.name)
+    return out
 
 
 def resolve_radius(radius_m: Optional[int]) -> int:
@@ -254,6 +394,8 @@ def create_app(service: Optional[AnalysisService] = None, warm_biz: Optional[Ite
         app.state.service = service if service is not None else AnalysisService()
         app.state.context_builder = None
         app.state.nearby_finder = None
+        app.state.rank_cache = OrderedDict()           # 13-16: 프로세스 안 /rank 캐시 — 앱 생성마다 비어 있다
+        app.state.stations = None                      # 13-17: 첫 /stations 때 1회 계산
         app.state.warm = WarmProgress(biz_codes)
         app.state.warm.start(app.state.service.cache)
         try:
@@ -270,7 +412,10 @@ def create_app(service: Optional[AnalysisService] = None, warm_biz: Optional[Ite
     app.state.warm = None
     app.state.context_builder = None
     app.state.nearby_finder = None
+    app.state.rank_cache = OrderedDict()
+    app.state.stations = None
     builder_lock = threading.Lock()
+    rank_lock = threading.Lock()
 
     def context_builder() -> ContextBuilder:
         """앱 수명 동안 1개. 동시 첫 요청이 여러 개 만들지 않도록 lock 으로 한 번만 생성한다."""
@@ -345,11 +490,17 @@ def create_app(service: Optional[AnalysisService] = None, warm_biz: Optional[Ite
         result = app.state.service.analyze(ctx, req.biz_code, user_weights=req.user_weights,
                                            importance=req.importance, user_licenses=req.user_licenses,
                                            radius_m=radius)
+        try:   # 13-15: 설명 자료 — 실패해도 분석 응답은 그대로 성공한다
+            insights = build_insights(app.state.service.rt, req.biz_code, ctx.gu_code, ctx.gu_name)
+        except Exception:                                # noqa: BLE001
+            logging.getLogger("backend.insights").warning("insights 생성 실패 (%s, %s)", ctx.gu_code, req.biz_code,
+                                                          exc_info=True)
+            insights = None
         stamp_data_version(response)
         return AnalyzeResponse(
             context=AnalyzeContext(lat=ctx.lat, lng=ctx.lng, gu_code=ctx.gu_code, gu_name=ctx.gu_name,
                                    dong_name=ctx.dong_name, label=ctx.label, rent_area=ctx.rent_area),
-            result=result)
+            result=result, insights=insights)
 
     @app.post("/nearby-stores", response_model=NearbyStoresResponse, responses=ERROR_RESPONSES)
     def nearby_stores(req: NearbyStoresRequest, response: Response) -> NearbyStoresResponse:
@@ -380,8 +531,53 @@ def create_app(service: Optional[AnalysisService] = None, warm_biz: Optional[Ite
             raise ApiError(PLACES_UPSTREAM, status=502) from e
         return PlacesResponse(count=len(found), places=[PlaceItem(**vars(p)) for p in found])
 
+    @app.post("/rank", response_model=RankResponse, responses=ERROR_RESPONSES)
+    def rank(req: RankRequest, response: Response) -> RankResponse:
+        """한 지점의 29개 업종 종합점수 순위 (13-16). 기본 가중치만(importance·user_weights 없음) — 결과는 '점수가 높은 업종'이지
+        추천이 아니다. /analyze 와 같은 순서로 검증한다: 반경 → 좌표. 엔진 analyze 를 업종마다 1회 부르고(점수 변형 없음),
+        같은 좌표(소수 6자리)·반경의 재요청은 프로세스 안 LRU 캐시(RANK_CACHE_MAX)에서 돌려준다."""
+        radius = resolve_radius(req.radius_m)
+        ctx = resolve_context(req.lat, req.lng)
+        key = (round(ctx.lat, 6), round(ctx.lng, 6), radius)
+        cache: OrderedDict = app.state.rank_cache
+        with rank_lock:
+            hit = cache.get(key)
+            if hit is not None:
+                cache.move_to_end(key)
+        if hit is None:
+            results = {biz: app.state.service.analyze(ctx, biz, radius_m=radius) for biz in C.CODE_NAME}
+            items = rank_items(results)
+            hit = RankResponse(lat=ctx.lat, lng=ctx.lng, radius_m=radius, gu_name=ctx.gu_name, dong_name=ctx.dong_name,
+                               count=len(items), items=items)
+            with rank_lock:
+                cache[key] = hit
+                cache.move_to_end(key)
+                while len(cache) > RANK_CACHE_MAX:
+                    cache.popitem(last=False)
+        stamp_data_version(response)
+        return hit
+
+    @app.get("/stations", response_model=StationsResponse)
+    def stations(response: Response) -> StationsResponse:
+        """엔진이 이미 읽은 인천권 물리적 역 목록 (13-17). RuntimeData.stations(환승 병합 뒤)를 첫 요청 때 1회 변환해 둔다 —
+        xlsx 를 다시 읽지 않고 외부 API 도 부르지 않는다. 노선명은 엔진 구조에 없어 lines 는 비어 있고 line_count 만 있다."""
+        if app.state.stations is None:
+            with builder_lock:
+                if app.state.stations is None:
+                    rt = app.state.service.rt
+                    as_of = None
+                    try:
+                        as_of = rt.as_of("stations")
+                    except KeyError:
+                        pass
+                    items = station_list(rt.stations)
+                    app.state.stations = StationsResponse(count=len(items), as_of=as_of, stations=items)
+        stamp_data_version(response)
+        return app.state.stations
+
     if frontend_dist:   # API route 를 모두 등록한 뒤에 붙인다 — route 순서상 API 가 먼저 매칭된다
-        mount_frontend(app, frontend_dist, api_paths={"/health", "/businesses", "/analyze", "/nearby-stores", "/places"},
+        mount_frontend(app, frontend_dist, api_paths={"/health", "/businesses", "/analyze", "/nearby-stores", "/places",
+                                                      "/rank", "/stations"},
                        hidden_paths={"/docs", "/docs/oauth2-redirect", "/redoc", "/openapi.json"})
     return app
 

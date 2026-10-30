@@ -12,7 +12,7 @@ describe('현장 확인 카드 화면 (12-27)', () => {
     render(<FieldChecks checks={checks} notes={{ rent: { done: true, memo: '월세 150' } }} onChange={onChange} />)
     expect(document.querySelectorAll('.field-check')).toHaveLength(3)
     expect(screen.getByRole('heading', { level: 3, name: '가까운 같은 업종 점포 둘러보기' })).toBeInTheDocument()   // 번호는 aria-hidden
-    expect(screen.getByText('반경 500m 안 PC방 12곳 · 점포당 잠재수요(거주+종사자) 1,925명 — 점포 목록은 주변 점포 탭')).toBeInTheDocument()
+    expect(screen.getByText('반경 500m 안 PC방 12곳 · 가게 한 곳당 주변 주민·직장인 1,925명 — 점포 목록은 주변 점포 탭')).toBeInTheDocument()
     expect(within(screen.getByRole('list', { name: '후보 점포의 임대 조건 확인 — 기록할 것' })).getAllByRole('listitem')).toHaveLength(3)
     expect(screen.getByText('이 위치에는 임대료 조사 상권이 연결되지 않아 임대료를 점수에 반영하지 않았습니다')).toBeInTheDocument()
     // 저장된 기록이 보인다

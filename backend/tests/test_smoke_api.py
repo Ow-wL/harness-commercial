@@ -36,7 +36,8 @@ def expected_of(client, sites=(("부평역", 37.4894, 126.7246),)):
             a, n = client.post("/analyze", json=body), client.post("/nearby-stores", json=body)
             cases.append({"site": name, "body": body, "status": [a.status_code, n.status_code],
                           "analyze": a.json(), "nearby": n.json()})
-    return {"engine": client.get("/health").json()["engine"]["version"], "cases": cases}
+    return {"engine": client.get("/health").json()["engine"]["version"], "cases": cases,
+            "rank": client.post("/rank", json=S.RANK_BODY).json()}
 
 
 def test_same_tolerates_last_digit_only():
@@ -55,6 +56,17 @@ def test_check_api_passes_against_same_app(client):
     assert summary["invalid_radius"] == [422, "invalid_radius"]
     if summary["health"]["engine"]["version"].startswith("mvp-0.5"):
         assert "학교" in summary["school_warning"]
+    assert summary["rank"]["status"] == 200 and summary["rank"]["count"] == 29 and summary["rank"]["compared"] is True
+
+
+def test_check_rank_without_expected_section_skips_comparison(client):
+    """13-16: 이전 형식 기대값(rank 없음)은 본문 대조만 건너뛴다 — 형태 검사(29개·정렬·PC방)는 그대로."""
+    fails, summary = S.check_rank(fetch_of(client), {"engine": "x", "cases": []})
+    assert fails == [] and summary["compared"] is False and summary["count"] == 29
+    exp = expected_of(client)
+    exp["rank"]["items"][0]["overall"] += 1
+    fails, _ = S.check_rank(fetch_of(client), exp)
+    assert any("/rank 부평역: 기대값과 다르다" in f for f in fails)
 
 
 def test_check_api_reports_mismatch_engine_and_header(client):

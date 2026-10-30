@@ -357,10 +357,67 @@ export const AnalyzeContextSchema = z.strictObject({
   rent_area: z.string().nullable(),              // MVP 일반 좌표는 R-ONE 임대료 상권을 연결하지 않아 항상 null (D-015)
 })
 
+/** R1 13-15: /analyze 가 result 밖에 더해 주는 읽기 정보(구 단위 24시간 유입·업종 영업시간 프로파일). 없거나 null 이면 카드를 그리지 않는다 */
+export const HourlyInflowSchema = z.object({
+  gu_code: z.string(),
+  gu_name: z.string(),
+  as_of: z.string().nullable(),
+  daily: z.number(),
+  by_hour: z.array(z.number()).length(24),
+  work_ratio: z.number().nullable(),
+})
+export const AnalyzeInsightsSchema = z.object({
+  inflow: HourlyInflowSchema.nullable(),
+  hours_profile: z.array(z.number()).length(24).nullable(),
+  hours_profile_note: z.string().nullable(),
+})
+export type AnalyzeInsights = z.infer<typeof AnalyzeInsightsSchema>
+
 export const AnalyzeResponseSchema = z.strictObject({
   context: AnalyzeContextSchema,
   result: EngineResultSchema,
+  insights: AnalyzeInsightsSchema.nullable().optional(),
 })
+
+// ─── POST /rank (R1 13-16) · GET /stations (13-17) ────────────────────
+
+/** 한 지점의 업종별 종합점수 — 기본 가중치만. "점수가 높은 업종"이지 추천이 아니다 */
+export const RankItemSchema = z.strictObject({
+  biz_code: z.string(),
+  name: z.string(),
+  group: z.string(),
+  overall: scoreSchema.nullable(),
+  weakest: z.strictObject({ key: PerspectiveKeySchema, label: z.string(), score: scoreSchema.nullable() }).nullable(),
+  coverage: z.number().nullable(),
+  regulated: z.boolean(),
+  warnings: z.number().int().nonnegative(),
+})
+export const RankResponseSchema = z.strictObject({
+  lat: z.number(),
+  lng: z.number(),
+  radius_m: z.number().int(),
+  gu_name: z.string(),
+  dong_name: z.string(),
+  count: z.number().int(),
+  items: z.array(RankItemSchema),
+})
+export type RankItem = z.infer<typeof RankItemSchema>
+export type RankResponse = z.infer<typeof RankResponseSchema>
+
+export const StationSchema = z.object({
+  name: z.string(),
+  lat: z.number(),
+  lng: z.number(),
+  lines: z.array(z.string()),
+  transfer: z.boolean(),
+})
+export const StationsResponseSchema = z.object({
+  count: z.number().int(),
+  as_of: z.string().nullable(),
+  stations: z.array(StationSchema),
+})
+export type Station = z.infer<typeof StationSchema>
+export type StationsResponse = z.infer<typeof StationsResponseSchema>
 
 // ─── POST /nearby-stores (4차, D-019) ────────────────────────────────
 

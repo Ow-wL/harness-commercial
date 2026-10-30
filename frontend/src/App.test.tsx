@@ -124,11 +124,15 @@ function mockApi({
   nearby = [] as Reply[],
   health = { status: 200, body: OLD_HEALTH } as Reply | Reply[],
   places = [] as Reply[],
+  rank = [] as Reply[],
 } = {}) {
   const queue = [...analyze]
   const nearbyQueue = [...nearby]
   const healthQueue = Array.isArray(health) ? [...health] : [health]
   const placesQueue = [...places]
+  const rankQueue = [...rank]
+  // R1 13-16·13-17: 결과 뒤 /rank, 주소 폼의 /stations 는 분석 흐름과 독립 — 준비한 응답이 없으면 404(카드는 오류 문구, 분석은 그대로)
+  const NOT_FOUND: Reply = { status: 404, body: { error: { code: 'not_found', message: '없음' } } }
   const fetchMock = vi.fn(async (url: string) => {
     const reply =
       url === '/businesses'
@@ -141,7 +145,11 @@ function mockApi({
             ? nearbyQueue.shift()
             : url === '/places'
               ? placesQueue.shift()
-              : queue.shift()
+              : url === '/rank'
+                ? (rankQueue.shift() ?? NOT_FOUND)
+                : url === '/stations'
+                  ? NOT_FOUND
+                  : queue.shift()
     if (reply === undefined) throw new Error(`예상하지 못한 요청: ${url}`)
     if (reply === 'network-error') throw new TypeError('Failed to fetch')
     const { status, body, headers } = await reply
@@ -253,7 +261,7 @@ describe('tablet 패널 접기 (P9, A3)', () => {
     expect(panel()).toHaveAttribute('data-folded', 'true')
     expect(panel().querySelector('.panel__fold-label')).toHaveTextContent(`부평구 부평1동 · 반경 500m · 점포 ${nearbyFixture.count}곳`)
     // 접기도 MapView 화면 전환 신호에 실린다(크기 맞춤 흐름 1회 — zoom은 바꾸지 않는다, D-022 순위 8)
-    expect(screen.getByTestId('map')).toHaveAttribute('data-layout-key', expect.stringMatching(/:folded$/))
+    expect(screen.getByTestId('map')).toHaveAttribute('data-layout-key', expect.stringMatching(/:folded:/))
     expect(foldButton()).toHaveAccessibleName('패널 펼치기')
     expect(foldButton()).toHaveAttribute('aria-expanded', 'false')
     expect(document.activeElement).not.toBe(document.body)
@@ -2428,13 +2436,13 @@ describe('mobile 패널에서 고른 점포 → "지도 보기" (6-4)', () => {
     fireEvent.click(analyzeButton())
     const list = await findList('PC방 점포 목록')
     expect(app()).toHaveAttribute('data-screen', 'panel')
-    expect(map()).toHaveAttribute('data-layout-key', 'panel:open')                     // 화면 전환 신호를 MapView에 넘긴다
+    expect(map()).toHaveAttribute('data-layout-key', 'panel:open:map')                 // 화면 전환 신호(+13-10 배치: mobile 은 map)를 MapView에 넘긴다
     fireEvent.click(within(list).getAllByRole('button')[0]!)
     expect(map()).toHaveAttribute('data-active-store', nearbyFixture.stores[0]!.id)   // 숨겨진 지도에 선택만 넘긴다
 
     fireEvent.click(screen.getAllByRole('button', { name: '지도 보기' })[0]!)
     expect(app()).toHaveAttribute('data-screen', 'map')
-    expect(map()).toHaveAttribute('data-layout-key', 'map:open')
+    expect(map()).toHaveAttribute('data-layout-key', 'map:open:map')
     expect(map()).toHaveAttribute('data-active-store', nearbyFixture.stores[0]!.id)
     expect(map()).toHaveAttribute('data-stores', '12')
     expect(analyzeCalls(fetchMock)).toHaveLength(1)
@@ -3718,7 +3726,8 @@ describe('반경별 비교 표 (12-26, 계획 1-5) — 캐시된 반경만 채�
   }
   const nearbyAt = <T,>(fx: T, r: number): T => ({ ...(structuredClone(fx) as object), radius_m: r }) as T
   const bodyOf = (call: unknown[]) => JSON.parse((call[1] as RequestInit).body as string)
-  const table = () => screen.getByRole('table', { name: /반경별 종합/ })
+  // R1: 반경별 표는 "반경별 비교" 탭 안(13-10) — 사용자처럼 탭을 먼저 연다
+  const table = () => getInTab(/^반경별 비교/, 'table', { name: /반경별 종합/ })
   const rows = () => within(table()).getAllByRole('row').slice(1)
 
   it('500m 결과: 500 행만 채워지고 300·1km 는 "분석하기". 1km 분석하기 → 1km 로 전환·요청, 두 행이 채워지고 범위 문구. 500 으로 돌아가도(캐시) 1km 행이 남는다', async () => {

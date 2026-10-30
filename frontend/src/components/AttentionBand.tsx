@@ -1,4 +1,4 @@
-import type { MouseEvent } from 'react'
+import type { MouseEvent, ReactNode } from 'react'
 import { useRevealTarget } from '../lib/resultTabs.ts'
 import { BAND_MAX, type BandLine, type BandTarget } from '../lib/attentionBand.ts'
 import { COMPARE_IDS } from '../lib/compareState.ts'
@@ -37,19 +37,35 @@ function useGoTo() {
  * 기본은 건수·종류만. 펼치면 원문 요약과 해당 섹션 이동 링크를 보여 준다.
  * 최대 5줄, 넘치면 "주의 N건 더 보기 ›"(주의할 점 섹션으로).
  */
-export function AttentionBand({ lines, moreTarget }: { lines: readonly BandLine[]; moreTarget: BandTarget }) {
+export function AttentionBand({
+  lines,
+  moreTarget,
+  label,
+  extraCount = 0,
+  children,
+}: {
+  lines: readonly BandLine[]
+  moreTarget: BandTarget
+  /** 접힌 제목(13-19 B4: "데이터 한계"). 없으면 톤에 따라 "확인할 점"/"참고할 점" */
+  label?: string
+  /** 띠 줄 외에 안에 함께 접어 둔 항목 수(확인 필요 줄) — 제목의 건수에 더한다 */
+  extraCount?: number
+  /** 펼쳤을 때 목록 위에 함께 보이는 내용(확인 필요 줄) */
+  children?: ReactNode
+}) {
   const goTo = useGoTo()
-  if (lines.length === 0) return null
+  if (lines.length === 0 && extraCount === 0) return null
   const shown = lines.slice(0, BAND_MAX)
   const more = lines.length - shown.length
   return (
-    <section className="band band--disclosure" aria-label="주의 요약">
+    <section className="band band--disclosure" aria-label={label ?? '주의 요약'}>
       <details>
         <summary className="band__summary">
-          <span className="band__summary-label">{lines.some((l) => l.tone === 'warning') ? '확인할 점' : '참고할 점'} {lines.length}</span>
+          <span className="band__summary-label">{label ?? (lines.some((l) => l.tone === 'warning') ? '확인할 점' : '참고할 점')} {lines.length + extraCount}</span>
           <span className="band__summary-topics">{[...new Set(lines.map((l) => KIND_LABEL[l.kind]))].slice(0, 2).join(' · ')}</span>
           <span className="band__summary-arrow" aria-hidden="true">⌄</span>
         </summary>
+        {children}
         <ul className="band__list">
           {shown.map((line) => (
             <li key={`${line.kind}:${line.text}`}>

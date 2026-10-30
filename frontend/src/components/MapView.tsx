@@ -129,6 +129,8 @@ export type MapViewProps = {
    * 같은 크기로 숨김 → 보임이 한 프레임 안에 끝나면 ResizeObserver가 알리지 않으므로 이 신호로 미룬 정보창을 처리한다
    */
   layoutKey?: string
+  /** 범위 맞춤 요청(13-10): 값이 바뀔 때마다 "범위에 맞추기"와 같은 맞춤을 1회 돈다(대시보드 → 지도 확대 전환 뒤) */
+  fitSeq?: number
   /**
    * 화면 테마(묶음 A, §19.7). 바뀌면 지도를 그 테마에 맞게 다시 만든다 — 다크: `VITE_NAVER_MAP_STYLE_ID`(GL 다크 스타일),
    * 라이트: `VITE_NAVER_MAP_LIGHT_STYLE_ID`가 있으면 GL 라이트 스타일, 없으면 NAVER 기본 밝은 지도. 둘 다 스타일 실패 시 밝은 지도로
@@ -551,6 +553,7 @@ export function MapView({
   storeContext,
   onSdkState,
   layoutKey,
+  fitSeq = 0,
   theme = 'dark',
 }: MapViewProps) {
   const sectionRef = useRef<HTMLElement>(null)
@@ -1124,6 +1127,14 @@ export function MapView({
     lockedRef.current = false
     runFitRef.current(comparingRef.current ? { t: 'union' } : { t: 'single', mode: 'force' })
   }
+  // 바깥 맞춤 요청(fitSeq, 13-10): 레이아웃이 바뀐 뒤(layout effect 의 크기 맞춤 다음) 돈다. 0은 요청 없음
+  const fitToRangeRef = useRef(fitToRange)
+  useEffect(() => {
+    fitToRangeRef.current = fitToRange
+  })
+  useEffect(() => {
+    if (fitSeq > 0) fitToRangeRef.current()
+  }, [fitSeq])
 
   // 선택 지점(A) 마커 + 반경 원. 다시 클릭하면 같은 오버레이를 옮긴다. 비교 중이면 글자 "A" 마커(B를 아직 안 골라도)
   const comparing = compare !== null

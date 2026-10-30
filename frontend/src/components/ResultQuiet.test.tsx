@@ -18,49 +18,52 @@ function single(value = analysis) {
 }
 
 describe('기본 결과는 간단히, 근거는 요청할 때', () => {
-  it('다섯 점수·근거 한 줄·자료 단위 칩·"확인 필요"는 보이고, 높음/낮음 라벨·헤드라인·가중치·충족 정보는 접혀 있다 (12-20 안 B)', () => {
+  it('다섯 점수·등급·한 줄 결론은 보이고, 근거 줄·자료 단위는 행을 펼칠 때만, 높음/낮음 라벨·충족 정보는 접혀 있다 (12-20 안 B → R1 13-14)', () => {
     single()
     const rows = within(screen.getByRole('region', { name: '5대 관점' })).getAllByRole('listitem')
     expect(rows).toHaveLength(5)
     for (const row of rows) {
       expect(row.querySelector('.perspective__main')).toBeVisible()
-      expect(row.querySelector('.perspective__evidence-text')).toBeVisible()
-      expect(row.querySelector('.perspective__unit')).toBeVisible()
+      expect(row.querySelector('.perspective__grade')).toBeVisible()
+      expect(row.querySelector('.perspective__evidence-text')).toBeNull()            // 접힌 행: 근거 줄 없음(13-14)
     }
     expect(document.querySelector('.perspective__strongest')).not.toBeVisible()
     expect(document.querySelector('.perspective__lowest')).not.toBeVisible()
-    expect(document.querySelector('.result__headline')).not.toBeVisible()
-    const gaps = document.querySelector('.gaps')!
-    expect(gaps).toBeVisible()
-    expect(gaps).toHaveTextContent('확인 필요임대료 미반영유입·생존율은 구 단위 자료잠재수요는 거주 인구만(방문객 유동 없음)')
-    expect(document.querySelector('.coverage')).not.toBeVisible()
+    expect(document.querySelector('.score-card__conclusion')).toBeVisible()
+    // 확인 필요 줄은 접힌 "데이터 한계" 안(B4)
+    const band = screen.getByRole('region', { name: '데이터 한계' })
+    expect(band.querySelector('summary')).toHaveTextContent(/^데이터 한계 \d+/)
+    expect(band.querySelector('.gaps')).toHaveTextContent('확인 필요임대료 미반영유입·생존율은 구 단위 자료잠재수요는 거주 인구만(방문객 유동 없음)')
+    expect(band.querySelector('.gaps')).not.toBeVisible()
     expect(screen.getByText('테스트 참고 주소')).not.toBeVisible()
-    expect(screen.getByText('참고 지표 · 순위나 성공 확률이 아닙니다.')).toBeVisible()
+    // 행을 펼치면 근거 줄 + 자료 단위 칩
+    fireEvent.click(rows[0]!.querySelector('.perspective__button')!)
+    expect(rows[0]!.querySelector('.perspective__evidence-text')).toBeVisible()
+    expect(rows[0]!.querySelector('.perspective__unit')).toBeVisible()
   })
 
-  it('설명을 펼치면 높음/낮음·헤드라인·충족 정보가 나오고, 접으면 다시 숨되 근거 줄은 그대로 보인다', () => {
+  it('설명을 펼치면 높음/낮음 라벨이 나오고, 접으면 다시 숨되 펼친 행의 근거 줄은 그대로 보인다', () => {
     single()
-    const evidence = document.querySelector('.perspective__evidence-text')!
+    const rows = within(screen.getByRole('region', { name: '5대 관점' })).getAllByRole('listitem')
+    fireEvent.click(rows[0]!.querySelector('.perspective__button')!)
+    const evidence = rows[0]!.querySelector('.perspective__evidence-text')!
     const text = evidence.textContent
     fireEvent.click(screen.getByRole('button', { name: '설명 함께 보기' }))
     expect(evidence).toBeVisible()
     expect(document.querySelector('.perspective__strongest')).toBeVisible()
-    expect(document.querySelector('.result__headline')).toBeVisible()
-    expect(document.querySelector('.coverage')).toBeVisible()
     expect(screen.getByRole('button', { name: '간단히 보기' })).toHaveAttribute('aria-expanded', 'true')
     fireEvent.click(screen.getByRole('button', { name: '간단히 보기' }))
     expect(evidence).toBeVisible()
     expect(document.querySelector('.perspective__strongest')).not.toBeVisible()
-    expect(document.querySelector('.coverage')).not.toBeVisible()
     expect(evidence.textContent).toBe(text)
   })
 
   it('주의 건수와 종류를 먼저 보이고 펼치면 원문과 이동 링크가 나온다', () => {
     single(nail)
-    const band = screen.getByRole('region', { name: '주의 요약' })
+    const band = screen.getByRole('region', { name: '데이터 한계' })
     const details = band.querySelector('details')!
     expect(details.open).toBe(false)
-    expect(band.querySelector('summary')).toHaveTextContent('확인할 점 3')
+    expect(band.querySelector('summary')).toHaveTextContent(/^데이터 한계 \d+/)   // 띠 3줄 + 확인 필요 줄
     expect(band.querySelector('summary')).toHaveTextContent('주의 관점 · 미산출')
     const link = within(band).getAllByRole('link', { hidden: true })[0]!
     expect(link).not.toBeVisible()

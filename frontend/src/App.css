@@ -298,6 +298,17 @@
   white-space: nowrap;
 }
 
+/* 13-20 D2: 좁은 패널(태블릿 360px·지도 배치)에서는 두 버튼을 위아래로 쌓아 "B 전체 결과 보기"가 잘리지 않게 */
+@media (min-width: 640px) and (max-width: 1100px) {
+  .app[data-layout="map"] .panel__foot {
+    flex-wrap: wrap;
+  }
+
+  .app[data-layout="map"] .panel__foot .panel__foot-split {
+    flex: 1 1 100%;
+  }
+}
+
 @media (max-width: 639px) {
   /* 좁은 폭: "A 결과"로 줄여 [지도 보기][A 결과][B 결과]가 한 줄에 들어가게 — "전체·보기"는 스크린리더에 남긴다 */
   .panel__foot-long {
@@ -604,5 +615,143 @@
   .map-sheet__actions .button--ghost-fill {
     flex: none;
     padding: 0 18px;
+  }
+}
+
+/* ─── 대시보드 레이아웃 (R1 13-10, DESIGN.md §20.1) ───
+ * 결과가 있고 지도를 크게 보지 않을 때(data-layout="dashboard"): 결과 패널이 화면 전폭(최대 1200px 가운데), 지도는 오른쪽 위 작은
+ * 카드(320×200)로 접힌다 — 지도 DOM 은 그대로(unmount 금지, A2 재발 방지) 크기만 바뀌고, 카드를 누르면 data-layout="map"(기존 A3 배치)로
+ * 돌아가 위치 바꾸기·점포 레이어·범위 맞춤을 쓴다. 분석 전·비교 B 고르기·mobile(<640, 화면 전환 방식 그대로)은 map 배치.
+ */
+@media (min-width: 640px) {
+  .app[data-layout="dashboard"] {
+    --map-visible-right: var(--a3-gap);
+    --map-card-w: 320px;
+    --map-card-h: 200px;
+  }
+
+  /* 조건 바 아래부터 전폭(최대 1200px 가운데). 바는 그대로 위에 남는다 */
+  .app[data-layout="dashboard"] .panel {
+    top: calc(var(--a3-gap) + var(--a3-bar-h) + 12px);
+    left: var(--a3-gap);
+    width: auto;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+
+  .app[data-layout="dashboard"] .panel__fold {
+    display: none;
+  }
+
+  .app[data-layout="dashboard"] .app__map {
+    inset: auto;
+    top: calc(var(--a3-gap) + var(--a3-bar-h) + 12px + 16px);
+    /* 패널(최대 1200px 가운데)의 오른쪽 위 안쪽 */
+    right: max(calc(var(--a3-gap) + 16px), calc((100% - 1200px) / 2 + 16px));
+    width: var(--map-card-w);
+    height: var(--map-card-h);
+    z-index: 4;
+    overflow: hidden;
+    border: 1px solid var(--color-map-ui-edge);
+    border-radius: 14px;
+    box-shadow: var(--shadow-panel);
+  }
+
+  .app[data-layout="dashboard"] .map__legend,
+  .app[data-layout="dashboard"] .map__controls,
+  .app[data-layout="dashboard"] .map__guide,
+  .app[data-layout="dashboard"] .map__store-bar {
+    display: none;
+  }
+
+  /* 결과 머리(제목·점수 카드)는 지도 카드 자리를 비워 둔다 */
+  .app[data-layout="dashboard"] .result__head {
+    padding-right: calc(var(--map-card-w) + 40px);
+    min-height: calc(var(--map-card-h) + 40px);
+  }
+
+  /* 지도 카드 전체가 "크게 보기" 버튼 — 지도 클릭으로 위치가 바뀌지 않게 덮는다 */
+  .map-card__expand {
+    position: absolute;
+    inset: 0;
+    z-index: 5;
+    display: flex;
+    align-items: flex-end;
+    justify-content: flex-start;
+    padding: 10px;
+    border: 0;
+    background: transparent;
+    cursor: pointer;
+  }
+
+  .map-card__expand span,
+  .map-card__collapse {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 32px;
+    padding: 0 12px;
+    border: 1px solid var(--color-map-ui-edge);
+    border-radius: var(--radius-pill);
+    background: var(--color-surface);
+    box-shadow: var(--shadow-map-ui);
+    font: var(--text-small);
+    font-weight: 600;
+    color: var(--color-accent);
+  }
+
+  /* 지도 배치에서 결과로 돌아가기: 지도 왼쪽 위(조건 바 아래) */
+  .map-card__collapse {
+    position: absolute;
+    top: var(--map-visible-top);
+    left: var(--a3-gap);
+    z-index: 5;
+    height: 36px;
+    cursor: pointer;
+  }
+}
+
+@media (max-width: 1100px) and (min-width: 640px) {
+  .app[data-layout="dashboard"] {
+    --map-card-w: 280px;
+    --map-card-h: 176px;
+  }
+}
+
+@media (max-width: 639px) {
+  .map-card__expand,
+  .map-card__collapse {
+    display: none;
+  }
+}
+
+/* 대시보드에서 패널을 내리면 지도 카드를 숨기고(크기 유지 — 재맞춤 없음) 오른쪽 위 작은 버튼만 */
+@media (min-width: 640px) {
+  .app[data-layout="dashboard"][data-map-card="hidden"] .app__map {
+    visibility: hidden;
+    pointer-events: none;
+  }
+
+  .map-card__pill {
+    position: absolute;
+    top: calc(var(--a3-gap) + var(--a3-bar-h) + 12px + 16px);
+    right: max(calc(var(--a3-gap) + 16px), calc((100% - 1200px) / 2 + 16px));
+    z-index: 5;
+    height: 36px;
+    padding: 0 14px;
+    border: 1px solid var(--color-map-ui-edge);
+    border-radius: var(--radius-pill);
+    background: var(--color-surface);
+    box-shadow: var(--shadow-map-ui);
+    font: var(--text-small);
+    font-weight: 600;
+    color: var(--color-accent);
+    cursor: pointer;
+  }
+}
+
+@media (max-width: 639px) {
+  .map-card__pill {
+    display: none;
   }
 }

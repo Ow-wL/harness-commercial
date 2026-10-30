@@ -251,10 +251,10 @@ function CompareRows({ a, b, onOpen }: { a: AnalyzeResponse; b: AnalyzeResponse;
                 </span>
                 <span className="compare-row__vals">
                   <span className="visually-hidden">A </span>
-                  <b>{ia.score === null ? '미산출' : formatScore(ia.score)}</b>
+                  <b className={hi !== null && ia.score === hi && ib.score !== hi ? 'compare-row__hi' : undefined}>{ia.score === null ? '미산출' : formatScore(ia.score)}</b>
                   <span aria-hidden="true"> · </span>
                   <span className="visually-hidden">, B </span>
-                  <b className="compare-row__vb">{ib.score === null ? '미산출' : formatScore(ib.score)}</b>
+                  <b className={`compare-row__vb${hi !== null && ib.score === hi && ia.score !== hi ? ' compare-row__hi' : ''}`}>{ib.score === null ? '미산출' : formatScore(ib.score)}</b>
                 </span>
                 {tag && <span className="compare-row__tag">{tag}</span>}
                 <span className="visually-hidden"> · 점수 비교 표로</span>

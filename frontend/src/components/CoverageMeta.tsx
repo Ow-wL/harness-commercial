@@ -50,7 +50,7 @@ export function CoverageMeta({
       </span>
       {missing.length > 0 && (
         <span className="coverage__item">
-          세부지표 없음 <strong>{missing.length}</strong>: {missing.join(', ')}
+          일부 자료가 없어 <strong>{missing.length}</strong>개 항목은 빼고 계산: {missing.join(', ')}
         </span>
       )}
       <span className="coverage__item">가중치 {weights}</span>

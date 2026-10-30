@@ -2,6 +2,7 @@ import { useEffect, useId, useLayoutEffect, useRef, useState, type FormEvent } f
 import { geocode, type GeocodeItem, type GeocoderErrorKind, type LatLngPoint } from '../map/geocoder.ts'
 import type { NaverMapsApi } from '../map/naverMaps.ts'
 import { INCHEON_SIDO, incheonFirst, SEARCH_COUNT, SEARCH_EXAMPLES, SEARCH_ORIGIN, SEARCH_VISIBLE } from '../lib/addressSearch.ts'
+import { StationSuggest } from './StationSuggest.tsx'
 import { Icon } from './Icon.tsx'
 import './AddressSearch.css'
 
@@ -220,6 +221,19 @@ export function AddressSearch({
               ? '도로명·지번 주소만 찾습니다. 역·건물·가게 이름은 "장소 이름"에서 찾으세요.'
               : '도로명·지번 주소만 찾습니다. 역·건물·가게 이름은 아직 되지 않습니다.'}
           </p>
+          {/* 역 이름 제안(13-17): 입력 앞부분과 맞는 인천권 역 — 누르면 그 역 좌표(분석은 시작하지 않는다) */}
+          <StationSuggest
+            query={query}
+            disabled={disabled}
+            labelPrefix={labelPrefix}
+            onSelect={(s) => {
+              invalidate()
+              setOpen(false)
+              setPhase({ status: 'idle' })
+              setShowAll(false)
+              onSelect({ lat: s.lat, lng: s.lng })
+            }}
+          />
           <p className="address-search__examples">
             <span className="address-search__examples-label">예시</span>
             {SEARCH_EXAMPLES.map((q) => (

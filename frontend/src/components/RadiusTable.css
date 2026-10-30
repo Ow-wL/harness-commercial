@@ -1,6 +1,8 @@
 /* 반경별 비교 표 (1-5): 요약 탭 아래, 좁은 패널에서는 가로 스크롤 */
 .radius-table {
   margin-top: 16px;
+  /* 13-20 D6: 표(약 520px)가 좁은 패널보다 넓으면 표만 가로 스크롤 — 패널 전체가 넘치지 않게 */
+  overflow-x: auto;
 }
 
 .radius-table__lead,
