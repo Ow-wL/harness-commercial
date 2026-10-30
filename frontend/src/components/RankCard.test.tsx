@@ -67,9 +67,9 @@ describe('RankCard — 이 자리 업종 순위 (13-16, 팀 C1)', () => {
 
   it('로딩·오류 상태 문구, idle 이면 그리지 않는다', () => {
     const { rerender, container } = render(<RankCard state={{ status: 'loading' }} currentBiz="R10406" onPick={() => {}} />)
-    expect(screen.getByRole('status')).toHaveTextContent('계산하는 중')
+    expect(screen.getByText(/계산하는 중/)).toBeInTheDocument()                        // role=status 는 쓰지 않는다(링크 복사 안내와 겹침)
     rerender(<RankCard state={{ status: 'error', failure: { kind: 'network' } }} currentBiz="R10406" onPick={() => {}} />)
-    expect(screen.getByRole('status')).toHaveTextContent('불러오지 못했습니다')
+    expect(screen.getByText(/불러오지 못했습니다/)).toBeInTheDocument()
     rerender(<RankCard state={{ status: 'idle' }} currentBiz="R10406" onPick={() => {}} />)
     expect(container).toBeEmptyDOMElement()
   })
