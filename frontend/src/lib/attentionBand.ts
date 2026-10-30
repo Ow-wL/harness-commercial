@@ -61,6 +61,7 @@ const isVacantCompetition = (ind: EngineResult['지표'][number]) =>
 function coveredByBand(warning: string): boolean {
   return (
     warning.includes('병목') ||                         // 병목 원문·구조화 문장·가중치 안내 — 병목은 구조화 필드로만
+    warning.includes('주의 기준(') ||                   // displayWarnings 가 병목 원문을 바꾼 표시용 문장(13-3 "주의 기준(25점 미만)")
     warning.startsWith('계산 불가 지표') ||               // 미산출 줄
     warning.startsWith('반경 내 동종업종이 0개') ||        // 경쟁성 0곳 미산출 줄
     warning.includes('학교 주변 입지 규제 업종') ||         // 학교 줄
@@ -96,8 +97,8 @@ function linesOf(analysis: AnalyzeResponse, { side, compare }: Context): BandLin
       tone: 'warning',
       mark: '!',
       text: compare
-        ? `${p}${bottleneck.label} ${formatScore(bottleneck.score)} · 병목`
-        : `${bottleneck.label} ${formatScore(bottleneck.score)}점 · 병목 기준(${BOTTLENECK_WARN_BELOW}점 미만) — 종합과 별개 위험 요인`,
+        ? `${p}${bottleneck.label} ${formatScore(bottleneck.score)} · 주의 관점`
+        : `${bottleneck.label} ${formatScore(bottleneck.score)}점 · 주의 관점(${BOTTLENECK_WARN_BELOW}점 미만) — 종합과 별개 위험 요인`,
       target: t('warnings', 'compare-warnings'),
     })
   }

@@ -87,6 +87,7 @@ test('A/B 비교 — A 부평역, B 학교 50m (같은 데이터 버전)', async
   const head = page.locator('.compare .result__head')
   await expect(head).toContainText('62.3')
   await expect(head).toContainText('67.2')
+  await expect(head).toContainText('규제 확인 필요')                          // 13-1: B(학교 50m)는 비교 머리에도 규제 배지
   await expect(head).toContainText('데이터 묶음 2026-06')
   expect(pageErrors).toEqual([])
 })
@@ -141,6 +142,17 @@ test('1차 활용 — 공유 링크로 열기 · 반경별 표 · 현장 확인 
   await expect(page.locator('.share-notice')).toContainText('공유 링크의 조건으로 다시 분석했습니다')
   await expect(overall(page)).toContainText('62.3')
   await expect(page).toHaveURL(/\?lat=37\.4894&lng=126\.7246&biz=R10406&r=500&data=2026-06&engine=mvp-0\.5\.1$/)
+  // 13-2(팀 A2): 결과 있는 링크 첫 로드에서 지도가 선택 지점·반경에 맞춰진다 — 중심 = 지점, zoom은 반경 원 기준(최소 zoom 6·100km가 아님)
+  await expect
+    .poll(async () =>
+      page.evaluate(() => {
+        const m = (window as unknown as { __fakeMap?: { getCenter(): { lat(): number; lng(): number }; getZoom(): number } }).__fakeMap
+        return m ? { lat: m.getCenter().lat(), lng: m.getCenter().lng(), zoom: m.getZoom() } : null
+      }),
+    )
+    .toEqual({ lat: 37.4894, lng: 126.7246, zoom: expect.any(Number) })
+  expect(await page.evaluate(() => (window as unknown as { __fakeMap: { getZoom(): number } }).__fakeMap.getZoom())).toBeGreaterThanOrEqual(13)
+  await expect(overall(page)).toContainText('보통')                           // 13-4 등급 글자(62.3 → 보통)
   await expect(page.getByRole('button', { name: '링크 복사' })).toBeVisible()
   await expect(page.getByRole('button', { name: '인쇄' })).toBeVisible()      // 인쇄 대화상자는 열지 않는다
 

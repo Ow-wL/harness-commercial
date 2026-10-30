@@ -57,6 +57,16 @@
   --color-info-subtle: #EDF3FA;
   --color-info-border: #B7CCE6;
 
+  /* color — 점수 등급 (13-4, lib/grade): 좋음 ≥70 초록 · 보통 40~70 파랑(기본 막대색) · 약함 25~40 주황 · 주의 <25 빨강. 항상 글자 등급과 함께 */
+  --color-grade-good: #1E7A4C;
+  --color-grade-good-subtle: #E8F5EE;
+  --color-grade-mid: #4A6B94;
+  --color-grade-mid-subtle: #EEF1F5;
+  --color-grade-weak: #B4560C;
+  --color-grade-weak-subtle: #FFF1E3;
+  --color-grade-alert: #B42318;
+  --color-grade-alert-subtle: #FDECEB;
+
   /* color — map (4-4) */
   --color-map-marker: #1D5BBF;
   --color-map-radius-fill: rgba(29, 91, 191, 0.08);

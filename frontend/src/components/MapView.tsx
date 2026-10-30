@@ -14,9 +14,11 @@ import {
   panToUsable,
   rasterZoom,
   rectCenteredInMap,
+  boundsUsable,
   satisfiesSingle,
   unionBox,
   usableArea,
+  usableAreaChecked,
   UNION_MIN_RASTER_ZOOM,
   type GeoBox,
   type Rect,
@@ -752,7 +754,15 @@ export function MapView({
         })
         on('zooming', () => (lockedRef.current = true))
         on('dragstart', () => (lockedRef.current = true))
-        on('idle', () => syncControlBand(bandRef.current, sectionRef.current, canvasRef.current))
+        on('idle', () => {
+          syncControlBand(bandRef.current, sectionRef.current, canvasRef.current)
+          // bounds가 아직 없어 미룬 맞춤(13-2)은 지도가 한 번 그려진 뒤(idle) 다시 시도한다 — 숨김 중이면 runFit이 다시 미룬다
+          const pending = pendingFitRef.current
+          if (pending && initedRef.current && liveMapRef.current === map) {
+            pendingFitRef.current = null
+            runFitRef.current(pending)
+          }
+        })
       } catch (e) {
         console.error('[map] NAVER 지도 이벤트를 걸지 못했습니다 — 만든 지도를 정리하고 지도 영역만 실패로 둡니다', e)
         disposeAttempt()
@@ -986,12 +996,13 @@ export function MapView({
     if (pendingFitRef.current && !valid(pendingFitRef.current)) pendingFitRef.current = null
     runFitRef.current = (action) => {
       const el = sectionRef.current
-      if (!api || !map || !el) return
       if (!valid(action)) {
         pendingFitRef.current = null
         return
       }
-      if (!initedRef.current || el.clientWidth === 0 || el.clientHeight === 0) {
+      // 지도를 아직 내놓기 전(스타일 지도는 init 뒤 expose 전에 markInited가 미룬 맞춤을 돌린다)이면 버리지 않고 다시 미룬다 —
+      // 내놓은 뒤 크기 맞춤(fit)·init 이 다시 돌린다(13-2)
+      if (!api || !map || !el || !initedRef.current || el.clientWidth === 0 || el.clientHeight === 0) {
         // 단일 auto는 이미 기다리는 동작을 덮지 않는다(무조건 맞춤·비교 동작이 이긴다)
         if (!(action.t === 'single' && action.mode === 'auto' && pendingFitRef.current)) pendingFitRef.current = action
         return
@@ -1002,7 +1013,18 @@ export function MapView({
       const size = { w: el.clientWidth, h: el.clientHeight }
       const b = map.getBounds()
       const view = { bounds: { s: b.getSW().lat(), n: b.getNE().lat(), w: b.getSW().lng(), e: b.getNE().lng() }, w: size.w, h: size.h }
-      const u = usableArea(size, mapObstacles(el, canvasRef.current), FIT_PAD)
+      // bounds가 아직 쓸 만하지 않으면(init 직후 GL·크기 0으로 만든 지도) 이번 맞춤을 미루고 다음 idle·크기 맞춤에서 다시 한다(13-2)
+      if (!boundsUsable(view.bounds)) {
+        pendingFitRef.current = action
+        return
+      }
+      const obstacles = mapObstacles(el, canvasRef.current)
+      const checked = usableAreaChecked(size, obstacles, FIT_PAD)
+      if (checked.degenerate) {
+        // 장애물 측정이 어긋난 경우(A2 보고: 100km 축척 + 지점이 화면 끝). 원인 추적용으로 측정값을 남기고 장애물 없는 U로 맞춘다
+        console.warn('[map] 사용 영역이 퇴화해 장애물을 무시하고 맞춥니다', { size, obstacles })
+      }
+      const u = checked.u
       const range = { min: map.getMinZoom?.() ?? 0, max: map.getMaxZoom?.() ?? 21 }
       /** 원 하나는 그 중심(선택 좌표), A∪B는 사각형의 화면 중심에 맞춘다 */
       const fitBox = (box: GeoBox, rect: Rect, center?: { lat: number; lng: number }) => {

@@ -61,7 +61,7 @@ describe('기본 결과는 간단히, 근거는 요청할 때', () => {
     const details = band.querySelector('details')!
     expect(details.open).toBe(false)
     expect(band.querySelector('summary')).toHaveTextContent('확인할 점 3')
-    expect(band.querySelector('summary')).toHaveTextContent('병목 · 미산출')
+    expect(band.querySelector('summary')).toHaveTextContent('주의 관점 · 미산출')
     const link = within(band).getAllByRole('link', { hidden: true })[0]!
     expect(link).not.toBeVisible()
     fireEvent.click(band.querySelector('summary')!)

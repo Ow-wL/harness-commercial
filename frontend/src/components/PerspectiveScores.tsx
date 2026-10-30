@@ -3,14 +3,16 @@ import type { EngineResult } from '../api/schemas.ts'
 import { evidenceLine } from '../lib/evidence.ts'
 import { unitChipLabel } from '../lib/flags.ts'
 import { BOTTLENECK_WARN_BELOW, formatScore, notComputedText, type Indicator } from '../lib/format.ts'
+import { gradeLabel, gradeOf } from '../lib/grade.ts'
 import { Icon } from './Icon.tsx'
 import './PerspectiveScores.css'
 
 /**
  * 다섯 관점 행 (DESIGN.md §6·§8.2·§8.3, A3 §19.1 요약 탭).
- * 순서는 엔진 지표 배열 그대로(시장성→안정성, 정렬하지 않는다). 막대는 모두 한 색, 50 기준선.
+ * 순서는 엔진 지표 배열 그대로(시장성→안정성, 정렬하지 않는다). 막대·숫자는 등급색(13-4: 좋음·보통·약함·주의), 50 기준선.
  * 관점 점수는 세부지표 백분위의 가중평균이라 인천 내 순위가 아니다 — 50 기준선은 0~100 척도의 중간일 뿐이다.
- * 행 = [식별색 + 이름][막대][점수] / 둘째 줄: 짧은 라벨(가장 높음·병목·가장 낮음) · 자료 등급 낮음 · 근거 줄(8-C1b) · 자료 단위 칩(12-18).
+ * 행 = [식별색 + 이름][막대][점수] / 둘째 줄: 등급 칩(13-4) · 짧은 라벨(가장 높음·주의·가장 낮음 — 25점 미만 관점은 "주의" 배지, 13-3) ·
+ * 자료 등급 낮음 · 근거 줄(8-C1b) · 자료 단위 칩(12-18).
  * 자료 단위 칩은 산출된 관점마다 항상 붙는다 — 구 단위 자료와 지점 좌표 자료가 같은 정밀도로 보이지 않게(계획 0-3).
  * 행 전체가 버튼 — 누르면 상세 근거 탭의 그 관점을 펼친다. 막대는 aria-hidden이고 같은 값을 숫자 텍스트로 준다(§15).
  */
@@ -85,14 +87,22 @@ function PerspectiveRow({
   onOpen?: (key: string) => void
 }) {
   const lowConfidence = ind.confidence === 'low'
+  const grade = gradeOf(ind.score)
   const trackClass = [
     'perspective__track',
     ind.score === null && 'perspective__track--missing',
+    grade && `perspective__track--${grade}`,
     isBottleneck && bottleneckWarn && 'perspective__track--warn',
   ]
     .filter(Boolean)
     .join(' ')
   const tags = [
+    grade && (
+      <span key="grade" className={`perspective__grade grade grade--${grade}`}>
+        <span className="visually-hidden">등급 </span>
+        {gradeLabel(ind.score)}
+      </span>
+    ),
     isStrongest && (
       <span key="hi" className="perspective__strongest">
         가장 높음
@@ -102,7 +112,7 @@ function PerspectiveRow({
       (bottleneckWarn ? (
         <span key="bn" className="perspective__bottleneck">
           <Icon name="alert-triangle" size={12} />
-          병목
+          주의
         </span>
       ) : (
         <span key="lo" className="perspective__lowest">
@@ -131,7 +141,7 @@ function PerspectiveRow({
         {ind.score === null ? (
           <span className="perspective__missing">데이터 없음</span>
         ) : (
-          <span className="perspective__score">
+          <span className={`perspective__score${grade ? ` perspective__score--${grade}` : ''}`}>
             {formatScore(ind.score)}
             <span className="visually-hidden">점</span>
           </span>

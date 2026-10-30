@@ -62,6 +62,14 @@
     --color-info: #2b5f9e;
     --color-info-subtle: #edf3fa;
     --color-info-border: #b7cce6;
+    --color-grade-good: #1e7a4c;
+    --color-grade-good-subtle: #e8f5ee;
+    --color-grade-mid: #4a6b94;
+    --color-grade-mid-subtle: #eef1f5;
+    --color-grade-weak: #b4560c;
+    --color-grade-weak-subtle: #fff1e3;
+    --color-grade-alert: #b42318;
+    --color-grade-alert-subtle: #fdeceb;
     --shadow-sm: none;
     --shadow-overlay: none;
     --shadow-panel: none;

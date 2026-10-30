@@ -18,7 +18,7 @@ const TARGET_ID: Record<BandTarget, string> = {
 const MARK_LABEL: Record<BandLine['mark'], string> = { '!': '경고', i: '안내', '†': '계산 구성' }
 
 const KIND_LABEL: Record<BandLine['kind'], string> = {
-  'school-zone': '학교구역', composition: '계산 구성 다름', bottleneck: '병목', 'not-computed': '미산출',
+  'school-zone': '학교구역', composition: '계산 구성 다름', bottleneck: '주의 관점', 'not-computed': '미산출',
   school: '학교 주변', confidence: '자료 등급 낮음', other: '추가 확인', area: '같은 지역',
 }
 

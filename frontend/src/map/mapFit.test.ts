@@ -1,4 +1,5 @@
 import {
+  boundsUsable,
   boxToRect,
   circleBox,
   fitZoom,
@@ -8,6 +9,7 @@ import {
   rasterZoom,
   satisfiesSingle,
   usableArea,
+  usableAreaChecked,
 } from './mapFit.ts'
 
 describe('mapFit — 사용 영역 U (D-022)', () => {
@@ -21,6 +23,20 @@ describe('mapFit — 사용 영역 U (D-022)', () => {
       { x: 740, y: 10, w: 50, h: 79 }, // SMALL 확대 컨트롤: 오른쪽(60×480)이 위(89×800)보다 싸다
     ], 0)
     expect(u).toEqual({ x: 0, y: 0, w: 740, h: 480 })
+  })
+
+  it('퇴화한 U(장애물이 지도를 거의 다 덮어 폭이나 높이가 1/4 미만)는 장애물을 무시한 U로 되돌린다 (13-2, A2)', () => {
+    const size = { w: 1400, h: 900 }
+    // 지도를 왼쪽부터 거의 끝까지 덮는 장애물: 왼쪽 변으로 밀려 U 폭 0 → 이전에는 zoom 최소·지점이 오른쪽 끝(보고된 증상)
+    const cover = [{ x: 0, y: 0, w: 1384, h: 900 }]
+    expect(usableAreaChecked(size, cover)).toEqual({ u: { x: 8, y: 8, w: 1384, h: 884 }, degenerate: true })
+    expect(usableArea(size, cover)).toEqual(usableArea(size, []))
+    // 보통 장애물(오른쪽 결과 패널 398px·위 조건 바)은 그대로
+    const normal = [
+      { x: 986, y: 0, w: 414, h: 900 },
+      { x: 0, y: 0, w: 1400, h: 56 },
+    ]
+    expect(usableAreaChecked(size, normal)).toEqual({ u: { x: 8, y: 64, w: 970, h: 828 }, degenerate: false })
   })
 
   it('크기 0인 장애물과 U 밖의 장애물은 무시한다', () => {
@@ -82,6 +98,20 @@ describe('mapFit — 맞춤 zoom (8-B0 직접 계산)', () => {
     const u = { x: 0, y: 0, w: 700, h: 700 }
     // z14.6에서 300px → z15에서 약 396px(≤700), z16 792px 넘침 → 15
     expect(fitZoom(14.6, { w: 300, h: 300 }, u, range)).toBe(15)
+  })
+
+  it('U나 대상 크기가 0·무한이면 zoom을 바꾸지 않는다 (13-2 — 최소 zoom으로 튀지 않게)', () => {
+    const range = { min: 6, max: 21 }
+    expect(fitZoom(15, { w: 300, h: 300 }, { x: 8, y: 8, w: 0, h: 884 }, range)).toBe(15)
+    expect(fitZoom(15, { w: Infinity, h: 300 }, { x: 8, y: 8, w: 900, h: 884 }, range)).toBe(15)
+    expect(fitZoom(15, { w: Number.NaN, h: 300 }, { x: 8, y: 8, w: 900, h: 884 }, range)).toBe(15)
+    expect(fitZoom(15, { w: 0, h: 0 }, { x: 8, y: 8, w: 900, h: 884 }, range)).toBe(15)
+  })
+
+  it('지도 bounds 유효성: 유한하고 동>서·북>남 (13-2)', () => {
+    expect(boundsUsable({ s: 37.4, n: 37.6, w: 126.5, e: 126.8 })).toBe(true)
+    expect(boundsUsable({ s: 37.5, n: 37.5, w: 126.6, e: 126.6 })).toBe(false)
+    expect(boundsUsable({ s: Number.NaN, n: 37.6, w: 126.5, e: 126.8 })).toBe(false)
   })
 
   it('zoom 범위로 자른다', () => {

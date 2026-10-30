@@ -23,6 +23,7 @@ import {
   locationName,
   nearestStation,
 } from '../lib/format.ts'
+import { regulationAlert } from '../lib/alerts.ts'
 import { compareBand } from '../lib/attentionBand.ts'
 import { dataVersionLabel, dataVersionOf, ResultDataVersionContext } from '../lib/dataVersion.ts'
 import { gapLines } from '../lib/gaps.ts'
@@ -32,6 +33,7 @@ import { AnalysisResult } from './AnalysisResult.tsx'
 import { AttentionBand } from './AttentionBand.tsx'
 import { DataSources, SERVICE_DISCLAIMER } from './DataSources.tsx'
 import { Icon } from './Icon.tsx'
+import { RegulationBadge } from './ResultAlerts.tsx'
 import type { FieldNote, FieldNotes } from '../lib/fieldNotes.ts'
 import { TabRevealContext, useResultTabs, useTabIdBase, type TabDef } from '../lib/resultTabs.ts'
 import { TabList, TabPanel } from './ResultTabs.tsx'
@@ -178,12 +180,13 @@ function SiteRow({
   onShowDetail: (side: CompareSide) => void
 }) {
   const score = analysis.result.종합.점수
+  const regulated = regulationAlert(analysis) !== null
   return (
     <section className="compare__site" aria-label={SIDE_TITLE[side]}>
       <button
         type="button"
         className="compare__site-button"
-        aria-label={`${SIDE_TITLE[side]} ${locationName(analysis.context)} · 종합 ${score === null ? '산출 불가' : `${formatScore(score)}점`} · 전체 결과로`}
+        aria-label={`${SIDE_TITLE[side]} ${locationName(analysis.context)} · 종합 ${score === null ? '산출 불가' : `${formatScore(score)}점`}${regulated ? ' · 규제 확인 필요' : ''} · 전체 결과로`}
         onClick={() => onShowDetail(side)}
       >
         <span className={`pin-letter pin-letter--${side.toLowerCase()}`} aria-hidden="true">
@@ -194,6 +197,7 @@ function SiteRow({
           {score === null ? '산출 불가' : formatScore(score)}
           {score !== null && <small>/100</small>}
         </span>
+        <RegulationBadge show={regulated} />
         <span className="compare__site-go" aria-hidden="true">
           ›
         </span>
@@ -266,7 +270,7 @@ function CompareRows({ a, b, onOpen }: { a: AnalyzeResponse; b: AnalyzeResponse;
 /** 위치 안의 사실: 병목(25 미만)만 경고 글자로 붙인다. 두 위치를 견주는 말이 아니다 */
 function bottleneckTag(side: CompareSide, r: EngineResult, ind: Indicator): string | null {
   return r.종합.병목_지표 === ind.key && ind.score !== null && ind.score < BOTTLENECK_WARN_BELOW
-    ? `${side} 병목 — ${BOTTLENECK_WARN_BELOW}점 미만`
+    ? `${side} 주의 관점 — ${BOTTLENECK_WARN_BELOW}점 미만`
     : null
 }
 
@@ -345,7 +349,7 @@ export function CompareDetail({
 
 const scoreOf = (r: EngineResult, key: string): Indicator => r.지표.find((i) => i.key === key)!
 
-/** 위치 안의 사실(병목·가장 강한 관점)만 붙인다. 두 위치를 견주는 말이 아니다 */
+/** 위치 안의 사실(주의 관점(엔진 병목)·가장 강한 관점)만 붙인다. 두 위치를 견주는 말이 아니다. '병목' 대신 "주의"(13-3, D1) */
 function ScoreTags({ result, indicator }: { result: EngineResult; indicator: Indicator }) {
   const bottleneck = result.종합.병목_지표 === indicator.key && indicator.score !== null
   const strongest = result.종합.최고_지표 === indicator.key && indicator.score !== null
@@ -353,7 +357,7 @@ function ScoreTags({ result, indicator }: { result: EngineResult; indicator: Ind
   const warn = bottleneck && indicator.score! < BOTTLENECK_WARN_BELOW
   return (
     <span className={`compare-table__tag${warn ? ' compare-table__tag--warn' : ''}`}>
-      {bottleneck ? '병목' : '가장 강한 관점'}
+      {bottleneck ? '주의' : '가장 강한 관점'}
     </span>
   )
 }

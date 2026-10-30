@@ -1,7 +1,7 @@
 /*
  * 다섯 관점 행 (A3 §19.1 요약 탭, 시안 .prow): [식별색 7px + 이름 64px] [막대 6px, 50 기준 눈금] [점수 46px]
  * 둘째 줄(막대 아래부터): 짧은 라벨 · 근거 줄 — 줄바꿈 허용(필수 정보를 말줄임으로 자르지 않는다).
- * 행 전체가 버튼(상세 근거로). 막대는 모두 한 색(§19.2), "가장 높음"은 주색 글자, 병목은 경고색 글자·아이콘.
+ * 행 전체가 버튼(상세 근거로). 막대·숫자는 등급색(13-4), "가장 높음"은 주색 글자, 주의(25 미만)는 경고색 글자·아이콘 + 빨간 막대·숫자(13-3).
  */
 .perspectives {
   display: flex;
@@ -94,6 +94,15 @@ button.perspective__button:hover .perspective__label {
   background: var(--color-data-bar);
 }
 
+/* 등급색 (13-4): 보통은 기본 막대색 그대로, 좋음 초록, 약함 주황, 주의 빨강 — 숫자도 같은 색 */
+.perspective__track--good .perspective__fill { background: var(--color-grade-good); }
+.perspective__track--weak .perspective__fill { background: var(--color-grade-weak); }
+.perspective__track--alert .perspective__fill { background: var(--color-grade-alert); }
+
+.perspective__score--good { color: var(--color-grade-good); }
+.perspective__score--weak { color: var(--color-grade-weak); }
+.perspective__score--alert { color: var(--color-grade-alert); }
+
 /* 병목 < 25: 막대 오른쪽 끝 3px 경고 표시 (§6) */
 .perspective__track--warn .perspective__fill::after {
   content: "";
@@ -158,6 +167,11 @@ button.perspective__button:hover .perspective__label {
 .perspective__low-confidence {
   font-weight: 600;
   white-space: nowrap;
+}
+
+/* 등급 칩(13-4)은 근거 줄 맨 앞. 간단 화면에서도 보인다(ResultQuiet 는 높음/낮음 라벨만 접는다) */
+.perspective__grade {
+  vertical-align: 1px;
 }
 
 .perspective__bottleneck .icon,

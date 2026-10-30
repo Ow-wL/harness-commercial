@@ -1,18 +1,30 @@
 import { useId, useState } from 'react'
 import type { EngineResult } from '../api/schemas.ts'
 import { formatScore } from '../lib/format.ts'
+import { gradeLabel, gradeOf } from '../lib/grade.ts'
 import { scoreHelp } from '../lib/scoreHelp.ts'
+import { RegulationBadge } from './ResultAlerts.tsx'
 import './OverallScore.css'
 
 /**
- * 종합 점수 (DESIGN.md §8.1, A3 §19.1): 큰 숫자 + "/ 100", 오른쪽에 "종합 적합도 · 다섯 관점 가중평균 · 순위 아님"과
- * [이 점수는?](8-C1d, 접힘 — 펼치면 SCORE_HELP 3항목(v0.5 는 비교 기준 한 줄을 더해 4항목), 자세한 내용은 상세 근거의 "점수 읽는 법").
- * 숫자에 색을 입히지 않는다. 종합 null이면 "산출 불가". 가장 높은·낮은 관점은 헤드라인이 맡는다(8-C1a, 중복 요약 정리).
+ * 종합 점수 (DESIGN.md §8.1, A3 §19.1): 큰 숫자 + "/ 100" + 등급 글자(13-4, 좋음·보통·약함·주의 — 색과 함께), 오른쪽에
+ * "종합 적합도 · 다섯 관점 가중평균 · 순위 아님"과 [이 점수는?](8-C1d, 접힘 — 펼치면 '무엇인지' 한 줄(13-5) + 기존 항목).
+ * 학교구역 경고가 있으면 숫자 옆 "규제 확인 필요" 배지(13-1). 종합 null이면 "산출 불가". 가장 높은·낮은 관점은 헤드라인이 맡는다.
  */
-export function OverallScore({ summary, engineVersion }: { summary: EngineResult['종합']; engineVersion: string }) {
+export function OverallScore({
+  summary,
+  engineVersion,
+  regulated = false,
+}: {
+  summary: EngineResult['종합']
+  engineVersion: string
+  /** 학교구역 규제 경고가 있는 결과(lib/alerts.regulationAlert) */
+  regulated?: boolean
+}) {
   const userWeighted = summary.가중치_출처 !== '기본(업종그룹)'
   const [helpOpen, setHelpOpen] = useState(false)
   const helpId = useId()
+  const grade = gradeOf(summary.점수)
 
   return (
     <section className="overall" aria-labelledby="overall-caption">
@@ -20,9 +32,16 @@ export function OverallScore({ summary, engineVersion }: { summary: EngineResult
         {summary.점수 === null ? (
           <p className="overall__unavailable">산출 불가</p>
         ) : (
-          <p className="overall__number">
+          <p className={`overall__number${grade ? ` overall__number--${grade}` : ''}`}>
             {formatScore(summary.점수)}
             <span className="overall__unit">/ 100</span>
+            {grade && (
+              <span className={`overall__grade grade grade--${grade}`}>
+                <span className="visually-hidden">등급 </span>
+                {gradeLabel(summary.점수)}
+              </span>
+            )}
+            <RegulationBadge show={regulated} />
           </p>
         )}
         <div className="overall__cap">

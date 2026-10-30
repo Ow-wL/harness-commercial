@@ -108,6 +108,16 @@
   --color-info-subtle: rgba(69, 211, 176, 0.12);
   --color-info-border: rgba(69, 211, 176, 0.4);
 
+  /* 점수 등급 (13-4): 다크에서는 좋음 민트 · 보통 기본 막대색 · 약함 호박색 · 주의 로즈 */
+  --color-grade-good: #45D3B0;
+  --color-grade-good-subtle: rgba(69, 211, 176, 0.14);
+  --color-grade-mid: var(--color-data-bar);
+  --color-grade-mid-subtle: rgba(140, 165, 220, 0.14);
+  --color-grade-weak: #FFB35C;
+  --color-grade-weak-subtle: rgba(255, 179, 92, 0.16);
+  --color-grade-alert: #FF6F91;
+  --color-grade-alert-subtle: rgba(255, 111, 145, 0.16);
+
   /* elevation — 어두운 바탕에서는 그림자를 진하게 */
   --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.45);
   --shadow-overlay: 0 12px 32px rgba(0, 0, 0, 0.4), 0 2px 6px rgba(0, 0, 0, 0.3);

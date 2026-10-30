@@ -16,7 +16,7 @@ describe('lib/warnings — WarningPanel에서 옮긴 규칙 (동작 그대로, �
     const warnings = displayWarnings(GUWOL)
     expect(GUWOL.result.경고[0]).toMatch(/^경쟁성이\(가\) 인천 하위 /)
     expect(warnings[0]).toBe(
-      '경쟁성 점수가 24.4점으로 병목 기준(25점 미만)에 해당합니다. 종합 점수와 별개로 이 관점이 실제 위험 요인일 수 있습니다.',
+      '경쟁성 점수가 24.4점으로 주의 기준(25점 미만)에 해당합니다. 종합 점수와 별개로 이 관점이 실제 위험 요인일 수 있습니다.',
     )
     expect(warnings.slice(1)).toEqual(GUWOL.result.경고.slice(1))       // 학교 주변 경고 원문
   })

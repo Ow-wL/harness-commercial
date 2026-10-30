@@ -97,6 +97,8 @@ function sdk(mode: FakeSdkMode) {
       })
       el.appendChild(canvas)
       this.canvas = canvas
+      // 테스트가 지도 상태(중심·zoom)를 읽는다(13-2 공유 링크 첫 로드 맞춤 검증) — 마지막으로 만든 지도
+      ;(window as unknown as { __fakeMap?: unknown }).__fakeMap = this
       setTimeout(() => {
         Event.trigger(this, 'init')
         Event.trigger(this, 'idle')

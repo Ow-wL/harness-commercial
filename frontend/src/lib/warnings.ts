@@ -57,7 +57,7 @@ export function displayWarnings({ result }: AnalyzeResponse): string[] {
     warnings[at]?.startsWith(`${bottleneck.label}이(가) `)
   ) {
     warnings[at] =
-      `${bottleneck.label} 점수가 ${formatScore(bottleneck.score)}점으로 병목 기준(${BOTTLENECK_WARN_BELOW}점 미만)에 해당합니다. ` +
+      `${bottleneck.label} 점수가 ${formatScore(bottleneck.score)}점으로 주의 기준(${BOTTLENECK_WARN_BELOW}점 미만)에 해당합니다. ` +
       '종합 점수와 별개로 이 관점이 실제 위험 요인일 수 있습니다.'
   }
   return warnings

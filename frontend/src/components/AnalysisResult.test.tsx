@@ -230,12 +230,12 @@ describe('AnalysisResult — 실제 /analyze 응답(부평역 · 네일숍): 안
   it('병목 경고는 순위 표현 없이 점수·기준·위험 안내로 보여 주고, 나머지 엔진 경고는 원문 그대로 둔다', () => {
     render(<AnalysisResult analysis={analysis} />)
     const competition = perspectiveRows().find((r) => r.dataset.key === 'competition')!
-    expect(within(competition).getByText('병목')).toBeInTheDocument()
+    expect(within(competition).getByText('주의', { selector: '.perspective__bottleneck' })).toBeInTheDocument()
 
     const warnings = within(getInTab(EVIDENCE_TAB, 'region', { name: '주의할 점' }))
     expect(
       warnings.getByText(
-        '경쟁성 점수가 1.2점으로 병목 기준(25점 미만)에 해당합니다. 종합 점수와 별개로 이 관점이 실제 위험 요인일 수 있습니다.',
+        '경쟁성 점수가 1.2점으로 주의 기준(25점 미만)에 해당합니다. 종합 점수와 별개로 이 관점이 실제 위험 요인일 수 있습니다.',
       ),
     ).toBeInTheDocument()
     expect(warnings.queryByText(analysis.result.경고[0]!)).not.toBeInTheDocument()
@@ -283,10 +283,10 @@ describe('AnalysisResult — 관점 score=null 인 정상 엔진 결과', () => 
   it('병목 < 25는 warning 톤 "병목"과, 병목 문장을 뺀 엔진 경고 원문을 보여 준다', () => {
     render(<AnalysisResult analysis={analysis} />)
     const competition = perspectiveRows().find((r) => r.dataset.key === 'competition')!
-    expect(within(competition).getByText('병목')).toBeInTheDocument()
+    expect(within(competition).getByText('주의', { selector: '.perspective__bottleneck' })).toBeInTheDocument()
 
     const warnings = within(getInTab(EVIDENCE_TAB, 'region', { name: '주의할 점' }))
-    expect(warnings.getByText(/^경쟁성 점수가 1\.2점으로 병목 기준\(25점 미만\)에 해당합니다/)).toBeInTheDocument()
+    expect(warnings.getByText(/^경쟁성 점수가 1\.2점으로 주의 기준\(25점 미만\)에 해당합니다/)).toBeInTheDocument()
     for (const text of analysis.result.경고.slice(1)) expect(warnings.getByText(text)).toBeInTheDocument()
   })
 })
@@ -324,7 +324,7 @@ describe('AnalysisResult — 헤드라인·주의 요약 띠 (8-C1a)', () => {
     const band = screen.getByRole('region', { name: '주의 요약' })
     fireEvent.click(band.querySelector('summary')!)
     expect(within(band).getAllByRole('link').map((a) => a.getAttribute('aria-label'))).toEqual([
-      '경고: 경쟁성 1.2점 · 병목 기준(25점 미만) — 종합과 별개 위험 요인',
+      '경고: 경쟁성 1.2점 · 주의 관점(25점 미만) — 종합과 별개 위험 요인',
       '경고: 안정성 미산출 · 종합에서 제외 · 자료 등급 낮음',
       '경고: 네일숍 제도 진입장벽 높음: 본인 미용사(네일) 면허 필요.',
     ])
@@ -410,7 +410,7 @@ describe('AnalysisResult — 근거 줄·행 chip 통합·충족 1줄 (8-C1b, do
   it('부평역 네일숍: 병목 chip은 유지(경고 톤) + 근거 줄, 미산출 안정성은 근거 줄 없이 미산출 안내만', () => {
     render(<AnalysisResult analysis={AnalyzeResponseSchema.parse(nailShopFixture)} />)
     const competition = rowOf('competition')
-    expect(within(competition).getByText('병목')).toBeInTheDocument()
+    expect(within(competition).getByText('주의', { selector: '.perspective__bottleneck' })).toBeInTheDocument()
     expect(competition).toHaveTextContent('반경 500m 네일숍 125곳 · 점포당 잠재수요 426명')
     const stability = rowOf('stability')
     expect(stability.querySelector('.perspective__evidence-text')).toBeNull()
@@ -460,18 +460,21 @@ describe('AnalysisResult — 8-C1d 한글화·[이 점수는?]', () => {
     expect(within(raw).getByRole('row', { name: /^flags/ })).toHaveTextContent('영업시간대_유입_집중, 해상도_시군구')
   })
 
-  it('[이 점수는?]는 접혀 있고, 펼치면 "가장 높음·낮음"의 뜻이 첫 줄, 가중평균·순위 아님, 예측 아님 3항목', () => {
+  it("[이 점수는?]는 접혀 있고, 펼치면 '무엇인지'(13-5)가 첫 줄, 그 뒤 \"가장 높음·낮음\"의 뜻·가중평균·순위 아님·예측 아님", () => {
     renderResult()
     const toggle = screen.getByRole('button', { name: '이 점수는?' })
     expect(toggle).toHaveAttribute('aria-expanded', 'false')
     fireEvent.click(toggle)
     expect(toggle).toHaveAttribute('aria-expanded', 'true')
     const items = within(screen.getByRole('list', { name: '이 점수는?' })).getAllByRole('listitem')
-    expect(items).toHaveLength(3)
-    expect(items[0]).toHaveTextContent('이 위치에서 산출한 관점 점수끼리 비교한 표현입니다. 다른 위치와 비교한 순위가 아닙니다.')
-    expect(items[1]).toHaveTextContent('종합 적합도는 산출된 관점 점수에 적용 가중치를 반영한 가중평균입니다. 인천 내 순위나 "상위 N%"가 아닙니다.')
-    expect(items[1]).not.toHaveTextContent(/다섯 관점|업종 그룹 가중치/)   // 부분 미산출·사용자 가중치에서도 맞는 표현
-    expect(items[2]).toHaveTextContent('창업 성공 확률이나 매출·수익을 예측하지 않습니다')
+    expect(items).toHaveLength(4)
+    // 13-5(팀 C2): 첫 문장은 '무엇인지' — "…이 아닙니다"로 시작하지 않는다
+    expect(items[0]).toHaveTextContent(/^인천 안의 비교 모집단과 견주어, 이 자리가 다섯 관점에서 얼마나 유리한지를 0~100으로 나타낸 점수예요/)
+    expect(items[0]).toHaveTextContent('매출이나 성공 확률을 뜻하지는 않아요')
+    expect(items[1]).toHaveTextContent('이 위치에서 산출한 관점 점수끼리 비교한 표현입니다. 다른 위치와 비교한 순위가 아닙니다.')
+    expect(items[2]).toHaveTextContent('종합 적합도는 산출된 관점 점수에 적용 가중치를 반영한 가중평균입니다. 인천 내 순위나 "상위 N%"가 아닙니다.')
+    expect(items[2]).not.toHaveTextContent(/다섯 관점|업종 그룹 가중치/)   // 부분 미산출·사용자 가중치에서도 맞는 표현
+    expect(items[3]).toHaveTextContent('창업 성공 확률이나 매출·수익을 예측하지 않습니다')
     expect(toggle).toHaveAttribute('aria-controls', screen.getByRole('list', { name: '이 점수는?' }).id)
   })
 })

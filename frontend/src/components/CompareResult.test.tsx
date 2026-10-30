@@ -47,9 +47,9 @@ describe('CompareResult — 점수 비교 표', () => {
     expect(rowOf('종합').slice(1)).toEqual(['65.8', '59.1', '+6.7A에서 B를 뺀 값 플러스 6.7'])
     expect(rowOf('시장성').slice(1)).toEqual(['61.6', '68.7', '−7.1A에서 B를 뺀 값 마이너스 7.1'])
     // 위치 안의 사실(병목·가장 강한 관점)만 붙는다. 병목 24.4 < 25 → warning 톤
-    expect(rowOf('경쟁성')[1]).toBe('30.2병목')
-    expect(rowOf('경쟁성')[2]).toBe('24.4병목')
-    expect(within(scoreTable()).getAllByText('병목')[1]).toHaveClass('compare-table__tag--warn')
+    expect(rowOf('경쟁성')[1]).toBe('30.2주의')
+    expect(rowOf('경쟁성')[2]).toBe('24.4주의')
+    expect(within(scoreTable()).getAllByText('주의')[1]).toHaveClass('compare-table__tag--warn')
     expect(rowOf('고객성')[1]).toBe('82.8가장 강한 관점')
     // 해상도(단위)
     expect(rowOf('시장성')[0]).toBe('시장성구')
@@ -86,7 +86,7 @@ describe('CompareResult — 점수 비교 표', () => {
     expect(screen.getByText(/^† /)).toHaveTextContent(
       'A는 시장성·고객성·경쟁성·입지성 4개 관점, B는 시장성·고객성·입지성·안정성 4개 관점',
     )
-    expect(rowOf('안정성').slice(1, 3)).toEqual(['미산출', '41.2병목'])           // 송도2동의 병목은 안정성
+    expect(rowOf('안정성').slice(1, 3)).toEqual(['미산출', '41.2주의'])           // 송도2동의 병목은 안정성
     expect(rowOf('경쟁성').slice(1, 3)).toEqual(['37.4', '미산출'])
   })
 })
@@ -132,7 +132,7 @@ describe('CompareResult — 해석 안내', () => {
     const a = within(warnings).getByRole('region', { name: 'A 부평구 부평1동' })
     const b = within(warnings).getByRole('region', { name: 'B 남동구 구월3동' })
     expect(a).toHaveTextContent('특별한 경고가 없습니다.')
-    expect(b).toHaveTextContent('경쟁성 점수가 24.4점으로 병목 기준(25점 미만)에 해당합니다.')
+    expect(b).toHaveTextContent('경쟁성 점수가 24.4점으로 주의 기준(25점 미만)에 해당합니다.')
     expect(b).not.toHaveTextContent('인천 하위')
     expect(b).toHaveTextContent('PC방은(는) 학교 주변 입지 규제 업종이고, 이 지점 300m 안에 초·중·고 1곳이 있습니다.')
     expect(within(b).getByRole('heading', { level: 4, name: '데이터 한계' })).toBeInTheDocument()

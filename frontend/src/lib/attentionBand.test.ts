@@ -23,7 +23,7 @@ describe('singleBand — 실제 응답', () => {
   it('부평역 네일숍: 병목 → 미산출(+자료 등급 낮음) → 기타 엔진 경고 순, 병목 원문·"계산 불가" 원문은 띠에 올리지 않는다', () => {
     const lines = singleBand(res(nail))
     expect(view(lines)).toEqual([
-      '! 경쟁성 1.2점 · 병목 기준(25점 미만) — 종합과 별개 위험 요인',
+      '! 경쟁성 1.2점 · 주의 관점(25점 미만) — 종합과 별개 위험 요인',
       '! 안정성 미산출 · 종합에서 제외 · 자료 등급 낮음',
       '! 네일숍 제도 진입장벽 높음: 본인 미용사(네일) 면허 필요.',
     ])
@@ -34,7 +34,7 @@ describe('singleBand — 실제 응답', () => {
 
   it('강화읍 PC방: 병목 → 안정성 미산출 → 학교', () => {
     expect(view(singleBand(res(ganghwa)))).toEqual([
-      '! 입지성 22.6점 · 병목 기준(25점 미만) — 종합과 별개 위험 요인',
+      '! 입지성 22.6점 · 주의 관점(25점 미만) — 종합과 별개 위험 요인',
       '! 안정성 미산출 · 종합에서 제외 · 자료 등급 낮음',
       'i 학교 주변 규제 업종 · 300m 안 초·중·고 0곳',
     ])
@@ -50,7 +50,7 @@ describe('singleBand — 실제 응답', () => {
   it('구월3동 PC방: 학교 1곳은 warning, 엔진 학교 원문은 띠에 올리지 않는다', () => {
     const lines = singleBand(res(guwol))
     expect(view(lines)).toEqual([
-      '! 경쟁성 24.4점 · 병목 기준(25점 미만) — 종합과 별개 위험 요인',
+      '! 경쟁성 24.4점 · 주의 관점(25점 미만) — 종합과 별개 위험 요인',
       '! 300m 안 초·중·고 1곳 · 교육지원청 확인 필요',
     ])
   })
@@ -99,7 +99,7 @@ describe('compareBand — 실제 응답 조합', () => {
     const lines = compareBand(res(pc), res(ganghwa))
     expect(view(lines)).toEqual([
       '† 종합 계산 구성이 다릅니다 · A 5개 관점, B 4개(안정성 미산출)',
-      '! B 입지성 22.6 · 병목',
+      '! B 입지성 22.6 · 주의 관점',
       '! B 안정성 미산출 · 종합에서 제외 · 자료 등급 낮음',
       'i A 학교 주변 규제 업종 · 300m 안 초·중·고 0곳',
       'i B 학교 주변 규제 업종 · 300m 안 초·중·고 0곳',
@@ -113,8 +113,8 @@ describe('compareBand — 실제 응답 조합', () => {
     ])
   })
 
-  it('A 부평역 · B 구월3동: 병목은 "B 경쟁성 24.4 · 병목"', () => {
-    expect(view(compareBand(res(pc), res(guwol))).slice(0, 1)).toEqual(['! B 경쟁성 24.4 · 병목'])
+  it('A 부평역 · B 구월3동: 주의 관점은 "B 경쟁성 24.4 · 주의 관점"', () => {
+    expect(view(compareBand(res(pc), res(guwol))).slice(0, 1)).toEqual(['! B 경쟁성 24.4 · 주의 관점'])
   })
 
   it('A 부평역 · B 송도2동: † + B 경쟁성 0곳', () => {

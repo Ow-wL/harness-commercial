@@ -23,7 +23,7 @@ import { sameAreaNotice, sharedPerspectives } from './compare.ts'
 import { effectiveSameCount, evidenceLine } from './evidence.ts'
 import { calcUnitLabel, flagItems } from './flags.ts'
 import { ResultCache } from './resultCache.ts'
-import { SCORE_HELP, SCORE_HELP_V05_BASIS, scoreHelp } from './scoreHelp.ts'
+import { SCORE_HELP, SCORE_HELP_V05_BASIS, SCORE_HELP_WHAT, SCORE_HELP_WHAT_V05, scoreHelp } from './scoreHelp.ts'
 import { displayWarnings, isSchoolZoneWarning } from './warnings.ts'
 
 /**
@@ -95,7 +95,7 @@ describe('v0.5 경고 — 엔진 순서대로 모두, 학교구역 경고를 맨
     withBottleneck.result.경고.splice(1, 0, '경쟁성이(가) 인천 하위 20%로, 종합점수와 별개로 단일 병목입니다.')
     const shown = displayWarnings(withBottleneck)
     expect(shown[0]).toBe(SCHOOL.result.경고[0])
-    expect(shown[1]).toMatch(/^경쟁성 점수가 20\.1점으로 병목 기준\(25점 미만\)/)
+    expect(shown[1]).toMatch(/^경쟁성 점수가 20\.1점으로 주의 기준\(25점 미만\)/)
     expect(shown.slice(2)).toEqual(SCHOOL.result.경고.slice(1))
     expect(shown).toHaveLength(withBottleneck.result.경고.length)
   })
@@ -124,9 +124,10 @@ describe('v0.5 경고 — 엔진 순서대로 모두, 학교구역 경고를 맨
 })
 
 describe('v0.5 비교 기준·한계 문구', () => {
-  it('[이 점수는?]: v0.5 는 158개 행정동 중심점 기준 한 줄을 더한다(v0.3·v0.4 는 그대로 3항목)', () => {
-    expect(scoreHelp('mvp-0.5')).toEqual([SCORE_HELP[0], SCORE_HELP[1], SCORE_HELP_V05_BASIS, SCORE_HELP[2]])
-    expect(scoreHelp('mvp-0.4')).toBe(SCORE_HELP)
+  it("[이 점수는?]: 첫 줄은 '무엇인지'(13-5), v0.5 는 158개 행정동 중심점 기준 한 줄을 더한다(v0.3·v0.4 는 기존 3항목)", () => {
+    expect(scoreHelp('mvp-0.5')).toEqual([SCORE_HELP_WHAT_V05, SCORE_HELP[0], SCORE_HELP[1], SCORE_HELP_V05_BASIS, SCORE_HELP[2]])
+    expect(scoreHelp('mvp-0.4')).toEqual([SCORE_HELP_WHAT, SCORE_HELP[0], SCORE_HELP[1], SCORE_HELP[2]])
+    expect(SCORE_HELP_WHAT_V05).toMatch(/^인천의 동네 158곳 평균 지점과 비교해/)       // '무엇인지'로 시작(부정형 아님)
     render(<OverallScore summary={PC.result.종합} engineVersion="mvp-0.5" />)
     fireEvent.click(screen.getByRole('button', { name: '이 점수는?' }))
     const items = within(screen.getByRole('list', { name: '이 점수는?' })).getAllByRole('listitem')

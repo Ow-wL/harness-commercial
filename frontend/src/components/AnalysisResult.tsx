@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from 'react'
 import type { AnalyzeResponse } from '../api/schemas.ts'
+import { regulationAlert, weakAlert } from '../lib/alerts.ts'
 import { singleBand } from '../lib/attentionBand.ts'
 import { dataVersionLabel, dataVersionOf, ResultDataVersionContext } from '../lib/dataVersion.ts'
 import { formatDistance, formatRadius, locationName, nearestStation } from '../lib/format.ts'
@@ -17,6 +18,7 @@ import { IndicatorDetails } from './IndicatorDetails.tsx'
 import { LocationSummary } from './LocationSummary.tsx'
 import { OverallScore } from './OverallScore.tsx'
 import { PerspectiveScores } from './PerspectiveScores.tsx'
+import { RegulationBanner, WeakPerspectiveLine } from './ResultAlerts.tsx'
 import { TabRevealContext, useResultTabs, useTabIdBase, type TabDef } from '../lib/resultTabs.ts'
 import { TabList, TabPanel } from './ResultTabs.tsx'
 import { WarningPanel } from './WarningPanel.tsx'
@@ -27,7 +29,8 @@ type ResultTab = 'summary' | 'stores' | 'evidence' | 'field'
 
 /**
  * 분석 결과 패널 (A3, DESIGN.md §19.1·§19.5, docs/UX_REDESIGN.md 2.1).
- * 기본 머리: 위치 제목 · 종합 점수 · "확인 필요" 한 줄(12-20) · 접힌 주의 요약. 역·주소는 위치 정보에서 펼친다.
+ * 기본 머리: 위치 제목 · (학교구역 규제 배너, 13-1) · 종합 점수(등급·규제 배지) · (주의 관점 한 줄, 13-3) · "확인 필요" 한 줄(12-20) ·
+ * 접힌 주의 요약. 역·주소는 위치 정보에서 펼친다.
  * 요약은 다섯 관점 막대 + 근거 한 줄·자료 단위 칩(12-20 안 B, 기본 노출). 설명 함께 보기를 켜면 헤드라인·높음/낮음·충족 정보가 나온다.
  * 탭: 요약(관점을 누르면 상세 근거의 그 관점) · 주변 점포 · 상세 근거
  * (관점별 근거 · 주의할 점 · 초보자 접근성 · 위치 · 데이터 출처와 엔진 면책 원문) · 현장 확인(12-27 규칙형 카드 3장).
@@ -72,6 +75,8 @@ export function AnalysisResult({
     setOpenRequest((r) => ({ key, n: (r?.n ?? 0) + 1 }))
   }
   const checks = fieldChecks(analysis)
+  const regulation = regulationAlert(analysis)
+  const weak = weakAlert(analysis)
   const tabs: TabDef<ResultTab>[] = [
     { key: 'summary', label: '요약' },
     { key: 'stores', label: '주변 점포', count: nearbyCount ?? null },
@@ -113,7 +118,9 @@ export function AnalysisResult({
               {address}
             </div>
           </details>
-          <OverallScore summary={result.종합} engineVersion={result.meta.엔진버전} />
+          <RegulationBanner alert={regulation} />
+          <OverallScore summary={result.종합} engineVersion={result.meta.엔진버전} regulated={regulation !== null} />
+          <WeakPerspectiveLine alert={weak} />
           <GapsLine items={gapLines(analysis)} />
           <p className="result__headline">
             <HeadlineText text={headline(result)} />

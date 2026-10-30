@@ -34,8 +34,32 @@ export function boxToRect(box: GeoBox, view: { bounds: GeoBox; w: number; h: num
   return { x, y, w: (box.e - box.w) * sx, h: (mercY(box.n) - mercY(box.s)) * sy }
 }
 
-/** 사용 영역 U. obstacles는 지도 컨테이너 기준 사각형(크기 0은 무시) */
+/**
+ * U가 "쓸 만한" 최소 비율 (13-2, 팀 점검 보고서 A2 — 2026-10-30). 장애물 측정이 어긋나 U가 지도의 한 가장자리로 밀려 폭이나 높이가
+ * 0 가까이 되면 맞춤 zoom은 최소(100km 축척)로, panBy는 반 화면만큼 밀려 지점이 화면 끝에 걸린다(공유 링크 첫 로드에서 보고된 증상 —
+ * 위도는 맞고 경도만 크게 어긋남). 그런 U는 믿지 않고 장애물 없는 U(지도 전체 − pad)로 되돌린다.
+ */
+export const MIN_USABLE_FRACTION = 0.25
+
+/** 사용 영역 U. obstacles는 지도 컨테이너 기준 사각형(크기 0은 무시). 퇴화하면(폭·높이가 지도의 1/4 미만) 장애물을 무시한 U */
 export function usableArea(size: { w: number; h: number }, obstacles: readonly Rect[], pad = 8): Rect {
+  return usableAreaChecked(size, obstacles, pad).u
+}
+
+/** usableArea + 퇴화 여부(장애물을 무시하고 되돌렸는지). MapView가 되돌렸을 때 경고를 남긴다 */
+export function usableAreaChecked(
+  size: { w: number; h: number },
+  obstacles: readonly Rect[],
+  pad = 8,
+): { u: Rect; degenerate: boolean } {
+  const u = carve(size, obstacles, pad)
+  const minW = size.w * MIN_USABLE_FRACTION
+  const minH = size.h * MIN_USABLE_FRACTION
+  if (u.w >= minW && u.h >= minH) return { u, degenerate: false }
+  return { u: carve(size, [], pad), degenerate: true }
+}
+
+function carve(size: { w: number; h: number }, obstacles: readonly Rect[], pad: number): Rect {
   const u = { top: 0, right: size.w, bottom: size.h, left: 0 }
   for (const o of obstacles) {
     if (o.w <= 0 || o.h <= 0) continue
@@ -72,8 +96,15 @@ export function fitZoom(currentZoom: number, target: { w: number; h: number }, u
   // 반올림으로 지금 축척과 달라진 만큼 대상 크기를 고친다(정수 zoom이면 그대로)
   const scale = 2 ** (base - currentZoom)
   const ratio = Math.min(u.w / (target.w * scale), u.h / (target.h * scale))
+  // 대상 크기나 U가 0·무한·NaN이면(지도 bounds가 아직 없거나 퇴화) 계산할 수 없다 — zoom을 바꾸지 않는다(13-2)
+  if (!Number.isFinite(ratio) || ratio <= 0) return Math.max(range.min, Math.min(range.max, base))
   const z = base + Math.floor(Math.log2(ratio))
   return Math.max(range.min, Math.min(range.max, z))
+}
+
+/** 지도 bounds가 쓸 만한지: 유한하고 동쪽이 서쪽보다, 북쪽이 남쪽보다 크다(13-2 — init 직후·크기 0 지도는 아닐 수 있다) */
+export function boundsUsable(b: GeoBox): boolean {
+  return [b.s, b.n, b.w, b.e].every(Number.isFinite) && b.e > b.w && b.n > b.s
 }
 
 /** setCenter(대상 중심) → setZoom 뒤 대상 중심을 U 중심으로 옮기는 panBy 값. panBy(+x, +y)는 내용을 왼쪽·위로 옮긴다 */
