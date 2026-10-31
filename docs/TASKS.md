@@ -72,6 +72,13 @@
   - [x] 비차단 다듬기: "타겟 연령 거주"→"주요 손님층 연령 거주", "종사자"→"주변 직장인", 순위 메타 "기본 가중치"→"기본 계산 기준", 역 제안 정확 일치 우선("부평역"이 "부평구청역"보다 먼저), 주소 안내 "역은 아래 역 이름 칩으로". v0.5.1 backend 테스트의 `StuckCache.warm` 가짜가 `radii` 를 받고 total 을 `warm_tasks` 로 계산(Codex 기록의 1 failed — R1 결함 아님) → v0.5.1 `test_analyze`+`test_rank_stations` 32 passed.
   - **수정 검증(Claude, 2026-10-31, `c48a686` + 미커밋 수정)**: vitest 전체 59파일 **966/966**(수정 뒤 타입 보정 1건은 해당 테스트만 재실행), typecheck·lint 통과, backend 관련 5파일 v0.3 50 passed·1 skipped, v0.5.1 `test_analyze`·`test_rank_stations` 32 passed, `test_smoke_api` 5 passed, 패치노트 check. 브라우저(dev, 엔진 v0.5.1): 1366×768·640×800·375×812, `/insights` 200, 콘솔 오류 없음(재로드 뒤). 수정 커밋 `ba9ff40`: **전체 check `--jobs 5` 1회차 19단계 PASS, SKIP 0, 재실행 없음**(422.7초 — v0.3 381·v0.4 61·v0.5 104·v0.5.1 40·backend 182 passed/1 skipped(학교 규제 v0.3)·frontend 59파일 967), **E2E 5흐름 1회차 PASS**(54.2초, 전체 check 뒤 단독). 로그 `.gstack/check-logs/r1-fix-ba9ff40-*.log`(git 제외). 미확인: 실제 print 미디어·PDF, 이전 번들 + 새 서버를 실제로 연 상태 전환(계약은 smoke·테스트로만), 실기기·Safari·Firefox·스크린리더. **Codex 재검수 대기.**
 
+### 13-C 운영 비용 점검 (2026-10-31, D-038, [보고](COST_2026-10-31.md))
+- [x] 13-C1 현재 구성 조사 — 결제 계정에 `harness-commercial`·`harness-recommend`·Gemini 프로젝트가 함께 묶임. Cloud Run 상시 인스턴스 3개(운영 + `verify-*` 태그 리비전 2개, 각 최소 1·CPU 상시). Cloud SQL·Gemini 는 `harness-recommend` 의 `nowrecommend-api` 가 사용(이 서비스와 무관, 손대지 않음).
+- [x] 13-C2 검증 태그 2개 제거(운영 영향 없음, 리비전 보존) → 상시 인스턴스 1개.
+- [x] 13-C3 무트래픽 실측(최소 0·요청 기반, 운영과 같은 이미지): cold 12.4초 + 첫 분석 6.6초, 다른 업종 3.5초·반경 4.9초, 첫 순위 53.9초, 쉬는 동안 warm 멈춤, 점수 동일·오류 없음. 실측 태그 제거.
+- [x] 13-C4 `scripts/deploy_cloud_run.py`(후보 최소 0·서비스 단위 최소·설정 명시·dry run·태그 정리) + 테스트 5, AI 하루 상한(월 1/10) + 테스트 1.
+- [ ] 13-C5 **승인 대기**: 운영 과금 B(권장, 월 약 24,000원)/C(약 0~10,000원)/A 유지(약 80,000원), GCP 예산 알림, Artifact Registry 정리 정책, 메모리 512 MiB 실측. 사용자: Anthropic Console 월 한도.
+
 ### 13-R2 AI 요약·자유 질문 (앱 v0.2.0 후보, 12-23 흡수)
 - [x] 13-23 (2026-10-31, v0.2.0 후보, D-037) `POST /summary` 자동 요약 — backend `app/ai.py`(Sonnet 5.5·서버측 거절 fallback·JSON 스키마·조건 캐시 메모리+디스크·좌표 없는 입력), 화면 `AiSummaryCard`(좋은 점·주의·확인할 것 + 근거 키, 고지), 키 없으면 꺼짐(템플릿 결론이 요약). 테스트: backend 가짜 Completer(계약·캐시·좌표 미포함·SDK 요청 모양), 카드 3. 검증 C.
 - [x] 13-24 (2026-10-31) `POST /ask` 자유 질문 — 최근 6턴·질문 1~300자·자료 밖이면 out_of_scope·거절이면 "답할 수 없어요", 화면 `AskDialog`(추천 칩 3·대화·Escape·포커스 복귀). 스트리밍 없음. 테스트: backend 4·AskDialog 4·App 2. 검증 C+B.

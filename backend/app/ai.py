@@ -37,6 +37,8 @@ FALLBACK_BETA = "server-side-fallback-2026-07-01"
 PROMPT_VERSION = "r2-1"                       # 프롬프트·입력 모양을 바꾸면 올린다 — 요약 캐시 키에 들어간다
 API_KEY_ENV = "ANTHROPIC_API_KEY"
 BUDGET_ENV = "AI_MONTHLY_BUDGET_USD"
+DAILY_BUDGET_ENV = "AI_DAILY_BUDGET_USD"            # 하루 상한(기본 = 월 예산의 1/10) — 한 날에 한 달 예산을 다 쓰지 않게(비용 급증 방지)
+DAILY_SHARE = 0.1
 STATE_DIR_ENV = "AI_STATE_DIR"
 DEFAULT_BUDGET_USD = 30.0
 WARN_AT = 0.8
@@ -165,35 +167,43 @@ class StateStore:
 
 
 class Budget:
-    """KST 월별 비용 집계. state: {"month": "2026-11", "usd": 1.23, "warned": false}"""
+    """KST 월별·일별 비용 집계. state: {"month": "2026-11", "usd": 1.23, "warned": false, "day": "2026-11-02", "day_usd": 0.4}
+    하루 상한(daily_usd, 기본 월 예산의 1/10)을 넘으면 그날은 닫는다 — 여러 IP 의 몰림으로 한 날에 한 달 예산이 사라지지 않게."""
 
     FILE = "budget.json"
 
-    def __init__(self, store: StateStore, limit_usd: float, clock: Callable[[], datetime] = kst_now):
+    def __init__(self, store: StateStore, limit_usd: float, clock: Callable[[], datetime] = kst_now,
+                 daily_usd: Optional[float] = None):
         self.store, self.limit, self.clock = store, limit_usd, clock
+        self.daily = daily_usd if daily_usd is not None else limit_usd * DAILY_SHARE
         self.lock = threading.Lock()
         self.state = store.read_json(self.FILE, {})
 
     def _current(self) -> dict:
-        month = self.clock().strftime("%Y-%m")
+        now = self.clock()
+        month, day = now.strftime("%Y-%m"), now.strftime("%Y-%m-%d")
         if self.state.get("month") != month:
             self.state = {"month": month, "usd": 0.0, "warned": False}
+        if self.state.get("day") != day:
+            self.state["day"], self.state["day_usd"] = day, 0.0
         return self.state
 
     def add(self, usd: float) -> None:
         with self.lock:
             s = self._current()
             s["usd"] = round(float(s.get("usd", 0.0)) + usd, 6)
+            s["day_usd"] = round(float(s.get("day_usd", 0.0)) + usd, 6)
             if not s.get("warned") and s["usd"] >= WARN_AT * self.limit:
                 s["warned"] = True
                 logger.warning("AI 월 예산 %d%% 도달 (%s)", int(WARN_AT * 100), s["month"])
             self.store.write_json(self.FILE, s)
 
     def level(self) -> str:
-        """ok | warn | closed"""
+        """ok | warn | closed (월 예산 또는 하루 상한을 넘으면 closed)"""
         with self.lock:
-            usd = float(self._current().get("usd", 0.0))
-        if usd >= self.limit:
+            s = self._current()
+            usd, day_usd = float(s.get("usd", 0.0)), float(s.get("day_usd", 0.0))
+        if usd >= self.limit or day_usd >= self.daily:
             return "closed"
         return "warn" if usd >= WARN_AT * self.limit else "ok"
 
@@ -381,10 +391,14 @@ class AiService:
             limit = float(os.environ.get(BUDGET_ENV, DEFAULT_BUDGET_USD))
         except ValueError:
             limit = DEFAULT_BUDGET_USD
+        try:
+            daily = float(os.environ[DAILY_BUDGET_ENV]) if os.environ.get(DAILY_BUDGET_ENV) else None
+        except ValueError:
+            daily = None
         if complete is None:
             key = os.environ.get(API_KEY_ENV, "").strip()
             complete = anthropic_completer(key) if key else None
-        return cls(complete=complete, store=store, budget=Budget(store, limit))
+        return cls(complete=complete, store=store, budget=Budget(store, limit, daily_usd=daily))
 
     def health(self) -> dict:
         return {"enabled": self.enabled, "model": MODEL if self.enabled else None,

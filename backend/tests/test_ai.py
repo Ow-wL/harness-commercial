@@ -44,11 +44,11 @@ class Clock:
         return self.t
 
 
-def ai_service(tmp_path, completer, limit=30.0, clock=None):
+def ai_service(tmp_path, completer, limit=30.0, clock=None, daily=None):
     clock = clock or Clock()
     store = A.StateStore(tmp_path)
-    return A.AiService(complete=completer, store=store, budget=A.Budget(store, limit, clock), limiter=A.DailyLimiter(clock),
-                       clock=clock)
+    return A.AiService(complete=completer, store=store, budget=A.Budget(store, limit, clock, daily_usd=daily if daily is not None else limit),
+                       limiter=A.DailyLimiter(clock), clock=clock)
 
 
 @pytest.fixture()
@@ -166,10 +166,24 @@ def test_budget_warn_and_close(tmp_path, make_client, caplog):
     assert c.post("/summary", json=BUPYEONG).json()["error"]["code"] == "ai_budget"       # 캐시 없음 → 닫힘
 
 
+def test_daily_cap_closes_for_the_day_and_reopens_next_day(tmp_path):
+    """비용 급증 방지: 하루 상한(기본 월 예산의 1/10)을 넘으면 그날은 닫고, 다음 날(KST) 다시 연다. 월 합계는 이어진다."""
+    clock = Clock("2026-11-02T23:00:00")
+    b = A.Budget(A.StateStore(tmp_path), 30.0, clock)
+    assert b.daily == pytest.approx(3.0)
+    b.add(2.9)
+    assert b.level() == "ok"
+    b.add(0.2)
+    assert b.level() == "closed"
+    clock.t = datetime.fromisoformat("2026-11-03T00:00:01").replace(tzinfo=A.KST)
+    assert b.level() == "ok"
+    assert json.loads((tmp_path / "budget.json").read_text(encoding="utf-8"))["usd"] == pytest.approx(3.1)
+
+
 def test_budget_resets_on_kst_month_boundary(tmp_path):
     clock = Clock("2026-11-30T23:59:00")
     store = A.StateStore(tmp_path)
-    b = A.Budget(store, 1.0, clock)
+    b = A.Budget(store, 1.0, clock, daily_usd=10.0)
     b.add(2.0)
     assert b.level() == "closed"
     clock.t = datetime.fromisoformat("2026-12-01T00:00:01").replace(tzinfo=A.KST)
