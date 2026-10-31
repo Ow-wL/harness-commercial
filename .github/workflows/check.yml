@@ -1,0 +1,75 @@
+# CI (TASKS 12-8) — 로컬 scripts/check 가 완료 판정 기준인 점은 그대로다(CLAUDE.md Definition of Done). CI 는 push 마다 빠른 단계로
+# 깨진 것을 일찍 알리는 보조 장치다. 엔진·golden 4단계(약 30분)는 매일 밤 1회와 수동 실행(workflow_dispatch)으로만.
+# 비밀정보는 쓰지 않는다 — AI·지원사업·장소 검색은 키가 없어 꺼진 상태로 테스트된다(테스트는 가짜 자료원을 주입한다).
+name: check
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      full:
+        description: "전체 check(엔진·golden 포함, --jobs 2)"
+        type: boolean
+        default: true
+  schedule:
+    - cron: "30 18 * * *"   # 매일 03:30 KST — 전체 check
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-${{ github.ref }}-${{ github.event_name }}
+  cancel-in-progress: true
+
+jobs:
+  quick:
+    name: quick (imports · integrity · team-tests · backend · frontend · patch-notes)
+    if: github.event_name == 'push' || github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0          # patch-notes 단계가 HEAD 이력의 모든 커밋 연결을 본다
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+          cache: pip
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: setup
+        run: |
+          bash scripts/setup.sh
+          npm --prefix frontend ci
+      - name: check (quick stages)
+        run: bash scripts/check.sh --only imports,integrity,team-tests,backend,frontend,patch-notes
+
+  full:
+    name: full check (engine · golden 포함)
+    if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.full)
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+          cache: pip
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: setup
+        run: |
+          bash scripts/setup.sh
+          npm --prefix frontend ci
+      - name: check (all stages)
+        run: bash scripts/check.sh --jobs 2
