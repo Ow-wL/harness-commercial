@@ -40,6 +40,7 @@ import logging
 import math
 import os
 import threading
+import time
 from collections import OrderedDict
 from contextlib import asynccontextmanager
 from typing import Annotated, Any, Iterable, Literal, Optional, get_args
@@ -65,6 +66,7 @@ from .errors import (AI_BUDGET, AI_LIMITED, AI_UNAVAILABLE, AI_UPSTREAM, ERROR_R
 from .frontend import mount_frontend
 from .places import MAX_QUERY_CHARS, PlacesClient, PlacesUpstreamError
 from .ridership import BAND_LABELS, RidershipStore
+from . import usage
 from .support import KST, SupportService
 from .support_match import MatchProfile, match as match_support
 from scoring_engine.service import AnalysisService
@@ -585,11 +587,19 @@ def create_app(service: Optional[AnalysisService] = None, warm_biz: Optional[Ite
 
     @app.middleware("http")
     async def rate_limit(request: Request, call_next):
-        """12-9: 분석 계열·AI 경로의 IP 분당 제한. IP 는 해시로 메모리에만(로그·저장 없음)."""
-        if minute_limiter is not None and request.method == "POST" and request.url.path in LIMITED_PATHS:
-            if not minute_limiter.allow(client_ip(request)):
-                return error_json(429, ErrorDetail(code=RATE_LIMITED, message=MESSAGES_RATE_LIMITED))
-        return await call_next(request)
+        """12-9: 분석 계열·AI 경로의 IP 분당 제한. IP 는 해시로 메모리에만(로그·저장 없음).
+        12-10: 같은 경로의 POST 마다 사용 현황 JSON 한 줄(backend/app/usage.py — 업종·구·반경·결과 코드·지연, 좌표·IP 없음)."""
+        if request.method != "POST" or request.url.path not in LIMITED_PATHS:
+            return await call_next(request)
+        rec = usage.start()
+        t0 = time.perf_counter()
+        if minute_limiter is not None and not minute_limiter.allow(client_ip(request)):
+            rec["code"] = RATE_LIMITED
+            response = error_json(429, ErrorDetail(code=RATE_LIMITED, message=MESSAGES_RATE_LIMITED))
+        else:
+            response = await call_next(request)
+        usage.emit(request.url.path, response.status_code, (time.perf_counter() - t0) * 1000, rec)
+        return response
     app.state.service = None
     app.state.warm = None
     app.state.context_builder = None
@@ -647,7 +657,9 @@ def create_app(service: Optional[AnalysisService] = None, warm_biz: Optional[Ite
     def resolve_context(lat: float, lng: float):
         """/analyze·/nearby-stores 공통 좌표 검증 → SiteContext. 오류 코드는 D-014 계약 그대로."""
         try:
-            return context_builder().build(lat, lng)
+            ctx = context_builder().build(lat, lng)
+            usage.note(gu=ctx.gu_name)                         # 12-10: 구 이름만(좌표는 남기지 않는다)
+            return ctx
         except InvalidCoordinate as e:
             raise ApiError(INVALID_COORDINATE) from e
         except LocationOutside as e:
@@ -700,6 +712,7 @@ def create_app(service: Optional[AnalysisService] = None, warm_biz: Optional[Ite
         except ValueError as e:
             raise ApiError(INVALID_ANALYSIS_OPTIONS, str(e)) from e
         radius = resolve_radius(req.radius_m)
+        usage.note(biz=getattr(req, "biz_code", None), radius=radius)
         ctx = resolve_context(req.lat, req.lng)
         # 이후 예외(ContextDataError 포함, analyze 안의 ValueError 도)는 내부 오류 → 500 (errors.install_error_handlers)
         result = app.state.service.analyze(ctx, req.biz_code, user_weights=req.user_weights,
@@ -715,6 +728,7 @@ def create_app(service: Optional[AnalysisService] = None, warm_biz: Optional[Ite
     def insights(req: InsightsRequest, response: Response) -> InsightsResponse:
         """시간대·인구 카드 설명 자료 (13-15): 좌표의 시군구 24시간 유입(엔진 시장성 패널 원값) + 업종 영업시간 프로파일.
         /analyze 와 같은 순서로 검증한다: 업종 → 좌표. 엔진 analyze 는 부르지 않고 점수와 무관하다(실패는 오류 계약 500)."""
+        usage.note(biz=req.biz_code)
         if req.biz_code not in C.CODE_NAME:
             raise ApiError(INVALID_BUSINESS)
         ctx = resolve_context(req.lat, req.lng)
@@ -730,6 +744,7 @@ def create_app(service: Optional[AnalysisService] = None, warm_biz: Optional[Ite
         if req.biz_code not in C.CODE_NAME:
             raise ApiError(INVALID_BUSINESS)
         radius = resolve_radius(req.radius_m)
+        usage.note(biz=getattr(req, "biz_code", None), radius=radius)
         ctx = resolve_context(req.lat, req.lng)
         finder = nearby_finder()
         stores = finder.find(ctx.lat, ctx.lng, req.biz_code, radius_m=radius)
@@ -757,6 +772,7 @@ def create_app(service: Optional[AnalysisService] = None, warm_biz: Optional[Ite
         if biz not in C.CODE_NAME:
             raise ApiError(INVALID_BUSINESS)
         radius = resolve_radius(radius_m)
+        usage.note(biz=biz, radius=radius)
         ctx = resolve_context(lat, lng)
         result = app.state.service.analyze(ctx, biz, radius_m=radius)
         try:
@@ -798,6 +814,7 @@ def create_app(service: Optional[AnalysisService] = None, warm_biz: Optional[Ite
                                  PROMPT_VERSION, cand_key)))
         stamp_data_version(response)
         cached = svc.cache.get(key)
+        usage.note(cached=cached is not None)
         if cached is not None:
             return SummaryResponse(**{**cached, "cached": True})
         if svc.budget.level() == "closed":
@@ -872,6 +889,7 @@ def create_app(service: Optional[AnalysisService] = None, warm_biz: Optional[Ite
         추천이 아니다. /analyze 와 같은 순서로 검증한다: 반경 → 좌표. 엔진 analyze 를 업종마다 1회 부르고(점수 변형 없음),
         같은 좌표(소수 6자리)·반경의 재요청은 프로세스 안 LRU 캐시(RANK_CACHE_MAX)에서 돌려준다."""
         radius = resolve_radius(req.radius_m)
+        usage.note(biz=getattr(req, "biz_code", None), radius=radius)
         ctx = resolve_context(req.lat, req.lng)
         key = (round(ctx.lat, 6), round(ctx.lng, 6), radius)
         cache: OrderedDict = app.state.rank_cache
@@ -933,6 +951,7 @@ def create_app(service: Optional[AnalysisService] = None, warm_biz: Optional[Ite
     def support_match(req: SupportMatchRequest) -> SupportMatchResponse:
         """13-32: 수집해 둔 지원사업 공고(메모리) 중 조건에 맞는 공고 — 외부 호출 없음. "추천"이 아니라 "조건에 맞는 공고"다.
         키가 없으면 503 support_unavailable(프런트는 /health support.enabled 일 때만 부른다)."""
+        usage.note(biz=req.biz_code, gu=req.gu)
         if not support_service.enabled:
             raise ApiError(SUPPORT_UNAVAILABLE, status=503)
         name = C.CODE_NAME.get(req.biz_code)

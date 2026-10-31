@@ -13,6 +13,7 @@ import uuid
 from typing import Optional
 
 from fastapi import FastAPI, Request
+from . import usage
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
@@ -89,15 +90,18 @@ def error_json(status: int, detail: ErrorDetail) -> JSONResponse:
 def install_error_handlers(app: FastAPI) -> None:
     @app.exception_handler(ApiError)
     async def api_error(request: Request, exc: ApiError) -> JSONResponse:
+        usage.note(code=exc.code)                       # 12-10 사용 현황 로그의 결과 코드
         return error_json(exc.status, ErrorDetail(code=exc.code, message=exc.message))
 
     @app.exception_handler(RequestValidationError)
     async def request_validation(request: Request, exc: RequestValidationError) -> JSONResponse:
+        usage.note(code=INVALID_REQUEST)
         return error_json(422, ErrorDetail(code=INVALID_REQUEST, message=MESSAGES[INVALID_REQUEST]))
 
     @app.exception_handler(Exception)
     async def internal(request: Request, exc: Exception) -> JSONResponse:
         request_id = uuid.uuid4().hex
+        usage.note(code=INTERNAL_ERROR)
         logger.error("internal_error request_id=%s %s %s", request_id, request.method, request.url.path,
                      exc_info=(type(exc), exc, exc.__traceback__))
         return error_json(500, ErrorDetail(code=INTERNAL_ERROR, message=MESSAGES[INTERNAL_ERROR],
