@@ -5,7 +5,7 @@
     {
       "version": "v0.3.2",
       "date": "2026-11-01",
-      "title": "보안 헤더와 자료 갱신 준비",
+      "title": "보안 헤더와 짧은 주소 준비",
       "changes": [
         {
           "type": "improved",
@@ -14,7 +14,8 @@
       ],
       "work": [
         "12-9: 보안 헤더 Strict-Transport-Security·X-Content-Type-Options·Referrer-Policy(strict-origin-when-cross-origin — NAVER 지도 Referer 인증 유지) 모든 응답, 테스트·smoke 검사",
-        "9-C5: 새 원본 자료 확인 스크립트(포털 자료 페이지 4개 읽기만, 데이터 버전 매니페스트 기준일과 비교) + 매주 GitHub Actions 확인·새 자료 이슈, 테스트"
+        "9-C5: 새 원본 자료 확인 스크립트(포털 자료 페이지 4개 읽기만, 데이터 버전 매니페스트 기준일과 비교) + 매주 GitHub Actions 확인·새 자료 이슈, 테스트",
+        "12-29: Firebase Hosting 앞단(짧은 주소·사용자 도메인, D-042) — 오류 응답 Cache-Control no-store(CDN 404 캐시 방지), Firebase 프록시 경유 요청은 Fastly-Client-IP 를 제한기 키로, scripts/firebase_hosting.py, 테스트"
       ],
       "commits": [
         "42db1d4"

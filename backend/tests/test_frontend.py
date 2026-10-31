@@ -176,3 +176,11 @@ def test_security_headers_on_pages_assets_api_and_errors(client):
         assert res.headers["strict-transport-security"] == "max-age=31536000"
         assert res.headers["x-content-type-options"] == "nosniff"
         assert res.headers["referrer-policy"] == "strict-origin-when-cross-origin"
+
+
+def test_error_responses_are_not_cached_but_pages_keep_their_cache(client):
+    """Firebase Hosting 앞단: Cache-Control 없는 404 를 CDN 이 10분 캐시하므로 오류 응답은 no-store. 화면·자산 값은 그대로."""
+    assert client.get("/no-such.js").headers["cache-control"] == "no-store"
+    assert client.post("/analyze", json={"lat": 37.5665, "lng": 126.978, "biz_code": "R10406"}).headers["cache-control"] == "no-store"
+    assert client.get("/assets/index-abc.js").headers["cache-control"] == "public, max-age=31536000, immutable"
+    assert "no-store" not in client.get("/").headers.get("cache-control", "")

@@ -36,6 +36,7 @@ ContextBuilder 는 첫 /analyze 때 1회 만들어 app.state 에 둔다 (lazy �
 from __future__ import annotations
 
 import hashlib
+import ipaddress
 import logging
 import math
 import os
@@ -454,13 +455,33 @@ LIMITED_PATHS = frozenset({"/analyze", "/nearby-stores", "/rank", "/insights", "
 MESSAGES_RATE_LIMITED = "요청이 너무 많습니다. 잠시 뒤 다시 시도하세요."
 
 
+# Firebase Hosting(짧은 주소·사용자 도메인 앞단, scripts/firebase_hosting.py)가 Cloud Run 에 붙는 출발 주소. 2026-11-01 Cloud Run
+# 요청 로그 실측 66.249.82.x(요청마다 바뀜) — Google 자체 대역(goog.json)이고 고객용 Cloud 대역(cloud.json)이 아니다.
+FIREBASE_PROXY_NETS = (ipaddress.ip_network("66.249.64.0/19"),)
+
+
+def _from_firebase_proxy(ip: str) -> bool:
+    try:
+        addr = ipaddress.ip_address(ip)
+    except ValueError:
+        return False
+    return any(addr in net for net in FIREBASE_PROXY_NETS)
+
+
 def client_ip(request: Request) -> str:
-    """Cloud Run 앞단이 X-Forwarded-For 끝에 붙인 값(없으면 연결 주소). 저장·로그하지 않는다 — 제한기의 해시 키로만."""
+    """사용자 IP — 저장·로그하지 않는다, 제한기의 해시 키로만.
+
+    Cloud Run 앞단(GFE)이 X-Forwarded-For 끝에 붙인 값이 실제 연결 주소다(그 앞 값은 클라이언트가 꾸밀 수 있다).
+    연결 주소가 Firebase Hosting 프록시면 Firebase(Fastly)가 덮어쓴 Fastly-Client-IP 를 쓴다 — 그렇지 않으면 사용자들이
+    요청마다 바뀌는 프록시 주소로 흩어진다. 프록시가 아닌 곳에서 온 Fastly-Client-IP 는 무시한다(직접 접속에서 꾸민 값)."""
     fwd = request.headers.get("x-forwarded-for", "")
     parts = [p.strip() for p in fwd.split(",") if p.strip()]
-    if parts:
-        return parts[-1]
-    return request.client.host if request.client else "unknown"
+    connecting = parts[-1] if parts else (request.client.host if request.client else "unknown")
+    if _from_firebase_proxy(connecting):
+        viewer = request.headers.get("fastly-client-ip", "").strip()
+        if viewer:
+            return viewer
+    return connecting
 
 
 def resolve_radius(radius_m: Optional[int]) -> int:
@@ -598,6 +619,8 @@ def create_app(service: Optional[AnalysisService] = None, warm_biz: Optional[Ite
         response = await call_next(request)
         for k, v in SECURITY_HEADERS.items():
             response.headers.setdefault(k, v)
+        if response.status_code >= 400:              # Firebase Hosting CDN 은 Cache-Control 없는 404 를 10분 캐시한다
+            response.headers.setdefault("Cache-Control", "no-store")
         return response
 
     @app.middleware("http")
