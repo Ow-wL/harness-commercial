@@ -112,6 +112,15 @@ def _sources(spec_role: dict, base: str) -> list:
     return out
 
 
+def add_work_ratio(market: pd.DataFrame) -> pd.DataFrame:
+    """직장성 work_ratio = 목적_출근 / (목적_출근 + 목적_귀가) — 엔진 M2(상권성격)가 읽는 열(runtime RUNTIME_FILES 필수).
+    팀 etl_move.py 는 이 열을 만들지 않고 07_가공데이터 파일에만 있다(팀 설계서 「직장성」 정의). data/runtime 2026-08 값을
+    부동소수점 오차(1e-16) 안에서 재현한다(tests/test_etl_scripts.py). 맨 끝 열로 붙여 원본 열 순서를 지킨다(2026-11-01, 12-7)."""
+    out = market.copy()
+    out["work_ratio"] = out["목적_출근"] / (out["목적_출근"] + out["목적_귀가"])
+    return out
+
+
 def _derive_stability_as_of(df: pd.DataFrame) -> str:
     """etl_stability.build 의 관측기준일과 같은 규칙: 종료일 max, 없으면 인허가일 max."""
     asof = df["종료일"].max()
@@ -218,7 +227,7 @@ class Builder:
             df.insert(1, "기준연월", ym)
             out.append(df)
             yms.append(ym)
-        res = pd.concat(out, ignore_index=True)
+        res = add_work_ratio(pd.concat(out, ignore_index=True))
         filename = f"패널_시장성_{max(yms)}.csv"      # 원본 파일명 규칙 (패널_시장성_202608.csv). 엔진은 역할 키로 찾는다
         CM.write_csv(res, os.path.join(self.out, filename))
         self._record("market_panel", filename, self._as_of("market_panel", spec_role), spec_role, inp)

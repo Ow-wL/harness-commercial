@@ -321,3 +321,12 @@ def test_diff_report_flags_newly_uncomputed_perspective_but_allows_existing_and_
     rep = DR.compare(a, d)
     assert rep["verdict"] == "fail" and rep["counts"]["persp_none"] == [base, base]
     assert rep["counts"]["newly_none"] == [["R10406", "location"]]
+
+
+def test_work_ratio_derivation_reproduces_runtime_market_panel():
+    """12-7: 팀 etl_move 는 work_ratio 를 만들지 않는다 → build_version.add_work_ratio(출근 ÷ (출근 + 귀가))가 data/runtime 2026-08 값을
+    재현해야 한다(열 순서도 맨 끝)."""
+    m = pd.read_csv(os.path.join(RUNTIME_DIR, "패널_시장성_202608.csv"), encoding="utf-8-sig", dtype={"시군구코드": str})
+    derived = BV.add_work_ratio(m.drop(columns=["work_ratio"]))
+    assert list(derived.columns) == list(m.columns)
+    assert (derived["work_ratio"] - m["work_ratio"]).abs().max() < 1e-12

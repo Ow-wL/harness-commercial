@@ -1,0 +1,256 @@
+{
+ "schema": 1,
+ "id": "2026-09",
+ "created": "2026-11-01T03:15:41",
+ "note": "상가 2026-09-30 · 주민등록 인구 2026-09-30 · 생활이동 2026-09 반영(SGIS 2024 통계는 같은 원본으로 다시 붙임). 인허가·역·학교·임대료는 2026-06 승계",
+ "engine_at_build": "mvp-0.3",
+ "builder": {
+  "script": "scripts/etl/build_version.py",
+  "sha256": "46ac002e9332969f5f15331ee00a60faf59dfcb868f831bd70b99558887579df"
+ },
+ "roles": {
+  "shops": {
+   "file": "인천_상가_정제.csv",
+   "sha256": "42e53d3031038518d93fe4920f63a561d266bb5d0c634b0ef088bbe67aeb81aa",
+   "bytes": 35318416,
+   "encoding": "utf-8-sig",
+   "as_of": "2026-09-30",
+   "sources": [
+    {
+     "title": "소상공인시장진흥공단_상가(상권)정보_20260930",
+     "url": "https://www.data.go.kr/data/15083033/fileData.do",
+     "portal_registered": "2026-10-30",
+     "downloaded": "2026-11-01",
+     "file": "소상공인시장진흥공단_상가(상권)정보_인천_202609.csv",
+     "note": "전국 ZIP(349MB) 중 인천 CSV",
+     "sha256": "250c1b6dac09d789b2fe347bf79f7e7acb6a64f34f4724fcb6e39ca6e346a248",
+     "bytes": 75040506
+    }
+   ],
+   "etl": [
+    {
+     "script": "scripts/etl/etl_shops.py",
+     "sha256": "ff060a7e30a342a67015ab46bcb03affd836d06c848d9684b4024b5521bf22fa"
+    }
+   ],
+   "carried_from": null,
+   "inputs": {
+    "shops_csv": {
+     "path": "소상공인시장진흥공단_상가(상권)정보_인천_202609.csv",
+     "sha256": "250c1b6dac09d789b2fe347bf79f7e7acb6a64f34f4724fcb6e39ca6e346a248",
+     "bytes": 75040506
+    }
+   }
+  },
+  "panel": {
+   "file": "패널_통합.csv",
+   "sha256": "30fd373567b310d32ad89752f40dac52117d1b003e6bd92a3599c652583648ad",
+   "bytes": 86408,
+   "encoding": "utf-8-sig",
+   "as_of": "2026-09-30",
+   "sources": [
+    {
+     "title": "행정안전부_지역별(행정동) 성별 연령별 주민등록 인구수_20260930",
+     "url": "https://www.data.go.kr/data/15097972/fileData.do",
+     "downloaded": "2026-11-01",
+     "file": "지역별(행정동)_성별_연령별_주민등록_인구수_20260930.csv",
+     "sha256": "23a269d2fd754f27bab32c9a26c711c3e49e65aee7169dc3184d8b5a548cd36d",
+     "bytes": 2568111
+    },
+    {
+     "title": "국가데이터처_SGIS 행정구역 통계 및 경계_20250630 (2024년 통계·2025 2Q 경계)",
+     "url": "https://www.data.go.kr/data/15129688/fileData.do",
+     "portal_registered": "2026-07-23",
+     "downloaded": "2026-11-01"
+    }
+   ],
+   "etl": [
+    {
+     "script": "scripts/etl/etl_shops.py",
+     "sha256": "ff060a7e30a342a67015ab46bcb03affd836d06c848d9684b4024b5521bf22fa"
+    },
+    {
+     "script": "scripts/etl/etl_pop.py",
+     "sha256": "fd17d9996b184e7c3b1e189660c2c827d83007e61f85cbbe48b3f74bd031fe61"
+    },
+    {
+     "script": "scripts/etl/etl_sgis.py",
+     "sha256": "f07f64113a4a0dd65a9c2a293acd116ef9d8312e53a104d588b4429a76187a66"
+    }
+   ],
+   "carried_from": null,
+   "inputs": {
+    "pop_csv": {
+     "path": "지역별(행정동)_성별_연령별_주민등록_인구수_20260930.csv",
+     "sha256": "23a269d2fd754f27bab32c9a26c711c3e49e65aee7169dc3184d8b5a548cd36d",
+     "bytes": 2568111
+    },
+    "sgis_dir": {
+     "path": "sgis",
+     "dir": true
+    }
+   }
+  },
+  "market_panel": {
+   "file": "패널_시장성_202609.csv",
+   "sha256": "2cc99a5ad83b9a00a00089b68b0acfbff008f41f0b458b0f0076632f6565e72e",
+   "bytes": 11077,
+   "encoding": "utf-8-sig",
+   "as_of": "2026-09",
+   "sources": [
+    {
+     "title": "서울시 수도권 생활이동 (도착지 기준 이동목적) 2026-09",
+     "url": "https://data.seoul.go.kr/dataList/OA-22298/F/1/datasetView.do",
+     "portal_registered": "2026-10-05",
+     "downloaded": "2026-11-01",
+     "file": "seoul_purpose_admdong1_in_202609.zip",
+     "sha256": "761e1667238c07db2023ec1d4764745ffc63e14504ec6edac1f1fa8388aeb642",
+     "bytes": 74718790
+    }
+   ],
+   "etl": [
+    {
+     "script": "scripts/etl/etl_move.py",
+     "sha256": "3d5c0869265d92e5ef4e78a1aacc0475badeba1669f3672f0ac87732b66e1b9f"
+    }
+   ],
+   "carried_from": null,
+   "inputs": {
+    "move_zips": [
+     {
+      "path": "seoul_purpose_admdong1_in_202609.zip",
+      "sha256": "761e1667238c07db2023ec1d4764745ffc63e14504ec6edac1f1fa8388aeb642",
+      "bytes": 74718790
+     }
+    ]
+   }
+  },
+  "stability_pc": {
+   "file": "패널_안정성.csv",
+   "sha256": "1c427f70056ccad9035ce75ba2ee4a4c2dc5744d8318bf2297fb09a8d5a550ed",
+   "bytes": 946,
+   "encoding": "utf-8-sig",
+   "as_of": "2026-05-07",
+   "sources": [
+    {
+     "title": "sources/team_v0.3/07_가공데이터 (팀 전달 가공본, 출처는 sources/team_v0.3/00_README.md 데이터 표)"
+    }
+   ],
+   "etl": [],
+   "carried_from": "2026-06",
+   "inputs": {}
+  },
+  "stability_food": {
+   "file": "패널_안정성_음식.csv",
+   "sha256": "ca6b63ed8d1a7b2fcd6ea6bdac0e522052da0d0f21f68f071917d5604bb0ce90",
+   "bytes": 12160,
+   "encoding": "utf-8-sig",
+   "as_of": "2026-09-29",
+   "sources": [
+    {
+     "title": "sources/team_v0.3/07_가공데이터 (팀 전달 가공본, 출처는 sources/team_v0.3/00_README.md 데이터 표)"
+    }
+   ],
+   "etl": [],
+   "carried_from": "2026-06",
+   "inputs": {}
+  },
+  "stations": {
+   "file": "역사_전국도시철도.xlsx",
+   "sha256": "cdf1d84a7e5c898b2aacd622783ba8ba9af35c40bee0561dc97d55ce8e063f94",
+   "bytes": 313132,
+   "encoding": null,
+   "as_of": "2024-12",
+   "sources": [
+    {
+     "title": "sources/team_v0.3/07_가공데이터 (팀 전달 가공본, 출처는 sources/team_v0.3/00_README.md 데이터 표)"
+    }
+   ],
+   "etl": [],
+   "carried_from": "2026-06",
+   "inputs": {}
+  },
+  "schools": {
+   "file": "학교_전국.csv",
+   "sha256": "6cb618c1bac0b5dbe4912369227cfc983a62e0e00eee2b5cd1c802c593fa5bf9",
+   "bytes": 3204000,
+   "encoding": "cp949",
+   "as_of": "2026-03",
+   "sources": [
+    {
+     "title": "sources/team_v0.3/07_가공데이터 (팀 전달 가공본, 출처는 sources/team_v0.3/00_README.md 데이터 표)"
+    }
+   ],
+   "etl": [],
+   "carried_from": "2026-06",
+   "inputs": {}
+  },
+  "rent": {
+   "file": "임대료_소규모상가_R-ONE.csv",
+   "sha256": "2e28748fa2c4f64b56ea5e18b7c20d5a5d0cf6ffe9ea8a7fa2efb2955edade2d",
+   "bytes": 18474,
+   "encoding": "cp949",
+   "as_of": "2026Q2",
+   "sources": [
+    {
+     "title": "sources/team_v0.3/07_가공데이터 (팀 전달 가공본, 출처는 sources/team_v0.3/00_README.md 데이터 표)"
+    }
+   ],
+   "etl": [],
+   "carried_from": "2026-06",
+   "inputs": {}
+  }
+ },
+ "validation": {
+  "script": "scripts/etl/validate_version.py",
+  "sha256": "c57905f3f018b3b78b589ecd64a1223850b6fc33c8ab1c0c65397ee7d596068b",
+  "run_at": "2026-11-01T03:16:05",
+  "version": "2026-09",
+  "baseline": "data/runtime",
+  "result": "pass",
+  "checks": [
+   {
+    "name": "V1 manifest",
+    "status": "pass",
+    "detail": "id 2026-09, 역할 8개 해시 일치"
+   },
+   {
+    "name": "V2 encoding",
+    "status": "pass",
+    "detail": "선언 인코딩으로 전체 디코딩 성공"
+   },
+   {
+    "name": "V3 schema",
+    "status": "pass",
+    "detail": "필수 컬럼·업종 29×3 컬럼·임대료 분기 열 확인"
+   },
+   {
+    "name": "V4 keys",
+    "status": "pass",
+    "detail": "panel 158 = 경계 158, 시군구 11, shops 라벨 집합 일치"
+   },
+   {
+    "name": "V5 loader",
+    "status": "pass",
+    "detail": "역 211, 학교 553, 유인시설 20,896, 임대료 상권 9"
+   },
+   {
+    "name": "V6 agreement",
+    "status": "pass",
+    "detail": "전체 일치율 0.98461 (floor 0.964), n=135,159"
+   },
+   {
+    "name": "V7 change limits",
+    "status": "pass",
+    "detail": "baseline 2026-06 대비 한계 안 (shops.rows 135,750→135,159, panel.총인구 3,064,375→3,066,527)"
+   }
+  ]
+ },
+ "snapshot": {
+  "path": "snapshot/부평역_29업종.json",
+  "sha256": "69979603b1546559eecb98287b0ee49b32c3cd794e096e2b02bd814acda57bf5",
+  "engine": "mvp-0.5.1",
+  "radius_m": 500,
+  "created": "2026-11-01T03:18:41"
+ }
+}
