@@ -28,6 +28,15 @@ def test_candidate_with_ai_links_secret_by_name_only():
     assert flag(cmd, "--update-secrets") == "ANTHROPIC_API_KEY=anthropic-api-key:latest"
 
 
+def test_candidate_with_support_links_both_secrets_by_name_only():
+    cmd = D.candidate_cmd("abc1234", "abc1234-v051", ai=True, support=True)
+    assert flag(cmd, "--update-secrets") == ("ANTHROPIC_API_KEY=anthropic-api-key:latest,"
+                                              "BIZINFO_API_KEY=bizinfo-api-key:latest,DATA_GO_KR_API_KEY=data-go-kr-api-key:latest")
+    assert cmd.count("--update-secrets") == 1                                  # 한 번에 — 두 번 주면 앞의 값이 덮일 수 있다
+    only = D.candidate_cmd("abc1234", "abc1234-v051", ai=False, support=True)
+    assert flag(only, "--update-secrets").startswith("BIZINFO_API_KEY=")
+
+
 def test_billing_profile_maps_to_cpu_throttling():
     req = D.candidate_cmd("t", "s", False, {**D.PROFILE, "billing": "request"})
     inst = D.candidate_cmd("t", "s", False, {**D.PROFILE, "billing": "instance"})

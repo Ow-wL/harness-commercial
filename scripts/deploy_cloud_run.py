@@ -1,11 +1,12 @@
 """
 Cloud Run 배포 명령 (비용 설정을 명령에 고정 — 2026-10-31 비용 점검, docs/COST_2026-10-31.md).
 
-  python scripts/deploy_cloud_run.py candidate <이미지 태그> [--suffix S] [--ai] [--apply]
+  python scripts/deploy_cloud_run.py candidate <이미지 태그> [--suffix S] [--ai] [--support] [--apply]
       무트래픽 후보 리비전 + `preview` 태그. **리비전 최소 인스턴스는 항상 0** — 태그가 남아 있어도 쉬는 동안 과금되지 않는다
       (예전에는 리비전마다 min 1 이라 verify-* 태그가 남은 리비전 2개가 상시 인스턴스로 계속 과금됐다).
       CPU·메모리·동시성·타임아웃·최대 인스턴스·과금 방식(PROFILE)을 매번 명시한다 — 서비스 템플릿에 남은 값(예: 실험 배포)을 물려받지 않게.
       --ai: ANTHROPIC_API_KEY 를 Secret(anthropic-api-key:latest)에서 연결한다(값은 명령·로그에 나오지 않는다).
+      --support: 지원사업 자료 키 BIZINFO_API_KEY·DATA_GO_KR_API_KEY 를 Secret(bizinfo-api-key·data-go-kr-api-key)에서 연결한다(13-43, D-039).
   python scripts/deploy_cloud_run.py switch <리비전> [--apply]
       트래픽 100% 전환 + **서비스 단위 최소 인스턴스**(PROFILE.service_min — 트래픽을 받는 리비전에만 적용, 리비전을 새로 만들지 않음).
   python scripts/deploy_cloud_run.py rollback <리비전> [--apply]      (= switch, 기록용 이름)
@@ -27,6 +28,7 @@ SERVICE = "harness-commercial"
 IMAGE = f"{REGION}-docker.pkg.dev/{PROJECT}/{PROJECT}/{PROJECT}"
 ENGINE_ENV = "SCORING_ENGINE_VERSION=v0_5_1"
 AI_SECRET = "ANTHROPIC_API_KEY=anthropic-api-key:latest"
+SUPPORT_SECRETS = "BIZINFO_API_KEY=bizinfo-api-key:latest,DATA_GO_KR_API_KEY=data-go-kr-api-key:latest"
 
 # 운영 비용 프로필. 바꿀 때는 docs/COST_2026-10-31.md 의 실측·요금과 함께 사용자 승인 뒤에 고친다.
 #   billing: "instance"(CPU 상시 할당 — 시작 뒤 엔진 warm 이 백그라운드에서 끝까지 돈다) | "request"(요청 처리 중에만 CPU — 쉬는 동안 warm 멈춤)
@@ -34,7 +36,7 @@ AI_SECRET = "ANTHROPIC_API_KEY=anthropic-api-key:latest"
 PROFILE = {"billing": "instance", "service_min": 1, "max": 1, "cpu": "1", "memory": "1Gi", "concurrency": 4, "timeout": 300}
 
 
-def candidate_cmd(tag: str, suffix: str, ai: bool, profile: dict = PROFILE) -> list[str]:
+def candidate_cmd(tag: str, suffix: str, ai: bool, profile: dict = PROFILE, support: bool = False) -> list[str]:
     cmd = ["gcloud", "run", "deploy", SERVICE, "--project", PROJECT, "--region", REGION, "--image", f"{IMAGE}:{tag}",
            "--no-traffic", "--revision-suffix", suffix, "--tag", "preview",
            "--min-instances", "0",                                  # 후보·복구 리비전은 쉬는 동안 0 (운영 최소는 서비스 단위)
@@ -43,8 +45,9 @@ def candidate_cmd(tag: str, suffix: str, ai: bool, profile: dict = PROFILE) -> l
            "--concurrency", str(profile["concurrency"]), "--timeout", str(profile["timeout"]),
            "--cpu-throttling" if profile["billing"] == "request" else "--no-cpu-throttling",
            "--cpu-boost", "--update-env-vars", ENGINE_ENV]
-    if ai:
-        cmd += ["--update-secrets", AI_SECRET]
+    secrets = ([AI_SECRET] if ai else []) + ([SUPPORT_SECRETS] if support else [])
+    if secrets:
+        cmd += ["--update-secrets", ",".join(secrets)]
     return cmd
 
 
@@ -91,6 +94,7 @@ def main(argv: list[str]) -> int:
     c.add_argument("tag")
     c.add_argument("--suffix")
     c.add_argument("--ai", action="store_true")
+    c.add_argument("--support", action="store_true")
     c.add_argument("--apply", action="store_true")
     for name in ("switch", "rollback"):
         s = sub.add_parser(name)
@@ -101,7 +105,7 @@ def main(argv: list[str]) -> int:
     t.add_argument("--apply", action="store_true")
     a = ap.parse_args(argv)
     if a.cmd == "candidate":
-        return run([candidate_cmd(a.tag, a.suffix or f"{a.tag}-v051", a.ai)], a.apply)
+        return run([candidate_cmd(a.tag, a.suffix or f"{a.tag}-v051", a.ai, support=a.support)], a.apply)
     if a.cmd in ("switch", "rollback"):
         return run(switch_cmds(a.revision), a.apply)
     tags = current_tags()
