@@ -44,6 +44,7 @@ from contextlib import asynccontextmanager
 from typing import Annotated, Any, Iterable, Literal, Optional
 
 from fastapi import FastAPI, Response
+from fastapi.routing import APIRoute
 from fastapi.middleware.gzip import GZipMiddleware
 from pydantic import BaseModel, Field, StrictFloat, StrictInt, StrictStr
 
@@ -613,8 +614,9 @@ def create_app(service: Optional[AnalysisService] = None, warm_biz: Optional[Ite
         return app.state.stations
 
     if frontend_dist:   # API route 를 모두 등록한 뒤에 붙인다 — route 순서상 API 가 먼저 매칭된다
-        mount_frontend(app, frontend_dist, api_paths={"/health", "/businesses", "/analyze", "/nearby-stores", "/places",
-                                                      "/rank", "/stations"},
+        # API 경로는 등록된 route 에서 읽는다 — 손으로 적은 목록은 새 엔드포인트(/insights)를 빠뜨려 GET 이 index.html(200)로
+        # 떨어졌다(v0.1.0 무트래픽 smoke). 다른 method 는 405 로 남는다
+        mount_frontend(app, frontend_dist, api_paths={r.path for r in app.routes if isinstance(r, APIRoute)},
                        hidden_paths={"/docs", "/docs/oauth2-redirect", "/redoc", "/openapi.json"})
     return app
 

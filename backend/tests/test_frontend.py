@@ -44,6 +44,20 @@ def test_root_and_spa_routes_serve_index(client):
     assert is_index(client.get("/some/deep/route"))
 
 
+def test_every_api_route_other_method_is_405_not_index(client):
+    """등록된 API route 전부: 다른 method 는 405 — SPA index.html(200)로 떨어지지 않는다. 손으로 적은 목록이 /insights 를 빠뜨려
+    GET /insights 가 200 이던 결함(v0.1.0 무트래픽 smoke)의 회귀 검사. 새 엔드포인트도 자동으로 포함된다."""
+    from fastapi.routing import APIRoute
+    routes = [r for r in client.app.routes if isinstance(r, APIRoute) and "{" not in r.path]   # SPA 폴백 route 제외
+    paths = {r.path for r in routes}
+    assert {"/analyze", "/nearby-stores", "/places", "/rank", "/insights", "/stations", "/health", "/businesses"} <= paths
+    for r in routes:
+        other = "GET" if "GET" not in r.methods else "POST"
+        res = client.request(other, r.path)
+        assert res.status_code == 405, (other, r.path, res.status_code)
+        assert not is_index(res)
+
+
 def test_hashed_assets_are_served_with_long_cache(client):
     res = client.get("/assets/index-abc.js")
     assert res.status_code == 200 and res.text == "console.log(1)"
