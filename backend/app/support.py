@@ -49,7 +49,8 @@ STATE_DIR_ENV = "SUPPORT_STATE_DIR"
 CACHE_FILE = "support-programs.json"
 CACHE_VERSION = 1
 REFRESH_EVERY = timedelta(hours=24)
-RETRY_AFTER_FAILURE = timedelta(hours=1)
+RETRY_AFTER_FAILURE = timedelta(hours=1)        # 성공한 뒤 다시 시도하지 않는 최소 간격(하루 1회 수집은 REFRESH_EVERY)
+RETRY_BACKOFF = (timedelta(minutes=5), timedelta(minutes=15), timedelta(hours=1))   # 연속 실패 1·2·3회 이상(v0.3.1)
 TIMEOUT_S = 60.0
 KSTARTUP_PAGE = 500
 KSTARTUP_MAX_PAGES = 10
@@ -246,6 +247,7 @@ class SupportService:
         self.thread: Optional[threading.Thread] = None
         self.state: dict[str, Any] = {"as_of": None, "sources": {}, "programs": []}
         self.last_attempt: Optional[datetime] = None
+        self.failures = 0                           # 자료원 하나라도 실패한 연속 수집 횟수(성공하면 0)
         if self.enabled:                            # 키가 없는 앱은 예전 캐시가 있어도 광고하지 않는다
             self._load()
 
@@ -288,7 +290,8 @@ class SupportService:
         try:
             status, body = self.fetch(url, params)
         except Exception as e:                      # noqa: BLE001 — 네트워크·타임아웃 종류를 가리지 않는다
-            logger.warning("support %s request failed %s", source, type(e).__name__)
+            reason = str(getattr(e, "reason", "") or e)[:120]          # 예: timed out — URL(키 포함)은 넣지 않는다
+            logger.warning("support %s request failed %s: %s", source, type(e).__name__, reason)
             raise SupportSourceError("request failed") from e
         logger.info("support %s status %s %d bytes (%.0fms)", source, status, len(body), (time.perf_counter() - started) * 1000)
         if status != 200:
@@ -339,6 +342,7 @@ class SupportService:
                                        "error": str(e)}
                     logger.warning("support %s failed (%s) — keeping %d cached", source, e, len(groups[source]))
             state = {"as_of": now.isoformat(timespec="seconds"), "sources": sources, "programs": merge(groups)}
+            self.failures = self.failures + 1 if any(not v["ok"] for v in sources.values()) else 0
             with self.lock:
                 self.state = state
             self._save(state)
@@ -358,11 +362,13 @@ class SupportService:
             return [p for p in self.state.get("programs", []) if relevant(p, today)]
 
     def due(self) -> bool:
-        """다시 받을 때인가: 캐시가 없거나 하루 지났거나, 실패한 자료원이 있고 마지막 시도가 1시간 넘었다."""
+        """다시 받을 때인가: 캐시가 없거나 하루 지났거나 실패한 자료원이 있다. 마지막 시도 뒤 간격은 성공이면 1시간,
+        실패가 이어지면 5분 → 15분 → 1시간(v0.3.1 — 인스턴스 시작 때 외부 연결이 잠깐 안 돼도 카드가 오래 비지 않게)."""
         if not self.enabled:
             return False
         now = self.clock()
-        if self.last_attempt is not None and now - self.last_attempt < RETRY_AFTER_FAILURE:
+        gap = RETRY_BACKOFF[min(self.failures, len(RETRY_BACKOFF)) - 1] if self.failures else RETRY_AFTER_FAILURE
+        if self.last_attempt is not None and now - self.last_attempt < gap:
             return False
         as_of = self.state.get("as_of")
         if not as_of:
@@ -383,7 +389,7 @@ class SupportService:
                                     "count": (src.get(s) or {}).get("count", 0)} for s in SOURCES}}
 
     # ── 백그라운드 ──
-    def run(self, check_every_s: float = 600.0) -> None:
+    def run(self, check_every_s: float = 60.0) -> None:
         while not self.stop.is_set():
             if self.due():
                 try:

@@ -139,10 +139,37 @@ def test_source_failure_keeps_previous_programs(tmp_path, caplog):
     assert state["sources"]["bizinfo"]["ok"] is True
     assert "kstartup:102" in [p.id for p in svc.programs()]
     assert BIZ_KEY not in caplog.text and DG_KEY not in caplog.text
-    # 실패가 있으면 1시간 뒤 다시 받는다, 그 안에는 아니다
+    # 실패가 이어지면 5분 → 15분 → 1시간 뒤 다시 받는다(v0.3.1), 그 안에는 아니다
     assert svc.due() is False
-    clock.now += timedelta(hours=1)
+    clock.now += timedelta(minutes=5)
     assert svc.due() is True
+    svc.refresh()                                                                          # 두 번째 실패
+    clock.now += timedelta(minutes=14)
+    assert svc.due() is False
+    clock.now += timedelta(minutes=1)
+    assert svc.due() is True
+    svc.refresh()
+    svc.refresh()                                                                          # 네 번째 실패 → 1시간
+    clock.now += timedelta(minutes=59)
+    assert svc.due() is False
+    clock.now += timedelta(minutes=1)
+    assert svc.due() is True
+    assert "kstartup request failed TimeoutError: boom" in caplog.text                     # 원인은 남기되 키는 없다
+
+
+def test_success_resets_backoff(tmp_path):
+    clock = Clock()
+    calls = []
+    svc = service(tmp_path, calls, fail=("kstartup",), clock=clock)
+    svc.refresh()
+    assert svc.failures == 1
+    svc.fetch = fake_fetch(calls)                                                          # 연결이 돌아왔다
+    clock.now += timedelta(minutes=5)
+    assert svc.due() is True
+    svc.refresh()
+    assert svc.failures == 0 and svc.state["sources"]["kstartup"]["ok"] is True
+    clock.now += timedelta(minutes=30)
+    assert svc.due() is False                                                              # 성공 뒤에는 하루 1회
 
 
 def test_expired_programs_drop_on_read_and_daily_refresh_due(tmp_path):

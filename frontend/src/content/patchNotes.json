@@ -28,7 +28,8 @@
         "12-8: GitHub Actions CI — push·PR 빠른 단계, 매일 밤 전체 check",
         "12-7: 데이터 버전 2026-09(상가 2026-09-30·인구 2026-09-30·생활이동 2026-09) 생성·검증·차이 보고서, build_version 생활이동 work_ratio 단계 추가",
         "지원사업 구 이름을 2026-07 개편 뒤 11개로(서버 IncheonGu·규칙 표·프런트 INCHEON_GU), 공고 제목의 옛 이름(중구·동구·서구) 대응, 엔진 패널 구 이름과 같은지 테스트",
-        "9-C3: Dockerfile build arg DATA_VERSION(이미지 환경변수 고정 + 빌드 중 8개 파일 sha256 대조), .dockerignore data/versions/_raw"
+        "9-C3: Dockerfile build arg DATA_VERSION(이미지 환경변수 고정 + 빌드 중 8개 파일 sha256 대조), .dockerignore data/versions/_raw",
+        "지원사업 수집 재시도: 실패가 이어지면 5분→15분→1시간(이전엔 1시간 고정), 실패 원인 로그(URL·키 없음), 확인 주기 1분 — 무트래픽 후보에서 시작 때 두 자료원 모두 연결 시간 초과를 겪어 보완"
       ],
       "commits": [
         "d322953",
