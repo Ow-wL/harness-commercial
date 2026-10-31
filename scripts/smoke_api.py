@@ -13,7 +13,8 @@
 immutable 캐시와 GeoJSON 해시(data/geo 원본과 같음), /health engine·data·warm(--wait-warm 동안 완료를 기다림),
 48건 전체 응답 일치(숫자 상대·절대 1e-9), 성공 응답 헤더 X-Data-Version == /health data.version(9-C4), 부평역 PC방 반경별
 동종 점포 수 == 점포 목록 수, 학교 50m PC방 학교구역 경고 첫 줄(엔진 v0.5 계열), 지원하지 않는 반경 422 invalid_radius,
-/rank 부평역 500m(13-16: GET 405, 업종 29개·종합 내림차순·PC방 포함 — 기대값에 rank 가 있으면 본문도 대조, 없으면 대조만 건너뜀).
+/rank 부평역 500m(13-16: GET 405, 업종 29개·종합 내림차순·PC방 포함 — 기대값에 rank 가 있으면 본문도 대조, 없으면 대조만 건너뜀),
+/insights 부평역 PC방(13-15: GET 405, 부평구 24시간 유입·영업시간 프로파일) + /analyze 응답 최상위 키가 context·result 뿐(열린 이전 화면 계약, Codex R1-3).
 서비스 주소는 인자로만 받는다 — 저장소 문서에 쓰지 않는다(D-031 공개 범위).
 """
 from __future__ import annotations
@@ -133,6 +134,27 @@ def check_rank(fetch: Fetch, expected: dict) -> tuple[list[str], dict]:
     return fails, summary
 
 
+def check_insights(fetch: Fetch) -> tuple[list[str], dict]:
+    """13-15 /insights 부평역 PC방: 부평구 24시간 유입·영업시간 프로파일 24개. /analyze 응답은 v0.0.16 형태(context·result)만 —
+    배포 전부터 열린 화면의 strict 스키마가 새 필드를 거절하므로(Codex R1-3) 설명 자료는 /analyze 에 싣지 않는다."""
+    fails = []
+    s, _, d, t = fetch("/insights", BUPYEONG)
+    summary = {"status": s, "latency_ms": round(t * 1000)}
+    if s != 200:
+        return [f"/insights 부평역: {s} (기대 200)"], summary
+    body = json.loads(d)
+    inflow = body.get("inflow") or {}
+    summary.update({"gu": body.get("gu_name"), "hours": len(inflow.get("by_hour") or []),
+                    "profile": len(body.get("hours_profile") or [])})
+    if body.get("gu_name") != "부평구" or len(inflow.get("by_hour") or []) != 24 or len(body.get("hours_profile") or []) != 24:
+        fails.append(f"/insights 부평역: {summary}")
+    keys = sorted(json.loads(fetch("/analyze", BUPYEONG)[2]))
+    summary["analyze_keys"] = keys
+    if keys != ["context", "result"]:
+        fails.append(f"/analyze 최상위 키 {keys} (기대 context·result — 열린 이전 화면 계약)")
+    return fails, summary
+
+
 def check_static(fetch: Fetch) -> list[str]:
     """정적 경로·캐시 헤더·GeoJSON 해시·gzip(12-1)·favicon/robots(12-5). 실패 설명 목록(비면 통과)."""
     fails = []
@@ -141,7 +163,8 @@ def check_static(fetch: Fetch) -> list[str]:
                        ("/openapi.json", 404), ("/assets/missing-release.js", 404), ("/analyze", 405),
                        ("/favicon.svg", 200), ("/robots.txt", 200),
                        ("/places", 405),                        # 12-14: POST 전용(GET 405, 키 유무와 무관)
-                       ("/rank", 405)]:                         # 13-16: POST 전용
+                       ("/rank", 405),                          # 13-16: POST 전용
+                       ("/insights", 405)]:                     # 13-15: POST 전용
         s, _, d, _ = fetch(path)
         if s != want:
             fails.append(f"{path}: {s} (기대 {want})")
@@ -230,6 +253,8 @@ def check_api(fetch: Fetch, expected: dict, engine: str | None = None, wait_warm
         fails.append(f"반경 750m: {s} {code} (기대 422 invalid_radius)")
     rank_fails, summary["rank"] = check_rank(fetch, expected)
     fails += rank_fails
+    insights_fails, summary["insights"] = check_insights(fetch)
+    fails += insights_fails
     return fails, summary
 
 

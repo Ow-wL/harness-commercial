@@ -9,12 +9,13 @@
  * 오류 분기는 error.code로만 한다(D-014). message는 표시용이다.
  */
 import type { z } from 'zod'
-import type { RankResponse, StationsResponse } from './schemas.ts'
+import type { InsightsResponse, RankResponse, StationsResponse } from './schemas.ts'
 import {
   AnalyzeResponseSchema,
   BusinessCatalogSchema,
   ErrorResponseSchema,
   HealthSchema,
+  InsightsResponseSchema,
   NearbyStoresResponseSchema,
   PlacesResponseSchema,
   type AnalyzeResponse,
@@ -110,6 +111,16 @@ export function searchPlaces(query: string, signal?: AbortSignal): Promise<ApiRe
 /** POST /rank {lat,lng,radius_m} — 이 지점의 29개 업종 종합점수 순위(R1 13-16). 업종은 보내지 않는다(기본 가중치) */
 export function fetchRank(body: { lat: number; lng: number; radius_m?: number }, signal?: AbortSignal): Promise<ApiResult<RankResponse>> {
   return request('/rank', RankResponseSchema, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+    signal,
+  })
+}
+
+/** POST /insights {lat,lng,biz_code} — 시간대·인구 카드 자료(R1 13-15). 이전 서버에는 없다(404 → 카드 없음) */
+export function fetchInsights(body: { lat: number; lng: number; biz_code: string }, signal?: AbortSignal): Promise<ApiResult<InsightsResponse>> {
+  return request('/insights', InsightsResponseSchema, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),

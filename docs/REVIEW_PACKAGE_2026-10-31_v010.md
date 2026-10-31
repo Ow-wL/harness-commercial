@@ -1,5 +1,7 @@
 # Codex 검수 자료 — R1 대시보드 리디자인 (앱 v0.1.0 후보, 2026-10-31)
 
+> **결과(2026-10-31)**: Codex 3회 검수(`c48a686`) — P1 3·P2 5건, [CODEX_REVIEW_2026-10-31_v010.md](CODEX_REVIEW_2026-10-31_v010.md). Claude 수정은 아래 6장, 단위별 기록은 TASKS 13-22-R1-1~R1-8. **재검수 요청.**
+
 ## 0. 검수 범위와 기준 소스
 - 기준 코드 `33d0625`(R1 한 커밋, master) — 운영은 `ef32cc5` v0.0.16. 계획 [IMPROVEMENT_PLAN_2026-10-30.md](IMPROVEMENT_PLAN_2026-10-30.md) 4장, 단위 [TASKS.md](TASKS.md) 13-10~13-22, 화면 규칙 `DESIGN.md` §20, 팀 점검 보고서(저장소 밖 PDF, 2026-10-30)의 P1 B1·B3·B4·C1·C3, P2 D1~D6.
 - 검수 요청 범위: (1) 점수 불변(엔진·golden·`data/runtime` 변경 0, 표시만 바뀜), (2) 면책 정책(순위·확률·추천·매출 표현 없음 — 한 줄 결론·시간대 문장·업종 순위 카드), (3) 지도 배치 전환의 A2 회귀(지도 DOM 유지·맞춤), (4) 백엔드 새 엔드포인트의 검증 순서·오류 계약·캐시, (5) 프런트 계약(`insights` strict 스키마 — 백엔드와 같은 배포 단위), (6) 접근성(행 버튼 aria-expanded, 거미줄 숨은 목록, 탭 이름 변경).
@@ -47,3 +49,17 @@ npm --prefix frontend run e2e
 npx --prefix frontend vitest run   # cwd frontend
 ```
 dev 서버: `.claude/launch.json` `backend-v0_5_1-r0`(엔진 v0.5.1, 8000) + `frontend-vite`(5173). 확인 주소: `/?lat=37.50115&lng=126.72030&biz=R10406&r=500`(학교 옆 PC방 — 배너·규제 배지·순위 카드 규제 표시), `/?lat=37.4894&lng=126.7246&biz=R10406&r=500`(부평역 — 순위 노래방 72.3…PC방 18위, 시간대 카드 낮 34%), `/?lat=37.47117&lng=126.62543&biz=I21201&r=500`(신포동 카페 — 주의 한 줄).
+
+## 6. Codex 검수 지적 수정 (R1-1~R1-8) — 재검수 요청
+| 지적 | 수정 | 확인 포인트 |
+|---|---|---|
+| R1-1 [P1] 시간대 반대 안내 | `lib/timeInsights` 가 엔진 `시간대_적합도`·flag 경계(`content/timeInsights` `TIME_FIT`)로만 "몰림/보통/엇갈림", 적합도 없으면 관찰만 | `timeInsights.test`(PC방 1.3235·엔진 식 겹침·균등·<0.85·미산출), Codex 의 부평역 29업종 재대조 |
+| R1-2 [P1] 640 태블릿 버튼 덮음 | 대시보드 `--dash-top`(잰 `--header-offset`), 640~859 지도 카드 200×128 | 640/768/958, 긴 업종명·글자 확대, 버튼 `elementFromPoint` |
+| R1-3 [P1] 열린 구버전 탭 | `/analyze` = v0.0.16 형태, 설명 자료는 `POST /insights`(프런트 `lib/useInsights`), smoke `/analyze` 키 검사 | 이전 번들 + 새 서버, 새 번들 + 이전 서버(404 → 카드 없음) |
+| R1-4 [P2] 첫 화면 가시성 | 넓은 결과에서 칩을 같은 줄로(행 = 한 줄), 막대 → 거미줄 DOM 순서, 끝난 안내는 관점 아래 | 1366×768 다섯 행 ≤ 666, 375 첫 행 570 |
+| R1-5 [P2] 모두 낮아도 긍정 | `all-low`·`mixed` 규칙, raw 사실만 "(참고: …)", `lib/josa` | 경계 입력·raw 없음·금지어 |
+| R1-6 [P2] 순위 재시도 없음 | `lib/useSideRequest`(retry·token·버전 키·32 상한), "다시 시도", aria-live, backend `/rank` 단일 계산 | 실패→복구, 반복 클릭, 늦은 응답 |
+| R1-7 [P2] 인쇄 회귀 | 접힌 근거 DOM 유지(`--folded`), print 에서 지도 여백 해제·조작 숨김·순위 인쇄 범위 안내 | print 미디어·PDF(Claude 미확인) |
+| R1-8 [P2] 포커스 소실 | 확대 → "결과로 돌아가기", 복귀 → 누른 버튼(`preventScroll`) | Enter/Space/Tab, 스크롤 뒤 "지도 보기", SDK 실패 |
+
+Claude 가 확인하지 못한 것(추가): 실제 print 미디어·PDF 페이지, 이전 번들을 연 채 서버만 바꾸는 실제 전환(계약은 smoke·단위 테스트), 958/768 실측(640·1366·375 만), 실기기·Safari·Firefox·스크린리더.

@@ -23,7 +23,7 @@ describe('lib/alerts — 규제 배너·주의 관점 (R0 13-1·13-3)', () => {
     expect(alert.schools).toBe(SCHOOL.result.초보자_접근성.학교구역_200m_학교수)
     expect(alert.business).toBe('PC방')
     expect(alert.text).toBe(
-      `학교 200m 안 초·중·고 ${alert.schools}곳 — PC방은(는) 학교 주변 영업 규제 업종입니다(교육환경보호구역). 점수보다 영업 가능 여부를 먼저 확인하세요.`,
+      `학교 200m 안 초·중·고 ${alert.schools}곳 — PC방은 학교 주변 영업 규제 업종입니다(교육환경보호구역). 점수보다 영업 가능 여부를 먼저 확인하세요.`,
     )
     expect(alert.text).not.toMatch(FORBIDDEN)
   })

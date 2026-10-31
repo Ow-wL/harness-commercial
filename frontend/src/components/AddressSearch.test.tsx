@@ -69,7 +69,7 @@ describe('AddressSearch — 지원 범위 안내·예시 주소 (12-21)', () => 
   it('폼 아래에 "도로명·지번 주소만" 안내와 예시 버튼 3개가 있고, 예시를 누르면 입력란에 넣고 바로 1회 검색한다', async () => {
     const { calls, onSelect } = setup()
     open()
-    expect(screen.getByText('도로명·지번 주소만 찾습니다. 역·건물·가게 이름은 아직 되지 않습니다.')).toBeInTheDocument()
+    expect(screen.getByText('도로명·지번 주소를 찾습니다. 역은 아래 역 이름 칩으로 고르고, 건물·가게 이름은 아직 되지 않습니다.')).toBeInTheDocument()
     const examples = ['부평대로 1', '인하로 497-23', '인천타워대로 99']
     for (const q of examples) expect(screen.getByRole('button', { name: q })).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: '인하로 497-23' }))

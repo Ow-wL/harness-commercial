@@ -13,7 +13,7 @@
         },
         {
           "type": "added",
-          "text": "같은 자리에서 점수가 높은 업종 순위(29개)와 시간대·인구 카드(구 단위 24시간 유입, 영업시간 겹침)를 더했습니다."
+          "text": "같은 자리에서 점수가 높은 업종 순위(29개)와 시간대·인구 카드를 더했습니다. 불러오지 못하면 다시 시도할 수 있습니다."
         },
         {
           "type": "improved",
@@ -24,9 +24,13 @@
         "R1 대시보드 리디자인(docs/IMPROVEMENT_PLAN_2026-10-30.md 4장, TASKS 13-10~13-22, DESIGN §20): App data-layout dashboard/map(결과 전폭 + 지도 카드 320×200, unmount 없이 크기만, 스크롤 시 카드 숨김·\"지도 보기\" 버튼, MapView fitSeq), AnalysisResult 재구성(ScoreCard·RadarChart·점수순 PerspectiveScores·행 펼침·탭 상세 근거/주변 점포/현장 확인/반경별 비교·접힌 데이터 한계·면책 한 줄)",
         "lib/conclusion(팀 B1 템플릿 4규칙 + content/conclusion 쉬운말), lib/grade 등급 적용 확대, lib/timeInsights + TimeInsightsCard(/analyze insights — backend 추가 필드: 구 단위 24시간 유입·업종 HOUR_PROFILE·추정치 주석), RankCard + lib/useRank(/rank 캐시), StationSuggest + lib/stations(/stations 211개)",
         "backend: POST /rank(29업종, 기본 가중치, LRU 64, warm 뒤 1.9초·캐시 15ms), GET /stations(엔진 역 목록 1회 변환), /analyze insights(result 밖·선택, 실패 시 null), smoke_api rank 검사·405, 테스트 178건",
-        "용어(팀 D1): 비슷한 가게까지 치면 약 N곳 · 가게 한 곳당 주변 주민·직장인 N명 · 일부 자료가 없어 N개 항목은 빼고 계산 · 반경 안 인구는 동 면적 비율로 나눠 추정 · 잠재수요 유동 한계 문구(번화가). D2 버튼 쌓기, D3 A/B 글자 점·높은 쪽 굵게, D4 분석 실패 시 공유 안내 숨김, D5 규제 표시, D6 반경 표 가로 스크롤"
+        "용어(팀 D1): 비슷한 가게까지 치면 약 N곳 · 가게 한 곳당 주변 주민·직장인 N명 · 일부 자료가 없어 N개 항목은 빼고 계산 · 반경 안 인구는 동 면적 비율로 나눠 추정 · 잠재수요 유동 한계 문구(번화가). D2 버튼 쌓기, D3 A/B 글자 점·높은 쪽 굵게, D4 분석 실패 시 공유 안내 숨김, D5 규제 표시, D6 반경 표 가로 스크롤",
+        "Codex 3회 검수(2026-10-31, docs/CODEX_REVIEW_2026-10-31_v010.md) R1-1~R1-8 수정: 시간대 문장을 엔진 시간대_적합도·flag 경계로(피크 구간 비교 폐기), 대시보드 위 시작선을 잰 조건 바 높이로·640~859px 지도 카드 200×128, /analyze 를 v0.0.16 형태로 되돌리고 POST /insights 분리(열린 이전 화면 strict 스키마 보호), 넓은 결과에서 관점 행 한 줄·막대 목록 먼저·끝난 안내는 관점 아래, 한 줄 결론에 최고점 절대 수준(all-low·mixed)·raw 사실만 참고·조사 처리(lib/josa), 순위·시간대 공통 훅 lib/useSideRequest(다시 시도·버전 키·32개 상한), 인쇄에 접힌 근거·지도 카드 여백 해제·조작 숨김, 지도 확대/복귀 포커스 이동, backend /rank 같은 키 단일 계산·v0.5.1 warm 테스트 가짜 수정, smoke_api /insights·/analyze 최상위 키 검사, 역 제안 정확 일치 우선"
       ],
-      "commits": []
+      "commits": [
+        "33d0625",
+        "c48a686"
+      ]
     },
     {
       "version": "v0.0.16",
@@ -52,7 +56,12 @@
         "지도 맞춤 방어(13-2): 사용 영역이 퇴화하면(폭·높이 < 지도의 1/4) 장애물을 무시하고 맞춤 + bounds 무효·지도 미노출 시 맞춤을 버리지 않고 미룸(idle 재시도). 팀 보고 증상(100km 축척·지점 오른쪽 끝)의 수식상 원인. E2E 가 공유 링크 첫 로드의 지도 중심·zoom 을 검증",
         "[이 점수는?] 첫 줄을 '무엇인지'로(v0.5: 158곳 평균 지점 비교, v0.3·v0.4: 비교 모집단). 테스트: grade 4건·ResultAlerts 6건·mapFit 3건 추가, 문구 바뀐 기대값 갱신"
       ],
-      "commits": []
+      "commits": [
+        "ef32cc5",
+        "c59123b",
+        "52210e2",
+        "c9a2f08"
+      ]
     },
     {
       "version": "v0.0.15",
@@ -92,7 +101,10 @@
         "712e869",
         "b7979c4",
         "b3e0532",
-        "c83fd41"
+        "c83fd41",
+        "aa6a778",
+        "4062f52",
+        "896c792"
       ]
     },
     {

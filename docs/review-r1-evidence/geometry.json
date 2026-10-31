@@ -1,0 +1,263 @@
+{
+  "desktop": {
+    "layout": "dashboard",
+    "head": {
+      "x": 84,
+      "y": 140,
+      "w": 1198,
+      "h": 263.984375,
+      "display": "flex"
+    },
+    "map": {
+      "x": 947,
+      "y": 92,
+      "w": 320,
+      "h": 200,
+      "display": "block"
+    },
+    "panel": {
+      "x": 84,
+      "y": 78,
+      "w": 1198,
+      "h": 588,
+      "display": "block"
+    },
+    "perspectives": [
+      {
+        "key": "customer",
+        "top": 467.984375,
+        "bottom": 544.984375
+      },
+      {
+        "key": "stability",
+        "top": 544.984375,
+        "bottom": 622.984375
+      },
+      {
+        "key": "location",
+        "top": 622.984375,
+        "bottom": 700.984375
+      },
+      {
+        "key": "market",
+        "top": 700.984375,
+        "bottom": 778.984375
+      },
+      {
+        "key": "competition",
+        "top": 778.984375,
+        "bottom": 856.984375
+      }
+    ],
+    "horizontalOverflow": false
+  },
+  "tablet": {
+    "layout": "dashboard",
+    "head": {
+      "x": 17,
+      "y": 136,
+      "w": 924,
+      "h": 288.625,
+      "display": "flex"
+    },
+    "map": {
+      "x": 646,
+      "y": 88,
+      "w": 280,
+      "h": 176,
+      "display": "block"
+    },
+    "panel": {
+      "x": 17,
+      "y": 74,
+      "w": 924,
+      "h": 628,
+      "display": "block"
+    },
+    "perspectives": [
+      {
+        "key": "customer",
+        "top": 488.625,
+        "bottom": 565.625
+      },
+      {
+        "key": "stability",
+        "top": 565.625,
+        "bottom": 643.625
+      },
+      {
+        "key": "location",
+        "top": 643.625,
+        "bottom": 721.625
+      },
+      {
+        "key": "market",
+        "top": 721.625,
+        "bottom": 799.625
+      },
+      {
+        "key": "competition",
+        "top": 799.625,
+        "bottom": 877.625
+      }
+    ],
+    "horizontalOverflow": false
+  },
+  "mobileResize": {
+    "layout": "dashboard",
+    "head": {
+      "x": 1,
+      "y": 252,
+      "w": 373,
+      "h": 277.25,
+      "display": "flex"
+    },
+    "map": {
+      "x": 0,
+      "y": 0,
+      "w": 0,
+      "h": 0,
+      "display": "none"
+    },
+    "panel": {
+      "x": 1,
+      "y": 174,
+      "w": 373,
+      "h": 563,
+      "display": "block"
+    },
+    "perspectives": [
+      {
+        "key": "customer",
+        "top": 841.25,
+        "bottom": 910.25
+      },
+      {
+        "key": "stability",
+        "top": 910.25,
+        "bottom": 980.25
+      },
+      {
+        "key": "location",
+        "top": 980.25,
+        "bottom": 1050.25
+      },
+      {
+        "key": "market",
+        "top": 1050.25,
+        "bottom": 1120.25
+      },
+      {
+        "key": "competition",
+        "top": 1120.25,
+        "bottom": 1190.25
+      }
+    ],
+    "horizontalOverflow": false
+  },
+  "mobile": {
+    "layout": "map",
+    "head": {
+      "x": 1,
+      "y": 252,
+      "w": 373,
+      "h": 277.25,
+      "display": "flex"
+    },
+    "map": {
+      "x": 0,
+      "y": 0,
+      "w": 0,
+      "h": 0,
+      "display": "none"
+    },
+    "panel": {
+      "x": 1,
+      "y": 174,
+      "w": 373,
+      "h": 563,
+      "display": "block"
+    },
+    "perspectives": [
+      {
+        "key": "customer",
+        "top": 841.25,
+        "bottom": 910.25
+      },
+      {
+        "key": "stability",
+        "top": 910.25,
+        "bottom": 980.25
+      },
+      {
+        "key": "location",
+        "top": 980.25,
+        "bottom": 1050.25
+      },
+      {
+        "key": "market",
+        "top": 1050.25,
+        "bottom": 1120.25
+      },
+      {
+        "key": "competition",
+        "top": 1120.25,
+        "bottom": 1190.25
+      }
+    ],
+    "horizontalOverflow": false
+  },
+  "print": {
+    "layout": "dashboard",
+    "head": {
+      "x": 0,
+      "y": 109.65625,
+      "w": 1366,
+      "h": 263.984375,
+      "display": "flex"
+    },
+    "map": {
+      "x": 0,
+      "y": 0,
+      "w": 0,
+      "h": 0,
+      "display": "none"
+    },
+    "panel": {
+      "x": 0,
+      "y": 0,
+      "w": 1366,
+      "h": 4553.296875,
+      "display": "block"
+    },
+    "perspectives": [
+      {
+        "key": "customer",
+        "top": 437.640625,
+        "bottom": 532.640625
+      },
+      {
+        "key": "stability",
+        "top": 532.640625,
+        "bottom": 610.640625
+      },
+      {
+        "key": "location",
+        "top": 610.640625,
+        "bottom": 688.640625
+      },
+      {
+        "key": "market",
+        "top": 688.640625,
+        "bottom": 766.640625
+      },
+      {
+        "key": "competition",
+        "top": 766.640625,
+        "bottom": 862.640625
+      }
+    ],
+    "horizontalOverflow": false
+  },
+  "errors": []
+}

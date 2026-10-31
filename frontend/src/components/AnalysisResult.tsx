@@ -154,8 +154,8 @@ export function AnalysisResult({
               </button>
             </div>
           </div>
+          {/* 숫자 목록이 먼저(좁은 화면은 막대 → 거미줄 순, Codex R1-4). 넓은 결과 영역에서는 CSS 가 거미줄을 왼쪽 칸에 둔다 */}
           <div className="result__persp-grid">
-            <RadarChart series={[{ id: 'a', name: locationName(context), items: result.지표 }]} />
             <PerspectiveScores
               summary={result.종합}
               indicators={result.지표}
@@ -165,6 +165,7 @@ export function AnalysisResult({
               order={order}
               onOpen={openDetail}
             />
+            <RadarChart series={[{ id: 'a', name: locationName(context), items: result.지표 }]} />
           </div>
           <p className="result__persp-note">막대·거미줄의 점선 50은 인천 동네 평균 지점입니다 · 행을 누르면 근거가 펼쳐집니다.</p>
         </section>

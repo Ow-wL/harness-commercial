@@ -8,7 +8,9 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 // vitest는 CSS import를 비우므로 실제 스타일 파일을 읽어 가시성도 검증한다.
-const quietCss = readFileSync(join(process.cwd(), 'src/components/ResultQuiet.css'), 'utf-8')
+const quietCss =
+  readFileSync(join(process.cwd(), 'src/components/PerspectiveScores.css'), 'utf-8') +   // 접힌 근거 줄 숨김(R1-7)
+  readFileSync(join(process.cwd(), 'src/components/ResultQuiet.css'), 'utf-8')
 
 const analysis = AnalyzeResponseSchema.parse(fixture)
 const nail = AnalyzeResponseSchema.parse(nailFixture)
@@ -25,7 +27,8 @@ describe('기본 결과는 간단히, 근거는 요청할 때', () => {
     for (const row of rows) {
       expect(row.querySelector('.perspective__main')).toBeVisible()
       expect(row.querySelector('.perspective__grade')).toBeVisible()
-      expect(row.querySelector('.perspective__evidence-text')).toBeNull()            // 접힌 행: 근거 줄 없음(13-14)
+      // 접힌 행: 근거 줄은 화면에 안 보이지만 DOM 에는 있다 — 인쇄가 모든 근거를 찍는다(Codex R1-7)
+      expect(row.querySelector('.perspective__evidence--folded .perspective__evidence-text')).not.toBeVisible()
     }
     expect(document.querySelector('.perspective__strongest')).not.toBeVisible()
     expect(document.querySelector('.perspective__lowest')).not.toBeVisible()

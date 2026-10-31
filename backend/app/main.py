@@ -126,8 +126,18 @@ class HourlyInflow(BaseModel):
 HOURS_PROFILE_NOTE = "업종별 영업 시간대 프로파일은 추정치입니다"
 
 
-class AnalyzeInsights(BaseModel):
-    """/analyze 의 추가 설명 자료 (13-15). result 와 별개이며 점수에 쓰이지 않는다 — 만들다 실패하면 insights 는 null 이고 요청은 성공한다."""
+class InsightsRequest(BaseModel):
+    lat: Latitude
+    lng: Longitude
+    biz_code: StrictStr                                   # /analyze 와 같은 규칙 (invalid_business)
+
+
+class InsightsResponse(BaseModel):
+    """POST /insights 설명 자료 (13-15). 점수에 쓰이지 않는다. /analyze 응답과 분리한 이유: 배포 전부터 열려 있던 이전 화면은
+    /analyze 를 strict 스키마로 검사해 모르는 필드가 오면 거절한다(Codex R1-3) — /analyze 는 v0.0.16 형태 그대로 둔다."""
+    biz_code: str
+    gu_code: str
+    gu_name: str
     inflow: Optional[HourlyInflow]           # 시군구 행이 없으면 null
     hours_profile: Optional[list[float]]     # 엔진 config.HOUR_PROFILE[업종] (24개, 합 1) — 업종에 없으면 null
     hours_profile_note: Optional[str]        # HOURS_PROFILE_NOTE (hours_profile 이 있을 때)
@@ -136,7 +146,6 @@ class AnalyzeInsights(BaseModel):
 class AnalyzeResponse(BaseModel):
     context: AnalyzeContext
     result: dict[str, Any]       # AnalysisService.analyze 반환 dict 그대로 (엔진 JSON 계약: docs/ENGINE.md)
-    insights: Optional[AnalyzeInsights] = None   # 13-15: 추가 설명 자료 (선택, result 는 그대로)
 
 
 class NearbyStoresRequest(BaseModel):
@@ -261,7 +270,7 @@ def rank_items(results: dict[str, dict]) -> list[RankItem]:
     return items
 
 
-def build_insights(rt, biz: str, gu_code: str, gu_name: str) -> AnalyzeInsights:
+def build_insights(rt, biz: str, gu_code: str, gu_name: str) -> InsightsResponse:
     """13-15: RuntimeData.market(시군구 행)과 엔진 config.HOUR_PROFILE 로 설명 자료를 만든다. 점수 계산과 무관. 예외는 호출자가 처리."""
     inflow = None
     rows = rt.market[rt.market["시군구코드"] == gu_code]
@@ -277,9 +286,9 @@ def build_insights(rt, biz: str, gu_code: str, gu_name: str) -> AnalyzeInsights:
                               work_ratio=None if work_ratio is None or not math.isfinite(float(work_ratio))
                               else float(work_ratio))
     profile = getattr(C, "HOUR_PROFILE", {}).get(biz)
-    return AnalyzeInsights(inflow=inflow,
-                           hours_profile=[float(x) for x in profile] if profile is not None else None,
-                           hours_profile_note=HOURS_PROFILE_NOTE if profile is not None else None)
+    return InsightsResponse(biz_code=biz, gu_code=gu_code, gu_name=gu_name, inflow=inflow,
+                            hours_profile=[float(x) for x in profile] if profile is not None else None,
+                            hours_profile_note=HOURS_PROFILE_NOTE if profile is not None else None)
 
 
 def station_list(stations_df) -> list[Station]:
@@ -416,6 +425,8 @@ def create_app(service: Optional[AnalysisService] = None, warm_biz: Optional[Ite
     app.state.stations = None
     builder_lock = threading.Lock()
     rank_lock = threading.Lock()
+    rank_inflight: dict = {}                       # /rank 키 → 계산 중 잠금 (단일 계산)
+    app.state.rank_inflight = rank_inflight
 
     def context_builder() -> ContextBuilder:
         """앱 수명 동안 1개. 동시 첫 요청이 여러 개 만들지 않도록 lock 으로 한 번만 생성한다."""
@@ -490,17 +501,22 @@ def create_app(service: Optional[AnalysisService] = None, warm_biz: Optional[Ite
         result = app.state.service.analyze(ctx, req.biz_code, user_weights=req.user_weights,
                                            importance=req.importance, user_licenses=req.user_licenses,
                                            radius_m=radius)
-        try:   # 13-15: 설명 자료 — 실패해도 분석 응답은 그대로 성공한다
-            insights = build_insights(app.state.service.rt, req.biz_code, ctx.gu_code, ctx.gu_name)
-        except Exception:                                # noqa: BLE001
-            logging.getLogger("backend.insights").warning("insights 생성 실패 (%s, %s)", ctx.gu_code, req.biz_code,
-                                                          exc_info=True)
-            insights = None
         stamp_data_version(response)
         return AnalyzeResponse(
             context=AnalyzeContext(lat=ctx.lat, lng=ctx.lng, gu_code=ctx.gu_code, gu_name=ctx.gu_name,
                                    dong_name=ctx.dong_name, label=ctx.label, rent_area=ctx.rent_area),
-            result=result, insights=insights)
+            result=result)
+
+    @app.post("/insights", response_model=InsightsResponse, responses=ERROR_RESPONSES)
+    def insights(req: InsightsRequest, response: Response) -> InsightsResponse:
+        """시간대·인구 카드 설명 자료 (13-15): 좌표의 시군구 24시간 유입(엔진 시장성 패널 원값) + 업종 영업시간 프로파일.
+        /analyze 와 같은 순서로 검증한다: 업종 → 좌표. 엔진 analyze 는 부르지 않고 점수와 무관하다(실패는 오류 계약 500)."""
+        if req.biz_code not in C.CODE_NAME:
+            raise ApiError(INVALID_BUSINESS)
+        ctx = resolve_context(req.lat, req.lng)
+        out = build_insights(app.state.service.rt, req.biz_code, ctx.gu_code, ctx.gu_name)
+        stamp_data_version(response)
+        return out
 
     @app.post("/nearby-stores", response_model=NearbyStoresResponse, responses=ERROR_RESPONSES)
     def nearby_stores(req: NearbyStoresRequest, response: Response) -> NearbyStoresResponse:
@@ -544,16 +560,27 @@ def create_app(service: Optional[AnalysisService] = None, warm_biz: Optional[Ite
             hit = cache.get(key)
             if hit is not None:
                 cache.move_to_end(key)
+            else:   # 같은 키의 동시 요청은 한 번만 계산한다(Codex R1 개발자 1) — 키별 잠금, 먼저 온 요청이 계산하고 나머지는 캐시를 읽는다
+                key_lock = rank_inflight.setdefault(key, threading.Lock())
         if hit is None:
-            results = {biz: app.state.service.analyze(ctx, biz, radius_m=radius) for biz in C.CODE_NAME}
-            items = rank_items(results)
-            hit = RankResponse(lat=ctx.lat, lng=ctx.lng, radius_m=radius, gu_name=ctx.gu_name, dong_name=ctx.dong_name,
-                               count=len(items), items=items)
-            with rank_lock:
-                cache[key] = hit
-                cache.move_to_end(key)
-                while len(cache) > RANK_CACHE_MAX:
-                    cache.popitem(last=False)
+            with key_lock:
+                with rank_lock:
+                    hit = cache.get(key)
+                if hit is None:
+                    try:
+                        results = {biz: app.state.service.analyze(ctx, biz, radius_m=radius) for biz in C.CODE_NAME}
+                        items = rank_items(results)
+                        hit = RankResponse(lat=ctx.lat, lng=ctx.lng, radius_m=radius, gu_name=ctx.gu_name,
+                                           dong_name=ctx.dong_name, count=len(items), items=items)
+                        with rank_lock:
+                            cache[key] = hit
+                            cache.move_to_end(key)
+                            while len(cache) > RANK_CACHE_MAX:
+                                cache.popitem(last=False)
+                    finally:
+                        with rank_lock:
+                            if rank_inflight.get(key) is key_lock:
+                                del rank_inflight[key]
         stamp_data_version(response)
         return hit
 

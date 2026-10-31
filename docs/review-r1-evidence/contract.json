@@ -1,0 +1,14 @@
+{
+  "oldSchemaWithNewResponse": false,
+  "issues": [
+    {
+      "code": "unrecognized_keys",
+      "keys": [
+        "insights"
+      ],
+      "path": [],
+      "message": "Unrecognized key: \"insights\""
+    }
+  ],
+  "oldSchemaWithoutInsights": true
+}

@@ -164,8 +164,9 @@ function PerspectiveRow({
       </span>
       {ind.score === null && <span className="perspective__sub perspective__missing-note">{notComputedText(ind)}</span>}
       {tags.length > 0 && <span className="perspective__sub perspective__tags">{tags}</span>}
-      {expanded && (evidence || unit) && (
-        <span className="perspective__sub perspective__evidence">
+      {/* 근거 줄은 접혀 있어도 DOM 에 둔다(화면에서만 숨김) — 인쇄는 모든 관점의 근거를 찍는다(print.css, Codex R1-7) */}
+      {(evidence || unit) && (
+        <span className={`perspective__sub perspective__evidence${expanded ? '' : ' perspective__evidence--folded'}`}>
           {evidence && (
             // " · " 조각 안에서는 줄을 바꾸지 않는다(숫자와 단위가 다음 줄로 떨어지지 않게) — 줄바꿈은 조각 사이에서만
             <span className="perspective__evidence-text">

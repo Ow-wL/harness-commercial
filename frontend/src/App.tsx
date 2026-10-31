@@ -27,6 +27,7 @@ import { RadiusTable } from './components/RadiusTable.tsx'
 import { RankCard } from './components/RankCard.tsx'
 import { ResultTools } from './components/ResultTools.tsx'
 import { TimeInsightsCard } from './components/TimeInsightsCard.tsx'
+import { useInsights } from './lib/useInsights.ts'
 import { useRank } from './lib/useRank.ts'
 import { SavedSites } from './components/SavedSites.tsx'
 import { ReferenceAddress } from './components/ReferenceAddress.tsx'
@@ -74,6 +75,9 @@ function syncHeaderOffset(header: HTMLElement | null) {
   const height = header?.getBoundingClientRect().height
   if (height) document.documentElement.style.setProperty('--header-offset', `${Math.ceil(height)}px`)
 }
+
+/** 대시보드 지도 카드 버튼 id (13-10) — 확대·복귀 때 포커스 이동 대상 */
+const MAP_CARD_IDS = { expand: 'map-card-expand', collapse: 'map-card-collapse', pill: 'map-card-pill' } as const
 
 /** radius: 반경 변경(또는 반경 복구)으로 시작한 분석 — 결과 화면에서 다시 분석하는 중·그 실패 (8-D3, S3·S8) */
 type AnalysisOrigin = 'radius'
@@ -917,16 +921,39 @@ function App() {
 
   const result = analysis.status === 'success' ? analysis.response : null
   // 이 자리 업종 순위(13-16): 단일 결과의 좌표·반경으로 — 비교 중에는 요청하지 않는다(A 결과 카드에만)
+  // 엔진·데이터 버전 꼬리표: 바뀌면 같은 좌표라도 순위·시간대 자료를 다시 받는다. 새 분석 응답(객체)이면 실패도 다시 시도한다
+  const sideVersion = result ? `${result.result.meta.엔진버전}/${dataVersionOf(result) ?? ''}` : ''
+  const singleSuccess = analysis.status === 'success' && compare.status === 'off'
   const rankState = useRank(
-    analysis.status === 'success' && compare.status === 'off'
+    singleSuccess
       ? { lat: analysis.request.lat, lng: analysis.request.lng, ...(analysis.request.radius_m !== undefined ? { radius_m: analysis.request.radius_m } : {}) }
       : null,
+    sideVersion,
+    result,
+  )
+  const insightsState = useInsights(
+    singleSuccess ? { lat: analysis.request.lat, lng: analysis.request.lng, biz_code: analysis.request.biz_code } : null,
+    sideVersion,
+    result,
   )
   const mapExpanded = result !== null && mapExpandedFor === result
-  const expandMap = () => {
+  // 지도 크게 보기·결과로 돌아가기는 누른 버튼이 사라진다 → 포커스를 짝 버튼으로 옮긴다(Codex R1-8). 스크롤은 건드리지 않는다
+  const [mapFocus, setMapFocus] = useState<{ to: 'collapse' | 'opener'; opener: string } | null>(null)
+  const expandMap = (opener: string) => {
     setMapExpandedFor(result)
     setFitSeq((n) => n + 1)                                // 커진 지도에 지점·반경을 다시 맞춘다
+    setMapFocus({ to: 'collapse', opener })
   }
+  const collapseMap = () => {
+    setMapExpandedFor(null)
+    setMapFocus((f) => ({ to: 'opener', opener: f?.opener ?? MAP_CARD_IDS.expand }))
+  }
+  useLayoutEffect(() => {
+    if (!mapFocus) return
+    const ids = mapFocus.to === 'collapse' ? [MAP_CARD_IDS.collapse] : [mapFocus.opener, MAP_CARD_IDS.expand, MAP_CARD_IDS.pill, 'result-title']
+    const target = ids.map((id) => document.getElementById(id)).find((el) => el !== null)
+    target?.focus({ preventScroll: true })
+  }, [mapFocus])
   // 비교 B 고르기 중에는 지도를 눌러야 하므로 지도 배치. 비교 요약·전체 결과는 다시 대시보드
   const pickingB = compare.status !== 'off' && compare.status !== 'success'
   // mobile(<640)은 화면 전환 방식(지도 화면 ↔ 패널 화면) 그대로 — 대시보드 배치는 데스크톱·태블릿만
@@ -1199,20 +1226,30 @@ function App() {
     </div>
   )
   // 반경: 결과가 있으면 조건 바에(radiusInBar), 분석 전·실패·다시 분석 중이면 조건 패널 ③에 (한 번에 하나만 그린다)
+  // 대시보드 결과 화면(13-10)에서는 끝난 안내(공유 링크·반경 다시 분석)를 다섯 관점 아래로 옮긴다 — 첫 화면은 점수·관점부터(B3, Codex R1-4).
+  // 진행 중 안내(다시 분석하는 중·좁은 화면 힌트)는 위에 그대로
+  const doneNotesBelow = layout === 'dashboard' && compare.status === 'off' && result !== null
+  const doneNotes = (
+    <>
+      {/* 분석이 안 됐을 때(인천 밖 링크 등)는 "다시 분석했습니다" 안내를 숨긴다 — 오류 안내와 겹치지 않게(13-20 D4) */}
+      {shareNotice && analysis.status !== 'error' && (
+        <p className="radius-notice share-notice" role="status">
+          {shareNotice}
+        </p>
+      )}
+      {radiusNotice && (
+        <p className="radius-notice" role="status">
+          {radiusNotice}
+        </p>
+      )}
+    </>
+  )
+  const hasDoneNotes = Boolean((shareNotice && analysis.status !== 'error') || radiusNotice)
+  const hasBusyNotes = Boolean(radiusInBar && radiusEnabled && (radiusStatus || narrowHint))
   const radiusNotes =
-    radiusNotice || shareNotice || (radiusInBar && radiusEnabled && (radiusStatus || narrowHint)) ? (
+    (hasDoneNotes && !doneNotesBelow) || hasBusyNotes ? (
       <div className="panel__notes">
-        {/* 분석이 안 됐을 때(인천 밖 링크 등)는 "다시 분석했습니다" 안내를 숨긴다 — 오류 안내와 겹치지 않게(13-20 D4) */}
-        {shareNotice && analysis.status !== 'error' && (
-          <p className="radius-notice share-notice" role="status">
-            {shareNotice}
-          </p>
-        )}
-        {radiusNotice && (
-          <p className="radius-notice" role="status">
-            {radiusNotice}
-          </p>
-        )}
+        {!doneNotesBelow && doneNotes}
         {radiusInBar && radiusStatus && <p className="radius-notice radius-notice--busy">{radiusStatus}</p>}
         {radiusInBar && narrowHint && <p className="radius-notice">{narrowHint}</p>}
       </div>
@@ -1321,11 +1358,17 @@ function App() {
         <AnalysisResult
         analysis={result}
         /* ④ 결과 안내(묶음 D)·결과 활용 줄(12-15·12-25)은 다섯 관점 아래(B3 — 첫 화면은 점수·관점부터) */
-        notes={resultCoach}
-        timeCard={<TimeInsightsCard analysis={result} />}
+        notes={
+          <>
+            {doneNotesBelow && hasDoneNotes && <div className="panel__notes panel__notes--in-result">{doneNotes}</div>}
+            {resultCoach}
+          </>
+        }
+        timeCard={<TimeInsightsCard analysis={result} insights={insightsState.status === 'success' ? insightsState.data : null} />}
         rankCard={
           <RankCard
             state={rankState}
+            onRetry={rankState.retry}
             currentBiz={result.result.meta.업종코드}
             busy={analyzing}
             onPick={(biz) => {
@@ -1481,18 +1524,18 @@ function App() {
         </MapErrorBoundary>
         {/* 대시보드(13-10): 지도 카드 전체가 "크게 보기". 지도 배치로 돌아오면 왼쪽 위에 "결과로 돌아가기" */}
         {layout === 'dashboard' && sdk.status !== 'failed' && (
-          <button type="button" className="map-card__expand" onClick={expandMap} aria-label="지도 크게 보기">
+          <button type="button" id={MAP_CARD_IDS.expand} className="map-card__expand" onClick={() => expandMap(MAP_CARD_IDS.expand)} aria-label="지도 크게 보기">
             <span>지도 크게 보기</span>
           </button>
         )}
         {layout === 'map' && result && (
-          <button type="button" className="map-card__collapse" onClick={() => setMapExpandedFor(null)}>
+          <button type="button" id={MAP_CARD_IDS.collapse} className="map-card__collapse" onClick={collapseMap}>
             ‹ 결과로 돌아가기
           </button>
         )}
       </div>
       {layout === 'dashboard' && panelScrolled && (
-        <button type="button" className="map-card__pill" onClick={expandMap}>
+        <button type="button" id={MAP_CARD_IDS.pill} className="map-card__pill" onClick={() => expandMap(MAP_CARD_IDS.pill)}>
           지도 보기
         </button>
       )}

@@ -8,6 +8,7 @@
 import type { AnalyzeResponse } from '../api/schemas.ts'
 import { evidenceLine } from './evidence.ts'
 import { BOTTLENECK_WARN_BELOW, formatScore } from './format.ts'
+import { withJosa } from './josa.ts'
 import { isSchoolZoneWarning } from './warnings.ts'
 
 export type RegulationAlert = { business: string; schools: number; text: string }
@@ -20,7 +21,7 @@ export function regulationAlert({ result }: AnalyzeResponse): RegulationAlert | 
   return {
     business,
     schools,
-    text: `학교 200m 안 초·중·고 ${schools}곳 — ${business}은(는) 학교 주변 영업 규제 업종입니다(교육환경보호구역). 점수보다 영업 가능 여부를 먼저 확인하세요.`,
+    text: `학교 200m 안 초·중·고 ${schools}곳 — ${withJosa(business, '은')} 학교 주변 영업 규제 업종입니다(교육환경보호구역). 점수보다 영업 가능 여부를 먼저 확인하세요.`,
   }
 }
 

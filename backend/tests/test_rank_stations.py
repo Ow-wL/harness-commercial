@@ -6,6 +6,9 @@
 - /stations: 엔진이 이미 읽은 인천권 물리적 역 211개(RuntimeData.stations) — xlsx 를 다시 읽지 않는다.
 학교구역 규제(regulated)는 엔진 v0.5 계열 기능이라 그 엔진 프로세스(SCORING_ENGINE_VERSION=v0_5_1)에서만 검사한다.
 """
+import threading
+import time
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -92,6 +95,43 @@ def test_rank_cache_is_per_app(real_service, bupyeong):
     with TestClient(app) as c:
         assert len(c.app.state.rank_cache) == 0
         assert c.post("/rank", json={**BUPYEONG, "radius_m": 500}).json() == bupyeong.json()
+
+
+class _CountingService:
+    """실제 서비스에 위임하되 analyze 호출 수를 세고 조금 늦춘다(동시 요청이 겹치게)."""
+
+    def __init__(self, real):
+        self._real = real
+        self.calls = 0
+        self._lock = threading.Lock()
+
+    def __getattr__(self, name):
+        return getattr(self._real, name)
+
+    def analyze(self, *a, **k):
+        with self._lock:
+            self.calls += 1
+        time.sleep(0.005)
+        return self._real.analyze(*a, **k)
+
+
+def test_rank_same_key_concurrent_requests_compute_once(real_service, bupyeong):
+    """캐시가 빈 같은 키의 동시 요청은 29업종을 한 번만 계산한다(Codex R1 개발자 1 — 단일 계산)."""
+    svc = _CountingService(real_service)
+    app = M.create_app(service=svc, warm_biz=[])
+    with TestClient(app) as c:
+        svc.calls = 0
+        out: list = []
+        threads = [threading.Thread(target=lambda: out.append(c.post("/rank", json={**BUPYEONG, "radius_m": 500})))
+                   for _ in range(3)]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+        assert [r.status_code for r in out] == [200, 200, 200]
+        assert all(r.json() == bupyeong.json() for r in out)
+        assert svc.calls == len(C.CODE_NAME)                            # 3 × 29 가 아니다
+        assert c.app.state.rank_cache and c.app.state.rank_inflight == {}
 
 
 @pytest.mark.skipif(not ENGINE_VERSION.startswith("mvp-0.5"), reason="학교구역 규제 경고는 엔진 v0.5 계열(D-028)")

@@ -407,10 +407,47 @@
   width: 100%;
 }
 
+/* 좁은 영역: 막대 목록 아래 작은 거미줄(보조 보기) */
+.result__persp-grid > .radar .radar__svg {
+  width: min(200px, 100%);
+  height: auto;
+}
+
 @container (min-width: 640px) {
   .result__persp-grid {
-    grid-template-columns: minmax(200px, 240px) minmax(0, 1fr);
+    grid-template-columns: minmax(180px, 200px) minmax(0, 1fr);
+    grid-template-areas: "radar list";
     justify-items: stretch;
+    align-items: start;
+  }
+
+  .result__persp-grid > .perspectives {
+    grid-area: list;
+  }
+
+  .result__persp-grid > .radar {
+    grid-area: radar;
+  }
+
+  /* 넓은 영역(1366×768 첫 화면에 다섯 관점, Codex R1-4): 등급·높음/주의 칩을 점수 오른쪽 같은 줄로 — 행 하나가 한 줄 */
+  /* .result.result--dash: ResultQuiet.css(뒤에 불림)의 .result--quiet 행 높이·:has 칸 규칙보다 우선 */
+  .result.result--dash .perspective__button,
+  .result.result--dash .perspective__button:has(.perspective__missing) {
+    grid-template-columns: 72px minmax(0, 1fr) 52px minmax(120px, auto);
+    min-height: 0;
+    padding-block: 7px;
+  }
+
+  .result.result--dash .perspective__tags {
+    grid-column: 4;
+    grid-row: 1;
+    margin-top: 0;
+    white-space: nowrap;
+  }
+
+  .result.result--dash .perspective__evidence,
+  .result.result--dash .perspective__missing-note {
+    grid-column: 2 / 5;
   }
 }
 

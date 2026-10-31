@@ -1,4 +1,4 @@
-import type { AnalyzeResponse } from '../api/schemas.ts'
+import type { AnalyzeResponse, InsightsResponse } from '../api/schemas.ts'
 import { readTime } from '../lib/timeInsights.ts'
 import { TIME_BANDS } from '../content/timeInsights.ts'
 import './TimeInsightsCard.css'
@@ -8,12 +8,15 @@ const pct = (v: number) => `${(v * 100).toFixed(1)}%`
 
 /**
  * 시간대·인구 카드 (R1 13-15): 구 단위 24시간 유입 미니 차트(피크 구간 강조) + 읽기 문장(lib/timeInsights) + 반경 인구 숫자 3개(엔진 고객성 raw).
- * 점수는 바꾸지 않는다. 자료 단위(구)·기준월을 밝힌다. insights 가 없으면(구버전 서버) 카드를 그리지 않는다.
+ * 점수는 바꾸지 않는다. 자료 단위(구)·기준월을 밝힌다. 자료(/insights)가 없거나 받지 못했으면(이전 서버 404·오류) 카드를 그리지 않는다.
+ * "겹친다/엇갈린다"는 엔진 시장성 raw 의 시간대 적합도로만 말한다(lib/timeInsights, Codex R1-1).
  */
-export function TimeInsightsCard({ analysis }: { analysis: AnalyzeResponse }) {
-  const { result, insights } = analysis
+export function TimeInsightsCard({ analysis, insights }: { analysis: AnalyzeResponse; insights: InsightsResponse | null }) {
+  const { result } = analysis
   const market = result.지표[0]
-  const reading = readTime(insights, result.meta.업종, market.flags)
+  const marketRaw = market.raw as Readonly<Record<string, unknown>>
+  const fit = typeof marketRaw.시간대_적합도 === 'number' && Number.isFinite(marketRaw.시간대_적합도) ? marketRaw.시간대_적합도 : null
+  const reading = insights && insights.biz_code === result.meta.업종코드 ? readTime(insights, result.meta.업종, { fit, flags: market.flags }) : null
   if (!reading || !insights?.inflow) return null
   const inflow = insights.inflow
   const max = Math.max(...inflow.by_hour)
@@ -77,7 +80,7 @@ export function TimeInsightsCard({ analysis }: { analysis: AnalyzeResponse }) {
           <dl className="time-card__pop">
             {target !== null && (
               <div>
-                <dt>타겟 연령 거주</dt>
+                <dt>주요 손님층 연령 거주</dt>
                 <dd>
                   {fmt(target)}명{targetShare !== null && ` · ${pct(targetShare)}`}
                 </dd>
@@ -85,7 +88,7 @@ export function TimeInsightsCard({ analysis }: { analysis: AnalyzeResponse }) {
             )}
             {workers !== null && (
               <div>
-                <dt>종사자</dt>
+                <dt>주변 직장인</dt>
                 <dd>{fmt(workers)}명</dd>
               </div>
             )}

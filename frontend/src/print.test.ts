@@ -65,6 +65,17 @@ describe('print.css', () => {
     expect(tokens).toMatch(/color-scheme:\s*light/)
   })
 
+  it('R1 대시보드(Codex R1-7): 접힌 관점 근거도 찍고, 지도 카드 자리 여백을 풀고, 화면 조작(정렬·전체 보기·지도 카드)은 숨긴다', () => {
+    expect(rule('.perspective__evidence--folded')).toMatch(/display:\s*block !important/)
+    const head = rule('.app[data-layout] .result__head')
+    expect(head).toMatch(/padding-right:\s*0 !important/)
+    expect(head).toMatch(/min-height:\s*0 !important/)
+    const hidden = printBlock.slice(printBlock.indexOf('.app__map,'), printBlock.indexOf('display: none !important'))
+    for (const s of ['.map-card__expand', '.map-card__collapse', '.map-card__pill', '.result__order', '.perspective__detail', '.rank-card__toggle', '.rank-card__retry'])
+      expect(hidden).toContain(s)
+    expect(rule('.rank-card__print-scope')).toMatch(/display:\s*block !important/)
+  })
+
   it('화면 규칙에는 인쇄 머리말 숨김만 있다', () => {
     const screenPart = css.slice(css.lastIndexOf('.print-only {'))
     expect(screenPart).toMatch(/\.print-only \{\s*display:\s*none;\s*\}/)

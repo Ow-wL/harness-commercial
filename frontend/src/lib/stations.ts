@@ -28,11 +28,12 @@ export function resetStationsCache() {
 
 const norm = (s: string) => s.replace(/\s+/g, '').replace(/역$/, '')
 
-/** 앞부분 일치 → 포함 일치 순, 최대 limit. 빈 질의는 빈 목록 */
+/** 정확히 같은 이름 → 앞부분 일치 → 포함 일치 순, 최대 limit. 빈 질의는 빈 목록 ("부평역"이 "부평구청역"보다 먼저 — Codex R1 검수) */
 export function matchStations(stations: readonly Station[], query: string, limit = 6): Station[] {
   const q = norm(query.trim())
   if (q.length === 0) return []
-  const starts = stations.filter((s) => norm(s.name).startsWith(q))
+  const exact = stations.filter((s) => norm(s.name) === q)
+  const starts = stations.filter((s) => norm(s.name) !== q && norm(s.name).startsWith(q))
   const includes = stations.filter((s) => !norm(s.name).startsWith(q) && norm(s.name).includes(q))
-  return [...starts, ...includes].slice(0, limit)
+  return [...exact, ...starts, ...includes].slice(0, limit)
 }

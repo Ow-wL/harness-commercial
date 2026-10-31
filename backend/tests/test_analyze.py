@@ -48,7 +48,7 @@ def analyze(client, **body):
 # ── happy path ───────────────────────────────────────────
 def test_bupyeong_pc_bang(client):
     body = analyze(client)
-    assert set(body) == {"context", "result", "insights"}
+    assert set(body) == {"context", "result"}            # v0.0.16 형태 그대로 — 열린 이전 화면의 strict 스키마(Codex R1-3)
     assert body["context"] == BUPYEONG_CONTEXT                                # 일반 ContextBuilder 경로, rent_area null
     meta = body["result"]["meta"]
     assert meta["업종코드"] == "R10406" and meta["행정동"] == "부평구 부평1동"
@@ -148,14 +148,15 @@ def test_analyze_does_not_wait_for_background_warm(real_service):
     gate = threading.Event()
 
     class StuckCache:
-        def warm(self, biz_codes):
+        def warm(self, biz_codes, radii=None):           # 반경이 여럿인 엔진(v0.4 이후)은 radii 를 넘긴다
             gate.wait(10)
 
     service = types.SimpleNamespace(rt=real_service.rt, cache=StuckCache(), analyze=real_service.analyze)
     app = M.create_app(service=service, warm_biz=["R10406", "S20701"])
     with TestClient(app) as c:
         try:
-            assert c.get("/health").json()["warm"] == {"completed": 0, "total": 2, "done": False,
+            total = len(M.warm_tasks(["R10406", "S20701"]))          # v0.3: 2, 반경 3개 엔진: 6
+            assert c.get("/health").json()["warm"] == {"completed": 0, "total": total, "done": False,
                                                        "failed": False, "error": None}
             r = c.post("/analyze", json={**BUPYEONG, "biz_code": "R10406"})
             assert r.status_code == 200 and r.json()["result"]["meta"]["업종코드"] == "R10406"
@@ -174,16 +175,18 @@ def test_openapi_exposes_analyze_schemas(client):
     assert set(s["AnalyzeRequest"]["required"]) == {"lat", "lng", "biz_code"}
     assert set(s["AnalyzeRequest"]["properties"]) == {"lat", "lng", "biz_code", "importance", "user_weights",
                                                       "user_licenses", "radius_m"}       # radius_m: 8-D2 선택 필드
-    assert set(s["AnalyzeResponse"]["properties"]) == {"context", "result", "insights"}
+    assert set(s["AnalyzeResponse"]["properties"]) == {"context", "result"}
     assert set(s["AnalyzeContext"]["properties"]) == set(BUPYEONG_CONTEXT)
 
 
-# ── 13-15 insights (추가 설명 자료 — result 와 별개, 점수에 쓰이지 않음) ───────────
+# ── 13-15 /insights (시간대·인구 설명 자료 — /analyze 와 분리, 점수에 쓰이지 않음) ───────────
 def test_insights_bupyeong_inflow_matches_market_panel(client):
     from scoring_engine import config as C
-    body = analyze(client)
-    ins = body["insights"]
-    assert set(ins) == {"inflow", "hours_profile", "hours_profile_note"}
+    r = client.post("/insights", json={**BUPYEONG, "biz_code": "R10406"})
+    assert r.status_code == 200, r.text
+    ins = r.json()
+    assert set(ins) == {"biz_code", "gu_code", "gu_name", "inflow", "hours_profile", "hours_profile_note"}
+    assert (ins["biz_code"], ins["gu_code"], ins["gu_name"]) == ("R10406", "28237", "부평구")
     inflow = ins["inflow"]
     assert set(inflow) == {"gu_code", "gu_name", "as_of", "daily", "by_hour", "work_ratio"}
     assert (inflow["gu_code"], inflow["gu_name"]) == ("28237", "부평구")
@@ -198,12 +201,27 @@ def test_insights_bupyeong_inflow_matches_market_panel(client):
     assert ins["hours_profile"] == [float(x) for x in C.HOUR_PROFILE["R10406"]]
     assert ins["hours_profile_note"] == M.HOURS_PROFILE_NOTE
     assert "추정치" in ins["hours_profile_note"]
+    assert r.headers.get("X-Data-Version")
 
 
-def test_insights_failure_does_not_fail_analyze(real_service, monkeypatch):
-    """insights 생성이 깨져도 /analyze 는 성공하고 result 는 그대로 — insights 만 null."""
+@pytest.mark.parametrize("body, code", [
+    ({**BUPYEONG, "biz_code": "XXXXX"}, "invalid_business"),
+    ({"lat": 37.0, "lng": 127.5, "biz_code": "R10406"}, "location_outside"),
+    ({**BUPYEONG}, "invalid_request"),
+])
+def test_insights_error_contract_same_as_analyze(client, body, code):
+    r = client.post("/insights", json=body)
+    assert r.status_code == 422, r.text
+    assert r.json()["error"]["code"] == code
+    a = client.post("/analyze", json=body)
+    assert a.status_code == 422 and a.json()["error"]["code"] == code
+
+
+def test_insights_failure_is_error_contract_and_analyze_unaffected(real_service, monkeypatch):
+    """설명 자료가 깨지면 /insights 만 오류 계약 500 — /analyze 는 그대로 성공한다(카드만 빠진다)."""
     monkeypatch.setattr(M, "build_insights", lambda *a, **k: (_ for _ in ()).throw(RuntimeError("boom")))
-    with TestClient(M.create_app(service=real_service, warm_biz=[])) as c:
-        r = c.post("/analyze", json={**BUPYEONG, "biz_code": "R10406"})
-        assert r.status_code == 200 and r.json()["insights"] is None
-        assert r.json()["result"]["meta"]["업종코드"] == "R10406"
+    with TestClient(M.create_app(service=real_service, warm_biz=[]), raise_server_exceptions=False) as c:
+        r = c.post("/insights", json={**BUPYEONG, "biz_code": "R10406"})
+        assert r.status_code == 500 and r.json()["error"]["code"]
+        a = c.post("/analyze", json={**BUPYEONG, "biz_code": "R10406"})
+        assert a.status_code == 200 and set(a.json()) == {"context", "result"}

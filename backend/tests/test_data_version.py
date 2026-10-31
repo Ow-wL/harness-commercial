@@ -35,7 +35,7 @@ def test_nearby_as_of_comes_from_data_meta(client):
     health = client.get("/health").json()
     body = client.post("/nearby-stores", json=OK).json()
     assert body["as_of"] == health["data"]["as_of"]["shops"] == "2026-06-30"
-    assert set(client.post("/analyze", json=OK).json()) == {"context", "result", "insights"}
+    assert set(client.post("/analyze", json=OK).json()) == {"context", "result"}
 
 
 def test_other_data_version_is_advertised(real_service):

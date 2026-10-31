@@ -53,6 +53,7 @@ describe('RankCard — 이 자리 업종 순위 (13-16, 팀 C1)', () => {
     fireEvent.click(within(rows[0]!).getByRole('button'))
     expect(onPick).toHaveBeenCalledWith('R10404')
     expect(screen.getByText(/추천이 아닙니다/)).toBeInTheDocument()
+    expect(screen.getByText('상위 5개와 지금 업종만 인쇄했습니다(전체 8개).')).toBeInTheDocument()   // 인쇄 범위(종이에만, R1-7)
   })
 
   it('"전체 N개 보기"로 29개(여기선 8개) 전부, 미산출은 "산출 불가"로 맨 아래', () => {
@@ -70,6 +71,12 @@ describe('RankCard — 이 자리 업종 순위 (13-16, 팀 C1)', () => {
     expect(screen.getByText(/계산하는 중/)).toBeInTheDocument()                        // role=status 는 쓰지 않는다(링크 복사 안내와 겹침)
     rerender(<RankCard state={{ status: 'error', failure: { kind: 'network' } }} currentBiz="R10406" onPick={() => {}} />)
     expect(screen.getByText(/불러오지 못했습니다/)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '다시 시도' })).toBeNull()             // onRetry 가 없으면 버튼도 없다
+    const onRetry = vi.fn()
+    rerender(<RankCard state={{ status: 'error', failure: { kind: 'network' } }} currentBiz="R10406" onPick={() => {}} onRetry={onRetry} />)
+    fireEvent.click(screen.getByRole('button', { name: '다시 시도' }))               // Codex R1-6: 같은 조건 재시도
+    expect(onRetry).toHaveBeenCalledTimes(1)
+    expect(screen.getByText(/불러오지 못했습니다/).closest('[aria-live="polite"]')).not.toBeNull()
     rerender(<RankCard state={{ status: 'idle' }} currentBiz="R10406" onPick={() => {}} />)
     expect(container).toBeEmptyDOMElement()
   })

@@ -162,6 +162,19 @@
   color: var(--color-text-muted);
 }
 
+.rank-card__retry {
+  min-height: 32px;
+  padding: 0 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-accent);
+  cursor: pointer;
+}
+
 .rank-card__toggle {
   margin-top: 8px;
   padding: 0;
@@ -187,4 +200,9 @@
       "rank weak weak";
     row-gap: 4px;
   }
+}
+
+/* 인쇄 범위 안내는 종이에만 (print.css) */
+.rank-card__print-scope {
+  display: none;
 }

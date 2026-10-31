@@ -357,7 +357,17 @@ export const AnalyzeContextSchema = z.strictObject({
   rent_area: z.string().nullable(),              // MVP 일반 좌표는 R-ONE 임대료 상권을 연결하지 않아 항상 null (D-015)
 })
 
-/** R1 13-15: /analyze 가 result 밖에 더해 주는 읽기 정보(구 단위 24시간 유입·업종 영업시간 프로파일). 없거나 null 이면 카드를 그리지 않는다 */
+export const AnalyzeResponseSchema = z.strictObject({
+  context: AnalyzeContextSchema,
+  result: EngineResultSchema,
+})
+
+// ─── POST /insights (R1 13-15) ────────────────────
+
+/**
+ * 시간대·인구 카드 자료(구 단위 24시간 유입·업종 영업시간 프로파일). /analyze 와 분리한 엔드포인트 — /analyze 응답은 v0.0.16 형태
+ * 그대로라 배포 전부터 열린 이전 화면도 깨지지 않는다(Codex R1-3). 점수에 쓰이지 않는다.
+ */
 export const HourlyInflowSchema = z.object({
   gu_code: z.string(),
   gu_name: z.string(),
@@ -366,18 +376,17 @@ export const HourlyInflowSchema = z.object({
   by_hour: z.array(z.number()).length(24),
   work_ratio: z.number().nullable(),
 })
-export const AnalyzeInsightsSchema = z.object({
+export const InsightsResponseSchema = z.object({
+  biz_code: z.string(),
+  gu_code: z.string(),
+  gu_name: z.string(),
   inflow: HourlyInflowSchema.nullable(),
   hours_profile: z.array(z.number()).length(24).nullable(),
   hours_profile_note: z.string().nullable(),
 })
-export type AnalyzeInsights = z.infer<typeof AnalyzeInsightsSchema>
-
-export const AnalyzeResponseSchema = z.strictObject({
-  context: AnalyzeContextSchema,
-  result: EngineResultSchema,
-  insights: AnalyzeInsightsSchema.nullable().optional(),
-})
+export type InsightsResponse = z.infer<typeof InsightsResponseSchema>
+/** 시간대 읽기(lib/timeInsights)가 쓰는 부분 */
+export type AnalyzeInsights = Pick<InsightsResponse, 'inflow' | 'hours_profile' | 'hours_profile_note'>
 
 // ─── POST /rank (R1 13-16) · GET /stations (13-17) ────────────────────
 

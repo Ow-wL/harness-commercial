@@ -112,8 +112,33 @@
   .result__eyebrow-actions,
   .coach,
   .more-below,
-  .tabs {
+  .tabs,
+  .map-card__expand,
+  .map-card__collapse,
+  .map-card__pill,
+  .result__order,
+  .perspective__detail,
+  .rank-card__toggle,
+  .rank-card__retry {
     display: none !important;
+  }
+
+  /* 대시보드(13-10)의 지도 카드 자리 여백은 종이에 필요 없다(지도는 인쇄하지 않는다, Codex R1-7) */
+  .app[data-layout] .result__head {
+    padding-right: 0 !important;
+    min-height: 0 !important;
+  }
+
+  /* 관점 근거: 접힌 행도 모두 찍는다 */
+  .perspective__evidence--folded {
+    display: block !important;
+  }
+
+  .rank-card__print-scope {
+    display: block !important;
+    margin: 4px 0 0;
+    font-size: 9pt;
+    color: #333;
   }
 
   /* 패널: 떠 있는 고정 높이 상자 → 문서 폭 전체의 보통 블록 (mobile 의 .app[data-screen="map"] .panel 숨김도 뒤집는다) */

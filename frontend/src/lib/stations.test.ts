@@ -13,6 +13,12 @@ describe('stations — 역 이름 자동완성 (13-17)', () => {
     expect(matchStations(STATIONS, ' 송도 ').map((s) => s.name)).toEqual(['송도달빛축제공원역'])
   })
 
+  it('정확히 같은 이름이 먼저 — 서버 목록은 이름순(부평구청 < 부평시장 < 부평)이라도 "부평역"을 첫 칸에', () => {
+    const sorted = [S('부평구청역', true), S('부평시장역'), S('부평역', true)]
+    expect(matchStations(sorted, '부평역').map((s) => s.name)).toEqual(['부평역', '부평구청역', '부평시장역'])
+    expect(matchStations(sorted, '부평').map((s) => s.name)).toEqual(['부평역', '부평구청역', '부평시장역'])
+  })
+
   it('빈 질의는 빈 목록, limit 적용', () => {
     expect(matchStations(STATIONS, '')).toEqual([])
     expect(matchStations(STATIONS, '   ')).toEqual([])

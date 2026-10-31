@@ -155,6 +155,11 @@ button.perspective__button:hover .perspective__label {
   display: block;
 }
 
+/* 접힌 행의 근거: 화면에서는 숨기고(접근 이름에도 빠진다) 인쇄에서는 보인다(print.css) */
+.perspective__evidence--folded {
+  display: none;
+}
+
 .perspective__evidence > :not(:last-child)::after {
   content: " · ";
   font-weight: 400;

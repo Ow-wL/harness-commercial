@@ -131,7 +131,7 @@ function mockApi({
   const healthQueue = Array.isArray(health) ? [...health] : [health]
   const placesQueue = [...places]
   const rankQueue = [...rank]
-  // R1 13-16·13-17: 결과 뒤 /rank, 주소 폼의 /stations 는 분석 흐름과 독립 — 준비한 응답이 없으면 404(카드는 오류 문구, 분석은 그대로)
+  // R1 13-15·13-16·13-17: 결과 뒤 /rank·/insights, 주소 폼의 /stations 는 분석 흐름과 독립 — 준비한 응답이 없으면 404(카드는 오류 문구, 분석은 그대로)
   const NOT_FOUND: Reply = { status: 404, body: { error: { code: 'not_found', message: '없음' } } }
   const fetchMock = vi.fn(async (url: string) => {
     const reply =
@@ -147,7 +147,7 @@ function mockApi({
               ? placesQueue.shift()
               : url === '/rank'
                 ? (rankQueue.shift() ?? NOT_FOUND)
-                : url === '/stations'
+                : url === '/stations' || url === '/insights'
                   ? NOT_FOUND
                   : queue.shift()
     if (reply === undefined) throw new Error(`예상하지 못한 요청: ${url}`)
@@ -3897,6 +3897,40 @@ describe('인쇄 (12-15, 계획 1-3)', () => {
     fireEvent.click(screen.getByRole('button', { name: '인쇄' }))
     expect(print).toHaveBeenCalledTimes(1)
     expect(screen.getByRole('heading', { level: 1, name: '부평구 부평1동 · PC방 분석' })).toBeInTheDocument()
+  })
+})
+
+describe('대시보드 지도 카드 (13-10) — 키보드로 확대·복귀해도 포커스가 사라지지 않는다 (Codex R1-8)', () => {
+  it('"지도 크게 보기" → "결과로 돌아가기"로, 돌아오면 다시 "지도 크게 보기"로 포커스가 옮겨진다', async () => {
+    mockApi({ analyze: [{ status: 200, body: fixture }], nearby: [{ status: 200, body: nearbyFixture }] })
+    render(<App />)
+    await selectBupyeongPcBang()
+    fireEvent.click(analyzeButton())
+    await screen.findByRole('heading', { level: 1, name: '부평구 부평1동 · PC방 분석' })
+    const expand = screen.getByRole('button', { name: '지도 크게 보기' })
+    expand.focus()
+    fireEvent.click(expand)
+    const collapse = screen.getByRole('button', { name: '‹ 결과로 돌아가기' })
+    expect(document.activeElement).toBe(collapse)
+    expect(screen.queryByRole('button', { name: '지도 크게 보기' })).toBeNull()
+    fireEvent.click(collapse)
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: '지도 크게 보기' }))
+    expect(document.activeElement).not.toBe(document.body)
+  })
+})
+
+describe('결과 옆 보조 요청 — /insights 는 /analyze 와 따로 (Codex R1-3)', () => {
+  it('결과가 나오면 같은 좌표·업종으로 /insights 를 한 번 요청하고, 404(이전 서버)면 시간대 카드만 빠진다', async () => {
+    const fetchMock = mockApi({ analyze: [{ status: 200, body: fixture }], nearby: [{ status: 200, body: nearbyFixture }] })
+    render(<App />)
+    await selectBupyeongPcBang()
+    fireEvent.click(analyzeButton())
+    await screen.findByRole('heading', { level: 1, name: '부평구 부평1동 · PC방 분석' })
+    await waitFor(() => expect(fetchMock.mock.calls.filter(([url]) => url === '/insights')).toHaveLength(1))
+    const call = fetchMock.mock.calls.find(([url]) => url === '/insights') as unknown[]
+    expect(JSON.parse((call[1] as RequestInit).body as string)).toEqual({ lat: 37.4894, lng: 126.7246, biz_code: 'R10406' })
+    expect(screen.queryByRole('heading', { name: '시간대와 사람' })).toBeNull()
+    expect(screen.getByRole('region', { name: '5대 관점' })).toBeInTheDocument()
   })
 })
 

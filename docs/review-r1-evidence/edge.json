@@ -1,0 +1,42 @@
+{
+  "tablet": [
+    {
+      "s": ".bar",
+      "x": 16,
+      "y": 16,
+      "w": 608,
+      "h": 98
+    },
+    {
+      "s": ".panel",
+      "x": 16,
+      "y": 72,
+      "w": 608,
+      "h": 712
+    },
+    {
+      "s": ".bar .radius-control",
+      "x": 16,
+      "y": 70,
+      "w": 170.21875,
+      "h": 44
+    }
+  ],
+  "radiusHit": [
+    {
+      "text": "300m",
+      "hit": "<p class=\"radius-notice share-notice\" role=\"status\">공유 링크의 조건으로 다시 분석했습니다 — 저장된 점수가 아니라 지금 서버의 결과입니다.</p>",
+      "own": false
+    }
+  ],
+  "print": {
+    "evidenceNodes": 0,
+    "headPaddingRight": "360px",
+    "orderVisible": "block",
+    "rankToggleVisible": "inline-block"
+  },
+  "rankRecovery": {
+    "requests": 1,
+    "text": "이 자리에서 점수가 높은 업종\n\n업종 순위를 불러오지 못했습니다. 분석 결과는 그대로입니다.\n\n같은 자리·같은 자료로 업종만 바꿔 계산한 종합점수입니다. 순위는 성공 확률이나 추천이 아닙니다."
+  }
+}
