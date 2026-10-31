@@ -105,6 +105,21 @@ export function errorView(failure: ApiFailure): ErrorView {
         action: { kind: 'retry', label: '다시 시도', primary: true },
         requestId: error.request_id,
       }
+    case 'rate_limited':
+      // 12-9: 한 기기에서 분당 요청이 너무 많다(운영 서버만). 잠시 뒤 같은 조건으로
+      return {
+        tone: 'warning',
+        placement: 'result',
+        title: '요청이 너무 많아요',
+        body: '1분쯤 뒤에 다시 시도해 주세요.',
+        action: { kind: 'retry', label: '다시 시도', primary: true },
+      }
+    // R2 AI 코드 — /summary·/ask 는 AI 카드·질문 창이 자기 문구로 다루고 분석 경로에서는 오지 않는다
+    case 'invalid_question':
+    case 'ai_unavailable':
+    case 'ai_limited':
+    case 'ai_budget':
+    case 'ai_upstream':
     case 'invalid_query':
     case 'places_unavailable':
     case 'places_upstream':

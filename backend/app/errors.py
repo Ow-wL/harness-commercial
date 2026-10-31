@@ -30,6 +30,12 @@ INVALID_RADIUS = "invalid_radius"                   # 8-D2: 엔진이 받지 않
 INVALID_QUERY = "invalid_query"                     # 12-14: 장소 검색어 비었거나 너무 김 (D-036)
 PLACES_UNAVAILABLE = "places_unavailable"           # 12-14: 서버에 검색 키가 없다 (503)
 PLACES_UPSTREAM = "places_upstream"                 # 12-14: NAVER 검색 응답 없음·오류 (502)
+INVALID_QUESTION = "invalid_question"               # 13-24: 질문이 비었거나 너무 김
+AI_UNAVAILABLE = "ai_unavailable"                   # 13-23: 서버에 AI 키가 없다 (503)
+AI_LIMITED = "ai_limited"                           # 13-25: IP 하루 횟수 초과 (429)
+AI_BUDGET = "ai_budget"                             # 13-25: 월 예산 소진 (429)
+AI_UPSTREAM = "ai_upstream"                         # 13-23: 모델 응답 없음·오류 (502)
+RATE_LIMITED = "rate_limited"                       # 12-9: IP 분당 요청 초과 (429)
 INTERNAL_ERROR = "internal_error"
 
 MESSAGES = {
@@ -43,6 +49,12 @@ MESSAGES = {
     INVALID_QUERY: "검색어는 1~60자여야 합니다.",
     PLACES_UNAVAILABLE: "이 서버에는 장소 이름 검색이 설정되어 있지 않습니다.",
     PLACES_UPSTREAM: "장소 검색 서비스가 응답하지 않습니다. 잠시 뒤 다시 시도하세요.",
+    INVALID_QUESTION: "질문은 1~300자로 써 주세요.",
+    AI_UNAVAILABLE: "이 서버에는 AI 설명이 설정되어 있지 않습니다.",
+    AI_LIMITED: "오늘 이 기기에서 쓸 수 있는 AI 횟수를 다 썼습니다. 내일 다시 이용해 주세요.",
+    AI_BUDGET: "이번 달 AI 설명 사용량이 모두 소진되었습니다. 기본 요약은 그대로 볼 수 있습니다.",
+    AI_UPSTREAM: "AI 설명을 지금 만들 수 없습니다. 잠시 뒤 다시 시도하세요.",
+    RATE_LIMITED: "요청이 너무 많습니다. 잠시 뒤 다시 시도하세요.",
     INTERNAL_ERROR: "서버 내부 오류가 발생했습니다.",
 }
 

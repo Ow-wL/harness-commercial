@@ -28,6 +28,9 @@ import { RankCard } from './components/RankCard.tsx'
 import { ResultTools } from './components/ResultTools.tsx'
 import { TimeInsightsCard } from './components/TimeInsightsCard.tsx'
 import { useInsights } from './lib/useInsights.ts'
+import { useSummary } from './lib/useSummary.ts'
+import { AiSummaryCard } from './components/AiSummaryCard.tsx'
+import { AskDialog } from './components/AskDialog.tsx'
 import { useRank } from './lib/useRank.ts'
 import { SavedSites } from './components/SavedSites.tsx'
 import { ReferenceAddress } from './components/ReferenceAddress.tsx'
@@ -165,6 +168,9 @@ function App() {
   const [dataInfo, setDataInfo] = useState<DataInfo | null>(null)
   // 장소 이름 검색 광고(/health places.enabled, 12-14) — 있을 때만 "장소 이름" 입력 방법을 보인다
   const [placesReady, setPlacesReady] = useState(false)
+  // R2 13-23: 서버가 AI 요약·질문을 광고하는지(/health ai.enabled). 아니면 AI 카드·질문 창 없음 — 한 줄 결론 템플릿이 요약
+  const [aiReady, setAiReady] = useState(false)
+  const [askOpen, setAskOpen] = useState(false)
   const [radius, setRadius] = useState(DEFAULT_RADIUS_M)
   const [prevRadius, setPrevRadius] = useState<number | null>(null)
   const [radiusNotice, setRadiusNotice] = useState<string | null>(null)
@@ -291,6 +297,7 @@ function App() {
         setServerEngine(r.ok && r.data.engine ? r.data.engine.version : null)
         setDataInfo(r.ok && r.data.data ? r.data.data : null)
         setPlacesReady(r.ok && r.data.places ? r.data.places.enabled : false)
+        setAiReady(r.ok && r.data.ai ? r.data.ai.enabled : false)
         // 공유 링크(12-3): 실패·구버전이어도 "알아봤다" — 적용을 더 기다리지 않는다
         shareInputs.current.health = {
           options: r.ok && r.data.engine ? r.data.engine.radius_options : [],
@@ -315,6 +322,7 @@ function App() {
       .then((r) => {
         if (r.ok && r.data.data) setDataInfo(r.data.data)
         if (r.ok) setPlacesReady(r.data.places ? r.data.places.enabled : false)
+        if (r.ok) setAiReady(r.data.ai ? r.data.ai.enabled : false)
       })
       .catch(() => {})                                     // 취소된 요청
     return () => ac.abort()
@@ -696,6 +704,7 @@ function App() {
       const dataMeta = r.ok && r.data.data ? r.data.data : null
       setDataInfo(dataMeta)
       setPlacesReady(r.ok && r.data.places ? r.data.places.enabled : false)
+      setAiReady(r.ok && r.data.ai ? r.data.ai.enabled : false)
       if (options.length >= 2 && options.includes(request.radius_m)) {
         console.error(`[api] 반경 ${request.radius_m}m 문제(${problem})지만 서버가 아직 광고합니다 — 복구하지 않습니다`)
         return
@@ -934,6 +943,13 @@ function App() {
   )
   const insightsState = useInsights(
     singleSuccess ? { lat: analysis.request.lat, lng: analysis.request.lng, biz_code: analysis.request.biz_code } : null,
+    sideVersion,
+    result,
+  )
+  const summaryState = useSummary(
+    singleSuccess && aiReady
+      ? { lat: analysis.request.lat, lng: analysis.request.lng, biz_code: analysis.request.biz_code, ...(analysis.request.radius_m !== undefined ? { radius_m: analysis.request.radius_m } : {}) }
+      : null,
     sideVersion,
     result,
   )
@@ -1367,6 +1383,7 @@ function App() {
           </>
         }
         timeCard={<TimeInsightsCard analysis={result} insights={insightsState.status === 'success' ? insightsState.data : null} />}
+        aiCard={aiReady ? <AiSummaryCard state={summaryState} onRetry={summaryState.retry} onAsk={() => setAskOpen(true)} /> : null}
         rankCard={
           <RankCard
             state={rankState}
@@ -1604,6 +1621,22 @@ function App() {
         </main>
         {panelFoot}
       </div>
+      {/* R2 13-24 AI 질문 창: 지금 단일 결과의 위치·업종·반경으로만. 닫으면 "AI에게 질문" 버튼으로 포커스를 돌려준다 */}
+      {askOpen && aiReady && analysis.status === 'success' && (
+        <AskDialog
+          target={{
+            lat: analysis.request.lat,
+            lng: analysis.request.lng,
+            biz_code: analysis.request.biz_code,
+            ...(analysis.request.radius_m !== undefined ? { radius_m: analysis.request.radius_m } : {}),
+            title: `${locationName(analysis.response.context)} · ${analysis.response.result.meta.업종}`,
+          }}
+          onClose={() => {
+            setAskOpen(false)
+            requestAnimationFrame(() => document.querySelector<HTMLElement>('.ai-card__ask')?.focus())
+          }}
+        />
+      )}
       {/* mobile 지도 화면 하단 sheet (peek): 요약 → "결과 자세히"로 패널. 비교 중에는 B 선택용 sheet */}
       {result && compare.status !== 'off' ? (
         <CompareSheet

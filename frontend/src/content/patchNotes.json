@@ -3,6 +3,31 @@
   "renumbered_until": "v0.0.10",
   "releases": [
     {
+      "version": "v0.2.0",
+      "date": "2026-10-31",
+      "title": "AI 요약과 질문",
+      "changes": [
+        {
+          "type": "added",
+          "text": "분석 결과를 AI가 좋은 점·주의할 점·확인할 것으로 요약합니다. 각 문장에 근거 자료를 함께 보여 줍니다."
+        },
+        {
+          "type": "added",
+          "text": "\"AI에게 질문\"으로 이 분석에 대해 물어볼 수 있습니다. 내 상황(창업 단계 등)은 선택해서 알려 줄 수 있습니다."
+        },
+        {
+          "type": "improved",
+          "text": "AI 사용량에 하루·월 한도를 두었습니다. 질문 기록은 30일 보관하고 위치 좌표·IP는 남기지 않습니다."
+        }
+      ],
+      "work": [
+        "R2(D-037): backend app/ai.py — Sonnet 5.5(anthropic 1.17.0, beta messages + fallbacks default·server-side-fallback-2026-07-01, output_config JSON 스키마, effort low, 시스템 프롬프트 캐시), POST /summary(조건 캐시 메모리 LRU 256 + 디스크)·POST /ask(최근 6턴), /health ai, 키 없으면 503 ai_unavailable",
+        "13-25 KST 월 비용 집계 $30(80% 경고·100% 닫힘), IP 하루 /ask 10·/summary 새 20, 12-9 분석 계열·AI POST 분당 240(운영 앱만, smoke 110건/분 때문에 계획 30에서 조정), 오류 code ai_limited·ai_budget·ai_upstream·invalid_question·rate_limited",
+        "13-27 로그 JSONL 30일(좌표·IP 없음), 13-28 scripts/eval_ai.py(키 있을 때만 실제 호출), 프런트 AiSummaryCard·AskDialog·lib/profile·lib/useSummary(useSideRequest 버전 대조), 오류 스키마에 새 code, smoke_api /summary·/ask 405·키 없음 503"
+      ],
+      "commits": []
+    },
+    {
       "version": "v0.1.1",
       "date": "2026-10-31",
       "title": "보관함·인쇄·비교에도 새 카드",
@@ -28,7 +53,9 @@
       ],
       "commits": [
         "0cfb689",
-        "30c17da"
+        "30c17da",
+        "ef8127e",
+        "81d4952"
       ]
     },
     {

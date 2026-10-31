@@ -169,6 +169,21 @@ def check_insights(fetch: Fetch, engine: str = "", data_version: str | None = No
     return fails, summary
 
 
+def check_ai(fetch: Fetch, health: dict) -> tuple[list[str], dict]:
+    """R2 13-23: /health ai 광고만 본다 — 키가 없으면(enabled false) POST /summary 가 503 ai_unavailable 인지. 키가 있으면 유료 호출이라
+    smoke 에서 부르지 않는다(품질·비용은 scripts/eval_ai.py). /health 에 ai 가 없으면(R2 이전 리비전) 건너뛴다."""
+    info = health.get("ai")
+    if info is None:
+        return [], {"advertised": None}
+    summary = {"enabled": info.get("enabled"), "budget": info.get("budget")}
+    if info.get("enabled"):
+        return [], summary
+    s, _, d, _ = fetch("/summary", BUPYEONG)
+    code = json.loads(d).get("error", {}).get("code") if s == 503 else None
+    summary["summary_without_key"] = [s, code]
+    return ([] if [s, code] == [503, "ai_unavailable"] else [f"/summary(키 없음): {s} {code} (기대 503 ai_unavailable)"]), summary
+
+
 def check_static(fetch: Fetch) -> list[str]:
     """정적 경로·캐시 헤더·GeoJSON 해시·gzip(12-1)·favicon/robots(12-5). 실패 설명 목록(비면 통과)."""
     fails = []
@@ -178,7 +193,8 @@ def check_static(fetch: Fetch) -> list[str]:
                        ("/favicon.svg", 200), ("/robots.txt", 200),
                        ("/places", 405),                        # 12-14: POST 전용(GET 405, 키 유무와 무관)
                        ("/rank", 405),                          # 13-16: POST 전용
-                       ("/insights", 405)]:                     # 13-15: POST 전용
+                       ("/insights", 405),                      # 13-15: POST 전용
+                       ("/summary", 405), ("/ask", 405)]:       # R2 13-23·13-24: POST 전용
         s, _, d, _ = fetch(path)
         if s != want:
             fails.append(f"{path}: {s} (기대 {want})")
@@ -269,6 +285,8 @@ def check_api(fetch: Fetch, expected: dict, engine: str | None = None, wait_warm
     fails += rank_fails
     insights_fails, summary["insights"] = check_insights(fetch, engine_version, data_version if data_header else None)
     fails += insights_fails
+    ai_fails, summary["ai"] = check_ai(fetch, health)
+    fails += ai_fails
     return fails, summary
 
 

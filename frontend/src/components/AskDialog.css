@@ -1,0 +1,117 @@
+/* AI 질문 창 (R2 13-24) — 업데이트 내역·보관함과 같은 대화상자 틀(.updates) */
+.ask__body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ask__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.ask__chip {
+  min-height: 36px;
+  padding: 0 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface);
+  font: var(--text-small);
+  color: var(--color-text-primary);
+  cursor: pointer;
+}
+
+.ask__log {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ask__msg {
+  max-width: 88%;
+  padding: 8px 12px;
+  border-radius: 12px;
+  font-size: 14px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+}
+
+.ask__msg--user {
+  align-self: flex-end;
+  background: var(--color-accent-subtle);
+  color: var(--color-text-primary);
+}
+
+.ask__msg--assistant {
+  align-self: flex-start;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
+
+.ask__msg--busy {
+  color: var(--color-text-muted);
+}
+
+.ask__suggest {
+  display: block;
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}
+
+.ask__error {
+  margin: 0;
+  font: var(--text-small);
+  color: var(--color-grade-alert);
+}
+
+.ask__form {
+  display: flex;
+  gap: 8px;
+}
+
+.ask__input {
+  flex: 1;
+  min-width: 0;
+}
+
+.ask__send {
+  flex: none;
+}
+
+.ask__privacy {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--color-text-muted);
+}
+
+.ask__profile summary {
+  cursor: pointer;
+  font: var(--text-small);
+  font-weight: 600;
+}
+
+.ask__field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+  font: var(--text-small);
+}
+
+.ask__field--pref {
+  flex-wrap: wrap;
+  border: 0;
+  padding: 0;
+}
+
+.ask__field--check {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}

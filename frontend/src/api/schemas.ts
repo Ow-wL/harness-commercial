@@ -470,6 +470,12 @@ export const USER_ERROR_CODES = [
   'invalid_query',                                // 12-14: 장소 검색어 비었거나 너무 김 (D-036)
   'places_unavailable',                           // 12-14: 서버에 검색 키 없음 (503)
   'places_upstream',                              // 12-14: NAVER 검색 응답 없음·오류 (502)
+  'invalid_question',                             // R2 13-24: 질문이 비었거나 너무 김
+  'ai_unavailable',                               // R2 13-23: 서버에 AI 키 없음 (503)
+  'ai_limited',                                   // R2 13-25: IP 하루 횟수 초과 (429)
+  'ai_budget',                                    // R2 13-25: 월 예산 소진 (429)
+  'ai_upstream',                                  // R2 13-23: 모델 응답 없음·오류 (502)
+  'rate_limited',                                 // 12-9: IP 분당 요청 초과 (429)
 ] as const
 
 export const ErrorCodeSchema = z.enum([...USER_ERROR_CODES, 'internal_error'])
@@ -509,12 +515,49 @@ export const DataInfoSchema = z.object({
 
 /** 12-14: 장소 이름 검색 광고 — 서버에 검색 키가 있을 때만 enabled. 없는 서버(구버전)는 필드 자체가 없다 */
 const PlacesInfoSchema = z.object({ enabled: z.boolean() })
+/** 13-23: AI 요약·질문 광고. budget = ok | warn | closed (금액은 오지 않는다) */
+const AiInfoSchema = z.object({ enabled: z.boolean(), model: z.string().nullable(), budget: z.enum(['ok', 'warn', 'closed']).nullable() })
+export type AiInfo = z.infer<typeof AiInfoSchema>
 
 export const HealthSchema = z.object({
   engine: EngineInfoSchema.optional(),
   data: DataInfoSchema.optional(),
   places: PlacesInfoSchema.optional(),
+  ai: AiInfoSchema.optional(),
 })
+
+// ─── POST /summary · POST /ask (R2 13-23·13-24) ─────────────────────────
+
+/** AI 문장 한 개 + 근거로 쓴 자료 키(예: 지표.competition.raw.동종점포수) */
+const AiItemSchema = z.strictObject({ text: z.string(), fields: z.array(z.string()) })
+export const SummaryResponseSchema = z.strictObject({
+  engine_version: z.string(),
+  prompt_version: z.string(),
+  model: z.string(),
+  cached: z.boolean(),
+  good: z.array(AiItemSchema),
+  bad: z.array(AiItemSchema),
+  check: z.array(AiItemSchema),
+})
+export type SummaryResponse = z.infer<typeof SummaryResponseSchema>
+
+export const PROFILE_STAGES = ['예비', '1년 미만', '운영 중'] as const
+export const PROFILE_PREFERRED = ['여성', '장애인', '다문화', '중장년', '재창업'] as const
+const ProfileSuggestionSchema = z.strictObject({
+  stage: z.string().nullable(),
+  youth: z.boolean().nullable(),
+  preferred: z.array(z.string()).nullable(),
+})
+export const AskResponseSchema = z.strictObject({
+  engine_version: z.string(),
+  model: z.string(),
+  answer: z.string(),
+  fields: z.array(z.string()),
+  out_of_scope: z.boolean(),
+  profile_suggestion: ProfileSuggestionSchema.nullable(),
+})
+export type AskResponse = z.infer<typeof AskResponseSchema>
+export type ProfileSuggestion = z.infer<typeof ProfileSuggestionSchema>
 
 // ─── GET /places (12-14, D-036) ───────────────────────────────────────
 

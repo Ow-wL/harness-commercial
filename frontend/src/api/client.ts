@@ -9,13 +9,15 @@
  * 오류 분기는 error.code로만 한다(D-014). message는 표시용이다.
  */
 import type { z } from 'zod'
-import type { InsightsResponse, RankResponse, StationsResponse } from './schemas.ts'
+import type { AskResponse, InsightsResponse, RankResponse, StationsResponse, SummaryResponse } from './schemas.ts'
 import {
   AnalyzeResponseSchema,
   BusinessCatalogSchema,
   ErrorResponseSchema,
+  AskResponseSchema,
   HealthSchema,
   InsightsResponseSchema,
+  SummaryResponseSchema,
   NearbyStoresResponseSchema,
   PlacesResponseSchema,
   type AnalyzeResponse,
@@ -126,6 +128,21 @@ export function fetchInsights(body: { lat: number; lng: number; biz_code: string
     body: JSON.stringify(body),
     signal,
   })
+}
+
+/** POST /summary — AI 요약(R2 13-23). 서버가 /health ai.enabled 로 광고할 때만 부른다 */
+export function fetchSummary(body: { lat: number; lng: number; biz_code: string; radius_m?: number }, signal?: AbortSignal): Promise<ApiResult<SummaryResponse>> {
+  return request('/summary', SummaryResponseSchema, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), signal })
+}
+
+export type AskTurn = { role: 'user' | 'assistant'; content: string }
+export type AskProfileBody = { stage: string | null; youth: boolean | null; preferred: string[] | null }
+/** POST /ask — 분석 자료 안에서만 답하는 자유 질문(R2 13-24). 최근 6턴만 보낸다(서버도 자른다) */
+export function askQuestion(
+  body: { lat: number; lng: number; biz_code: string; radius_m?: number; question: string; history: AskTurn[]; profile: AskProfileBody | null },
+  signal?: AbortSignal,
+): Promise<ApiResult<AskResponse>> {
+  return request('/ask', AskResponseSchema, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), signal })
 }
 
 /** GET /stations — 엔진이 읽은 인천권 역 211개(13-17 자동완성). 외부 API 없음 */

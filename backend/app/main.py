@@ -43,7 +43,7 @@ from collections import OrderedDict
 from contextlib import asynccontextmanager
 from typing import Annotated, Any, Iterable, Literal, Optional
 
-from fastapi import FastAPI, Response
+from fastapi import FastAPI, Request, Response
 from fastapi.routing import APIRoute
 from fastapi.middleware.gzip import GZipMiddleware
 from pydantic import BaseModel, Field, StrictFloat, StrictInt, StrictStr
@@ -53,9 +53,13 @@ from scoring_engine.location import ContextBuilder, InvalidCoordinate, LocationO
 from scoring_engine.nearby import NearbyStoreFinder
 from scoring_engine.runtime import resolve_data_version
 
-from .errors import (ERROR_RESPONSES, INVALID_ANALYSIS_OPTIONS, INVALID_BUSINESS, INVALID_COORDINATE,
-                     INVALID_QUERY, INVALID_RADIUS, LOCATION_OUTSIDE, NO_DATA_NEARBY, PLACES_UNAVAILABLE,
-                     PLACES_UPSTREAM, ApiError, install_error_handlers)
+from .ai import (ANALYZE_PER_MINUTE, ASK_PER_DAY, ASK_SCHEMA, ASK_TASK, MAX_HISTORY_TURNS, MAX_QUESTION_CHARS,
+                 MAX_TURN_CHARS, PREFERRED, PROMPT_VERSION, STAGES, SUMMARY_NEW_PER_DAY, SUMMARY_SCHEMA, SUMMARY_TASK,
+                 AiRefused, AiService, AiUpstreamError, MinuteLimiter, clean_items, context_json)
+from .errors import (AI_BUDGET, AI_LIMITED, AI_UNAVAILABLE, AI_UPSTREAM, ERROR_RESPONSES, INVALID_ANALYSIS_OPTIONS,
+                     INVALID_BUSINESS, INVALID_COORDINATE, INVALID_QUERY, INVALID_QUESTION, INVALID_RADIUS,
+                     LOCATION_OUTSIDE, NO_DATA_NEARBY, PLACES_UNAVAILABLE, PLACES_UPSTREAM, RATE_LIMITED, ApiError,
+                     ErrorDetail, error_json, install_error_handlers)
 from .frontend import mount_frontend
 from .places import MAX_QUERY_CHARS, PlacesClient, PlacesUpstreamError
 from scoring_engine.service import AnalysisService
@@ -195,6 +199,66 @@ class NearbyStoresResponse(BaseModel):
     stores: list[NearbyStore]        # 가까운 순
 
 
+class SummaryRequest(BaseModel):
+    lat: Latitude
+    lng: Longitude
+    biz_code: StrictStr
+    radius_m: Optional[RadiusM] = None
+
+
+class AiItem(BaseModel):
+    text: str
+    fields: list[str]                        # 근거로 쓴 자료 키(예: 지표.competition.raw.동종점포수)
+
+
+class SummaryResponse(BaseModel):
+    """13-23 AI 요약. 점수는 바꾸지 않는다 — 엔진 결과를 읽어 문장으로만. cached: 같은 조건·데이터·엔진·프롬프트 버전의 저장분."""
+    engine_version: str
+    prompt_version: str
+    model: str
+    cached: bool
+    good: list[AiItem]
+    bad: list[AiItem]
+    check: list[AiItem]
+
+
+class AskTurn(BaseModel):
+    role: Literal["user", "assistant"]
+    content: StrictStr
+
+
+class AskProfile(BaseModel):
+    """13-26 선택형 프로필(화면 로컬 저장, 요청 때만 보낸다)."""
+    stage: Optional[Literal["예비", "1년 미만", "운영 중"]] = None
+    youth: Optional[bool] = None
+    preferred: Optional[list[StrictStr]] = None
+
+
+class AskRequest(BaseModel):
+    lat: Latitude
+    lng: Longitude
+    biz_code: StrictStr
+    radius_m: Optional[RadiusM] = None
+    question: StrictStr
+    history: list[AskTurn] = []
+    profile: Optional[AskProfile] = None
+
+
+class ProfileSuggestion(BaseModel):
+    stage: Optional[str]
+    youth: Optional[bool]
+    preferred: Optional[list[str]]
+
+
+class AskResponse(BaseModel):
+    engine_version: str
+    model: str
+    answer: str
+    fields: list[str]
+    out_of_scope: bool
+    profile_suggestion: Optional[ProfileSuggestion]
+
+
 class RankRequest(BaseModel):
     lat: Latitude
     lng: Longitude
@@ -309,6 +373,20 @@ def station_list(stations_df) -> list[Station]:
     return out
 
 
+# 12-9 분당 제한 대상(POST) — 분석 계열과 AI
+LIMITED_PATHS = frozenset({"/analyze", "/nearby-stores", "/rank", "/insights", "/summary", "/ask"})
+MESSAGES_RATE_LIMITED = "요청이 너무 많습니다. 잠시 뒤 다시 시도하세요."
+
+
+def client_ip(request: Request) -> str:
+    """Cloud Run 앞단이 X-Forwarded-For 끝에 붙인 값(없으면 연결 주소). 저장·로그하지 않는다 — 제한기의 해시 키로만."""
+    fwd = request.headers.get("x-forwarded-for", "")
+    parts = [p.strip() for p in fwd.split(",") if p.strip()]
+    if parts:
+        return parts[-1]
+    return request.client.host if request.client else "unknown"
+
+
 def resolve_radius(radius_m: Optional[int]) -> int:
     """요청 반경 → 쓸 반경. 엔진이 받지 않는 값은 사용자 오류(422 invalid_radius)."""
     radius = C.RADIUS_M if radius_m is None else radius_m
@@ -393,13 +471,20 @@ class WarmProgress:
 
 
 def create_app(service: Optional[AnalysisService] = None, warm_biz: Optional[Iterable[str]] = None,
-               frontend_dist: Optional[str] = None, places: Optional[PlacesClient] = None) -> FastAPI:
+               frontend_dist: Optional[str] = None, places: Optional[PlacesClient] = None,
+               ai: Optional[AiService] = None, rate_limit_per_minute: Optional[int] = None) -> FastAPI:
     """service: 주입하면 그대로 쓴다 (RuntimeData 를 다시 읽지 않음). None 이면 lifespan 에서 1회 생성.
     warm_biz: background warm 대상. None 이면 config.CODE_NAME 29개 전체.
     frontend_dist: Vite build(dist/) 경로. 주면 API 뒤에 정적 파일·SPA fallback 을 붙인다 (D-018).
-    places: 장소 검색 프록시(12-14). None 이면 환경변수 키로 만든다(키가 없으면 기능 꺼짐)."""
+    places: 장소 검색 프록시(12-14). None 이면 환경변수 키로 만든다(키가 없으면 기능 꺼짐).
+    ai: AI 요약·질문(13-23~27). None 이면 환경변수 ANTHROPIC_API_KEY 로 만든다(키가 없으면 기능 꺼짐).
+    rate_limit_per_minute: 12-9 IP 분당 제한(분석 계열·AI 경로). None 이면 frontend 를 서빙하는 운영 앱에서만
+      ANALYZE_PER_MINUTE(환경변수 API_RATE_LIMIT_PER_MINUTE 로 바꿈), 0 이면 끔."""
     biz_codes = list(C.CODE_NAME) if warm_biz is None else list(warm_biz)
     places_client = places if places is not None else PlacesClient.from_env()
+    ai_service = ai if ai is not None else AiService.from_env()
+    if rate_limit_per_minute is None:
+        rate_limit_per_minute = int(os.environ.get("API_RATE_LIMIT_PER_MINUTE", ANALYZE_PER_MINUTE)) if frontend_dist else 0
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
@@ -420,6 +505,16 @@ def create_app(service: Optional[AnalysisService] = None, warm_biz: Optional[Ite
     app = FastAPI(title="인천 상권분석 API", lifespan=lifespan, **docs)
     app.add_middleware(GZipMiddleware, minimum_size=GZIP_MIN_BYTES)
     install_error_handlers(app)
+    app.state.ai = ai_service
+    minute_limiter = MinuteLimiter(rate_limit_per_minute) if rate_limit_per_minute > 0 else None
+
+    @app.middleware("http")
+    async def rate_limit(request: Request, call_next):
+        """12-9: 분석 계열·AI 경로의 IP 분당 제한. IP 는 해시로 메모리에만(로그·저장 없음)."""
+        if minute_limiter is not None and request.method == "POST" and request.url.path in LIMITED_PATHS:
+            if not minute_limiter.allow(client_ip(request)):
+                return error_json(429, ErrorDetail(code=RATE_LIMITED, message=MESSAGES_RATE_LIMITED))
+        return await call_next(request)
     app.state.service = None
     app.state.warm = None
     app.state.context_builder = None
@@ -477,6 +572,8 @@ def create_app(service: Optional[AnalysisService] = None, warm_biz: Optional[Ite
                 "data": data_health(),
                 # 12-14: 장소 이름 검색 광고 — 프런트는 enabled 일 때만 "장소 이름" 입력 방법을 보인다
                 "places": {"enabled": places_client.enabled},
+                # 13-23: AI 요약·질문 광고 — enabled·예산 상태(ok|warn|closed). 금액은 내보내지 않는다
+                "ai": ai_service.health(),
                 "warm": warm.snapshot() if warm is not None else
                 {"completed": 0, "total": len(biz_codes), "done": False, "failed": False, "error": None}}
 
@@ -549,6 +646,103 @@ def create_app(service: Optional[AnalysisService] = None, warm_biz: Optional[Ite
         except PlacesUpstreamError as e:
             raise ApiError(PLACES_UPSTREAM, status=502) from e
         return PlacesResponse(count=len(found), places=[PlaceItem(**vars(p)) for p in found])
+
+    def ai_inputs(lat: float, lng: float, biz: str, radius_m: Optional[int]):
+        """AI 입력 자료: 엔진 결과(ReferenceCache 재사용)·시간대 자료·이미 계산된 업종 순위 상위 5(없으면 넣지 않는다 — 29업종을 새로 돌리지 않는다)."""
+        if biz not in C.CODE_NAME:
+            raise ApiError(INVALID_BUSINESS)
+        radius = resolve_radius(radius_m)
+        ctx = resolve_context(lat, lng)
+        result = app.state.service.analyze(ctx, biz, radius_m=radius)
+        try:
+            ins = build_insights(app.state.service.rt, biz, ctx.gu_code, ctx.gu_name).model_dump()
+        except Exception:                                # noqa: BLE001 — 설명 자료가 없어도 요약은 만든다
+            ins = None
+        with rank_lock:
+            hit = app.state.rank_cache.get((round(ctx.lat, 6), round(ctx.lng, 6), radius))
+        top = [{"업종": i.name, "종합": i.overall} for i in hit.items[:5]] if hit is not None else None
+        context = {"gu_name": ctx.gu_name, "dong_name": ctx.dong_name}
+        return ctx, radius, result, context, ins, top
+
+    def require_ai() -> AiService:
+        if not ai_service.enabled:
+            raise ApiError(AI_UNAVAILABLE, status=503)
+        return ai_service
+
+    @app.post("/summary", response_model=SummaryResponse, responses=ERROR_RESPONSES)
+    def summary(req: SummaryRequest, request: Request, response: Response) -> SummaryResponse:
+        """13-23 AI 요약: 좋은 점·주의할 점·확인할 것(각 근거 키). 같은 조건(좌표 4자리·업종·반경·데이터·엔진·프롬프트 버전)은 캐시 —
+        캐시는 하루 횟수·예산과 무관하게 준다. 새로 만들 때만 IP 하루 20회·월 예산을 본다."""
+        svc = require_ai()
+        ctx, radius, result, context, ins, top = ai_inputs(req.lat, req.lng, req.biz_code, req.radius_m)
+        data_version = data_health()["version"]
+        key = "|".join(map(str, (round(ctx.lat, 4), round(ctx.lng, 4), req.biz_code, radius, data_version, ENGINE_VERSION,
+                                 PROMPT_VERSION)))
+        stamp_data_version(response)
+        cached = svc.cache.get(key)
+        if cached is not None:
+            return SummaryResponse(**{**cached, "cached": True})
+        if svc.budget.level() == "closed":
+            raise ApiError(AI_BUDGET, status=429)
+        if not svc.limiter.take("summary", client_ip(request), SUMMARY_NEW_PER_DAY):
+            raise ApiError(AI_LIMITED, status=429)
+        try:
+            out = svc.call(SUMMARY_TASK, context_json(result, context, ins, top, None), [], SUMMARY_SCHEMA, 2000)
+        except (AiUpstreamError, AiRefused) as e:
+            logging.getLogger("backend.ai").warning("요약 생성 실패: %s", type(e).__name__)
+            raise ApiError(AI_UPSTREAM, status=502) from e
+        body = {"engine_version": ENGINE_VERSION, "prompt_version": PROMPT_VERSION, "model": out.model,
+                "good": clean_items(out.data.get("good"), 3), "bad": clean_items(out.data.get("bad"), 3),
+                "check": clean_items(out.data.get("check"), 2)}
+        svc.cache.put(key, body)
+        svc.store.append_log({"at": svc.clock().isoformat(timespec="seconds"), "kind": "summary", "biz": req.biz_code,
+                              "gu": ctx.gu_name, "radius_m": radius, "output": {k: body[k] for k in ("good", "bad", "check")}},
+                             svc.clock())
+        return SummaryResponse(**{**body, "cached": False})
+
+    @app.post("/ask", response_model=AskResponse, responses=ERROR_RESPONSES)
+    def ask(req: AskRequest, request: Request, response: Response) -> AskResponse:
+        """13-24 자유 질문: 그 분석 자료 안에서만 답한다(최근 6턴). IP 하루 10회, 월 예산 소진이면 닫힘. 질문·답변 원문은 30일 로그(좌표·IP 없음)."""
+        svc = require_ai()
+        question = req.question.strip()
+        if not question or len(question) > MAX_QUESTION_CHARS:
+            raise ApiError(INVALID_QUESTION)
+        ctx, radius, result, context, ins, top = ai_inputs(req.lat, req.lng, req.biz_code, req.radius_m)
+        if svc.budget.level() == "closed":
+            raise ApiError(AI_BUDGET, status=429)
+        if not svc.limiter.take("ask", client_ip(request), ASK_PER_DAY):
+            raise ApiError(AI_LIMITED, status=429)
+        turns = [{"role": t.role, "content": t.content[:MAX_TURN_CHARS]} for t in req.history][-MAX_HISTORY_TURNS:]
+        turns.append({"role": "user", "content": question})
+        profile = None
+        if req.profile is not None:
+            profile = {"창업단계": req.profile.stage, "청년": req.profile.youth,
+                       "우대": [p for p in (req.profile.preferred or []) if p in PREFERRED] or None}
+        stamp_data_version(response)
+        try:
+            out = svc.call(ASK_TASK, context_json(result, context, ins, top, profile), turns, ASK_SCHEMA, 1500)
+            answer = str(out.data.get("answer", "")).strip()[:1500]
+            fields = [f for f in out.data.get("fields", []) if isinstance(f, str)][:6]
+            oos = bool(out.data.get("out_of_scope"))
+            sug = out.data.get("profile_suggestion")
+            model = out.model
+        except AiRefused:
+            answer, fields, oos, sug, model = "이 질문에는 답할 수 없어요. 분석 결과나 이 자리에 관한 질문을 해 주세요.", [], True, None, "refused"
+        except AiUpstreamError as e:
+            logging.getLogger("backend.ai").warning("질문 답변 실패: %s", e)
+            raise ApiError(AI_UPSTREAM, status=502) from e
+        suggestion = None
+        if isinstance(sug, dict):
+            stage = sug.get("stage") if sug.get("stage") in STAGES else None
+            youth = sug.get("youth") if isinstance(sug.get("youth"), bool) else None
+            pref = [p for p in (sug.get("preferred") or []) if p in PREFERRED] or None
+            if stage or youth is not None or pref:
+                suggestion = ProfileSuggestion(stage=stage, youth=youth, preferred=pref)
+        svc.store.append_log({"at": svc.clock().isoformat(timespec="seconds"), "kind": "ask", "biz": req.biz_code,
+                              "gu": ctx.gu_name, "radius_m": radius, "question": question, "answer": answer,
+                              "out_of_scope": oos}, svc.clock())
+        return AskResponse(engine_version=ENGINE_VERSION, model=model, answer=answer or "답을 만들지 못했어요.",
+                           fields=fields, out_of_scope=oos, profile_suggestion=suggestion)
 
     @app.post("/rank", response_model=RankResponse, responses=ERROR_RESPONSES)
     def rank(req: RankRequest, response: Response) -> RankResponse:

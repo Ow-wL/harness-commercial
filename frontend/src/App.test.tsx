@@ -125,12 +125,14 @@ function mockApi({
   health = { status: 200, body: OLD_HEALTH } as Reply | Reply[],
   places = [] as Reply[],
   rank = [] as Reply[],
+  summary = [] as Reply[],
 } = {}) {
   const queue = [...analyze]
   const nearbyQueue = [...nearby]
   const healthQueue = Array.isArray(health) ? [...health] : [health]
   const placesQueue = [...places]
   const rankQueue = [...rank]
+  const summaryQueue = [...summary]
   // R1 13-15·13-16·13-17: 결과 뒤 /rank·/insights, 주소 폼의 /stations 는 분석 흐름과 독립 — 준비한 응답이 없으면 404(카드는 오류 문구, 분석은 그대로)
   const NOT_FOUND: Reply = { status: 404, body: { error: { code: 'not_found', message: '없음' } } }
   const fetchMock = vi.fn(async (url: string) => {
@@ -147,9 +149,11 @@ function mockApi({
               ? placesQueue.shift()
               : url === '/rank'
                 ? (rankQueue.shift() ?? NOT_FOUND)
-                : url === '/stations' || url === '/insights'
+                : url === '/stations' || url === '/insights' || url === '/ask'
                   ? NOT_FOUND
-                  : queue.shift()
+                  : url === '/summary'
+                    ? (summaryQueue.shift() ?? NOT_FOUND)
+                    : queue.shift()
     if (reply === undefined) throw new Error(`예상하지 못한 요청: ${url}`)
     if (reply === 'network-error') throw new TypeError('Failed to fetch')
     const { status, body, headers } = await reply
@@ -3953,6 +3957,51 @@ describe('결과 옆 보조 요청 — /insights 는 /analyze 와 따로 (Codex 
     expect(JSON.parse((call[1] as RequestInit).body as string)).toEqual({ lat: 37.4894, lng: 126.7246, biz_code: 'R10406' })
     expect(screen.queryByRole('heading', { name: '시간대와 사람' })).toBeNull()
     expect(screen.getByRole('region', { name: '5대 관점' })).toBeInTheDocument()
+  })
+})
+
+describe('AI 요약·질문 (R2 13-23·13-24) — 서버가 /health ai 로 광고할 때만', () => {
+  const AI_HEALTH = { ...OLD_HEALTH, ai: { enabled: true, model: 'claude-sonnet-5-5', budget: 'ok' } }
+  const SUMMARY = {
+    engine_version: fixture.result.meta.엔진버전, prompt_version: 'r2-1', model: 'claude-sonnet-5-5', cached: false,
+    good: [{ text: '주요 손님층이 많이 사는 편이에요.', fields: ['지표.customer.score'] }],
+    bad: [{ text: '같은 업종이 많아요.', fields: [] }],
+    check: [{ text: '저녁 유동을 확인하세요.', fields: [] }],
+  }
+
+  it('광고하지 않는 서버(키 없음)면 /summary 를 부르지 않고 AI 카드도 없다 — 한 줄 결론이 요약', async () => {
+    const fetchMock = mockApi({ analyze: [{ status: 200, body: fixture }], nearby: [{ status: 200, body: nearbyFixture }] })
+    render(<App />)
+    await selectBupyeongPcBang()
+    fireEvent.click(analyzeButton())
+    await screen.findByRole('heading', { level: 1, name: '부평구 부평1동 · PC방 분석' })
+    await new Promise((r) => setTimeout(r, 30))
+    expect(fetchMock.mock.calls.filter(([url]) => url === '/summary')).toHaveLength(0)
+    expect(screen.queryByRole('heading', { name: 'AI 요약' })).toBeNull()
+  })
+
+  it('광고하면 결과 뒤 /summary 1회 → AI 요약 카드, "AI에게 질문"으로 질문 창, 닫으면 버튼으로 포커스', async () => {
+    const fetchMock = mockApi({
+      health: { status: 200, body: AI_HEALTH },
+      analyze: [{ status: 200, body: fixture }],
+      nearby: [{ status: 200, body: nearbyFixture }],
+      summary: [{ status: 200, body: SUMMARY }],
+    })
+    render(<App />)
+    await selectBupyeongPcBang()
+    fireEvent.click(analyzeButton())
+    await screen.findByRole('heading', { level: 1, name: '부평구 부평1동 · PC방 분석' })
+    expect(await screen.findByText('주요 손님층이 많이 사는 편이에요.', { exact: false })).toBeInTheDocument()
+    const calls = fetchMock.mock.calls.filter(([url]) => url === '/summary')
+    expect(calls).toHaveLength(1)
+    expect(JSON.parse(((calls[0] as unknown[])[1] as RequestInit).body as string)).toEqual({ lat: 37.4894, lng: 126.7246, biz_code: 'R10406' })
+    const ask = screen.getByRole('button', { name: 'AI에게 질문' })
+    fireEvent.click(ask)
+    const dialog = screen.getByRole('dialog', { name: '이 분석에 대해 질문하기' })
+    expect(dialog).toHaveTextContent('부평구 부평1동 · PC방')
+    fireEvent.keyDown(dialog, { key: 'Escape' })
+    expect(screen.queryByRole('dialog', { name: '이 분석에 대해 질문하기' })).toBeNull()
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByRole('button', { name: 'AI에게 질문' })))
   })
 })
 
