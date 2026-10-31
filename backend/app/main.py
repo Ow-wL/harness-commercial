@@ -35,13 +35,14 @@ ContextBuilder 는 첫 /analyze 때 1회 만들어 app.state 에 둔다 (lazy �
 """
 from __future__ import annotations
 
+import hashlib
 import logging
 import math
 import os
 import threading
 from collections import OrderedDict
 from contextlib import asynccontextmanager
-from typing import Annotated, Any, Iterable, Literal, Optional
+from typing import Annotated, Any, Iterable, Literal, Optional, get_args
 
 from fastapi import FastAPI, Request, Response
 from fastapi.routing import APIRoute
@@ -55,7 +56,8 @@ from scoring_engine.runtime import resolve_data_version
 
 from .ai import (ANALYZE_PER_MINUTE, ASK_PER_DAY, ASK_SCHEMA, ASK_TASK, MAX_HISTORY_TURNS, MAX_QUESTION_CHARS,
                  MAX_TURN_CHARS, PREFERRED, PROMPT_VERSION, STAGES, SUMMARY_NEW_PER_DAY, SUMMARY_SCHEMA, SUMMARY_TASK,
-                 AiRefused, AiService, AiUpstreamError, MinuteLimiter, clean_items, context_json)
+                 AiRefused, AiService, AiUpstreamError, MinuteLimiter, clean_items, context_json, guard_answer, guard_items,
+                 support_candidates)
 from .errors import (AI_BUDGET, AI_LIMITED, AI_UNAVAILABLE, AI_UPSTREAM, ERROR_RESPONSES, INVALID_ANALYSIS_OPTIONS,
                      INVALID_BUSINESS, INVALID_COORDINATE, INVALID_QUERY, INVALID_QUESTION, INVALID_RADIUS,
                      LOCATION_OUTSIDE, NO_DATA_NEARBY, PLACES_UNAVAILABLE, PLACES_UPSTREAM, RATE_LIMITED, SUPPORT_UNAVAILABLE, ApiError,
@@ -416,6 +418,8 @@ def station_list(stations_df) -> list[Station]:
 
 
 # 12-9 분당 제한 대상(POST) — 분석 계열과 AI
+SUMMARY_SUPPORT_CANDIDATES = 3     # 13-34: AI 요약에 넣는 지원사업 후보 수(프로필 없이 업종·구 기준)
+ASK_SUPPORT_CANDIDATES = 5         # 13-34: AI 질문에 넣는 후보 수(내 상황 포함 — 지원사업 카드와 같은 5건)
 LIMITED_PATHS = frozenset({"/analyze", "/nearby-stores", "/rank", "/insights", "/summary", "/ask", "/support/match"})
 MESSAGES_RATE_LIMITED = "요청이 너무 많습니다. 잠시 뒤 다시 시도하세요."
 
@@ -715,6 +719,16 @@ def create_app(service: Optional[AnalysisService] = None, warm_biz: Optional[Ite
         context = {"gu_name": ctx.gu_name, "dong_name": ctx.dong_name}
         return ctx, radius, result, context, ins, top
 
+    def ai_support(biz: str, gu: str, profile: Optional[AskProfile], limit: int) -> Optional[list[dict]]:
+        """13-34: AI 입력용 지원사업 후보 — /support/match 와 같은 규칙(업종·구·프로필). 지원사업 자료가 꺼져 있으면 None(키 없음)."""
+        if not support_service.enabled:
+            return None
+        mp = MatchProfile(stage=profile.stage, youth=profile.youth, preferred=tuple(profile.preferred or ())) if profile else None
+        today = support_service.clock().astimezone(KST).date()
+        gu_arg = gu if gu in get_args(IncheonGu) else None
+        _, items = match_support(support_service.programs(), biz, C.CODE_NAME[biz], gu_arg, mp, today, limit)
+        return support_candidates(items)
+
     def require_ai() -> AiService:
         if not ai_service.enabled:
             raise ApiError(AI_UNAVAILABLE, status=503)
@@ -727,8 +741,11 @@ def create_app(service: Optional[AnalysisService] = None, warm_biz: Optional[Ite
         svc = require_ai()
         ctx, radius, result, context, ins, top = ai_inputs(req.lat, req.lng, req.biz_code, req.radius_m)
         data_version = data_health()["version"]
+        # 13-34: 요약은 프로필 없이(여러 사람이 같은 캐시) 업종·구 기준 후보 3개. 후보가 바뀌면 다시 만든다(키에 공고명)
+        cands = ai_support(req.biz_code, ctx.gu_name, None, SUMMARY_SUPPORT_CANDIDATES)
+        cand_key = hashlib.sha1("|".join(c["공고명"] for c in cands or []).encode("utf-8")).hexdigest()[:10] if cands else "-"
         key = "|".join(map(str, (round(ctx.lat, 4), round(ctx.lng, 4), req.biz_code, radius, data_version, ENGINE_VERSION,
-                                 PROMPT_VERSION)))
+                                 PROMPT_VERSION, cand_key)))
         stamp_data_version(response)
         cached = svc.cache.get(key)
         if cached is not None:
@@ -738,13 +755,14 @@ def create_app(service: Optional[AnalysisService] = None, warm_biz: Optional[Ite
         if not svc.limiter.take("summary", client_ip(request), SUMMARY_NEW_PER_DAY):
             raise ApiError(AI_LIMITED, status=429)
         try:
-            out = svc.call(SUMMARY_TASK, context_json(result, context, ins, top, None), [], SUMMARY_SCHEMA, 2000)
+            out = svc.call(SUMMARY_TASK, context_json(result, context, ins, top, None, cands), [], SUMMARY_SCHEMA, 2000)
         except (AiUpstreamError, AiRefused) as e:
             logging.getLogger("backend.ai").warning("요약 생성 실패: %s", type(e).__name__)
             raise ApiError(AI_UPSTREAM, status=502) from e
         body = {"engine_version": ENGINE_VERSION, "prompt_version": PROMPT_VERSION, "model": out.model,
-                "good": clean_items(out.data.get("good"), 3), "bad": clean_items(out.data.get("bad"), 3),
-                "check": clean_items(out.data.get("check"), 2)}
+                "good": guard_items(clean_items(out.data.get("good"), 3), cands),
+                "bad": guard_items(clean_items(out.data.get("bad"), 3), cands),
+                "check": guard_items(clean_items(out.data.get("check"), 2), cands)}
         svc.cache.put(key, body)
         svc.store.append_log({"at": svc.clock().isoformat(timespec="seconds"), "kind": "summary", "biz": req.biz_code,
                               "gu": ctx.gu_name, "radius_m": radius, "output": {k: body[k] for k in ("good", "bad", "check")}},
@@ -770,10 +788,13 @@ def create_app(service: Optional[AnalysisService] = None, warm_biz: Optional[Ite
             profile = {"창업단계": req.profile.stage, "청년": req.profile.youth,
                        "우대": [p for p in (req.profile.preferred or []) if p in PREFERRED] or None}
         stamp_data_version(response)
+        # 13-34: 질문은 내 상황까지 넣은 후보 5개 — 지원사업 카드와 같은 조건이라 답이 카드의 공고를 가리킨다
+        cands = ai_support(req.biz_code, ctx.gu_name, req.profile, ASK_SUPPORT_CANDIDATES)
         try:
-            out = svc.call(ASK_TASK, context_json(result, context, ins, top, profile), turns, ASK_SCHEMA, 1500)
+            out = svc.call(ASK_TASK, context_json(result, context, ins, top, profile, cands), turns, ASK_SCHEMA, 1500)
             answer = str(out.data.get("answer", "")).strip()[:1500]
             fields = [f for f in out.data.get("fields", []) if isinstance(f, str)][:6]
+            answer, fields = guard_answer(answer, fields, cands)
             oos = bool(out.data.get("out_of_scope"))
             sug = out.data.get("profile_suggestion")
             model = out.model

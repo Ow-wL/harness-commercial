@@ -37,6 +37,7 @@ describe('aiFields — AI 요약 근거 키 → 사용자용 이름 (v0.2.1)', (
   it('같은 이름은 한 번만, 계산 기준 키는 관점 이름으로', () => {
     expect(fieldLabels(['지표.competition.raw.동종점포수', '지표.competition.raw.동종점포수_정확일치'])).toEqual(['같은 업종 점포 수'])
     expect(fieldLabel('지표.competition.raw.집적_계수')).toBe('경쟁성 계산 기준')
+    expect(fieldLabels(['지원사업_후보.S1', '지원사업_후보.S2'])).toEqual(['조건에 맞는 지원사업'])   // 13-34
   })
 
   it('모르는 키: 한글 조각은 밑줄만 띄우고, 영어뿐이거나 모르는 관점은 보이지 않는다', () => {

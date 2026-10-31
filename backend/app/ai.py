@@ -21,6 +21,7 @@ import hashlib
 import json
 import logging
 import os
+import re
 import tempfile
 import threading
 import time
@@ -34,7 +35,7 @@ logger = logging.getLogger("backend.ai")
 
 MODEL = "claude-sonnet-5-5"
 FALLBACK_BETA = "server-side-fallback-2026-07-01"
-PROMPT_VERSION = "r2-1"                       # 프롬프트·입력 모양을 바꾸면 올린다 — 요약 캐시 키에 들어간다
+PROMPT_VERSION = "r3-1"                       # 프롬프트·입력 모양을 바꾸면 올린다 — 요약 캐시 키에 들어간다
 API_KEY_ENV = "ANTHROPIC_API_KEY"
 BUDGET_ENV = "AI_MONTHLY_BUDGET_USD"
 DAILY_BUDGET_ENV = "AI_DAILY_BUDGET_USD"            # 하루 상한(기본 = 월 예산의 1/10) — 한 날에 한 달 예산을 다 쓰지 않게(비용 급증 방지)
@@ -291,6 +292,9 @@ SYSTEM_PROMPT = """당신은 인천 상권분석 웹 서비스의 설명 도우�
 - 자료가 비어 있거나 "산출 불가"인 항목은 그 사실을 그대로 말하고 다른 값으로 채우지 않는다.
 - 각 항목의 fields 에는 근거로 쓴 자료 키(예: "지표.competition.raw.동종점포수", "종합.점수", "insights.inflow")를 적는다.
 - 질문이 이 자료로 답할 수 없는 내용이면 out_of_scope 를 true 로 하고, 답에는 "이 자료로는 답할 수 없어요"와 직접 확인할 방법(현장 확인, 관할 기관, 공고 원문 등)을 짧게 쓴다.
+- 지원사업은 자료의 "지원사업_후보" 목록에 있는 공고만 말할 수 있다. 공고명은 목록의 공고명을 그대로 「」 안에 쓰고, fields 에 "지원사업_후보.S1" 처럼 그 id 를 적는다.
+  목록에 없는 지원사업·정책자금·보증·공고 이름을 만들거나 일반 지식으로 소개하지 않는다. 목록이 없거나 비어 있으면 지원사업을 말하지 않는다.
+  선정될 수 있다거나 받을 수 있다고 단정하지 않고, 신청 자격은 공고 원문에서 확인하라고 쓴다.
 - 문장은 짧게, 존댓말로 쓴다."""
 
 _ITEM = {"type": "object", "properties": {"text": {"type": "string"}, "fields": {"type": "array", "items": {"type": "string"}}},
@@ -326,13 +330,16 @@ ASK_SCHEMA = {
 }
 
 SUMMARY_TASK = ("위 자료로 이 자리를 설명해 주세요. good 에 좋은 점 2~3개, bad 에 약한 점·주의할 점 1~3개, check 에 창업 결정 전에 "
-                "현장에서 확인할 것 2개를 쓰세요. 각 항목은 한 문장입니다.")
+                "현장에서 확인할 것 2개를 쓰세요. 각 항목은 한 문장입니다. 지원사업_후보가 있으면 check 중 하나에서 이 자리의 약한 점과 "
+                "관련 있는 공고 하나를 연결해도 됩니다(관련이 없으면 쓰지 않습니다).")
 ASK_TASK = ("아래 대화의 마지막 질문에 위 자료로만 답하세요. 답은 3~5문장. 사용자의 창업 단계·청년 여부·우대 조건이 대화에서 새로 드러나면 "
             "profile_suggestion 에 적고, 아니면 null 로 두세요. 자료로 답할 수 없으면 out_of_scope 를 true 로.")
 
 
-def context_json(analysis: dict, context: dict, insights: Optional[dict], rank_top: Optional[list], profile: Optional[dict]) -> str:
-    """모델 입력 자료. 좌표는 넣지 않는다(구·동 이름만). 엔진 결과는 고치지 않고 필요한 키만 옮긴다."""
+def context_json(analysis: dict, context: dict, insights: Optional[dict], rank_top: Optional[list], profile: Optional[dict],
+                 support: Optional[list] = None) -> str:
+    """모델 입력 자료. 좌표는 넣지 않는다(구·동 이름만). 엔진 결과는 고치지 않고 필요한 키만 옮긴다.
+    support(13-34): 조건에 맞는 지원사업 공고 후보(support_candidates) — 주면 "지원사업_후보", None 이면 키 없음."""
     payload = {
         "위치": {"구": context.get("gu_name"), "동": context.get("dong_name")},
         "업종": analysis["meta"].get("업종"),
@@ -352,7 +359,63 @@ def context_json(analysis: dict, context: dict, insights: Optional[dict], rank_t
         payload["같은자리_업종점수_상위"] = rank_top
     if profile:
         payload["사용자_프로필"] = profile
+    if support is not None:
+        payload["지원사업_후보"] = support
     return json.dumps(payload, ensure_ascii=False, default=str)
+
+
+# ─── 지원사업 언급 검사 (13-34) ───────────────────────────────────────────────
+
+SUPPORT_FIELD = "지원사업_후보"
+_QUOTED = re.compile(r"[「『“\"‘']([^」』”\"’']{2,80})[」』”\"’']")
+_PROGRAM_WORD = re.compile(r"지원|사업|보증|자금|패키지|바우처|프로그램|공고|모집|센터|아카데미|교육")
+_NOT_WORD = re.compile(r"[^0-9A-Za-z가-힣]")
+
+
+def support_candidates(items: list[dict]) -> list[dict]:
+    """/support/match 결과 → 모델 입력용 후보(id S1…, 공고명·기관·대상·지역·신청기간·마감까지 일수). URL 은 넣지 않는다(카드가 링크를 준다)."""
+    return [{"id": f"S{i}", "공고명": it["title"], "기관": it["agency"], "대상": it["targets"],
+             "지역": "전국" if it["nationwide"] else "인천", "신청기간": it["period_text"], "마감까지_일": it["days_left"]}
+            for i, it in enumerate(items, 1)]
+
+
+def _norm(s: str) -> str:
+    """공고명 비교용: [인천]·(재공고) 같은 괄호 머리말, 연도("2026년"), 기호·공백을 뺀다 — 모델이 머리말·연도를 빼고 인용해도 같은 공고로 본다"""
+    s = re.sub(r"\[[^\]]*\]|\([^)]*\)|20\d\d\s*년?\s*도?", " ", s or "")
+    return _NOT_WORD.sub("", s)
+
+
+def support_violations(text: str, fields: list[str], candidates: Optional[list[dict]]) -> list[str]:
+    """목록 밖 지원사업 언급: 근거 키의 없는 후보 id, 「」·따옴표 안 공고 같은 이름이 후보 공고명에 없는 것. 빈 목록 = 문제 없음.
+    한계: 따옴표 없이 지어낸 이름은 잡지 못한다(프롬프트가 「」를 요구한다)."""
+    cands = candidates or []
+    ids = {c["id"] for c in cands}
+    titles = [_norm(c["공고명"]) for c in cands]
+    bad = [f for f in fields if f.startswith(SUPPORT_FIELD) and f.split(".", 1)[-1].split("[")[0] not in ids]
+    for m in _QUOTED.finditer(text or ""):
+        name = m.group(1).strip()
+        n = _norm(name)
+        if len(n) < 4 or not _PROGRAM_WORD.search(name):
+            continue
+        if not any(n == t or (len(n) >= 6 and (n in t or t in n)) for t in titles):
+            bad.append(name)
+    return bad
+
+
+def guard_items(items: list[dict], candidates: Optional[list[dict]]) -> list[dict]:
+    """요약 항목 중 목록 밖 지원사업을 말하는 항목은 뺀다."""
+    return [it for it in items if not support_violations(it["text"], it["fields"], candidates)]
+
+
+def guard_answer(answer: str, fields: list[str], candidates: Optional[list[dict]]) -> tuple[str, list[str]]:
+    """질문 답변: 목록 밖 공고 이름은 안내 문구로 바꾸고, 없는 후보 id 근거 키는 지운다."""
+    bad = support_violations(answer, fields, candidates)
+    if not bad:
+        return answer, fields
+    for name in bad:
+        if not name.startswith(SUPPORT_FIELD):
+            answer = re.sub(r"[「『“\"‘']" + re.escape(name) + r"[」』”\"’']", "(목록에 없는 공고 — 아래 '조건에 맞는 지원사업' 카드에서 확인하세요)", answer)
+    return answer, [f for f in fields if f not in bad]
 
 
 def clean_items(items: Any, limit: int) -> list[dict]:
