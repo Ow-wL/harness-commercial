@@ -38,7 +38,12 @@
         "4989654",
         "a197e4a",
         "7520343",
-        "903123b"
+        "903123b",
+        "4e79d0e",
+        "c237ed9",
+        "e249795",
+        "f9a7e4b",
+        "e396c85"
       ]
     },
     {
@@ -1031,6 +1036,36 @@
       "source_commit": "bae906e",
       "engine": "mvp-0.5.1",
       "note": "운영 트래픽 100% 전환 — 조건에 맞는 지원사업 공고(기업마당·K-Startup)와 AI 연결, 가까운 지하철역 시간대별 승하차, AI 요약 근거 이름표(v0.2.1 포함). 운영 API 48건 대조·화면 확인 뒤 기록"
+    },
+    {
+      "date": "2026-11-01",
+      "kind": "verification",
+      "app_version": "v0.3.1",
+      "engine": "mvp-0.5.1",
+      "id": "2026-11-01-verification-c237ed9",
+      "result": "failed",
+      "source_commit": "c237ed9",
+      "note": "데이터 2026-09 와 API 대조는 통과했으나 서버가 지원사업 공고를 받지 못함(공공 사이트 연결 시간 초과) — 보완 뒤 다시 검증. 운영 트래픽은 바꾸지 않음"
+    },
+    {
+      "date": "2026-11-01",
+      "kind": "verification",
+      "app_version": "v0.3.1",
+      "engine": "mvp-0.5.1",
+      "id": "2026-11-01-verification-f9a7e4b",
+      "result": "failed",
+      "source_commit": "f9a7e4b",
+      "note": "수집 재시도 간격을 줄였으나 같은 연결 시간 초과로 공고 0건 — 배포 때 공고 스냅샷을 넣는 방식으로 보완. 운영 트래픽은 바꾸지 않음"
+    },
+    {
+      "date": "2026-11-01",
+      "kind": "verification",
+      "app_version": "v0.3.1",
+      "engine": "mvp-0.5.1",
+      "id": "2026-11-01-verification-e396c85",
+      "result": "passed",
+      "source_commit": "e396c85",
+      "note": "데이터 2026-09 로 API 48건·업종 순위·가까운 역 통과, 시작 때 지원사업 공고 543건(스냅샷), 지도 인증 성공 상태에서 데이터 묶음 2026-09·지원사업 카드(제물포구 공고)·AI 요약 확인. 운영 트래픽은 바꾸지 않음"
     }
   ]
 }
