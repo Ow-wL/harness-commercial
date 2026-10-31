@@ -1,0 +1,203 @@
+{
+  "errors": [],
+  "tablet640": {
+    "hit": [
+      {
+        "label": "300m",
+        "hit": true
+      },
+      {
+        "label": "500m",
+        "hit": true
+      },
+      {
+        "label": "1km",
+        "hit": true
+      },
+      {
+        "label": "보관함 0곳",
+        "hit": true
+      },
+      {
+        "label": "다크 모드로 전환",
+        "hit": true
+      }
+    ],
+    "radiusClicks": true,
+    "dark": "dark",
+    "saved": true
+  },
+  "tablet768": {
+    "hit": [
+      {
+        "label": "300m",
+        "hit": true
+      },
+      {
+        "label": "500m",
+        "hit": true
+      },
+      {
+        "label": "1km",
+        "hit": true
+      },
+      {
+        "label": "보관함 0곳",
+        "hit": true
+      },
+      {
+        "label": "다크 모드로 전환",
+        "hit": true
+      }
+    ],
+    "radiusClicks": true,
+    "dark": "dark",
+    "saved": true
+  },
+  "tablet958": {
+    "hit": [
+      {
+        "label": "300m",
+        "hit": true
+      },
+      {
+        "label": "500m",
+        "hit": true
+      },
+      {
+        "label": "1km",
+        "hit": true
+      },
+      {
+        "label": "보관함 0곳",
+        "hit": true
+      },
+      {
+        "label": "다크 모드로 전환",
+        "hit": true
+      }
+    ],
+    "radiusClicks": true,
+    "dark": "dark",
+    "saved": true
+  },
+  "desktop": {
+    "panelBottom": 666,
+    "rows": [
+      {
+        "key": "customer",
+        "top": 405.984375,
+        "bottom": 443.984375,
+        "fullyVisible": true
+      },
+      {
+        "key": "stability",
+        "top": 443.984375,
+        "bottom": 482.984375,
+        "fullyVisible": true
+      },
+      {
+        "key": "location",
+        "top": 482.984375,
+        "bottom": 521.984375,
+        "fullyVisible": true
+      },
+      {
+        "key": "market",
+        "top": 521.984375,
+        "bottom": 560.984375,
+        "fullyVisible": true
+      },
+      {
+        "key": "competition",
+        "top": 560.984375,
+        "bottom": 599.984375,
+        "fullyVisible": true
+      }
+    ]
+  },
+  "keyboard": [
+    {
+      "key": "Enter",
+      "expanded": "map-card-collapse",
+      "tab": {
+        "id": "",
+        "tag": "BUTTON"
+      },
+      "returned": "map-card-expand"
+    },
+    {
+      "key": "Space",
+      "expanded": "map-card-collapse",
+      "tab": {
+        "id": "",
+        "tag": "BUTTON"
+      },
+      "returned": "map-card-expand"
+    }
+  ],
+  "scrolledFocus": {
+    "before": 600,
+    "after": 600,
+    "active": "map-card-pill"
+  },
+  "print": {
+    "evidence": [
+      {
+        "display": "block",
+        "text": "반경 500m 타겟 연령 거주 3,207명 · 비중 14.6% · 자료 단위 반경 500m 추정"
+      },
+      {
+        "display": "block",
+        "text": "3년 생존율 52.3% · 자료 단위 구 단위"
+      },
+      {
+        "display": "block",
+        "text": "부평역까지 직선거리 85m · 자료 단위 지점 좌표"
+      },
+      {
+        "display": "block",
+        "text": "부평구 하루 유입 679,748명 · 자료 단위 구 단위"
+      },
+      {
+        "display": "block",
+        "text": "반경 500m PC방 12곳 · 비슷한 가게까지 치면 약 15.6곳 · 가게 한 곳당 주변 주민·직장인 1,925명 · 자료 단위 반경 500m"
+      }
+    ],
+    "headPaddingRight": "0px",
+    "headMinHeight": "0px",
+    "order": "none",
+    "rankToggle": "none"
+  },
+  "mobile": {
+    "firstRow": 570.0625,
+    "radar": 927.0625,
+    "listBeforeRadar": true
+  },
+  "oldServer": {
+    "score": "62.3\n/ 100\n등급\n보통",
+    "timeCards": 0,
+    "hasAnalysis": 1
+  },
+  "retry": {
+    "attempts": 2,
+    "items": 6
+  },
+  "versionMismatch": {
+    "versions": [
+      {
+        "endpoint": "rank",
+        "original": "2026-06",
+        "injected": "2099-01"
+      },
+      {
+        "endpoint": "insights",
+        "original": "2026-06",
+        "injected": "2099-01"
+      }
+    ],
+    "analysisLabel": "분석 결과 · 반경 500m · 데이터 묶음 2026-06",
+    "rankShown": 6,
+    "timeShown": 1
+  }
+}

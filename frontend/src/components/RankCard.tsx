@@ -18,6 +18,7 @@ export function RankCard({
   currentBiz,
   onPick,
   onRetry,
+  onReanalyze,
   busy = false,
 }: {
   state: RankState
@@ -25,6 +26,8 @@ export function RankCard({
   onPick: (biz: string) => void
   /** 실패 뒤 같은 조건으로 다시 요청(Codex R1-6 — 자동 반복은 하지 않는다) */
   onRetry?: () => void
+  /** 순위가 이 결과와 다른 엔진·자료 버전일 때(R1-9) 같은 조건을 지금 서버에서 다시 분석 */
+  onReanalyze?: () => void
   busy?: boolean
 }) {
   const [all, setAll] = useState(false)
@@ -50,6 +53,19 @@ export function RankCard({
                 {' '}
                 <button type="button" className="rank-card__retry" onClick={onRetry}>
                   다시 시도
+                </button>
+              </>
+            )}
+          </p>
+        )}
+        {state.status === 'stale' && (
+          <p className="rank-card__status">
+            서버의 자료가 이 결과를 만든 뒤 바뀌어 순위를 함께 보이지 않습니다. 다시 분석하면 같은 자료로 맞춰집니다.
+            {onReanalyze && (
+              <>
+                {' '}
+                <button type="button" className="rank-card__retry" onClick={onReanalyze} disabled={busy}>
+                  다시 분석
                 </button>
               </>
             )}

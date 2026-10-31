@@ -1,0 +1,40 @@
+{
+  "backendSource": "c9a2f08 main.py, in-memory module; current unchanged engine",
+  "score": "62.3\n/ 100\n등급\n보통",
+  "timeCards": 0,
+  "responses": [
+    {
+      "endpoint": "/health",
+      "status": 200
+    },
+    {
+      "endpoint": "/health",
+      "status": 200
+    },
+    {
+      "endpoint": "/businesses",
+      "status": 200
+    },
+    {
+      "endpoint": "/businesses",
+      "status": 200
+    },
+    {
+      "endpoint": "/analyze",
+      "status": 200
+    },
+    {
+      "endpoint": "/nearby-stores",
+      "status": 200
+    },
+    {
+      "endpoint": "/rank",
+      "status": 404
+    },
+    {
+      "endpoint": "/insights",
+      "status": 404
+    }
+  ],
+  "errors": []
+}

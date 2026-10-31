@@ -11,6 +11,7 @@ const insights = (by_hour: number[], profile: number[] | null, biz_code = 'R1040
     biz_code,
     gu_code: '28237',
     gu_name: '부평구',
+    engine_version: 'mvp-0.3',
     inflow: { gu_code: '28237', gu_name: '부평구', as_of: '2026-08', daily: 679748, by_hour, work_ratio: 0.41 },
     hours_profile: profile,
     hours_profile_note: '업종별 영업 시간대 프로파일은 추정치입니다',

@@ -380,6 +380,7 @@ export const InsightsResponseSchema = z.object({
   biz_code: z.string(),
   gu_code: z.string(),
   gu_name: z.string(),
+  engine_version: z.string(),            // R1-9: 분석 결과(meta.엔진버전)와 같은 엔진인지 화면이 대조한다
   inflow: HourlyInflowSchema.nullable(),
   hours_profile: z.array(z.number()).length(24).nullable(),
   hours_profile_note: z.string().nullable(),
@@ -409,6 +410,7 @@ export const RankResponseSchema = z.strictObject({
   dong_name: z.string(),
   count: z.number().int(),
   items: z.array(RankItemSchema),
+  engine_version: z.string(),            // R1-9: 분석 결과(meta.엔진버전)와 같은 엔진인지 화면이 대조한다
 })
 export type RankItem = z.infer<typeof RankItemSchema>
 export type RankResponse = z.infer<typeof RankResponseSchema>

@@ -1,0 +1,23 @@
+{
+  "lru": {
+    "size": 32,
+    "touchedSurvives": true,
+    "oldestEvicted": true
+  },
+  "lateResponse": {
+    "firstAborted": true,
+    "status": "success",
+    "shownLat": 2
+  },
+  "retry": {
+    "requests": 2,
+    "status": "success"
+  },
+  "versionKey": {
+    "requests": 3
+  },
+  "newToken": {
+    "requests": 2,
+    "status": "success"
+  }
+}

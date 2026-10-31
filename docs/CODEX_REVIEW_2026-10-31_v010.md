@@ -1,3 +1,80 @@
+# 재검수 — R1 v0.1.0 (2026-10-31)
+
+**기존 R1-1~R1-8은 아래 지정 재현 조건에서 해소 확인. 새 P2 지적 R1-9·R1-10은 수정 후 재검수 필요.** 새 P1 지적은 없다. 기존 8건이 해소됐다는 판단과 전체 배포 후보가 추가 결함 없이 통과했다는 판단은 구분한다.
+
+- 검수 대상: `master`, HEAD `9a7397d`; 제품 코드 기준 `ba9ff40`. `git diff ba9ff40 9a7397d --stat`은 `docs/TASKS.md`만 변경했음을 직접 확인했다.
+- 제품 코드·기존 테스트·보호 경로를 수정하지 않았으며 커밋·배포하지 않았다. 추가한 것은 검수 문서, 실행 가능한 검수 스크립트, 화면/JSON/PDF 증거다.
+- 사용자가 제시한 Claude의 전체 check 19단계 통과·E2E 5/5 기록은 **Claude 실행 기록**으로 참조하고 반복하지 않았다. 아래 검사만 Codex가 직접 실행했다.
+- 환경: 로컬 엔진 v0.5.1 API `8000` + 현재 소스 Vite `5173`, 설치된 headless Chrome. 지도 SDK는 저장소의 가짜 SDK로 대체했다. 실제 NAVER 타일·인증 성공 화면을 검수한 것은 아니다.
+
+## 기존 지적의 직접 확인 결과
+
+| 지적 | 직접 확인한 사실 | 판단 |
+|---|---|---|
+| R1-1 시간대 반대 해석 | 부평역 `(37.4894,126.7246)` 500m **29업종** 각각의 실제 `/analyze`·`/insights`를 현 `readTime()`에 넣어 raw `시간대_적합도`·flags와 대조: **불일치 0/29**. PC방 raw 1.32 + 집중 flag → “영업 시간대에 사람이 몰리는 편”. 브라우저·PDF도 이 문구 표시. | 기존 방향 반전 해소. |
+| R1-2 태블릿 버튼 가림 | **640/768/958×800**에서 반경 300m→500m 클릭 후 실제 분석 반경 변경 확인. 300m/500m/1km·테마·보관함 버튼 중앙 hit test 모두 자기 버튼. 테마 전환 성공, 보관함 대화상자 열기·Escape 닫기 성공. | 기존 클릭 차단 해소. 1km는 hit test만 했으며 실제 클릭은 300m·500m로 확인했다. |
+| R1-3 열린 이전 화면 호환성 | `git show c9a2f08:frontend/src/api/schemas.ts`의 **실제 이전 AnalyzeResponseSchema**로 새 API 응답 검사 성공. 최상위 키는 `context,result`만. 추가로 `c9a2f08:backend/app/main.py`를 checkout 없이 별도 메모리 모듈/8001 포트에서 실행하고 새 프런트 API를 연결: `/analyze` 200, `/insights`·`/rank` 404, **62.3점 분석 유지·시간대 카드 0개·pageerror 0**. | 양방향 호환성의 요청한 계약/롤백 흐름 해소. 실제 클라우드 트래픽 전환을 수행한 것은 아니다. |
+| R1-4 첫 화면·모바일 순서 | 1366×768의 공유 링크 첫 화면에서 스크롤 영역 하단 **666px**, 다섯 행 하단 약 **444/483/522/561/600px**, 전부 온전히 보임. 375×812에서 첫 막대 행 top **570px**, 거미줄 top **927px**, DOM도 목록이 먼저. | 기존 가시성/순서 문제 해소. 학교 규제 배너·도움말·근거를 펼친 상태의 다섯 행 동시 노출까지 보장한 결과는 아니다. |
+| R1-5 모두 낮아도 긍정 | 실제 분석 응답을 복제한 **합성 경계 입력** `[24,20,15,10,5]`, `[35,34,33,32,31]` 모두 `all-low`로 “전반적으로 점수가 낮은 자리”. `[62,55,30,50,45]` → `mixed`, `[55,50,24,48,42]` → “보통인 편이지만”. 단일 산출·40/70 경계도 확인. | 절대 수준을 무시한 기존 긍정 결론 해소. 합성 점수를 실제 지점 관측값으로 보고하지 않는다. |
+| R1-6 순위 복구 | 브라우저에서 첫 `/rank` 네트워크 실패 주입 → “다시 시도” 연속 클릭 → **요청 총 2회**, 목록 6행(상위 5+지금 업종) 복구. 훅 별도 검사에서도 새 token 복구·버전 key 변경 재조회·LRU 32개 상한·취소 뒤 늦은 응답 폐기 확인. | 기존 복구 불가 해소. 새 응답 자체의 버전 검증 누락은 **R1-9**, backend 실패 후 잠금은 **R1-10**으로 분리. |
+| R1-7 인쇄 | 기본 접힌 상태에서 print media의 근거 **5개 모두 display:block**. result head padding-right/min-height **0px/0px**, 정렬/순위 전체 보기 숨김. 실제 Chrome A4 **6페이지 PDF** 생성 후 Poppler로 전 페이지 렌더해 확인: 첫 페이지에 5관점 근거·시간대 카드, 다음 페이지에 순위 인쇄 범위 안내. 주요 내용 잘림·겹침은 관찰되지 않음. | 기존 근거 누락·지도 예약 여백 해소. 일부 기존 조작 문구(“모두 펼치기”, “지도에 표시”, 반경별 “분석하기”)는 종이에 남지만 이번 수정의 새 회귀로 번호를 부여하지 않음. |
+| R1-8 키보드 포커스 | Enter·Space 각각 확대 후 `map-card-collapse`, 복귀 후 `map-card-expand`. 확대 후 Tab도 body가 아닌 다음 버튼으로 이동. 스크롤 600px 뒤 지도 보기→복귀는 `map-card-pill`로 포커스, 스크롤 **600→600px** 보존. | 기존 포커스 소실 해소. 실 스크린리더 검증을 대신하지 않는다. |
+
+주요 증거: [API 29업종·계약·결론](review-r1-recheck/api.json), [화면·치수·키보드·오류 주입](review-r1-recheck/browser.json), [실제 이전 backend 연결](review-r1-recheck/previous-browser.json), [공통 훅 검사](review-r1-recheck/hooks.json).
+
+화면: [데스크톱](review-r1-recheck/desktop.png), [640](review-r1-recheck/tablet-640.png), [768](review-r1-recheck/tablet-768.png), [958](review-r1-recheck/tablet-958.png), [모바일](review-r1-recheck/mobile.png). 인쇄: [PDF](../output/pdf/r1-v010-recheck.pdf), [1페이지](review-r1-recheck/print-1.png), [2페이지](review-r1-recheck/print-2.png); 3~6페이지도 같은 폴더에 보존했다.
+
+## 새 지적
+
+### R1-9 [P2] 요청 key에 버전을 넣었지만, 다른 버전의 보조 응답을 그대로 표시·캐시한다
+
+**직접 확인한 사실**
+
+- 위치: `frontend/src/lib/useSideRequest.ts:62–67`, `frontend/src/App.tsx:925–942`, `frontend/src/lib/useRank.ts:17–18`, `frontend/src/lib/useInsights.ts:13–14`.
+- 새 브라우저 페이지에서 실제 `/analyze`는 데이터 `2026-06` 그대로 두고, 실제 `/rank`·`/insights` 응답의 **`X-Data-Version`만 `2099-01`로 바꾸는 오류 주입**을 했다. 응답 본문 점수·자료는 바꾸지 않았다.
+- 화면 머리는 **데이터 묶음 2026-06**인데 순위 6행과 시간대 카드가 모두 나타났다. 캐시 저장도 요청 당시 `sideVersion`으로 만든 key를 사용한다. `client.ts`는 응답 헤더를 `stampDataVersion()`으로 보존하지만 `useSideRequest`는 `r.ok`만 검사하고 넣는다. [재현 값](review-r1-recheck/browser.json)의 `versionMismatch`.
+- 버전 key 변경 시 재조회하는 기존 테스트는 통과한다. **요청한 버전과 받은 응답의 버전이 다른 경우**를 막는 검사는 아니다.
+
+**판단과 영향**
+
+분석을 받은 뒤 배포/데이터 전환이 일어나 다음 보조 요청이 다른 버전으로 처리되면, 서로 다른 자료의 결과가 한 화면에 섞이고 새 응답이 과거 버전 key 아래 남을 수 있다. 실제 운영에서 발생했다고 단정하지 않으며, 버전 불일치 처리 부재를 오류 주입과 코드로 확인한 것이다.
+
+**수정 제안**
+
+표시·캐시 저장 전에 보조 응답의 실제 데이터 버전을 분석 결과와 비교하고, 다르면 저장/표시를 보류한 뒤 일관된 재분석 또는 재시도 경로를 제공한다. 엔진도 같은 방식으로 보호하려면 보조 응답에 엔진 식별자 계약이 필요하다. 단순히 request key만 더 길게 만드는 것으로는 해결되지 않는다.
+
+재검증: 분석 V1→보조 응답 V2, V2 응답이 V1 key에 남지 않는지, 반대 순서, 조건 변경 후 늦은 응답, 이전 서버 404 동작 유지.
+
+### R1-10 [P2] `/rank` 첫 계산 실패 후 대기자가 재계산할 때 잠금 등록이 사라진다
+
+**직접 확인한 사실**
+
+- 위치: `backend/app/main.py:563–583`, 특히 `finally`의 `del rank_inflight[key]`.
+- 실제 endpoint 함수를 fake 분석 서비스로 실행했다(HTTP 지연/엔진 성능 측정이 아님). 정상 동시 3요청은 **analyze 29회**로 1회 계산되어 통과한다.
+- 실패 경합: A가 같은 key 계산 중, B는 그 key의 잠금에서 대기 → A의 첫 analyze에 예외 주입 → B가 기존 잠금으로 재계산하며 잠시 대기 → C를 같은 key로 호출.
+- B가 계산 중인데 `rank_inflight`는 이미 비어 있었다. C는 **새 잠금을 만들어 B가 끝나기 전에 analyze에 진입**했다. 관찰된 최대 동시 analyze는 **2**, 총 **59회(실패 1 + 29 + 29)**. 기존 대기 요청이 한 번만 성공 계산하면 30회로 끝날 조건이다. [증거](review-r1-recheck/backend_edges.json)의 `normal`, `failure_race`; [재현 스크립트](review-r1-recheck/backend_edges.py).
+
+**판단과 영향**
+
+정상 성공 경로의 단일 계산은 구현됐지만, 계산 실패 뒤 대기자가 남아 있는 경로에서는 동일 key 계산이 다시 겹친다. 이전보다 정상 경로는 개선됐으며, 이 지적은 **새 잠금 구현의 실패 경로 결함**이다. 실제 운영 시간·메모리 증가량은 측정하지 않았다.
+
+**수정 제안**
+
+대기자까지 포함한 잠금 수명 관리(참조 수/상태) 또는 계산 결과·예외를 함께 공유하는 single-flight 구조로, 기존 잠금을 쓰는 대기자가 남은 동안 별도 계산 잠금이 생기지 않게 한다. 잠금 객체를 영구 누적시키는 방식은 피한다.
+
+재검증: 정상 동일 key 3요청, 첫 계산 예외+기존 대기자+새 재시도, 실패 뒤 재시도 성공·registry 정리, 서로 다른 key의 불필요한 직렬화 여부.
+
+## 이번에 실행한 검사와 한계
+
+- **직접 실행**: API 29업종 대조 및 `/insights` 오류 입력 5조건(모두 422, `invalid_request`/`invalid_business`/`location_outside`/`no_data_nearby` 계약), backend 내부 오류 주입(500 `internal_error`·32자리 request_id, 내부 상세 미노출), 브라우저 재현, 이전 실제 backend 연결, 훅 경계 검사, PDF 생성·전 6페이지 시각 확인.
+- **관련 기존 테스트만 실행**: `node node_modules/vitest/vitest.mjs run src/lib/conclusion.test.ts src/lib/timeInsights.test.ts src/lib/useRank.test.ts src/print.test.ts --maxWorkers=2` → **4파일 30/30 통과**. `SCORING_ENGINE_VERSION=v0_5_1 ... pytest backend/tests/test_analyze.py -k insights -q` → **5 passed, 10 deselected**.
+- 실행 도구 재시도: 최초 Vite 실행은 npm 인자 전달 오류로 시작 실패→직접 Vite CLI로 실행. 첫 브라우저 스크립트는 실제 접근 이름 `보관함 0곳`을 `보관함`으로 찾는 검수 스크립트 오류로 중단→선택자 수정 후 완료. 훅 스크립트는 Node strip-only가 TypeScript parameter property를 지원하지 않아 로딩 실패→transform-types 모드로 완료. 제품 코드나 테스트 기대값은 바꾸지 않았다.
+- **참조만 함**: `ba9ff40`에 대한 Claude의 전체 check 19단계·E2E 5/5 기록. Codex가 이번에 전체 check/E2E를 다시 통과시킨 것으로 표현하지 않는다.
+- **미검증**: 실제 NAVER 지도/인증 성공, 실기기·Safari·Firefox·스크린리더, 브라우저 글자 확대, 긴 업종명 전수, 실제 프린터, Docker/Cloud Run 배포·부하. PDF는 Chrome 인쇄 엔진의 A4 결과이며 OS 인쇄 대화상자 검증은 아니다.
+- 검수용 서버는 검수 종료 후 정리했다. 아래 이전 검수 기록은 당시 판단을 그대로 보존한다.
+
+---
+
 # R1 v0.1.0 — Codex 3회 검수 (2026-10-31)
 
 기준: `c48a686` (`33d0625` R1 본체 + 테스트·자료). 요청에 따라 ① UI/UX 디자이너, ② 사용자, ③ 개발자 관점으로 순서대로 검수했다. 제품 코드는 수정하지 않았다. **판정: 수정 후 재검수 필요. P1 3건, P2 5건.** 배포·운영 전환은 수행하지 않았다.

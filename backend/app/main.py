@@ -138,6 +138,7 @@ class InsightsResponse(BaseModel):
     biz_code: str
     gu_code: str
     gu_name: str
+    engine_version: str                      # 응답을 만든 프로세스의 엔진(= /analyze meta.엔진버전) — 화면의 버전 대조(R1-9)
     inflow: Optional[HourlyInflow]           # 시군구 행이 없으면 null
     hours_profile: Optional[list[float]]     # 엔진 config.HOUR_PROFILE[업종] (24개, 합 1) — 업종에 없으면 null
     hours_profile_note: Optional[str]        # HOURS_PROFILE_NOTE (hours_profile 이 있을 때)
@@ -225,6 +226,7 @@ class RankResponse(BaseModel):
     dong_name: str
     count: int                       # == len(items) == len(config.CODE_NAME)
     items: list[RankItem]            # overall 내림차순(동점은 CODE_NAME 순서, null 은 끝)
+    engine_version: str              # 계산한 엔진(= /analyze meta.엔진버전) — 화면이 분석 결과와 같은 엔진인지 확인한다(R1-9)
 
 
 class Station(BaseModel):
@@ -286,7 +288,7 @@ def build_insights(rt, biz: str, gu_code: str, gu_name: str) -> InsightsResponse
                               work_ratio=None if work_ratio is None or not math.isfinite(float(work_ratio))
                               else float(work_ratio))
     profile = getattr(C, "HOUR_PROFILE", {}).get(biz)
-    return InsightsResponse(biz_code=biz, gu_code=gu_code, gu_name=gu_name, inflow=inflow,
+    return InsightsResponse(biz_code=biz, gu_code=gu_code, gu_name=gu_name, engine_version=ENGINE_VERSION, inflow=inflow,
                             hours_profile=[float(x) for x in profile] if profile is not None else None,
                             hours_profile_note=HOURS_PROFILE_NOTE if profile is not None else None)
 
@@ -425,7 +427,7 @@ def create_app(service: Optional[AnalysisService] = None, warm_biz: Optional[Ite
     app.state.stations = None
     builder_lock = threading.Lock()
     rank_lock = threading.Lock()
-    rank_inflight: dict = {}                       # /rank 키 → 계산 중 잠금 (단일 계산)
+    rank_inflight: dict = {}                       # /rank 키 → [잠금, 참조 수] (단일 계산, 쓰는 요청이 0이 되면 지운다)
     app.state.rank_inflight = rank_inflight
 
     def context_builder() -> ContextBuilder:
@@ -560,27 +562,35 @@ def create_app(service: Optional[AnalysisService] = None, warm_biz: Optional[Ite
             hit = cache.get(key)
             if hit is not None:
                 cache.move_to_end(key)
-            else:   # 같은 키의 동시 요청은 한 번만 계산한다(Codex R1 개발자 1) — 키별 잠금, 먼저 온 요청이 계산하고 나머지는 캐시를 읽는다
-                key_lock = rank_inflight.setdefault(key, threading.Lock())
+            else:
+                # 같은 키의 동시 요청은 한 번만 계산한다(Codex R1 개발자 1). 키별 [잠금, 참조 수] — 이 키를 기다리거나 계산하는
+                # 요청이 하나라도 남아 있으면 등록을 지우지 않는다(R1-10: 첫 계산이 실패해도 대기자와 새 요청이 같은 잠금을 쓴다).
+                # 마지막 요청이 나가며 지워 잠금이 쌓이지 않고, 다른 키는 서로 기다리지 않는다
+                entry = rank_inflight.get(key)
+                if entry is None:
+                    entry = rank_inflight[key] = [threading.Lock(), 0]
+                entry[1] += 1
         if hit is None:
-            with key_lock:
-                with rank_lock:
-                    hit = cache.get(key)
-                if hit is None:
-                    try:
+            try:
+                with entry[0]:
+                    with rank_lock:
+                        hit = cache.get(key)
+                    if hit is None:      # 앞 요청이 실패했으면 대기자가 이어서 계산한다(예외는 그 요청에만 — 500 오류 계약)
                         results = {biz: app.state.service.analyze(ctx, biz, radius_m=radius) for biz in C.CODE_NAME}
                         items = rank_items(results)
                         hit = RankResponse(lat=ctx.lat, lng=ctx.lng, radius_m=radius, gu_name=ctx.gu_name,
-                                           dong_name=ctx.dong_name, count=len(items), items=items)
+                                           dong_name=ctx.dong_name, count=len(items), items=items,
+                                           engine_version=ENGINE_VERSION)
                         with rank_lock:
                             cache[key] = hit
                             cache.move_to_end(key)
                             while len(cache) > RANK_CACHE_MAX:
                                 cache.popitem(last=False)
-                    finally:
-                        with rank_lock:
-                            if rank_inflight.get(key) is key_lock:
-                                del rank_inflight[key]
+            finally:
+                with rank_lock:
+                    entry[1] -= 1
+                    if entry[1] == 0 and rank_inflight.get(key) is entry:
+                        del rank_inflight[key]
         stamp_data_version(response)
         return hit
 

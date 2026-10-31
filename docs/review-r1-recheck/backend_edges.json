@@ -1,0 +1,31 @@
+{
+  "normal": {
+    "requests": 3,
+    "analyze_calls": 29,
+    "expected": 29,
+    "inflight_empty": true
+  },
+  "failure_race": {
+    "statuses": {
+      "first": "RuntimeError",
+      "second": "success",
+      "third": "success"
+    },
+    "lock_missing_while_waiter_computes": true,
+    "third_computes_while_second_blocked": true,
+    "max_parallel_analyze": 2,
+    "analyze_calls": 59,
+    "single_success_plus_failure_expected": 30
+  },
+  "insights_500": {
+    "status": 500,
+    "body": {
+      "error": {
+        "code": "internal_error",
+        "message": "서버 내부 오류가 발생했습니다.",
+        "request_id": "933aff6f6d2f42578331fd01209aa095"
+      }
+    },
+    "leaks_details": false
+  }
+}

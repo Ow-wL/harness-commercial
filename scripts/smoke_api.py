@@ -105,11 +105,21 @@ def make_expected() -> dict:
     return out
 
 
-def check_rank(fetch: Fetch, expected: dict) -> tuple[list[str], dict]:
+def side_version_fails(name: str, headers: dict, body: dict, engine: str, data_version: str | None) -> list[str]:
+    """R1-9: 보조 응답(/rank·/insights)이 분석과 같은 엔진·데이터 버전인지 — 화면은 다르면 표시·캐시하지 않는다."""
+    fails = []
+    if body.get("engine_version") != engine:
+        fails.append(f"{name}: engine_version {body.get('engine_version')} (기대 {engine})")
+    if data_version is not None and headers.get(DATA_VERSION_HEADER) != data_version:
+        fails.append(f"{name}: X-Data-Version {headers.get(DATA_VERSION_HEADER)} (기대 {data_version})")
+    return fails
+
+
+def check_rank(fetch: Fetch, expected: dict, engine: str = "", data_version: str | None = None) -> tuple[list[str], dict]:
     """13-16 /rank 부평역 500m: 29개 업종, 종합 내림차순(null 끝), PC방 포함. 기대값에 rank 가 있으면(v0.0.17 이후 생성) 본문 대조,
     없으면(이전 기대값) 대조는 건너뛴다 — 실패로 보지 않는다."""
     fails = []
-    s, _, d, t = fetch("/rank", RANK_BODY)
+    s, h, d, t = fetch("/rank", RANK_BODY)
     summary = {"status": s, "latency_ms": round(t * 1000)}
     if s != 200:
         return [f"/rank 부평역: {s} (기대 200)"], summary
@@ -119,6 +129,8 @@ def check_rank(fetch: Fetch, expected: dict) -> tuple[list[str], dict]:
     present = [x for x in scores if x is not None]
     summary.update({"count": body.get("count"), "top": [(i["name"], i["overall"]) for i in items[:3]],
                     "nulls": len(scores) - len(present)})
+    if engine:
+        fails += side_version_fails("/rank 부평역", h, body, engine, data_version)
     if body.get("count") != 29 or len(items) != 29:
         fails.append(f"/rank 부평역: 업종 {body.get('count')}개 (기대 29)")
     if present != sorted(present, reverse=True) or scores[len(present):] != [None] * (len(scores) - len(present)):
@@ -134,16 +146,18 @@ def check_rank(fetch: Fetch, expected: dict) -> tuple[list[str], dict]:
     return fails, summary
 
 
-def check_insights(fetch: Fetch) -> tuple[list[str], dict]:
+def check_insights(fetch: Fetch, engine: str = "", data_version: str | None = None) -> tuple[list[str], dict]:
     """13-15 /insights 부평역 PC방: 부평구 24시간 유입·영업시간 프로파일 24개. /analyze 응답은 v0.0.16 형태(context·result)만 —
     배포 전부터 열린 화면의 strict 스키마가 새 필드를 거절하므로(Codex R1-3) 설명 자료는 /analyze 에 싣지 않는다."""
     fails = []
-    s, _, d, t = fetch("/insights", BUPYEONG)
+    s, h, d, t = fetch("/insights", BUPYEONG)
     summary = {"status": s, "latency_ms": round(t * 1000)}
     if s != 200:
         return [f"/insights 부평역: {s} (기대 200)"], summary
     body = json.loads(d)
     inflow = body.get("inflow") or {}
+    if engine:
+        fails += side_version_fails("/insights 부평역", h, body, engine, data_version)
     summary.update({"gu": body.get("gu_name"), "hours": len(inflow.get("by_hour") or []),
                     "profile": len(body.get("hours_profile") or [])})
     if body.get("gu_name") != "부평구" or len(inflow.get("by_hour") or []) != 24 or len(body.get("hours_profile") or []) != 24:
@@ -251,9 +265,9 @@ def check_api(fetch: Fetch, expected: dict, engine: str | None = None, wait_warm
     summary["invalid_radius"] = [s, code]
     if [s, code] != [422, "invalid_radius"]:
         fails.append(f"반경 750m: {s} {code} (기대 422 invalid_radius)")
-    rank_fails, summary["rank"] = check_rank(fetch, expected)
+    rank_fails, summary["rank"] = check_rank(fetch, expected, engine_version, data_version if data_header else None)
     fails += rank_fails
-    insights_fails, summary["insights"] = check_insights(fetch)
+    insights_fails, summary["insights"] = check_insights(fetch, engine_version, data_version if data_header else None)
     fails += insights_fails
     return fails, summary
 

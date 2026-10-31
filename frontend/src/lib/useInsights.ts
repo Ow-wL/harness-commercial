@@ -4,7 +4,7 @@
  */
 import { fetchInsights } from '../api/client.ts'
 import type { InsightsResponse } from '../api/schemas.ts'
-import { SideCache, useSideRequest, type SideState } from './useSideRequest.ts'
+import { SideCache, useSideRequest, type SideState, type SideVersion } from './useSideRequest.ts'
 
 export type InsightsRequest = { lat: number; lng: number; biz_code: string }
 export type InsightsState = SideState<InsightsResponse>
@@ -18,6 +18,10 @@ export function clearInsightsCache() {
   cache.clear()
 }
 
-export function useInsights(request: InsightsRequest | null, version = '', token: unknown = null) {
-  return useSideRequest(request ? keyOf(request, version) : null, bodyOf, fetchInsights, cache, token)
+const engineOf = (d: InsightsResponse) => d.engine_version
+const tag = (v: SideVersion | null) => (v ? `${v.engine}/${v.data ?? ''}` : '')
+
+/** expected: 이 요청을 부른 분석 결과의 엔진·데이터 버전 — 키 꼬리표이자 받은 응답의 대조 기준(R1-9). token: 새 분석 응답 객체 */
+export function useInsights(request: InsightsRequest | null, expected: SideVersion | null = null, token: unknown = null) {
+  return useSideRequest(request ? keyOf(request, tag(expected)) : null, bodyOf, fetchInsights, cache, token, expected, engineOf)
 }

@@ -921,8 +921,9 @@ function App() {
 
   const result = analysis.status === 'success' ? analysis.response : null
   // 이 자리 업종 순위(13-16): 단일 결과의 좌표·반경으로 — 비교 중에는 요청하지 않는다(A 결과 카드에만)
-  // 엔진·데이터 버전 꼬리표: 바뀌면 같은 좌표라도 순위·시간대 자료를 다시 받는다. 새 분석 응답(객체)이면 실패도 다시 시도한다
-  const sideVersion = result ? `${result.result.meta.엔진버전}/${dataVersionOf(result) ?? ''}` : ''
+  // 분석 결과의 엔진·데이터 버전: 순위·시간대 요청의 키 꼬리표이자 받은 응답의 대조 기준 — 다르면 표시·캐시하지 않는다(R1-9).
+  // 새 분석 응답(객체)이면 실패·불일치도 다시 시도한다
+  const sideVersion = result ? { engine: result.result.meta.엔진버전, data: dataVersionOf(result) } : null
   const singleSuccess = analysis.status === 'success' && compare.status === 'off'
   const rankState = useRank(
     singleSuccess
@@ -1369,6 +1370,10 @@ function App() {
           <RankCard
             state={rankState}
             onRetry={rankState.retry}
+            onReanalyze={() => {
+              // 순위 응답이 이 결과와 다른 자료 버전(R1-9): 같은 조건을 지금 서버에서 새로 분석 → 같은 버전으로 다시 맞춘다
+              if (analysis.status === 'success') startA(analysis.request, { fresh: true })
+            }}
             currentBiz={result.result.meta.업종코드}
             busy={analyzing}
             onPick={(biz) => {

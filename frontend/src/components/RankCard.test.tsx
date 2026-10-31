@@ -22,6 +22,7 @@ const DATA = RankResponseSchema.parse({
   gu_name: '부평구',
   dong_name: '부평1동',
   count: 8,
+  engine_version: 'mvp-0.5.1',
   items: [
     item('R10404', '노래방', 72.4, { regulated: true }),
     item('P10501', '독서실/스터디 카페', 72.1),
@@ -79,5 +80,14 @@ describe('RankCard — 이 자리 업종 순위 (13-16, 팀 C1)', () => {
     expect(screen.getByText(/불러오지 못했습니다/).closest('[aria-live="polite"]')).not.toBeNull()
     rerender(<RankCard state={{ status: 'idle' }} currentBiz="R10406" onPick={() => {}} />)
     expect(container).toBeEmptyDOMElement()
+  })
+
+  it('응답이 이 결과와 다른 자료 버전(stale, Codex R1-9): 목록 없이 안내 + "다시 분석"', () => {
+    const onReanalyze = vi.fn()
+    render(<RankCard state={{ status: 'stale' }} currentBiz="R10406" onPick={() => {}} onReanalyze={onReanalyze} />)
+    expect(screen.queryByRole('list', { name: '업종별 종합점수 순위' })).toBeNull()
+    expect(screen.getByText(/서버의 자료가 이 결과를 만든 뒤 바뀌어/)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: '다시 분석' }))
+    expect(onReanalyze).toHaveBeenCalledTimes(1)
   })
 })

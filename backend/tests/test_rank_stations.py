@@ -38,7 +38,8 @@ def bupyeong(client):
 
 def test_rank_shape_and_order(bupyeong):
     body = bupyeong.json()
-    assert set(body) == {"lat", "lng", "radius_m", "gu_name", "dong_name", "count", "items"}
+    assert set(body) == {"lat", "lng", "radius_m", "gu_name", "dong_name", "count", "items", "engine_version"}
+    assert body["engine_version"] == ENGINE_VERSION                      # R1-9: /analyze meta.엔진버전과 같은 값
     assert (body["lat"], body["lng"], body["radius_m"]) == (37.4894, 126.7246, 500)
     assert (body["gu_name"], body["dong_name"]) == ("부평구", "부평1동")
     assert body["count"] == len(body["items"]) == len(C.CODE_NAME) == 29
@@ -132,6 +133,108 @@ def test_rank_same_key_concurrent_requests_compute_once(real_service, bupyeong):
         assert all(r.json() == bupyeong.json() for r in out)
         assert svc.calls == len(C.CODE_NAME)                            # 3 × 29 가 아니다
         assert c.app.state.rank_cache and c.app.state.rank_inflight == {}
+
+
+class _GatedService:
+    """/rank 잠금 경합 재현용 가짜 서비스(Codex 재검수 R1-10 스크립트와 같은 방식) — 스레드 이름별로 첫 업종에서 멈추거나 실패한다.
+    엔진을 부르지 않고 analyze 호출 수·최대 동시 실행 수만 센다."""
+
+    def __init__(self, fail_first=False):
+        self.calls = self.active = self.max_active = 0
+        self.mutex = threading.Lock()
+        self.fail_first = fail_first
+        self.started = {n: threading.Event() for n in ("first", "second", "third")}
+        self.release = {n: threading.Event() for n in ("first", "second", "third")}
+
+    def analyze(self, ctx, biz, **kwargs):
+        with self.mutex:
+            self.calls += 1
+            self.active += 1
+            self.max_active = max(self.max_active, self.active)
+        try:
+            name = threading.current_thread().name
+            if biz == next(iter(C.CODE_NAME)) and name in self.started:
+                self.started[name].set()
+                assert self.release[name].wait(5)
+                if name == "first" and self.fail_first:
+                    raise RuntimeError("injected compute failure")
+            time.sleep(0.001)
+            return {"종합": {"점수": 50, "병목_지표": None, "데이터_충족률": 1}, "지표": [],
+                    "meta": {"업종": C.CODE_NAME[biz], "업종그룹": C.group_of(biz)}, "경고": []}
+        finally:
+            with self.mutex:
+                self.active -= 1
+
+
+def _rank_endpoint(service, ctx_for):
+    from types import SimpleNamespace
+    from fastapi import Response
+    app = M.create_app(warm_biz=[])
+    app.state.service = service
+    app.state.context_builder = SimpleNamespace(build=lambda lat, lng: ctx_for(lat, lng))
+    ep = next(r.endpoint for r in app.routes if getattr(r, "path", "") == "/rank")
+    return app, lambda lat, lng: ep(M.RankRequest(lat=lat, lng=lng, radius_m=500), Response())
+
+
+def _ctx(lat, lng):
+    from types import SimpleNamespace
+    return SimpleNamespace(lat=lat, lng=lng, gu_code="28237", gu_name="부평구", dong_name="부평1동")
+
+
+def test_rank_failed_compute_waiter_and_new_request_share_one_lock():
+    """R1-10: 첫 계산이 실패해도 그 키를 기다리던 요청이 남아 있으면 잠금 등록을 지우지 않는다 — 대기자가 다시 계산하는 동안
+    새 요청은 같은 잠금 뒤에서 기다렸다가 캐시를 읽는다(동시 계산 1, analyze = 실패 1 + 29). 끝나면 등록이 비어 있다."""
+    svc = _GatedService(fail_first=True)
+    app, call = _rank_endpoint(svc, _ctx)
+    status = {}
+
+    def run():
+        name = threading.current_thread().name
+        try:
+            call(37.4894, 126.7246)
+            status[name] = "ok"
+        except RuntimeError:
+            status[name] = "error"
+
+    first = threading.Thread(target=run, name="first")
+    second = threading.Thread(target=run, name="second")
+    third = threading.Thread(target=run, name="third")
+    first.start()
+    assert svc.started["first"].wait(5)
+    second.start()
+    time.sleep(0.2)                                                         # second 가 같은 키 잠금 앞에서 기다리게
+    assert second.is_alive()
+    svc.release["first"].set()                                              # first 실패 → second 가 이어서 계산
+    assert svc.started["second"].wait(5)
+    assert app.state.rank_inflight                                          # 대기자가 계산 중인 동안 등록 유지
+    third.start()
+    assert not svc.started["third"].wait(0.3)                               # third 는 analyze 에 들어가지 못하고 기다린다
+    svc.release["second"].set()
+    for t in (first, second, third):
+        t.join(5)
+    assert status == {"first": "error", "second": "ok", "third": "ok"}
+    assert svc.max_active == 1
+    assert svc.calls == 1 + len(C.CODE_NAME)
+    assert app.state.rank_inflight == {}
+
+
+def test_rank_different_keys_are_not_serialized():
+    """다른 좌표는 서로의 잠금을 기다리지 않는다(키별 잠금) — 두 계산이 동시에 진행되고 끝나면 등록이 비어 있다."""
+    svc = _GatedService()
+    app, call = _rank_endpoint(svc, _ctx)
+    a = threading.Thread(target=lambda: call(37.4894, 126.7246), name="first")
+    b = threading.Thread(target=lambda: call(37.4900, 126.7250), name="second")
+    a.start()
+    assert svc.started["first"].wait(5)
+    b.start()
+    assert svc.started["second"].wait(2)                                    # first 가 멈춘 동안 second 도 계산에 들어간다
+    assert svc.max_active == 2
+    svc.release["first"].set()
+    svc.release["second"].set()
+    a.join(5)
+    b.join(5)
+    assert svc.calls == 2 * len(C.CODE_NAME) and app.state.rank_inflight == {}
+    assert len(app.state.rank_cache) == 2
 
 
 @pytest.mark.skipif(not ENGINE_VERSION.startswith("mvp-0.5"), reason="학교구역 규제 경고는 엔진 v0.5 계열(D-028)")
