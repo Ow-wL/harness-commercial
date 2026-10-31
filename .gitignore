@@ -34,3 +34,6 @@ frontend/spike/_geo/
 frontend/dist-e2e/
 frontend/test-results/
 frontend/playwright-report/
+
+# 로컬 실행 설정(preview 도구) — 경로는 scripts/run_local_backend.py (12-12)
+.claude/launch.json
