@@ -3,6 +3,21 @@
   "renumbered_until": "v0.0.10",
   "releases": [
     {
+      "version": "v0.2.1",
+      "date": "2026-10-31",
+      "title": "AI 요약 근거 표시",
+      "changes": [
+        {
+          "type": "improved",
+          "text": "AI 요약 문장 옆 근거를 내부 자료 이름 대신 \"고객성 점수\", \"같은 업종 점포 수\"처럼 읽기 쉬운 이름으로 보여 줍니다."
+        }
+      ],
+      "work": [
+        "lib/aiFields: 근거 키 경로(지표.<관점>.score·raw.<키>·flags, 종합.*, insights.*, 면책 등) → 사용자용 이름, 같은 이름은 한 번, 모르는 영어 키는 숨김. AiSummaryCard 가 이름으로 표시. 운영 요약 실제 키로 단위 테스트"
+      ],
+      "commits": []
+    },
+    {
       "version": "v0.2.0",
       "date": "2026-10-31",
       "title": "AI 요약과 질문",
