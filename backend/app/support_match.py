@@ -7,7 +7,7 @@
    프로필을 준 칸만: 창업 단계가 맞지 않는 K-Startup 공고, 청년 아님인데 청년 전용, 고른 우대 조건과 다른 우대 전용 공고.
    (프로필 미입력 칸은 통과 — 계획 6.1)
 2. 남은 공고 중 핵심 신호(소상공인·창업·업종·인천 공고+경영 계열 분야) 하나 이상인 것만.
-3. 점수(규칙 표 points)를 더해 높은 순 → 마감 가까운 순 → 공고명. 점수는 응답에 내보내지 않는다(순위·추천처럼 읽히지 않게) —
+3. 점수(규칙 표 points)를 더하고 행사·참관 공고(demote)는 깎아 높은 순 → 마감 가까운 순 → 공고명. 점수는 응답에 내보내지 않는다(순위·추천처럼 읽히지 않게) —
    대신 사람이 읽을 이유(reasons)를 준다. 마감 deadline_soon_days 일 이내는 deadline_soon.
 """
 from __future__ import annotations
@@ -49,6 +49,12 @@ def _gu_in(title: str, gus: list[str]) -> list[str]:
     return [m.group(0) for m in re.finditer(alt, title)]
 
 
+def _other_place(title: str, names: str) -> bool:
+    """괄호([ ]·( )·【 】) 안에 다른 지역 이름이 있거나, '서초구'·'수원시' 꼴로 쓰였는가"""
+    brackets = " ".join(re.findall(r"[\[(（【]([^\])）】]*)[\])）】]", title))
+    return bool(re.search(f"(?:{names})", brackets) or re.search(f"(?:{names})(?:시|구|군)(?![가-힣])", title))
+
+
 def _youth_only(ages: Optional[str], y: dict[str, str]) -> bool:
     return bool(ages) and y["youth_only_age"] in ages and y["older_age"] not in ages
 
@@ -76,6 +82,9 @@ def match(programs: list[Program], biz_code: str, biz_name: str, gu: Optional[st
         if p.source == "kstartup" and p.targets and not any(t in ex["kstartup_need_any_target"] for t in p.targets):
             continue
         if p.nationwide and re.search(ex["other_region_in_title"], title):
+            continue
+        op = ex.get("other_place_in_title")
+        if p.nationwide and op and _other_place(title, op["names"]):
             continue
         gus = _gu_in(title, R["incheon_gu"]) if not p.nationwide else []
         if gu and gus and gu not in gus:
@@ -140,6 +149,9 @@ def match(programs: list[Program], biz_code: str, biz_name: str, gu: Optional[st
                 reasons.append(f"{g} 우대")
         if not core:
             continue
+        dm = R.get("demote")
+        if dm and (p.category in dm["categories"] or re.search(dm["pattern"], title)):
+            score += dm["points"]                                     # 행사·참관 공고는 뒤로(빼지는 않는다)
         days_left = (date.fromisoformat(p.end) - today).days if p.end else None
         soon = days_left is not None and days_left <= R["deadline_soon_days"]
         if soon:

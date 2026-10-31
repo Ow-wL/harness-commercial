@@ -162,3 +162,27 @@ def test_expired_program_never_matches():
     p = replace(prog(1, "[인천] 소상공인 지난 공고", nationwide=False), end="2026-10-31")
     with client(FixedSupport([p])) as c:
         assert c.post("/support/match", json={"biz_code": "I21201"}).json()["total"] == 0
+
+
+def test_event_announcements_are_demoted_not_removed():
+    ps = [
+        prog(1, "소상공인 M&A 전략 세미나", source="kstartup", targets=("일반인",), category="행사ㆍ네트워크"),
+        prog(2, "소상공인 쇼케이스데이 참관객 모집", source="kstartup", targets=("일반인",), category="행사ㆍ네트워크"),
+        prog(3, "소상공인 경영안정자금"),
+        prog(4, "2026년 소공인 유공 포상"),
+    ]
+    items = run(ps)[1]
+    assert titles(items)[0] == "소상공인 경영안정자금"                                   # 실제 지원 공고가 먼저
+    assert set(titles(items)) == {p.title for p in ps}                                # 행사 공고도 목록에는 남는다
+    assert load_rules()["demote"]["points"] < 0
+
+
+def test_other_place_institutions_excluded_for_nationwide_only():
+    ps = [
+        prog(1, "[서초창업스테이션] 서리풀 소상공인 창업 클리닉", source="kstartup", targets=("일반인",)),
+        prog(2, "수원시 소상공인 디지털 전환 지원"),
+        prog(3, "소상공인 안성맞춤 상권 컨설팅"),                                     # 낱말 속 지명 — 빼지 않는다
+        prog(4, "(부천) 소상공인 창업 공간"),                                         # 인천과 생활권이 겹치는 부천은 둔다
+        prog(5, "[인천] 강서 소상공인 교류", nationwide=False),                       # 인천 공고는 이 규칙 대상 아님
+    ]
+    assert sorted(titles(run(ps)[1])) == sorted(["소상공인 안성맞춤 상권 컨설팅", "(부천) 소상공인 창업 공간", "[인천] 강서 소상공인 교류"])
