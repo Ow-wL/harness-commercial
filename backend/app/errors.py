@@ -36,6 +36,7 @@ AI_LIMITED = "ai_limited"                           # 13-25: IP 하루 횟수 �
 AI_BUDGET = "ai_budget"                             # 13-25: 월 예산 소진 (429)
 AI_UPSTREAM = "ai_upstream"                         # 13-23: 모델 응답 없음·오류 (502)
 RATE_LIMITED = "rate_limited"                       # 12-9: IP 분당 요청 초과 (429)
+SUPPORT_UNAVAILABLE = "support_unavailable"         # 13-32: 서버에 지원사업 자료 키가 없다 (503)
 INTERNAL_ERROR = "internal_error"
 
 MESSAGES = {
@@ -55,6 +56,7 @@ MESSAGES = {
     AI_BUDGET: "이번 달 AI 설명 사용량이 모두 소진되었습니다. 기본 요약은 그대로 볼 수 있습니다.",
     AI_UPSTREAM: "AI 설명을 지금 만들 수 없습니다. 잠시 뒤 다시 시도하세요.",
     RATE_LIMITED: "요청이 너무 많습니다. 잠시 뒤 다시 시도하세요.",
+    SUPPORT_UNAVAILABLE: "이 서버에는 지원사업 공고가 설정되어 있지 않습니다.",
     INTERNAL_ERROR: "서버 내부 오류가 발생했습니다.",
 }
 

@@ -58,11 +58,12 @@ from .ai import (ANALYZE_PER_MINUTE, ASK_PER_DAY, ASK_SCHEMA, ASK_TASK, MAX_HIST
                  AiRefused, AiService, AiUpstreamError, MinuteLimiter, clean_items, context_json)
 from .errors import (AI_BUDGET, AI_LIMITED, AI_UNAVAILABLE, AI_UPSTREAM, ERROR_RESPONSES, INVALID_ANALYSIS_OPTIONS,
                      INVALID_BUSINESS, INVALID_COORDINATE, INVALID_QUERY, INVALID_QUESTION, INVALID_RADIUS,
-                     LOCATION_OUTSIDE, NO_DATA_NEARBY, PLACES_UNAVAILABLE, PLACES_UPSTREAM, RATE_LIMITED, ApiError,
+                     LOCATION_OUTSIDE, NO_DATA_NEARBY, PLACES_UNAVAILABLE, PLACES_UPSTREAM, RATE_LIMITED, SUPPORT_UNAVAILABLE, ApiError,
                      ErrorDetail, error_json, install_error_handlers)
 from .frontend import mount_frontend
 from .places import MAX_QUERY_CHARS, PlacesClient, PlacesUpstreamError
-from .support import SupportService
+from .support import KST, SupportService
+from .support_match import MatchProfile, match as match_support
 from scoring_engine.service import AnalysisService
 
 logger = logging.getLogger("backend.warm")
@@ -245,6 +246,46 @@ class AskRequest(BaseModel):
     profile: Optional[AskProfile] = None
 
 
+IncheonGu = Literal["중구", "동구", "미추홀구", "연수구", "남동구", "부평구", "계양구", "서구", "강화군", "옹진군"]
+
+
+class SupportMatchRequest(BaseModel):
+    """13-32: 분석 업종·위치의 구(분석 응답 context.gu_name)·선택형 프로필 → 조건에 맞는 공고."""
+    biz_code: StrictStr
+    gu: Optional[IncheonGu] = None
+    profile: Optional[AskProfile] = None
+    limit: Optional[Annotated[StrictInt, Field(ge=1, le=10)]] = None
+
+
+class SupportItem(BaseModel):
+    id: str
+    source: Literal["bizinfo", "kstartup"]
+    sources: list[str]
+    title: str
+    agency: str
+    operator: Optional[str]
+    targets: list[str]
+    category: Optional[str]
+    nationwide: bool
+    regions: list[str]
+    period_text: str
+    start: Optional[str]
+    end: Optional[str]
+    days_left: Optional[int]
+    deadline_soon: bool
+    url: str
+    apply_url: Optional[str]
+    summary: Optional[str]
+    reasons: list[str]
+
+
+class SupportMatchResponse(BaseModel):
+    """as_of = 마지막 수집 시각(KST, 아직 못 받았으면 null). total = 조건에 맞는 공고 수, items = 앞 limit 건."""
+    as_of: Optional[str]
+    total: int
+    items: list[SupportItem]
+
+
 class ProfileSuggestion(BaseModel):
     stage: Optional[str]
     youth: Optional[bool]
@@ -375,7 +416,7 @@ def station_list(stations_df) -> list[Station]:
 
 
 # 12-9 분당 제한 대상(POST) — 분석 계열과 AI
-LIMITED_PATHS = frozenset({"/analyze", "/nearby-stores", "/rank", "/insights", "/summary", "/ask"})
+LIMITED_PATHS = frozenset({"/analyze", "/nearby-stores", "/rank", "/insights", "/summary", "/ask", "/support/match"})
 MESSAGES_RATE_LIMITED = "요청이 너무 많습니다. 잠시 뒤 다시 시도하세요."
 
 
@@ -816,6 +857,22 @@ def create_app(service: Optional[AnalysisService] = None, warm_biz: Optional[Ite
                     app.state.stations = StationsResponse(count=len(items), as_of=as_of, stations=items)
         stamp_data_version(response)
         return app.state.stations
+
+    @app.post("/support/match", response_model=SupportMatchResponse, responses=ERROR_RESPONSES)
+    def support_match(req: SupportMatchRequest) -> SupportMatchResponse:
+        """13-32: 수집해 둔 지원사업 공고(메모리) 중 조건에 맞는 공고 — 외부 호출 없음. "추천"이 아니라 "조건에 맞는 공고"다.
+        키가 없으면 503 support_unavailable(프런트는 /health support.enabled 일 때만 부른다)."""
+        if not support_service.enabled:
+            raise ApiError(SUPPORT_UNAVAILABLE, status=503)
+        name = C.CODE_NAME.get(req.biz_code)
+        if name is None:
+            raise ApiError(INVALID_BUSINESS)
+        prof = req.profile
+        mp = MatchProfile(stage=prof.stage, youth=prof.youth, preferred=tuple(prof.preferred or ())) if prof else None
+        today = support_service.clock().astimezone(KST).date()
+        total, items = match_support(support_service.programs(), req.biz_code, name, req.gu, mp, today, req.limit)
+        return SupportMatchResponse(as_of=support_service.health()["as_of"], total=total,
+                                    items=[SupportItem(**it) for it in items])
 
     if frontend_dist:   # API route 를 모두 등록한 뒤에 붙인다 — route 순서상 API 가 먼저 매칭된다
         # API 경로는 등록된 route 에서 읽는다 — 손으로 적은 목록은 새 엔드포인트(/insights)를 빠뜨려 GET 이 index.html(200)로

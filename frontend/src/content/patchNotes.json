@@ -14,7 +14,8 @@
       ],
       "work": [
         "lib/aiFields: 근거 키 경로(지표.<관점>.score·raw.<키>·flags, 종합.*, insights.*, 면책 등) → 사용자용 이름, 같은 이름은 한 번, 모르는 영어 키는 숨김. AiSummaryCard 가 이름으로 표시. 운영 요약 실제 키로 단위 테스트",
-        "13-30·13-31(D-039): 지원사업 자료 조사(기업마당 + K-Startup, 겹침 9~19건), backend/app/support.py 하루 1회 수집·정규화·중복 합치기·디스크 캐시, /health support — 화면에는 아직 보이지 않는다(카드는 13-33)"
+        "13-30·13-31(D-039): 지원사업 자료 조사(기업마당 + K-Startup, 겹침 9~19건), backend/app/support.py 하루 1회 수집·정규화·중복 합치기·디스크 캐시, /health support — 화면에는 아직 보이지 않는다(카드는 13-33)",
+        "13-32: POST /support/match 조건에 맞는 공고(규칙 표 backend/app/support_rules.json — 제외·핵심 신호·점수·마감순, 응답은 이유만), 오류 support_unavailable — 화면 카드는 13-33"
       ],
       "commits": []
     },

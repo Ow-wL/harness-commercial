@@ -194,7 +194,8 @@ def check_static(fetch: Fetch) -> list[str]:
                        ("/places", 405),                        # 12-14: POST 전용(GET 405, 키 유무와 무관)
                        ("/rank", 405),                          # 13-16: POST 전용
                        ("/insights", 405),                      # 13-15: POST 전용
-                       ("/summary", 405), ("/ask", 405)]:       # R2 13-23·13-24: POST 전용
+                       ("/summary", 405), ("/ask", 405),        # R2 13-23·13-24: POST 전용
+                       ("/support/match", 405)]:                # R3 13-32: POST 전용
         s, _, d, _ = fetch(path)
         if s != want:
             fails.append(f"{path}: {s} (기대 {want})")
