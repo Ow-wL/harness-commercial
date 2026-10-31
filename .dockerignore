@@ -24,3 +24,5 @@ frontend/dist
 frontend/dist-e2e
 frontend/test-results
 frontend/playwright-report
+# 12-7 데이터 버전 원본 다운로드(수백 MB) — 이미지에 넣지 않는다
+data/versions/_raw

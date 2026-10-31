@@ -131,8 +131,7 @@ V8(별도 스크립트) `diff_report.py`: 부평역 29업종을 두 버전으로
 ```
 
 - 실행 중 프로세스에서 데이터를 바꾸지 않으므로 `RuntimeData`·`ReferenceCache` 무효화는 자동(새 프로세스). 디스크 캐시·멀티 워커는 계속 미도입(D-016).
-- 이미지에 데이터 버전을 넣는 방법(제안, 이번 단위에서 Dockerfile은 바꾸지 않았다): build arg `DATA_VERSION`(기본 비움 = `data/runtime`),
-  값이 있으면 `COPY data/versions/${DATA_VERSION}/ data/versions/${DATA_VERSION}/` + `ENV DATA_VERSION=${DATA_VERSION}`.
+- 이미지에 데이터 버전을 넣는 방법(**구현됨, 2026-11-01 12-7**): Dockerfile build arg `DATA_VERSION`(기본 비움 = `data/runtime`) → `ENV DATA_VERSION`, `COPY data/versions/`, 빌드 중 그 버전 8개 파일 sha256 을 매니페스트와 대조(다르거나 없으면 빌드 실패). 버전 데이터 파일은 git 밖이라 배포 작업 폴더의 `build_image` 가 git archive 컨텍스트에 그 버전 파일을 더한다. `.dockerignore` 는 `data/versions/_raw`(원본) 제외. 이미지 = 코드 + 데이터 한 단위 — 복구는 이전 리비전으로.
 - 프런트(9-C4 완료, 2026-10-28, D-033): backend 가 `/analyze`·`/nearby-stores` 성공 응답 헤더 `X-Data-Version`에 데이터 버전 id 를 싣고(본문 스키마 그대로), 프런트는 결과마다 그 버전으로 결과 캐시(버전이 바뀌면 전체 폐기)·A/B 비교 계약(엔진·데이터 버전이 같을 때만 한 비교)을 나눈다. 화면 기준일은 `/health data.as_of`(결과 버전과 다르면 비움 → `/health` 재조회). 아래 줄은 9-C4 전의 기록이다 —
   그 전까지는 데이터 버전이 바뀐 리비전으로 전환할 때 열린 화면의 결과 캐시가 이전 데이터 결과를 보여 줄 수 있다 → 전환 공지·새로고침.
 

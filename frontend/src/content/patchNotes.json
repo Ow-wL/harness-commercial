@@ -27,7 +27,8 @@
         "12-11: ARCHITECTURE 5장 Cloud Run 운영 한계·시연 전 체크·확장 조건",
         "12-8: GitHub Actions CI — push·PR 빠른 단계, 매일 밤 전체 check",
         "12-7: 데이터 버전 2026-09(상가 2026-09-30·인구 2026-09-30·생활이동 2026-09) 생성·검증·차이 보고서, build_version 생활이동 work_ratio 단계 추가",
-        "지원사업 구 이름을 2026-07 개편 뒤 11개로(서버 IncheonGu·규칙 표·프런트 INCHEON_GU), 공고 제목의 옛 이름(중구·동구·서구) 대응, 엔진 패널 구 이름과 같은지 테스트"
+        "지원사업 구 이름을 2026-07 개편 뒤 11개로(서버 IncheonGu·규칙 표·프런트 INCHEON_GU), 공고 제목의 옛 이름(중구·동구·서구) 대응, 엔진 패널 구 이름과 같은지 테스트",
+        "9-C3: Dockerfile build arg DATA_VERSION(이미지 환경변수 고정 + 빌드 중 8개 파일 sha256 대조), .dockerignore data/versions/_raw"
       ],
       "commits": [
         "d322953",

@@ -48,6 +48,13 @@ COPY backend/app/ backend/app/
 COPY data/runtime/ data/runtime/
 # 13-41 화면 자료(역 시간대별 승하차 집계, 점수 무관) — backend/app/ridership.py
 COPY data/extra/ data/extra/
+# 12-7·9-C3 데이터 버전(D-006 개정, docs/DATA_VERSIONING.md §6): build arg DATA_VERSION(예: 2026-09)이 있으면 그 버전을 이미지 환경변수로
+# 고정하고(이미지 = 코드 + 데이터 한 단위 — 이전 리비전으로 되돌리면 데이터도 돌아간다), 8개 파일의 sha256 을 매니페스트와 대조한다.
+# 비우면 지금처럼 data/runtime(버전 2026-06). 버전 데이터 파일은 git 밖이라 build_image 가 컨텍스트에 넣는다(없으면 여기서 실패)
+ARG DATA_VERSION=
+ENV DATA_VERSION=${DATA_VERSION}
+COPY data/versions/ data/versions/
+RUN python -c "import hashlib,json,os,sys; v=os.environ.get('DATA_VERSION','');d=os.path.join('data/versions',v); m=json.load(open(os.path.join(d,'manifest.json'),encoding='utf-8')) if v else None;bad=[r for r,x in (m or {}).get('roles',{}).items() if not os.path.isfile(os.path.join(d,x['file'])) or hashlib.sha256(open(os.path.join(d,x['file']),'rb').read()).hexdigest()!=x['sha256']];print('data version', v or '(data/runtime)', 'roles', len((m or {}).get('roles',{})), 'bad', bad); sys.exit(1 if bad or (m and m.get('id')!=v) else 0)"
 COPY ["data/geo/인천_행정동경계_2026.geojson", "data/geo/"]
 # 엔진 v0.5 인구 면적 배분용 SGIS 2025년 2분기 경계(D-028). 지도·행정동 판정용 2026 경계와 별개 — v0.3·v0.4 는 읽지 않는다
 COPY ["data/geo/SGIS_행정동경계_2025_2Q_인천.geojson", "data/geo/"]
