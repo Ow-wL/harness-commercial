@@ -250,3 +250,18 @@ describe('CompareResult — 비교 주의 요약 띠 (8-C1a)', () => {
     expect(brokenReferences()).toEqual([])
   })
 })
+
+describe('비교 요약 A·B 거미줄 (13-13 비교, R1 미착수분)', () => {
+  it('요약 탭에 A 면 + B 점선 면, 범례·숨은 점수 목록은 위치 이름으로, 미산출 관점은 꼭짓점을 찍지 않는다', () => {
+    const { container } = renderCompare(A, NO_STABILITY)
+    const fig = screen.getByRole('figure', { name: 'A·B 다섯 관점 거미줄 그래프' })
+    expect(fig.querySelectorAll('.radar__series--a .radar__dot')).toHaveLength(5)
+    expect(fig.querySelectorAll('.radar__series--b .radar__dot')).toHaveLength(4)          // 강화읍 안정성 미산출 → 0 으로 그리지 않는다
+    expect(within(fig).getByRole('list', { name: 'A 부평구 부평1동' })).toBeInTheDocument()
+    expect(within(fig).getByRole('list', { name: 'B 강화군 강화읍' })).toHaveTextContent('안정성 미산출')
+    // 숫자 행(점 그래프)이 거미줄보다 먼저(DOM 순서)
+    const grid = container.querySelector('.compare__persp-grid')!
+    expect(grid.firstElementChild).toHaveClass('compare-rows')
+    expect(grid.lastElementChild).toBe(fig)
+  })
+})

@@ -666,6 +666,11 @@
     display: none;
   }
 
+  /* 패널 맨 위 안내(비교 중 공유 링크 안내·반경 다시 분석 중)도 지도 카드 자리를 비워 둔다 — 카드가 글자를 덮지 않게 */
+  .app[data-layout="dashboard"] .panel__notes:not(.panel__notes--in-result) {
+    padding-right: calc(var(--map-card-w) + 40px);
+  }
+
   /* 결과 머리(제목·점수 카드)는 지도 카드 자리를 비워 둔다 */
   .app[data-layout="dashboard"] .result__head {
     padding-right: calc(var(--map-card-w) + 40px);

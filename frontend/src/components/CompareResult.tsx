@@ -37,6 +37,7 @@ import { RegulationBadge } from './ResultAlerts.tsx'
 import type { FieldNote, FieldNotes } from '../lib/fieldNotes.ts'
 import { TabRevealContext, useResultTabs, useTabIdBase, type TabDef } from '../lib/resultTabs.ts'
 import { TabList, TabPanel } from './ResultTabs.tsx'
+import { RadarChart } from './RadarChart.tsx'
 import './CompareResult.css'
 
 type Indicator = EngineResult['지표'][number]
@@ -138,7 +139,18 @@ export function CompareResult({
                 {explanations ? '간단히 보기' : '설명 함께 보기'}
               </button>
             </div>
-            <CompareRows a={a} b={b} onOpen={() => reveal(COMPARE_IDS.scoreTitle)} />
+            {/* 13-13 비교 거미줄(R1 미착수분): A 면 + B 점선 빈 면. 숫자 행이 먼저, 넓은 패널에서는 오른쪽 칸(CompareResult.css) */}
+            <div className="compare__persp-grid">
+              <CompareRows a={a} b={b} onOpen={() => reveal(COMPARE_IDS.scoreTitle)} />
+              <RadarChart
+                size={220}
+                title="A·B 다섯 관점 거미줄 그래프"
+                series={[
+                  { id: 'a', name: `A ${locationName(a.context)}`, items: a.result.지표 },
+                  { id: 'b', name: `B ${locationName(b.context)}`, items: b.result.지표 },
+                ]}
+              />
+            </div>
             <div className="result__secondary">
               <p className="result__hint">
                 <span className="compare__legend-a" aria-hidden="true" /> A{' '}

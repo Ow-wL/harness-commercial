@@ -63,7 +63,25 @@
   color: var(--color-text-primary);
 }
 
+/* 13-21: 저장 당시 한 줄 결론·규제 배지·업종 순위 요약 */
+.saved__conclusion {
+  margin: 6px 0 0;
+  font: var(--text-body);
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.saved__reg {
+  padding: 0 8px;
+  border-radius: var(--radius-pill);
+  background: var(--color-grade-alert-subtle);
+  font: var(--text-caption);
+  font-weight: 600;
+  color: var(--color-grade-alert);
+}
+
 .saved__meta,
+.saved__rank,
 .saved__gaps,
 .saved__progress {
   margin: 4px 0 0;

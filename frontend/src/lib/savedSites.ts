@@ -3,9 +3,13 @@
  * 항목 = 조건(좌표·업종·반경) + **저장 당시 결과 스냅샷**(종합·관점 점수·같은 업종 점포 수·확인 필요) + 그때의 데이터 묶음·엔진 + 메모.
  * 화면은 스냅샷을 "저장 당시 결과"로, "같은 조건으로 다시 분석"은 지금 서버의 새 결과로 구분해 보인다 — 스냅샷을 지금 결과처럼
  * 보이지 않는다. 익명이며 좌표 원문 외 개인정보는 없고 서버로 보내지 않는다. 현장 확인 기록(lib/fieldNotes)은 같은 조건 키로 잇는다.
+ * R1 카드(13-21): 스냅샷에 한 줄 결론·학교구역 규제 여부·업종 순위 상위 3(+ 지금 업종 자리)를 **선택 필드**로 더한다 — 키(`v1`)는
+ * 그대로라 예전에 저장한 항목도 그대로 읽히고(새 줄만 없음), 등급은 저장한 점수로 화면에서 계산한다(lib/grade).
  */
 import type { AnalyzeRequest } from '../api/client.ts'
-import type { AnalyzeResponse } from '../api/schemas.ts'
+import type { AnalyzeResponse, RankResponse } from '../api/schemas.ts'
+import { regulationAlert } from './alerts.ts'
+import { conclusion } from './conclusion.ts'
 import { dataVersionOf } from './dataVersion.ts'
 import { gapLines } from './gaps.ts'
 import { locationName } from './format.ts'
@@ -26,6 +30,12 @@ export type SavedSite = {
     perspectives: { key: string; label: string; score: number | null }[]
     stores: number
     gaps: string[]
+    /** 13-21 선택 필드(없으면 예전 항목): 저장 당시 한 줄 결론 */
+    conclusion?: string
+    /** 저장 당시 학교구역 규제 업종 경고 여부 */
+    regulated?: boolean
+    /** 저장 당시 이 자리 업종 순위(기본 계산 기준) 상위 3 + 지금 업종의 자리 — 순위를 받지 못했으면 없음 */
+    rank?: { top: { name: string; overall: number | null }[]; current: number | null; count: number }
   }
   versions: { data: string | null; engine: string }
   memo: string
@@ -52,6 +62,13 @@ export function isSite(v: unknown): v is SavedSite {
   if (!Array.isArray(snap.perspectives)) return false
   if (!snap.perspectives.every((p) => isRecord(p) && typeof p.key === 'string' && typeof p.label === 'string' && isNullableNumber(p.score))) return false
   if (!Array.isArray(snap.gaps) || !snap.gaps.every((g) => typeof g === 'string')) return false
+  if (snap.conclusion !== undefined && typeof snap.conclusion !== 'string') return false
+  if (snap.regulated !== undefined && typeof snap.regulated !== 'boolean') return false
+  if (snap.rank !== undefined) {
+    const r = snap.rank
+    if (!isRecord(r) || !Array.isArray(r.top) || !isNullableNumber(r.current) || !isFiniteNumber(r.count)) return false
+    if (!r.top.every((t) => isRecord(t) && typeof t.name === 'string' && isNullableNumber(t.overall))) return false
+  }
   if (!isRecord(versions) || !isNullableString(versions.data) || typeof versions.engine !== 'string') return false
   return true
 }
@@ -76,9 +93,17 @@ function write(sites: SavedSite[]): boolean {
   }
 }
 
-/** 지금 결과로 보관 항목을 만든다 (순수 함수 — 저장하지 않는다). 스냅샷은 엔진 값 그대로 */
-export function siteFrom(request: AnalyzeRequest, response: AnalyzeResponse, now: Date = new Date()): SavedSite {
+/** 순위 응답 → 스냅샷용 요약(상위 3 + 지금 업종의 자리, 1부터). 다른 좌표·반경의 순위면 넣지 않는다 */
+export function rankSummary(rank: RankResponse | null | undefined, request: AnalyzeRequest): SavedSite['snapshot']['rank'] {
+  if (!rank || rank.lat !== request.lat || rank.lng !== request.lng || rank.radius_m !== (request.radius_m ?? 500)) return undefined
+  const at = rank.items.findIndex((i) => i.biz_code === request.biz_code)
+  return { top: rank.items.slice(0, 3).map((i) => ({ name: i.name, overall: i.overall })), current: at < 0 ? null : at + 1, count: rank.count }
+}
+
+/** 지금 결과로 보관 항목을 만든다 (순수 함수 — 저장하지 않는다). 스냅샷은 엔진 값 그대로, rank 는 같은 조건의 순위가 있을 때만 */
+export function siteFrom(request: AnalyzeRequest, response: AnalyzeResponse, now: Date = new Date(), rank?: RankResponse | null): SavedSite {
   const { context, result } = response
+  const ranked = rankSummary(rank, request)
   return {
     id: `${now.getTime().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
     key: cacheKey(request),
@@ -90,6 +115,9 @@ export function siteFrom(request: AnalyzeRequest, response: AnalyzeResponse, now
       perspectives: result.지표.map((i) => ({ key: i.key, label: i.label, score: i.score })),
       stores: result.지표[2].raw.동종점포수,
       gaps: gapLines(response),
+      conclusion: conclusion(response).text,
+      regulated: regulationAlert(response) !== null,
+      ...(ranked ? { rank: ranked } : {}),
     },
     versions: { data: dataVersionOf(response), engine: result.meta.엔진버전 },
     memo: '',

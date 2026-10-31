@@ -4,6 +4,7 @@ import { FIELD_CHECK_COUNT } from '../content/fieldChecks.ts'
 import { dataVersionLabel } from '../lib/dataVersion.ts'
 import { doneCount, readFieldNotes } from '../lib/fieldNotes.ts'
 import { formatRadius, formatScore } from '../lib/format.ts'
+import { gradeLabel, gradeOf } from '../lib/grade.ts'
 import type { SavedSite } from '../lib/savedSites.ts'
 import { Icon } from './Icon.tsx'
 import './SavedSites.css'
@@ -174,7 +175,8 @@ function SavedItem({
   const memoId = `saved-${site.id}-memo`
   const notes = readFieldNotes(site.key)
   const done = doneCount(notes, Object.keys(notes))
-  const { overall, perspectives, stores, gaps, locationName } = site.snapshot
+  const { overall, perspectives, stores, gaps, locationName, conclusion, regulated, rank } = site.snapshot
+  const grade = gradeOf(overall)
   const radius = site.conditions.radius ?? 500
   return (
     <li className="saved__item">
@@ -185,6 +187,8 @@ function SavedItem({
         <p className="saved__snapshot">
           <span className="saved__snapshot-label">저장 당시 결과</span>
           <span className="saved__score">{overall === null ? '산출 불가' : formatScore(overall)}</span>
+          {grade && <span className={`grade grade--${grade}`}>{gradeLabel(overall)}</span>}
+          {regulated && <span className="saved__reg">규제 확인 필요</span>}
           <span className="saved__meta">
             {savedDate(site.savedAt)} 저장 · {site.versions.data ? dataVersionLabel(site.versions.data) : '데이터 묶음 모름'} · 엔진{' '}
             {site.versions.engine}
@@ -198,6 +202,13 @@ function SavedItem({
           ))}
           <span className="saved__perspective">같은 업종 {stores.toLocaleString('ko-KR')}곳</span>
         </p>
+        {conclusion && <p className="saved__conclusion">{conclusion}</p>}
+        {rank && rank.top.length > 0 && (
+          <p className="saved__rank">
+            점수가 높은 업종 · {rank.top.map((t) => `${t.name} ${t.overall === null ? '산출 불가' : formatScore(t.overall)}`).join(' · ')}
+            {rank.current !== null && ` · 이 업종은 ${rank.count}개 중 ${rank.current}번째`}
+          </p>
+        )}
         {gaps.length > 0 && <p className="saved__gaps">확인 필요 · {gaps.join(' · ')}</p>}
         <p className="saved__progress">
           현장 확인 {done}/{FIELD_CHECK_COUNT} 확인함

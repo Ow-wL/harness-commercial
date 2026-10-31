@@ -1134,7 +1134,8 @@ function App() {
   const [saveMessage, setSaveMessage] = useState<{ key: string; text: string } | null>(null)
   const saveCurrent = () => {
     if (analysis.status !== 'success') return
-    const site = siteFrom(analysis.request, analysis.response)
+    // 13-21: 같은 조건의 업종 순위를 받아 두었으면 요약을 함께 저장한다(없으면 순위 줄 없이)
+    const site = siteFrom(analysis.request, analysis.response, new Date(), rankState.status === 'success' ? rankState.data : null)
     const outcome = saveSite(savedSites, site)
     if (outcome.ok) {
       setSavedSites(outcome.sites)

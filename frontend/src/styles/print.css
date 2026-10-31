@@ -233,6 +233,41 @@
     color: #111;
   }
 
+  /* 13-21 R1 카드: 앞쪽 = 요약(점수 카드·다섯 관점·시간대 — 1쪽, 업종 순위 — 2쪽 머리), 상세 탭은 그 뒤로 이어진다. 카드는 쪽 사이에서 자르지 않는다 */
+  .score-card,
+  .result__perspectives,
+  .time-card,
+  .rank-card {
+    break-inside: avoid;
+  }
+
+  /* 첫 쪽에 요약이 들어가게: 화면용 안내(공유 링크·반경 다시 분석)·관점 각주는 빼고 거미줄은 작게 */
+  .panel__notes,
+  .result__persp-note {
+    display: none !important;
+  }
+
+  .result__persp-grid > .radar .radar__svg {
+    width: 150px !important;
+    height: auto !important;
+  }
+
+  /* 긴 데이터 출처 표 묶음은 쪽을 넘겨도 된다 — 통째로 다음 쪽으로 밀려 거의 빈 쪽이 생기지 않게(표 자체는 아래 규칙으로 자르지 않음) */
+  #data-sources {
+    break-inside: auto !important;
+  }
+
+  /* 업종 순위는 종이에서 한 줄씩(가장 낮은 관점 줄·막대 빼고 순위·업종·점수·등급만) — 요약이 첫 쪽에 들어가게 */
+  .rank-item__weak,
+  .rank-item__bar {
+    display: none !important;
+  }
+
+  .rank-item__button {
+    min-height: 0 !important;
+    padding-block: 2px !important;
+  }
+
   .result,
   .compare {
     break-inside: auto;

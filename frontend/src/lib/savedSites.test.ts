@@ -3,7 +3,8 @@ import fixture from '../fixtures/bupyeong-pcbang-v05.json'
 import guwol from '../fixtures/compare-guwol-pcbang.json'
 import songdo from '../fixtures/compare-songdo-pcbang.json'
 import { stampDataVersion } from './dataVersion.ts'
-import { isSite, readSavedSites, removeSite, SAVED_SITES_KEY, SAVED_SITES_MAX, saveSite, siteFrom, updateSiteMemo } from './savedSites.ts'
+import { RankResponseSchema } from '../api/schemas.ts'
+import { isSite, rankSummary, readSavedSites, removeSite, SAVED_SITES_KEY, SAVED_SITES_MAX, saveSite, siteFrom, updateSiteMemo } from './savedSites.ts'
 
 const bupyeong = stampDataVersion(AnalyzeResponseSchema.parse(fixture), '2026-06')
 const req = { lat: 37.4894, lng: 126.7246, biz_code: 'R10406', radius_m: 500 }
@@ -100,5 +101,47 @@ describe('후보 보관함 (12-25, 계획 1-2) — 로컬 저장 최대 3곳, �
     })
     expect(saveSite([], siteFrom(req, bupyeong))).toEqual({ ok: false, reason: 'storage' })
     setItem.mockRestore()
+  })
+})
+
+describe('보관함 스냅샷의 R1 카드 (13-21) — 한 줄 결론·규제·업종 순위 요약, 선택 필드라 예전 항목도 그대로', () => {
+  const item = (biz_code: string, name: string, overall: number | null) => ({
+    biz_code, name, group: '목적방문형', overall, weakest: null, coverage: 1, regulated: false, warnings: 0,
+  })
+  const RANK = RankResponseSchema.parse({
+    lat: 37.4894, lng: 126.7246, radius_m: 500, gu_name: '부평구', dong_name: '부평1동', count: 5, engine_version: 'mvp-0.5',
+    items: [item('R10404', '노래방', 72.3), item('P10501', '독서실/스터디 카페', 72.1), item('R10402', '당구장', 71.1), item('I21201', '카페', 69.7), item('R10406', 'PC방', 62.3)],
+  })
+
+  it('저장 당시 한 줄 결론·규제 여부·순위 상위 3과 지금 업종 자리(5개 중 5위)를 담는다', () => {
+    const site = siteFrom(req, bupyeong, new Date(), RANK)
+    expect(site.snapshot.conclusion).toMatch(/자리예요|자리예요\(|편이에요/)
+    expect(site.snapshot.regulated).toBe(false)
+    expect(site.snapshot.rank).toEqual({ top: [{ name: '노래방', overall: 72.3 }, { name: '독서실/스터디 카페', overall: 72.1 }, { name: '당구장', overall: 71.1 }], current: 5, count: 5 })
+    expect(isSite(site)).toBe(true)
+  })
+
+  it('다른 좌표·반경의 순위나 순위가 없으면 rank 를 넣지 않는다', () => {
+    expect(rankSummary(RANK, { ...req, radius_m: 300 })).toBeUndefined()
+    expect(rankSummary(RANK, { ...req, lat: 37.5 })).toBeUndefined()
+    expect(rankSummary(null, req)).toBeUndefined()
+    expect(siteFrom(req, bupyeong).snapshot.rank).toBeUndefined()
+    expect(rankSummary({ ...RANK, items: RANK.items.slice(0, 2) }, req)?.current).toBeNull()       // 지금 업종이 목록에 없으면 자리 null
+  })
+
+  it('예전 항목(새 필드 없음)은 그대로 읽히고, 새 필드가 깨졌으면 그 항목만 버린다', () => {
+    const site = siteFrom(req, bupyeong, new Date(), RANK)
+    const oldSnap: typeof site.snapshot = { ...site.snapshot }
+    delete oldSnap.conclusion
+    delete oldSnap.regulated
+    delete oldSnap.rank
+    const old = { ...site, id: 'old', snapshot: oldSnap }
+    expect(isSite(old)).toBe(true)
+    expect(isSite({ ...site, snapshot: { ...site.snapshot, conclusion: 3 } })).toBe(false)
+    expect(isSite({ ...site, snapshot: { ...site.snapshot, regulated: 'yes' } })).toBe(false)
+    expect(isSite({ ...site, snapshot: { ...site.snapshot, rank: { top: [{ name: '노래방' }], current: 1, count: 29 } } })).toBe(false)
+    expect(isSite({ ...site, snapshot: { ...site.snapshot, rank: { top: [], current: '1', count: 29 } } })).toBe(false)
+    window.localStorage.setItem(SAVED_SITES_KEY, JSON.stringify([old, { ...site, id: 'bad', snapshot: { ...site.snapshot, regulated: 1 } }]))
+    expect(readSavedSites().map((x) => x.id)).toEqual(['old'])
   })
 })

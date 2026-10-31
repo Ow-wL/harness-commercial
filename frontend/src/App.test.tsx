@@ -3350,17 +3350,14 @@ describe('첫 방문 안내 (묶음 D, docs/ONBOARDING_DESIGN.md)', () => {
     expect(screen.queryByRole('status', COACH)).not.toBeInTheDocument()
   })
 
-  it('건너뛰기는 안내 전체를 끝내지만 결과 안내는 별도 1회 보이고, 반경 선택이 있는 서버면 반경도 안내한다', async () => {
+  it('건너뛰기는 결과 안내까지 안내 전체를 끝낸다 — 결과 화면에서 새 말풍선이 뜨지 않는다(팀 D7)', async () => {
     firstVisit()
-    mockApi({
-      analyze: [{ status: 200, body: fixture }],
-      nearby: [{ status: 200, body: nearbyFixture }],
-      health: { status: 200, body: { ...OLD_HEALTH, engine: { version: 'mvp-0.4', radius_options: [300, 500, 1000], default_radius_m: 500 } } },
-    })
+    analyzeOk()
     render(<App />)
     fireEvent.click(within(coachInConditions()!).getByRole('button', { name: '건너뛰기' }))
     expect(coachInConditions()).toBeNull()
     expect(window.localStorage.getItem('onboarding')).toBe('done')
+    expect(window.localStorage.getItem('onboarding.result')).toBe('done')
     fireEvent.click(screen.getByRole('button', { name: '지도 클릭: 부평역' }))
     expect(coachInConditions()).toBeNull()                                          // 건너뛴 뒤에는 행동해도 다시 안 나온다
     const select = await screen.findByRole('combobox', { name: '업종' })
@@ -3368,11 +3365,37 @@ describe('첫 방문 안내 (묶음 D, docs/ONBOARDING_DESIGN.md)', () => {
     fireEvent.change(select, { target: { value: 'R10406' } })
     fireEvent.click(analyzeButton())
     await screen.findByRole('heading', RESULT_HEADING)
+    expect(screen.queryByRole('status', COACH)).not.toBeInTheDocument()
+  })
+
+  it('안내를 따라 첫 분석까지 오면 같은 흐름의 마지막으로 결과 안내가 이어지고, 반경 선택이 있는 서버면 반경도 안내한다', async () => {
+    firstVisit()
+    mockApi({
+      analyze: [{ status: 200, body: fixture }],
+      nearby: [{ status: 200, body: nearbyFixture }],
+      health: { status: 200, body: { ...OLD_HEALTH, engine: { version: 'mvp-0.4', radius_options: [300, 500, 1000], default_radius_m: 500 } } },
+    })
+    render(<App />)
+    await selectBupyeongPcBang()
+    expect(coachInConditions()).toHaveTextContent('3/3')
+    fireEvent.click(analyzeButton())
+    await screen.findByRole('heading', RESULT_HEADING)
     const result = screen.getAllByRole('status', COACH)[0]!
     expect(result).toHaveTextContent('반경(300·500m·1km)을 바꾸거나')
-    fireEvent.click(within(result).getByRole('button', { name: '건너뛰기' }))
+    fireEvent.click(within(result).getByRole('button', { name: '확인' }))
     expect(screen.queryByRole('status', COACH)).not.toBeInTheDocument()
     expect(window.localStorage.getItem('onboarding.result')).toBe('done')
+  })
+
+  it('예전에 안내를 마친 사용자는 첫 결과에서 결과 안내를 따로 보지 않는다(D7)', async () => {
+    window.localStorage.setItem('onboarding', 'done')
+    window.localStorage.removeItem('onboarding.result')
+    analyzeOk()
+    render(<App />)
+    await selectBupyeongPcBang()
+    fireEvent.click(analyzeButton())
+    await screen.findByRole('heading', RESULT_HEADING)
+    expect(screen.queryByRole('status', COACH)).not.toBeInTheDocument()
   })
 
   it('Escape는 지금 말풍선만 숨기고(저장 안 함) 다음 행동을 하면 다음 단계가 다시 보인다', async () => {
@@ -3405,8 +3428,7 @@ describe('첫 방문 안내 (묶음 D, docs/ONBOARDING_DESIGN.md)', () => {
   })
 
   it('결과 안내가 열린 채 조건을 바꾸면 닫히고(완료 아님), 다음 결과에서 다시 보인다', async () => {
-    window.localStorage.setItem('onboarding', 'done')
-    window.localStorage.removeItem('onboarding.result')
+    firstVisit()
     analyzeOk()
     render(<App />)
     await selectBupyeongPcBang()

@@ -440,3 +440,32 @@
     font-size: 24px;
   }
 }
+
+/* 비교 요약의 A·B 거미줄 (13-13 비교, R1 미착수분): 좁으면 점 행 아래 작은 거미줄, 넓은 패널(대시보드 전폭)이면 오른쪽 칸 */
+.compare {
+  container-type: inline-size;
+}
+
+.compare__persp-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  justify-items: center;
+  gap: 8px 24px;
+}
+
+.compare__persp-grid > .compare-rows {
+  width: 100%;
+}
+
+.compare__persp-grid > .radar .radar__svg {
+  width: min(200px, 100%);
+  height: auto;
+}
+
+@container (min-width: 640px) {
+  .compare__persp-grid {
+    grid-template-columns: minmax(0, 1fr) minmax(200px, 220px);
+    align-items: start;
+    justify-items: stretch;
+  }
+}

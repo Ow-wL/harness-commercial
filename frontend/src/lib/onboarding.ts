@@ -1,7 +1,9 @@
 /**
  * 첫 방문 안내 상태 (묶음 D, docs/ONBOARDING_DESIGN.md).
  *
- * - 안내(①위치 → ②업종 → ③분석)는 첫 방문 1회. 결과 안내(④)는 별도 1회 — ①~③을 건너뛴 사용자도 첫 결과에서 한 번 본다.
+ * - 안내는 **첫 방문 한 번의 흐름**(①위치 → ②업종 → ③분석 → 첫 결과에서 ④). 팀 점검 D7(2026-10-30): 결과 화면에서 새 말풍선이 또
+ *   뜨지 않게 — ④는 진행 중인 안내의 이어짐일 때만 보이고, "건너뛰기"는 ④까지 안내 전체를 끝낸다. 이미 안내를 마친 사용자는 첫 결과에서
+ *   ④를 따로 보지 않는다(다시 보기는 `?` 버튼). 공유 링크로 바로 결과에 온 첫 방문은 ④만 보고 ①~③은 끝낸 것으로 한다.
  * - 저장: localStorage `onboarding` = 'done'(안내), `onboarding.result` = 'done'(결과 안내). 테마와 같은 방식(실패해도 세션 동안 유지).
  * - 진행: "다음"/"확인" 또는 **그 행동을 실제로 하면** 자동 진행(위치 선택 → ②, 업종 선택 → ③, 분석 성공 → 닫힘). "건너뛰기"는 안내 전체 종료.
  *   Escape는 지금 말풍선만 숨기고 안내는 끝내지 않는다 — 다음 행동을 하면 다음 단계가 다시 보인다.
@@ -84,7 +86,7 @@ export function reduce(s: OnboardingState, e: OnboardingEvent): OnboardingState 
     }
     case 'skip':
       if (s.step === null) return s
-      return s.step === 'result' ? finishResult(s) : finishTour(s)
+      return finishResult(finishTour(s))                               // 안내 전체 종료(④ 포함, D7)
     case 'dismiss':
       return s.step === null ? s : { ...s, step: null, hidden: s.step }
     case 'location-picked':
@@ -92,14 +94,16 @@ export function reduce(s: OnboardingState, e: OnboardingEvent): OnboardingState 
     case 'business-picked':
       return cur === 'business' ? { ...s, step: 'analyze', hidden: null } : s
     case 'analyzed': {
-      // ③까지 왔으면 안내 완료. 결과 안내는 별도 1회 — 안내를 건너뛰었거나 끝낸 사용자도 첫 결과에서 본다
-      const afterTour = cur === 'analyze' || (cur !== null && cur !== 'result') ? finishTour(s) : s
+      // 진행 중인 안내(①~③, 숨긴 것 포함)가 있으면 안내를 마치고 ④로 이어진다. 안내가 없으면(이미 마침·건너뜀) 새 말풍선을 띄우지 않는다(D7)
+      if (cur === null) return s
+      if (cur === 'result') return s.flags.resultDone ? s : { ...s, step: 'result', hidden: null }   // 잠시 닫힌 ④를 다음 결과에서 이어서
+      const afterTour = finishTour(s)
       if (afterTour.flags.resultDone) return { ...afterTour, step: null, hidden: null }
       return { ...afterTour, step: 'result', hidden: null }
     }
     case 'conditions-shown':
       // 결과 안내가 열린 채 조건 화면으로 가면 닫는다(결과가 없는 화면에서 결과 안내를 보이지 않음). 완료로 치지 않는다
-      return s.step === 'result' || s.hidden === 'result' ? { ...s, step: null, hidden: null } : s
+      return s.step === 'result' ? { ...s, step: null, hidden: 'result' } : s
     case 'replay':
       return { ...s, step: e.screen === 'result' ? 'result' : 'location', hidden: null }
   }

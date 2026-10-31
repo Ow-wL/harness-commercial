@@ -76,6 +76,14 @@ describe('print.css', () => {
     expect(rule('.rank-card__print-scope')).toMatch(/display:\s*block !important/)
   })
 
+  it('13-21: 요약 카드(점수·관점·시간대·순위)는 쪽 사이에서 자르지 않고, 순위는 한 줄씩·화면 안내와 관점 각주는 빼고, 긴 데이터 출처는 넘겨도 된다', () => {
+    expect(rule('.score-card,\n  .result__perspectives,\n  .time-card,\n  .rank-card')).toMatch(/break-inside:\s*avoid/)
+    expect(rule('.rank-item__weak,\n  .rank-item__bar')).toMatch(/display:\s*none !important/)
+    expect(rule('.panel__notes,\n  .result__persp-note')).toMatch(/display:\s*none !important/)
+    expect(rule('#data-sources')).toMatch(/break-inside:\s*auto !important/)
+    expect(printBlock).not.toMatch(/\.result__body\s*\{\s*break-before/)        // 상세는 요약 뒤로 이어진다(빈 쪽 없음)
+  })
+
   it('화면 규칙에는 인쇄 머리말 숨김만 있다', () => {
     const screenPart = css.slice(css.lastIndexOf('.print-only {'))
     expect(screenPart).toMatch(/\.print-only \{\s*display:\s*none;\s*\}/)
