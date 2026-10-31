@@ -55,6 +55,7 @@
 | 파일 | 인코딩 | 크기 | 내용 | 만드는 법 |
 |---|---|---|---|---|
 | `station_ridership.csv` | utf-8 | 272행 × 25 (약 28KB) | 역(68, 괄호 부기 뗀 이름 = 엔진 `RuntimeData.stations.name`) × 평일/주말 × 승차/하차 × 20개 시간대(`lt06`·`h06`~`h23`·`ge24`) 하루 평균, `lines`(이 자료의 노선)·`days`(평균에 쓴 날 수) | `python scripts/build_station_ridership.py <인천교통공사 원본 CSV>` (원본은 저장소 밖) |
+| `support-snapshot.json` | utf-8 | 약 0.75MB | 지원사업 공고 스냅샷(서버 캐시와 같은 형식) — 서버가 시작 때 인스턴스 캐시가 없으면 읽는다(v0.3.1). **git 제외**, 배포 때 이미지에만 | `python scripts/build_support_snapshot.py --secrets`(로컬에서 두 자료원 모두 성공해야 씀) |
 | `station_ridership.meta.json` | utf-8 | — | 출처(공공데이터포털 15159353, 이용허락범위 제한 없음)·기간(2025-07-01~2026-06-30)·포함 노선(coverage)·방법·원본 sha256 | 같은 스크립트 |
 
 - 읽는 곳: `backend/app/ridership.py`(앱 수명 동안 1회) → `POST /insights` 의 `station`(1km 안 자료 있는 가장 가까운 역). 엔진·`data/runtime` 과 무관하고 데이터 버전(`DATA_VERSION`)을 따르지 않는다.

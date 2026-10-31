@@ -228,3 +228,26 @@ def test_background_thread_refreshes_once_and_stops(tmp_path):
     svc.stop.set()
     t.join(timeout=2)
     assert not t.is_alive() and svc.state["as_of"] and [c[0] for c in calls] == ["bizinfo", "kstartup"]
+
+
+def test_snapshot_used_when_no_cache_and_kept_when_fetch_fails(tmp_path):
+    """v0.3.1: 인스턴스 캐시가 없으면 배포 스냅샷부터. 직접 수집이 모두 실패해도 스냅샷 공고·기준 시각을 유지한다."""
+    snap_dir = tmp_path / "snap"
+    service(snap_dir).refresh()                                                            # 성공한 캐시 = 스냅샷 파일
+    snapshot = snap_dir / S.CACHE_FILE
+    clock = Clock("2026-11-01T12:00:00+09:00")
+    svc = S.SupportService(BIZ_KEY, DG_KEY, tmp_path / "fresh", fetch=fake_fetch([], fail=("bizinfo", "kstartup")),
+                           clock=clock, snapshot=snapshot)
+    assert svc.health()["as_of"] == "2026-11-01T09:00:00+09:00" and svc.health()["count"] > 0
+    before = [p.id for p in svc.programs()]
+    state = svc.refresh()                                                                  # 둘 다 실패
+    assert [p.id for p in svc.programs()] == before
+    assert state["as_of"] == "2026-11-01T09:00:00+09:00"                                   # 받은 시각은 그대로
+    assert all(v["ok"] is False for v in state["sources"].values())
+
+
+def test_without_snapshot_failed_fetch_keeps_as_of_none(tmp_path):
+    svc = S.SupportService(BIZ_KEY, DG_KEY, tmp_path, fetch=fake_fetch([], fail=("bizinfo", "kstartup")), clock=Clock(),
+                           snapshot=tmp_path / "none.json")
+    svc.refresh()
+    assert svc.health()["as_of"] is None and svc.health()["count"] == 0                   # 화면은 "아직 받아 오지 못했어요"

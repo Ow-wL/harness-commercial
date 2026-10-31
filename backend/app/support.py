@@ -46,6 +46,8 @@ KSTARTUP_URL = "https://apis.data.go.kr/B552735/kisedKstartupService01/getAnnoun
 BIZINFO_KEY_ENV = "BIZINFO_API_KEY"
 DATA_GO_KR_KEY_ENV = "DATA_GO_KR_API_KEY"
 STATE_DIR_ENV = "SUPPORT_STATE_DIR"
+SNAPSHOT_ENV = "SUPPORT_SNAPSHOT_PATH"
+DEFAULT_SNAPSHOT = Path(__file__).resolve().parents[2] / "data" / "extra" / "support-snapshot.json"
 CACHE_FILE = "support-programs.json"
 CACHE_VERSION = 1
 REFRESH_EVERY = timedelta(hours=24)
@@ -236,7 +238,7 @@ class SupportService:
     """자료원별 수집 → 합치기 → 디스크 캐시. 읽기(programs·health)는 메모리 스냅샷만 본다."""
 
     def __init__(self, bizinfo_key: Optional[str], data_go_kr_key: Optional[str], state_dir: Path,
-                 fetch: Fetch = urllib_fetch, clock: Callable[[], datetime] = kst_now):
+                 fetch: Fetch = urllib_fetch, clock: Callable[[], datetime] = kst_now, snapshot: Optional[Path] = None):
         self.keys = {"bizinfo": (bizinfo_key or "").strip() or None, "kstartup": (data_go_kr_key or "").strip() or None}
         self.path = Path(state_dir) / CACHE_FILE
         self.fetch = fetch
@@ -249,11 +251,16 @@ class SupportService:
         self.last_attempt: Optional[datetime] = None
         self.failures = 0                           # 자료원 하나라도 실패한 연속 수집 횟수(성공하면 0)
         if self.enabled:                            # 키가 없는 앱은 예전 캐시가 있어도 광고하지 않는다
-            self._load()
+            self._load(self.path)
+            if not self.state.get("programs") and snapshot is not None:
+                # v0.3.1: 인스턴스 캐시가 없으면 배포 때 넣은 스냅샷(scripts/build_support_snapshot.py)부터 — 공공 사이트가 Cloud Run
+                # 연결을 시간 초과시킬 때(2026-11-01 관측) 카드가 비지 않게. 이후 하루 1회 직접 갱신을 시도한다
+                self._load(Path(snapshot))
 
     @classmethod
     def from_env(cls, state_dir: Optional[str] = None, **kw) -> "SupportService":
         root = Path(state_dir or os.environ.get(STATE_DIR_ENV) or Path(tempfile.gettempdir()) / "harness-support")
+        kw.setdefault("snapshot", Path(os.environ.get(SNAPSHOT_ENV) or DEFAULT_SNAPSHOT))
         return cls(os.environ.get(BIZINFO_KEY_ENV), os.environ.get(DATA_GO_KR_KEY_ENV), root, **kw)
 
     @property
@@ -261,9 +268,9 @@ class SupportService:
         return any(self.keys.values())
 
     # ── 캐시 ──
-    def _load(self) -> None:
+    def _load(self, path: Path) -> None:
         try:
-            data = json.loads(self.path.read_text(encoding="utf-8"))
+            data = json.loads(Path(path).read_text(encoding="utf-8"))
             if data.get("version") != CACHE_VERSION:
                 return
             data["programs"] = [Program(**p) for p in data.get("programs", [])]
@@ -341,7 +348,10 @@ class SupportService:
                     sources[source] = {"ok": False, "count": len(groups[source]), "fetched_at": old.get("fetched_at"),
                                        "error": str(e)}
                     logger.warning("support %s failed (%s) — keeping %d cached", source, e, len(groups[source]))
-            state = {"as_of": now.isoformat(timespec="seconds"), "sources": sources, "programs": merge(groups)}
+            # as_of = 마지막으로 하나라도 받은 시각(화면 "기준" — 전부 실패하면 그대로 두어 스냅샷·이전 수집 시각을 보인다)
+            any_ok = any(v["ok"] for v in sources.values())
+            state = {"as_of": now.isoformat(timespec="seconds") if any_ok else self.state.get("as_of"), "sources": sources,
+                     "programs": merge(groups)}
             self.failures = self.failures + 1 if any(not v["ok"] for v in sources.values()) else 0
             with self.lock:
                 self.state = state

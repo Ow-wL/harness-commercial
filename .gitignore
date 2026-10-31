@@ -37,3 +37,6 @@ frontend/playwright-report/
 
 # 로컬 실행 설정(preview 도구) — 경로는 scripts/run_local_backend.py (12-12)
 .claude/launch.json
+
+# 지원사업 공고 스냅샷(배포 때 이미지에만 — scripts/build_support_snapshot.py, v0.3.1)
+data/extra/support-snapshot.json
