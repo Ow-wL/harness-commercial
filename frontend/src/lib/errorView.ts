@@ -120,6 +120,7 @@ export function errorView(failure: ApiFailure): ErrorView {
     case 'ai_limited':
     case 'ai_budget':
     case 'ai_upstream':
+    case 'support_unavailable':                           // R3 13-32: /support/match 는 지원사업 카드가 다룬다
     case 'invalid_query':
     case 'places_unavailable':
     case 'places_upstream':

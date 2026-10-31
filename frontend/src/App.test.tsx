@@ -11,6 +11,7 @@ import ganghwaPeekFixture from './fixtures/compare-ganghwa-pcbang.json'
 import songdoFixture from './fixtures/compare-songdo-pcbang.json'
 import songdoNearbyFixture from './fixtures/compare-songdo-pcbang-nearby.json'
 import { brokenControls, brokenReferences, duplicateIds, expandAll } from './test/a11yRefs.ts'
+import { clearSupportCache } from './lib/useSupport.ts'
 
 // 지도는 SDK 경계(MapView) 통째로 mock한다 — 실제 NAVER SDK를 부르지 않는다.
 // mock은 실제 MapView와 같은 계약: interactive=false면 클릭을 무시하고, 클릭 좌표를 onSelect로 넘긴다.
@@ -126,6 +127,7 @@ function mockApi({
   places = [] as Reply[],
   rank = [] as Reply[],
   summary = [] as Reply[],
+  support = [] as Reply[],
 } = {}) {
   const queue = [...analyze]
   const nearbyQueue = [...nearby]
@@ -133,6 +135,7 @@ function mockApi({
   const placesQueue = [...places]
   const rankQueue = [...rank]
   const summaryQueue = [...summary]
+  const supportQueue = [...support]
   // R1 13-15·13-16·13-17: 결과 뒤 /rank·/insights, 주소 폼의 /stations 는 분석 흐름과 독립 — 준비한 응답이 없으면 404(카드는 오류 문구, 분석은 그대로)
   const NOT_FOUND: Reply = { status: 404, body: { error: { code: 'not_found', message: '없음' } } }
   const fetchMock = vi.fn(async (url: string) => {
@@ -153,7 +156,9 @@ function mockApi({
                   ? NOT_FOUND
                   : url === '/summary'
                     ? (summaryQueue.shift() ?? NOT_FOUND)
-                    : queue.shift()
+                    : url === '/support/match'
+                      ? (supportQueue.shift() ?? NOT_FOUND)
+                      : queue.shift()
     if (reply === undefined) throw new Error(`예상하지 못한 요청: ${url}`)
     if (reply === 'network-error') throw new TypeError('Failed to fetch')
     const { status, body, headers } = await reply
@@ -4004,6 +4009,61 @@ describe('AI 요약·질문 (R2 13-23·13-24) — 서버가 /health ai 로 광�
     fireEvent.keyDown(dialog, { key: 'Escape' })
     expect(screen.queryByRole('dialog', { name: '이 분석에 대해 질문하기' })).toBeNull()
     await waitFor(() => expect(document.activeElement).toBe(screen.getByRole('button', { name: 'AI에게 질문' })))
+  })
+})
+
+describe('지원사업 카드 (R3 13-33) — 서버가 /health support 로 광고할 때만', () => {
+  const SUPPORT_HEALTH = {
+    ...OLD_HEALTH,
+    support: { enabled: true, as_of: '2026-11-01T06:00:00+09:00', count: 3, sources: { bizinfo: { enabled: true, ok: true, count: 3 } } },
+  }
+  const MATCH = (title: string) => ({
+    status: 200,
+    body: {
+      as_of: '2026-11-01T06:00:00+09:00',
+      total: 1,
+      items: [{
+        id: 'bizinfo:1', source: 'bizinfo', sources: ['bizinfo'], title, agency: '인천광역시', operator: null, targets: ['소상공인'],
+        category: '금융', nationwide: false, regions: ['인천'], period_text: '예산 소진시까지', start: null, end: null, days_left: null,
+        deadline_soon: false, url: 'https://www.bizinfo.go.kr/view?1', apply_url: null, summary: null, reasons: ['인천 공고'],
+      }],
+    },
+  })
+  beforeEach(() => {
+    clearSupportCache()
+    window.localStorage.removeItem('profile.v1')
+  })
+
+  it('광고하지 않으면 /support/match 를 부르지 않고 카드도 없다', async () => {
+    const fetchMock = mockApi({ analyze: [{ status: 200, body: fixture }], nearby: [{ status: 200, body: nearbyFixture }] })
+    render(<App />)
+    await selectBupyeongPcBang()
+    fireEvent.click(analyzeButton())
+    await screen.findByRole('heading', { level: 1, name: '부평구 부평1동 · PC방 분석' })
+    await new Promise((r) => setTimeout(r, 30))
+    expect(fetchMock.mock.calls.filter(([url]) => url === '/support/match')).toHaveLength(0)
+    expect(screen.queryByRole('heading', { name: '조건에 맞는 지원사업' })).toBeNull()
+  })
+
+  it('광고하면 업종·구로 1회 → 카드, 내 상황을 고르면 그 조건으로 다시 찾는다(프로필은 이 브라우저에 저장)', async () => {
+    const fetchMock = mockApi({
+      health: { status: 200, body: SUPPORT_HEALTH },
+      analyze: [{ status: 200, body: fixture }],
+      nearby: [{ status: 200, body: nearbyFixture }],
+      support: [MATCH('[인천] 소상공인 특례보증'), MATCH('[인천] 예비창업 지원')],
+    })
+    render(<App />)
+    await selectBupyeongPcBang()
+    fireEvent.click(analyzeButton())
+    await screen.findByRole('heading', { level: 1, name: '부평구 부평1동 · PC방 분석' })
+    expect(await screen.findByRole('link', { name: /\[인천\] 소상공인 특례보증/ })).toBeInTheDocument()
+    const bodies = () => fetchMock.mock.calls.filter(([url]) => url === '/support/match').map((c) => JSON.parse(((c as unknown[])[1] as RequestInit).body as string))
+    expect(bodies()).toEqual([{ biz_code: 'R10406', gu: '부평구', profile: null }])
+    const card = screen.getByRole('region', { name: '조건에 맞는 지원사업' })
+    fireEvent.change(within(card).getByRole('combobox', { name: '창업 단계' }), { target: { value: '예비' } })
+    expect(await screen.findByRole('link', { name: /\[인천\] 예비창업 지원/ })).toBeInTheDocument()
+    expect(bodies()[1]).toEqual({ biz_code: 'R10406', gu: '부평구', profile: { stage: '예비', youth: null, preferred: null } })
+    expect(JSON.parse(window.localStorage.getItem('profile.v1')!)).toEqual({ stage: '예비', youth: null, preferred: [] })
   })
 })
 

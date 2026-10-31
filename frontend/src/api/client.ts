@@ -9,7 +9,7 @@
  * 오류 분기는 error.code로만 한다(D-014). message는 표시용이다.
  */
 import type { z } from 'zod'
-import type { AskResponse, InsightsResponse, RankResponse, StationsResponse, SummaryResponse } from './schemas.ts'
+import type { AskResponse, InsightsResponse, RankResponse, StationsResponse, SummaryResponse, SupportMatchResponse } from './schemas.ts'
 import {
   AnalyzeResponseSchema,
   BusinessCatalogSchema,
@@ -28,6 +28,7 @@ import {
   type PlacesResponse,
   RankResponseSchema,
   StationsResponseSchema,
+  SupportMatchResponseSchema,
 } from './schemas.ts'
 import { DATA_VERSION_HEADER, stampDataVersion } from '../lib/dataVersion.ts'
 
@@ -65,7 +66,9 @@ async function request<T>(endpoint: string, schema: z.ZodType<T>, init: RequestI
   let body: unknown
   try {
     body = await res.json()
-  } catch {
+  } catch (e) {
+    // 본문을 읽는 중 호출한 쪽이 취소했다 — 스키마 오류가 아니다(콘솔에 남기지 않고 그대로 던진다, 13-33 화면 확인에서 발견)
+    if (init.signal?.aborted || (e instanceof DOMException && e.name === 'AbortError')) throw e
     // JSON이 아닌 5xx = backend가 아니라 중간(dev proxy 등)이 낸 응답. backend 500은 항상 JSON 오류 계약이다
     if (res.status >= 500) return { ok: false, failure: { kind: 'network' } }
     return schemaFailure(endpoint, res.status, 'JSON이 아닌 응답')
@@ -143,6 +146,12 @@ export function askQuestion(
   signal?: AbortSignal,
 ): Promise<ApiResult<AskResponse>> {
   return request('/ask', AskResponseSchema, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), signal })
+}
+
+export type SupportMatchBody = { biz_code: string; gu?: string; profile: AskProfileBody | null }
+/** POST /support/match — 조건에 맞는 지원사업 공고(R3 13-32). 서버가 /health support.enabled 로 광고할 때만 부른다 */
+export function fetchSupportMatch(body: SupportMatchBody, signal?: AbortSignal): Promise<ApiResult<SupportMatchResponse>> {
+  return request('/support/match', SupportMatchResponseSchema, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), signal })
 }
 
 /** GET /stations — 엔진이 읽은 인천권 역 211개(13-17 자동완성). 외부 API 없음 */

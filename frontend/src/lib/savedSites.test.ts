@@ -145,3 +145,28 @@ describe('보관함 스냅샷의 R1 카드 (13-21) — 한 줄 결론·규제·�
     expect(readSavedSites().map((x) => x.id)).toEqual(['old'])
   })
 })
+
+describe('보관함 스냅샷의 지원사업 (R3 13-33) — 공고 제목 앞 3개만, 선택 필드', () => {
+  const support = {
+    as_of: '2026-11-01T06:00:00+09:00',
+    total: 7,
+    items: ['A', 'B', 'C', 'D'].map((t, i) => ({
+      id: `bizinfo:${i}`, source: 'bizinfo' as const, sources: ['bizinfo'], title: `공고 ${t}`, agency: '기관', operator: null, targets: [],
+      category: null, nationwide: true, regions: [], period_text: '상시 접수', start: null, end: null, days_left: null,
+      deadline_soon: false, url: 'https://x', apply_url: null, summary: null, reasons: [],
+    })),
+  }
+
+  it('받은 공고가 있으면 제목 앞 3개, 없으면 필드 없음', () => {
+    expect(siteFrom(req, bupyeong, new Date(), null, support).snapshot.support).toEqual(['공고 A', '공고 B', '공고 C'])
+    expect('support' in siteFrom(req, bupyeong, new Date(), null, null).snapshot).toBe(false)
+    expect('support' in siteFrom(req, bupyeong, new Date(), null, { ...support, items: [] }).snapshot).toBe(false)
+  })
+
+  it('support 가 문자열 배열이 아니면 항목을 버린다, 없으면(예전 항목) 그대로', () => {
+    const good = siteFrom(req, bupyeong, new Date(), null, support)
+    expect(isSite(good)).toBe(true)
+    expect(isSite({ ...good, snapshot: { ...good.snapshot, support: [1] } })).toBe(false)
+    expect(isSite({ ...good, snapshot: { ...good.snapshot, support: undefined } })).toBe(true)
+  })
+})

@@ -7,7 +7,7 @@
  * 그대로라 예전에 저장한 항목도 그대로 읽히고(새 줄만 없음), 등급은 저장한 점수로 화면에서 계산한다(lib/grade).
  */
 import type { AnalyzeRequest } from '../api/client.ts'
-import type { AnalyzeResponse, RankResponse } from '../api/schemas.ts'
+import type { AnalyzeResponse, RankResponse, SupportMatchResponse } from '../api/schemas.ts'
 import { regulationAlert } from './alerts.ts'
 import { conclusion } from './conclusion.ts'
 import { dataVersionOf } from './dataVersion.ts'
@@ -36,6 +36,8 @@ export type SavedSite = {
     regulated?: boolean
     /** 저장 당시 이 자리 업종 순위(기본 계산 기준) 상위 3 + 지금 업종의 자리 — 순위를 받지 못했으면 없음 */
     rank?: { top: { name: string; overall: number | null }[]; current: number | null; count: number }
+    /** R3 13-33 선택 필드: 저장 당시 조건에 맞는 지원사업 공고 제목 앞 3개(제목만 — 마감은 바뀌므로 원문에서 다시 확인) */
+    support?: string[]
   }
   versions: { data: string | null; engine: string }
   memo: string
@@ -69,6 +71,7 @@ export function isSite(v: unknown): v is SavedSite {
     if (!isRecord(r) || !Array.isArray(r.top) || !isNullableNumber(r.current) || !isFiniteNumber(r.count)) return false
     if (!r.top.every((t) => isRecord(t) && typeof t.name === 'string' && isNullableNumber(t.overall))) return false
   }
+  if (snap.support !== undefined && !(Array.isArray(snap.support) && snap.support.every((t) => typeof t === 'string'))) return false
   if (!isRecord(versions) || !isNullableString(versions.data) || typeof versions.engine !== 'string') return false
   return true
 }
@@ -101,9 +104,16 @@ export function rankSummary(rank: RankResponse | null | undefined, request: Anal
 }
 
 /** 지금 결과로 보관 항목을 만든다 (순수 함수 — 저장하지 않는다). 스냅샷은 엔진 값 그대로, rank 는 같은 조건의 순위가 있을 때만 */
-export function siteFrom(request: AnalyzeRequest, response: AnalyzeResponse, now: Date = new Date(), rank?: RankResponse | null): SavedSite {
+export function siteFrom(
+  request: AnalyzeRequest,
+  response: AnalyzeResponse,
+  now: Date = new Date(),
+  rank?: RankResponse | null,
+  support?: SupportMatchResponse | null,
+): SavedSite {
   const { context, result } = response
   const ranked = rankSummary(rank, request)
+  const supportTitles = support ? support.items.slice(0, 3).map((i) => i.title) : []
   return {
     id: `${now.getTime().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
     key: cacheKey(request),
@@ -118,6 +128,7 @@ export function siteFrom(request: AnalyzeRequest, response: AnalyzeResponse, now
       conclusion: conclusion(response).text,
       regulated: regulationAlert(response) !== null,
       ...(ranked ? { rank: ranked } : {}),
+      ...(supportTitles.length ? { support: supportTitles } : {}),
     },
     versions: { data: dataVersionOf(response), engine: result.meta.엔진버전 },
     memo: '',

@@ -46,6 +46,7 @@ export function AnalysisResult({
   timeCard,
   rankCard,
   aiCard,
+  supportCard,
 }: {
   analysis: AnalyzeResponse
   /** 주변 점포 탭 내용 (App이 별도 요청 상태와 함께 넘긴다) */
@@ -72,6 +73,8 @@ export function AnalysisResult({
   rankCard?: ReactNode
   /** R2 13-23 AI 요약 카드(서버가 AI 를 광고할 때만) */
   aiCard?: ReactNode
+  /** R3 13-33 지원사업 카드(서버가 지원사업 자료를 광고할 때만) — AI 요약 다음 */
+  supportCard?: ReactNode
 }) {
   const { context, result } = analysis
   const dataVersion = dataVersionOf(analysis)   // 9-C4: 응답 헤더 X-Data-Version (모르면 null)
@@ -176,6 +179,7 @@ export function AnalysisResult({
         {timeCard}
         {rankCard}
         {aiCard}
+        {supportCard}
         {notes}
         {tools}
 

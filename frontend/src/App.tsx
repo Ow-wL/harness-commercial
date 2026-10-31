@@ -31,6 +31,10 @@ import { useInsights } from './lib/useInsights.ts'
 import { useSummary } from './lib/useSummary.ts'
 import { AiSummaryCard } from './components/AiSummaryCard.tsx'
 import { AskDialog } from './components/AskDialog.tsx'
+import { SupportCard } from './components/SupportCard.tsx'
+import { useSupport } from './lib/useSupport.ts'
+import { profileBody, useProfile, writeProfile } from './lib/profile.ts'
+import { INCHEON_GU } from './content/support.ts'
 import { useRank } from './lib/useRank.ts'
 import { SavedSites } from './components/SavedSites.tsx'
 import { ReferenceAddress } from './components/ReferenceAddress.tsx'
@@ -171,6 +175,9 @@ function App() {
   // R2 13-23: 서버가 AI 요약·질문을 광고하는지(/health ai.enabled). 아니면 AI 카드·질문 창 없음 — 한 줄 결론 템플릿이 요약
   const [aiReady, setAiReady] = useState(false)
   const [askOpen, setAskOpen] = useState(false)
+  // R3 13-33: 서버가 지원사업 공고를 광고하는지(/health support.enabled). 아니면 지원사업 카드 없음
+  const [supportReady, setSupportReady] = useState(false)
+  const profile = useProfile()
   const [radius, setRadius] = useState(DEFAULT_RADIUS_M)
   const [prevRadius, setPrevRadius] = useState<number | null>(null)
   const [radiusNotice, setRadiusNotice] = useState<string | null>(null)
@@ -298,6 +305,7 @@ function App() {
         setDataInfo(r.ok && r.data.data ? r.data.data : null)
         setPlacesReady(r.ok && r.data.places ? r.data.places.enabled : false)
         setAiReady(r.ok && r.data.ai ? r.data.ai.enabled : false)
+        setSupportReady(r.ok && r.data.support ? r.data.support.enabled : false)
         // 공유 링크(12-3): 실패·구버전이어도 "알아봤다" — 적용을 더 기다리지 않는다
         shareInputs.current.health = {
           options: r.ok && r.data.engine ? r.data.engine.radius_options : [],
@@ -953,6 +961,18 @@ function App() {
     sideVersion,
     result,
   )
+  // R3 13-33: 지원사업 — 분석 업종·구·내 상황. 공고는 엔진·데이터 버전과 무관해 버전 대조 없이, 새 분석마다 실패를 잊는다(token)
+  const supportGu = singleSuccess ? analysis.response.context.gu_name : null
+  const supportState = useSupport(
+    singleSuccess && supportReady
+      ? {
+          biz_code: analysis.request.biz_code,
+          ...(supportGu && (INCHEON_GU as readonly string[]).includes(supportGu) ? { gu: supportGu } : {}),
+          profile: profileBody(profile),
+        }
+      : null,
+    result,
+  )
   const mapExpanded = result !== null && mapExpandedFor === result
   // 지도 크게 보기·결과로 돌아가기는 누른 버튼이 사라진다 → 포커스를 짝 버튼으로 옮긴다(Codex R1-8). 스크롤은 건드리지 않는다
   const [mapFocus, setMapFocus] = useState<{ to: 'collapse' | 'opener'; opener: string } | null>(null)
@@ -1151,7 +1171,13 @@ function App() {
   const saveCurrent = () => {
     if (analysis.status !== 'success') return
     // 13-21: 같은 조건의 업종 순위를 받아 두었으면 요약을 함께 저장한다(없으면 순위 줄 없이)
-    const site = siteFrom(analysis.request, analysis.response, new Date(), rankState.status === 'success' ? rankState.data : null)
+    const site = siteFrom(
+      analysis.request,
+      analysis.response,
+      new Date(),
+      rankState.status === 'success' ? rankState.data : null,
+      supportState.status === 'success' ? supportState.data : null,
+    )
     const outcome = saveSite(savedSites, site)
     if (outcome.ok) {
       setSavedSites(outcome.sites)
@@ -1384,6 +1410,17 @@ function App() {
         }
         timeCard={<TimeInsightsCard analysis={result} insights={insightsState.status === 'success' ? insightsState.data : null} />}
         aiCard={aiReady ? <AiSummaryCard state={summaryState} onRetry={summaryState.retry} onAsk={() => setAskOpen(true)} /> : null}
+        supportCard={
+          supportReady ? (
+            <SupportCard
+              state={supportState}
+              profile={profile}
+              onProfile={writeProfile}
+              onRetry={supportState.retry}
+              condition={[result.result.meta.업종, supportGu].filter(Boolean).join(' · ')}
+            />
+          ) : null
+        }
         rankCard={
           <RankCard
             state={rankState}

@@ -22,6 +22,7 @@ export default defineConfig(({ mode }) => {
         '/insights': backend,                              // 13-15: 시간대·인구 카드 자료
         '/summary': backend,                               // 13-23: AI 요약
         '/ask': backend,                                   // 13-24: AI 자유 질문
+        '/support': backend,                               // 13-32: 지원사업 조건에 맞는 공고
       },
       fs: {
         // 행정동 경계는 data/geo 원본을 그대로 읽는다 (frontend로 복사하지 않는다, DECISIONS D-009)

@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from 'react'
 import { createPortal } from 'react-dom'
 import { askQuestion, type AskTurn } from '../api/client.ts'
-import { PROFILE_PREFERRED, PROFILE_STAGES, type ProfileSuggestion } from '../api/schemas.ts'
+import type { ProfileSuggestion } from '../api/schemas.ts'
 import { AI_ERROR_TEXT, AI_TEXT, SUGGESTED_QUESTIONS } from '../content/ai.ts'
 import { mergeSuggestion, profileBody, readProfile, writeProfile, type Profile } from '../lib/profile.ts'
 import { Icon } from './Icon.tsx'
+import { ProfileFields } from './ProfileFields.tsx'
 import './AskDialog.css'
 
 const FOCUSABLE = 'button, [href], textarea, input, select, [tabindex]:not([tabindex="-1"])'
@@ -17,7 +18,7 @@ type Message = AskTurn & { outOfScope?: boolean; suggestion?: ProfileSuggestion 
 
 /**
  * AI 자유 질문 창 (R2 13-24·13-26): 지금 결과의 위치·업종·반경 자료 안에서만 답한다. 추천 질문 칩 3개, 최근 6턴만 서버로,
- * 선택형 프로필(창업 단계·청년·우대 — 이 브라우저에만 저장, 질문할 때만 함께 보냄). AI 가 대화에서 프로필을 알아내면
+ * 선택형 프로필(창업 단계·청년·우대 — 이 브라우저에만 저장, 질문·지원사업 조회 때만 함께 보냄, 입력 칸은 ProfileFields). AI 가 대화에서 프로필을 알아내면
  * "저장"을 눌러야 저장한다. 대화는 창을 닫으면 사라진다(서버 로그 정책은 고지 문구 그대로).
  */
 export function AskDialog({ target, onClose }: { target: AskTarget; onClose: () => void }) {
@@ -194,52 +195,5 @@ function ProfileSuggestionBox({ suggestion, onSave }: { suggestion: ProfileSugge
         {saved ? '저장함' : '저장'}
       </button>
     </span>
-  )
-}
-
-function ProfileFields({ profile, onChange }: { profile: Profile; onChange: (p: Profile) => void }) {
-  return (
-    <details className="ask__profile">
-      <summary>{AI_TEXT.profileTitle}</summary>
-      <p className="ask__privacy">{AI_TEXT.profileNote}</p>
-      <label className="ask__field">
-        창업 단계
-        <select
-          className="input"
-          value={profile.stage ?? ''}
-          onChange={(e) => onChange({ ...profile, stage: (e.target.value || null) as Profile['stage'] })}
-        >
-          <option value="">선택 안 함</option>
-          {PROFILE_STAGES.map((s) => (
-            <option key={s} value={s}>
-              {s}
-            </option>
-          ))}
-        </select>
-      </label>
-      <label className="ask__field ask__field--check">
-        <input
-          type="checkbox"
-          checked={profile.youth === true}
-          onChange={(e) => onChange({ ...profile, youth: e.target.checked ? true : null })}
-        />
-        청년(39세 이하)
-      </label>
-      <fieldset className="ask__field ask__field--pref">
-        <legend>우대 조건</legend>
-        {PROFILE_PREFERRED.map((p) => (
-          <label key={p} className="ask__field--check">
-            <input
-              type="checkbox"
-              checked={profile.preferred.includes(p)}
-              onChange={(e) =>
-                onChange({ ...profile, preferred: e.target.checked ? [...profile.preferred, p] : profile.preferred.filter((x) => x !== p) })
-              }
-            />
-            {p}
-          </label>
-        ))}
-      </fieldset>
-    </details>
   )
 }

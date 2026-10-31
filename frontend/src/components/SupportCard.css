@@ -1,0 +1,150 @@
+/* 지원사업 카드 (R3 13-33, DESIGN §22) — AI 요약 카드와 같은 자리 규칙 */
+.support-card {
+  margin: 16px 24px 0;
+  padding: 16px 18px;
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  background: var(--color-surface);
+}
+
+.support-card__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.support-card__count,
+.support-card__lead,
+.support-card__status,
+.support-card__note,
+.support-card__nudge {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--color-text-muted);
+}
+
+.support-card__lead,
+.support-card__status {
+  margin: 4px 0 0;
+}
+
+.support-card__list {
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 10px;
+}
+
+.support-card__item {
+  padding: 10px 0 0;
+  border-top: 1px solid var(--color-border);
+}
+
+.support-card__item:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.support-card__top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.support-card__title {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.45;
+  color: var(--color-text-primary);
+  text-decoration: underline;
+  text-decoration-color: var(--color-border);
+  text-underline-offset: 3px;
+  overflow-wrap: anywhere;
+}
+
+.support-card__title:hover {
+  text-decoration-color: currentColor;
+}
+
+.support-card__due {
+  flex: none;
+  max-width: 9em;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-muted);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.5;
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+.support-card__due--soon {
+  background: var(--color-grade-alert-subtle);
+  color: var(--color-grade-alert);
+}
+
+.support-card__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.support-card__badge {
+  padding: 0 6px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  font-size: 11px;
+  line-height: 1.6;
+}
+
+.support-card__why {
+  margin: 2px 0 0;
+  font-size: 11px;
+  color: var(--color-accent);
+}
+
+.support-card__apply {
+  display: inline-block;
+  margin-top: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-accent);
+}
+
+.support-card__profile {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--color-border);
+}
+
+.support-card__nudge {
+  margin: 0 0 4px;
+}
+
+.support-card__note {
+  margin: 10px 0 0;
+}
+
+@media (max-width: 639px) {
+  .support-card {
+    margin: 12px 16px 0;
+  }
+}
+
+@media print {
+  .support-card {
+    break-inside: avoid;
+  }
+
+  .support-card__profile {
+    display: none !important;
+  }
+}

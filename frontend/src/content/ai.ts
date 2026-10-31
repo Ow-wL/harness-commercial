@@ -16,7 +16,7 @@ export const AI_TEXT = {
   askSend: '질문하기',
   privacy: '질문과 답변, 분석 조건(업종·구·반경)은 서비스 개선을 위해 30일 보관합니다. 위치 좌표·IP는 남기지 않습니다.',
   profileTitle: '내 상황(선택)',
-  profileNote: '이 브라우저에만 저장되고 질문할 때만 함께 보냅니다.',
+  profileNote: '이 브라우저에만 저장되고, AI 질문과 지원사업 공고를 찾을 때만 함께 보냅니다.',
   suggestionLead: 'AI가 대화에서 알게 된 내 상황입니다. 맞으면 저장하세요.',
 } as const
 

@@ -476,6 +476,7 @@ export const USER_ERROR_CODES = [
   'ai_budget',                                    // R2 13-25: 월 예산 소진 (429)
   'ai_upstream',                                  // R2 13-23: 모델 응답 없음·오류 (502)
   'rate_limited',                                 // 12-9: IP 분당 요청 초과 (429)
+  'support_unavailable',                          // R3 13-32: 서버에 지원사업 자료 키 없음 (503)
 ] as const
 
 export const ErrorCodeSchema = z.enum([...USER_ERROR_CODES, 'internal_error'])
@@ -518,12 +519,21 @@ const PlacesInfoSchema = z.object({ enabled: z.boolean() })
 /** 13-23: AI 요약·질문 광고. budget = ok | warn | closed (금액은 오지 않는다) */
 const AiInfoSchema = z.object({ enabled: z.boolean(), model: z.string().nullable(), budget: z.enum(['ok', 'warn', 'closed']).nullable() })
 export type AiInfo = z.infer<typeof AiInfoSchema>
+/** 13-31: 지원사업 공고 수집 광고. 자료원별 enabled·ok·건수(키·오류 원문은 오지 않는다) */
+const SupportSourceInfoSchema = z.object({ enabled: z.boolean(), ok: z.boolean().nullable(), count: z.number() })
+const SupportInfoSchema = z.object({
+  enabled: z.boolean(),
+  as_of: z.string().nullable(),
+  count: z.number(),
+  sources: z.object({ bizinfo: SupportSourceInfoSchema, kstartup: SupportSourceInfoSchema }).partial(),
+})
 
 export const HealthSchema = z.object({
   engine: EngineInfoSchema.optional(),
   data: DataInfoSchema.optional(),
   places: PlacesInfoSchema.optional(),
   ai: AiInfoSchema.optional(),
+  support: SupportInfoSchema.optional(),
 })
 
 // ─── POST /summary · POST /ask (R2 13-23·13-24) ─────────────────────────
@@ -625,3 +635,35 @@ export type EngineInfo = z.infer<typeof EngineInfoSchema>
 export type Health = z.infer<typeof HealthSchema>
 export type PlaceItem = z.infer<typeof PlaceItemSchema>
 export type PlacesResponse = z.infer<typeof PlacesResponseSchema>
+
+// ─── POST /support/match (R3 13-32·13-33) ───────────────────────────
+
+/** 조건에 맞는 지원사업 공고 한 건 — 공고명·기관·대상·신청기간·링크는 원문 그대로. 점수는 오지 않고 이유(reasons)만 */
+export const SupportItemSchema = z.strictObject({
+  id: z.string(),
+  source: z.enum(['bizinfo', 'kstartup']),
+  sources: z.array(z.string()),
+  title: z.string(),
+  agency: z.string(),
+  operator: z.string().nullable(),
+  targets: z.array(z.string()),
+  category: z.string().nullable(),
+  nationwide: z.boolean(),
+  regions: z.array(z.string()),
+  period_text: z.string(),
+  start: z.string().nullable(),
+  end: z.string().nullable(),
+  days_left: z.number().int().nullable(),
+  deadline_soon: z.boolean(),
+  url: z.string(),
+  apply_url: z.string().nullable(),
+  summary: z.string().nullable(),
+  reasons: z.array(z.string()),
+})
+export const SupportMatchResponseSchema = z.strictObject({
+  as_of: z.string().nullable(),
+  total: z.number().int(),
+  items: z.array(SupportItemSchema),
+})
+export type SupportItem = z.infer<typeof SupportItemSchema>
+export type SupportMatchResponse = z.infer<typeof SupportMatchResponseSchema>

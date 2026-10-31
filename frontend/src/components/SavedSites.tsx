@@ -175,7 +175,7 @@ function SavedItem({
   const memoId = `saved-${site.id}-memo`
   const notes = readFieldNotes(site.key)
   const done = doneCount(notes, Object.keys(notes))
-  const { overall, perspectives, stores, gaps, locationName, conclusion, regulated, rank } = site.snapshot
+  const { overall, perspectives, stores, gaps, locationName, conclusion, regulated, rank, support } = site.snapshot
   const grade = gradeOf(overall)
   const radius = site.conditions.radius ?? 500
   return (
@@ -209,6 +209,7 @@ function SavedItem({
             {rank.current !== null && ` · 이 업종은 ${rank.count}개 중 ${rank.current}번째`}
           </p>
         )}
+        {support && support.length > 0 && <p className="saved__rank">저장 당시 조건에 맞는 지원사업 · {support.join(' · ')}</p>}
         {gaps.length > 0 && <p className="saved__gaps">확인 필요 · {gaps.join(' · ')}</p>}
         <p className="saved__progress">
           현장 확인 {done}/{FIELD_CHECK_COUNT} 확인함

@@ -1,10 +1,13 @@
 /**
  * 선택형 사용자 프로필 (R2 13-26): 창업 단계·청년(39세 이하)·우대 조건. **이 브라우저에만** localStorage `profile.v1`,
- * 서버에는 AI 질문을 보낼 때만 함께 보낸다. 입력이 없으면 전체(null). AI 가 대화에서 제안한 값은 사용자가 "저장"을 눌러야 저장된다.
+ * 서버에는 AI 질문과 지원사업 공고 조회(13-33) 때만 함께 보낸다. 입력이 없으면 전체(null). AI 가 대화에서 제안한 값은 사용자가 "저장"을 눌러야 저장된다.
  */
+import { useEffect, useState } from 'react'
 import { PROFILE_PREFERRED, PROFILE_STAGES } from '../api/schemas.ts'
 
 export const PROFILE_KEY = 'profile.v1'
+/** 같은 화면 안 다른 곳(지원사업 카드·질문 창)에 프로필이 바뀌었음을 알린다 — storage 이벤트는 다른 탭에만 온다 */
+export const PROFILE_EVENT = 'profile.v1:change'
 export type Profile = { stage: (typeof PROFILE_STAGES)[number] | null; youth: boolean | null; preferred: (typeof PROFILE_PREFERRED)[number][] }
 export const EMPTY_PROFILE: Profile = { stage: null, youth: null, preferred: [] }
 
@@ -37,6 +40,7 @@ export function writeProfile(p: Profile): void {
   } catch {
     // 저장이 막혀 있어도 이번 화면에서는 쓴다
   }
+  window.dispatchEvent(new CustomEvent<Profile>(PROFILE_EVENT, { detail: p }))
 }
 
 export const isEmptyProfile = (p: Profile) => p.stage === null && p.youth === null && p.preferred.length === 0
@@ -51,4 +55,22 @@ export function mergeSuggestion(p: Profile, s: { stage: string | null; youth: bo
     youth: s.youth ?? p.youth,
     preferred: s.preferred ? [...p.preferred, ...s.preferred] : p.preferred,
   })
+}
+
+/** 지금 프로필 + 바뀌면 다시 그린다(같은 탭의 writeProfile 알림, 다른 탭의 storage 이벤트). 저장이 막혀도 알림 값은 받는다 */
+export function useProfile(): Profile {
+  const [profile, setProfile] = useState<Profile>(readProfile)
+  useEffect(() => {
+    const onChange = (e: Event) => setProfile(normalizeProfile((e as CustomEvent<Profile>).detail))
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === PROFILE_KEY) setProfile(readProfile())
+    }
+    window.addEventListener(PROFILE_EVENT, onChange)
+    window.addEventListener('storage', onStorage)
+    return () => {
+      window.removeEventListener(PROFILE_EVENT, onChange)
+      window.removeEventListener('storage', onStorage)
+    }
+  }, [])
+  return profile
 }

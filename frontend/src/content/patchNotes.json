@@ -3,6 +3,25 @@
   "renumbered_until": "v0.0.10",
   "releases": [
     {
+      "version": "v0.3.0",
+      "date": "2026-11-01",
+      "title": "조건에 맞는 지원사업",
+      "changes": [
+        {
+          "type": "added",
+          "text": "분석 결과에 업종·지역에 맞는 지원사업 공고를 마감일·신청 링크와 함께 보여 줍니다(출처: 기업마당·K-Startup)."
+        },
+        {
+          "type": "added",
+          "text": "\"내 상황\"(창업 단계·청년·우대 조건)을 고르면 공고가 더 좁혀집니다. 선택은 이 브라우저에만 저장됩니다."
+        }
+      ],
+      "work": [
+        "13-33(DESIGN §22): SupportCard·lib/useSupport·content/support.ts, /health support 광고 때만 POST /support/match(업종·구·프로필), ProfileFields 분리(질문 창과 공유)·lib/profile 같은 탭 변경 알림, 보관함 스냅샷 support(공고 제목 3개), api/client 본문 읽기 중 취소를 스키마 오류로 남기던 결함 수정"
+      ],
+      "commits": []
+    },
+    {
       "version": "v0.2.1",
       "date": "2026-10-31",
       "title": "AI 요약 근거 표시",
@@ -17,7 +36,15 @@
         "13-30·13-31(D-039): 지원사업 자료 조사(기업마당 + K-Startup, 겹침 9~19건), backend/app/support.py 하루 1회 수집·정규화·중복 합치기·디스크 캐시, /health support — 화면에는 아직 보이지 않는다(카드는 13-33)",
         "13-32: POST /support/match 조건에 맞는 공고(규칙 표 backend/app/support_rules.json — 제외·핵심 신호·점수·마감순, 응답은 이유만), 오류 support_unavailable — 화면 카드는 13-33"
       ],
-      "commits": []
+      "commits": [
+        "15f25d2",
+        "1959d28",
+        "450d30c",
+        "89ac882",
+        "0e2f4b3",
+        "8c03a29",
+        "89c78ee"
+      ]
     },
     {
       "version": "v0.2.0",
@@ -52,7 +79,8 @@
         "db2a2ef",
         "251930d",
         "9d22d1c",
-        "87195b2"
+        "87195b2",
+        "c19e87d"
       ]
     },
     {

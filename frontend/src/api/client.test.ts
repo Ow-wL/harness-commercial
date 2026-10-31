@@ -54,4 +54,16 @@ describe('api client', () => {
     stubFetch(() => Promise.reject(new DOMException('aborted', 'AbortError')))
     await expect(analyze(REQUEST)).rejects.toMatchObject({ name: 'AbortError' })
   })
+
+  it('본문을 읽는 중 취소돼도 스키마 오류로 남기지 않고 그대로 던진다', async () => {
+    const ac = new AbortController()
+    const res = new Response('{"partial":')
+    vi.spyOn(res, 'json').mockImplementation(() => {
+      ac.abort()
+      return Promise.reject(new DOMException('aborted', 'AbortError'))
+    })
+    stubFetch(() => Promise.resolve(res))
+    await expect(analyze(REQUEST, ac.signal)).rejects.toMatchObject({ name: 'AbortError' })
+    expect(console.error).not.toHaveBeenCalled()
+  })
 })
