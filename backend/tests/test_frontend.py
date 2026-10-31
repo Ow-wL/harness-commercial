@@ -154,3 +154,15 @@ def test_api_only_mode_keeps_docs(real_service):
     with TestClient(app) as c:
         assert c.get("/docs").status_code == 200
         assert c.get("/openapi.json").json()["info"]["title"] == "인천 상권분석 API"
+
+
+def test_production_app_default_minute_limit_allows_smoke_volume(real_service, dist, monkeypatch):
+    """운영 앱(frontend 서빙) 기본 분당 제한은 D-037 의 240회 — 한 IP 에서 1분에 약 110건 보내는 smoke 가 막히면 안 된다.
+    (v0.2.0 첫 무트래픽 후보에서 상수가 계획값 30 으로 남아 smoke 가 429 로 실패했다.)"""
+    monkeypatch.delenv("API_RATE_LIMIT_PER_MINUTE", raising=False)
+    assert M.ANALYZE_PER_MINUTE == 240
+    app = M.create_app(service=real_service, warm_biz=[], frontend_dist=str(dist))
+    with TestClient(app) as c:
+        codes = [c.post("/analyze", json={"lat": 37.4894, "lng": 126.7246, "biz_code": "NOPE"}).status_code
+                 for _ in range(M.ANALYZE_PER_MINUTE + 1)]
+    assert codes[:M.ANALYZE_PER_MINUTE].count(429) == 0 and codes[-1] == 429
