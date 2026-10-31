@@ -3335,13 +3335,15 @@ describe('첫 방문 안내 (묶음 D, docs/ONBOARDING_DESIGN.md)', () => {
 
     fireEvent.click(analyzeButton())
     await screen.findByRole('heading', RESULT_HEADING)
-    expect(window.localStorage.getItem('onboarding')).toBe('done')
+    // 완료 저장은 상태가 바뀐 다음 렌더의 effect 에서 쓴다(useOnboarding) — 결과 제목이 먼저 보일 수 있어 기다린다.
+    // (10-5·9-R2·12-28 부터 기록된 "첫 방문 안내 저장 단언" 간헐 실패의 원인, 2026-10-31 확인)
+    await waitFor(() => expect(window.localStorage.getItem('onboarding')).toBe('done'))
     const result = screen.getAllByRole('status', COACH).find((el) => el.textContent?.includes('비교'))!
     expect(result).toHaveTextContent('다른 위치와 비교해 볼 수 있습니다')
     expect(result).not.toHaveTextContent('반경')                                   // 구버전 서버: 반경 선택 없음
     fireEvent.click(within(result).getByRole('button', { name: '확인' }))
     expect(screen.queryByRole('status', COACH)).not.toBeInTheDocument()
-    expect(window.localStorage.getItem('onboarding.result')).toBe('done')
+    await waitFor(() => expect(window.localStorage.getItem('onboarding.result')).toBe('done'))
   })
 
   it('두 번째 방문(저장됨)에는 아무 안내도 없다', async () => {
