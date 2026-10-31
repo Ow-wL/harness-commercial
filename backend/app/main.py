@@ -62,6 +62,7 @@ from .errors import (AI_BUDGET, AI_LIMITED, AI_UNAVAILABLE, AI_UPSTREAM, ERROR_R
                      ErrorDetail, error_json, install_error_handlers)
 from .frontend import mount_frontend
 from .places import MAX_QUERY_CHARS, PlacesClient, PlacesUpstreamError
+from .support import SupportService
 from scoring_engine.service import AnalysisService
 
 logger = logging.getLogger("backend.warm")
@@ -472,17 +473,21 @@ class WarmProgress:
 
 def create_app(service: Optional[AnalysisService] = None, warm_biz: Optional[Iterable[str]] = None,
                frontend_dist: Optional[str] = None, places: Optional[PlacesClient] = None,
-               ai: Optional[AiService] = None, rate_limit_per_minute: Optional[int] = None) -> FastAPI:
+               ai: Optional[AiService] = None, rate_limit_per_minute: Optional[int] = None,
+               support: Optional[SupportService] = None) -> FastAPI:
     """service: 주입하면 그대로 쓴다 (RuntimeData 를 다시 읽지 않음). None 이면 lifespan 에서 1회 생성.
     warm_biz: background warm 대상. None 이면 config.CODE_NAME 29개 전체.
     frontend_dist: Vite build(dist/) 경로. 주면 API 뒤에 정적 파일·SPA fallback 을 붙인다 (D-018).
     places: 장소 검색 프록시(12-14). None 이면 환경변수 키로 만든다(키가 없으면 기능 꺼짐).
     ai: AI 요약·질문(13-23~27). None 이면 환경변수 ANTHROPIC_API_KEY 로 만든다(키가 없으면 기능 꺼짐).
     rate_limit_per_minute: 12-9 IP 분당 제한(분석 계열·AI 경로). None 이면 frontend 를 서빙하는 운영 앱에서만
-      ANALYZE_PER_MINUTE(환경변수 API_RATE_LIMIT_PER_MINUTE 로 바꿈), 0 이면 끔."""
+      ANALYZE_PER_MINUTE(환경변수 API_RATE_LIMIT_PER_MINUTE 로 바꿈), 0 이면 끔.
+    support: 지원사업 공고 수집·캐시(13-31). None 이면 환경변수 BIZINFO_API_KEY·DATA_GO_KR_API_KEY 로 만든다(둘 다 없으면 꺼짐).
+      lifespan 에서 백그라운드 갱신(하루 1회)을 시작한다."""
     biz_codes = list(C.CODE_NAME) if warm_biz is None else list(warm_biz)
     places_client = places if places is not None else PlacesClient.from_env()
     ai_service = ai if ai is not None else AiService.from_env()
+    support_service = support if support is not None else SupportService.from_env()
     if rate_limit_per_minute is None:
         rate_limit_per_minute = int(os.environ.get("API_RATE_LIMIT_PER_MINUTE", ANALYZE_PER_MINUTE)) if frontend_dist else 0
 
@@ -495,9 +500,11 @@ def create_app(service: Optional[AnalysisService] = None, warm_biz: Optional[Ite
         app.state.stations = None                      # 13-17: 첫 /stations 때 1회 계산
         app.state.warm = WarmProgress(biz_codes)
         app.state.warm.start(app.state.service.cache)
+        support_service.start()
         try:
             yield
         finally:
+            support_service.shutdown()
             app.state.warm.shutdown()
 
     # production(frontend 서빙)에서는 API 문서를 공개하지 않는다 (D-018). 인증이 아니다 — API 자체는 그대로 public
@@ -506,6 +513,7 @@ def create_app(service: Optional[AnalysisService] = None, warm_biz: Optional[Ite
     app.add_middleware(GZipMiddleware, minimum_size=GZIP_MIN_BYTES)
     install_error_handlers(app)
     app.state.ai = ai_service
+    app.state.support = support_service
     minute_limiter = MinuteLimiter(rate_limit_per_minute) if rate_limit_per_minute > 0 else None
 
     @app.middleware("http")
@@ -574,6 +582,8 @@ def create_app(service: Optional[AnalysisService] = None, warm_biz: Optional[Ite
                 "places": {"enabled": places_client.enabled},
                 # 13-23: AI 요약·질문 광고 — enabled·예산 상태(ok|warn|closed). 금액은 내보내지 않는다
                 "ai": ai_service.health(),
+                # 13-31: 지원사업 공고 수집 상태 — 자료원별 enabled·ok·건수와 마지막 수집 시각(KST). 키·오류 원문은 내보내지 않는다
+                "support": support_service.health(),
                 "warm": warm.snapshot() if warm is not None else
                 {"completed": 0, "total": len(biz_codes), "done": False, "failed": False, "error": None}}
 
