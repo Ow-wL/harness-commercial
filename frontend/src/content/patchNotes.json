@@ -13,9 +13,12 @@
         }
       ],
       "work": [
-        "12-9: 보안 헤더 Strict-Transport-Security·X-Content-Type-Options·Referrer-Policy(strict-origin-when-cross-origin — NAVER 지도 Referer 인증 유지) 모든 응답, 테스트·smoke 검사"
+        "12-9: 보안 헤더 Strict-Transport-Security·X-Content-Type-Options·Referrer-Policy(strict-origin-when-cross-origin — NAVER 지도 Referer 인증 유지) 모든 응답, 테스트·smoke 검사",
+        "9-C5: 새 원본 자료 확인 스크립트(포털 자료 페이지 4개 읽기만, 데이터 버전 매니페스트 기준일과 비교) + 매주 GitHub Actions 확인·새 자료 이슈, 테스트"
       ],
-      "commits": []
+      "commits": [
+        "42db1d4"
+      ]
     },
     {
       "version": "v0.3.1",
@@ -59,7 +62,8 @@
         "e249795",
         "f9a7e4b",
         "e396c85",
-        "6f08ee3"
+        "6f08ee3",
+        "13488be"
       ]
     },
     {

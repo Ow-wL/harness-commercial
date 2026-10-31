@@ -1,0 +1,46 @@
+# 새 원본 자료 알림 (TASKS 9-C5) — 매주 월요일 포털 자료 페이지 4개를 읽어 마지막 데이터 버전과 비교하고, 새 자료가 있으면
+# 이슈를 연다(같은 제목의 열린 이슈가 있으면 다시 열지 않는다). 다운로드·데이터 갱신·배포는 하지 않는다 — 사람이 받아 build_version 부터.
+# 비밀정보는 쓰지 않는다. 포털이 GitHub 쪽 연결을 막거나 시간 초과시키면 "확인 실패"를 실행 요약에만 남긴다(이슈 없음).
+name: data-updates
+
+on:
+  schedule:
+    - cron: "0 0 * * 1"     # 매주 월요일 09:00 KST
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+      - name: check portals
+        id: check
+        run: |
+          set +e
+          python scripts/check_data_updates.py --exit-new --markdown report.md
+          code=$?
+          set -e
+          echo "code=$code" >> "$GITHUB_OUTPUT"
+          cat report.md >> "$GITHUB_STEP_SUMMARY"
+          if [ "$code" != 0 ] && [ "$code" != 2 ] && [ "$code" != 10 ]; then exit "$code"; fi
+          if [ "$code" = 2 ]; then echo "::warning::일부 포털 확인 실패 — 실행 요약 표 참고"; fi
+      - name: open issue (new data)
+        if: steps.check.outputs.code == '10'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          news=$(grep -F '**새 자료**' report.md | awk -F'|' '{gsub(/^ *\[|\].*$/, "", $2); gsub(/ /, "", $4); print $2 " " $4}' | paste -sd ',' - | sed 's/,/, /g')
+          title="새 원본 자료: ${news}"
+          if gh issue list --state open --search "in:title \"${title}\"" --json title --jq '.[].title' | grep -qxF "$title"; then
+            echo "이미 열린 이슈: $title"
+          else
+            gh issue create --title "$title" --body-file report.md
+          fi
