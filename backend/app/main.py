@@ -64,6 +64,7 @@ from .errors import (AI_BUDGET, AI_LIMITED, AI_UNAVAILABLE, AI_UPSTREAM, ERROR_R
                      ErrorDetail, error_json, install_error_handlers)
 from .frontend import mount_frontend
 from .places import MAX_QUERY_CHARS, PlacesClient, PlacesUpstreamError
+from .ridership import BAND_LABELS, RidershipStore
 from .support import KST, SupportService
 from .support_match import MatchProfile, match as match_support
 from scoring_engine.service import AnalysisService
@@ -141,6 +142,26 @@ class InsightsRequest(BaseModel):
     biz_code: StrictStr                                   # /analyze 와 같은 규칙 (invalid_business)
 
 
+class StationRidershipDay(BaseModel):
+    board: list[int]             # 20개 시간대(BAND_LABELS) 하루 평균 승차
+    alight: list[int]            # 하차
+    days: int                    # 평균에 쓴 날 수
+
+
+class StationRidership(BaseModel):
+    """13-41: 자료가 있는 가장 가까운 역의 시간대별 승하차(인천교통공사 노선만, 점수 무관). 1km 안에 없으면 /insights station 은 null."""
+    name: str
+    lines: str                   # 이 자료에 들어 있는 노선(예: "인천1호선") — 같은 역의 다른 운영사 노선은 없다
+    distance_m: int              # 분석 좌표에서 직선거리
+    bands: list[str]             # 시간대 이름 20개
+    weekday: StationRidershipDay
+    weekend: StationRidershipDay
+    period_from: Optional[str]
+    period_to: Optional[str]
+    source: str
+    coverage: str
+
+
 class InsightsResponse(BaseModel):
     """POST /insights 설명 자료 (13-15). 점수에 쓰이지 않는다. /analyze 응답과 분리한 이유: 배포 전부터 열려 있던 이전 화면은
     /analyze 를 strict 스키마로 검사해 모르는 필드가 오면 거절한다(Codex R1-3) — /analyze 는 v0.0.16 형태 그대로 둔다."""
@@ -151,6 +172,7 @@ class InsightsResponse(BaseModel):
     inflow: Optional[HourlyInflow]           # 시군구 행이 없으면 null
     hours_profile: Optional[list[float]]     # 엔진 config.HOUR_PROFILE[업종] (24개, 합 1) — 업종에 없으면 null
     hours_profile_note: Optional[str]        # HOURS_PROFILE_NOTE (hours_profile 이 있을 때)
+    station: Optional[StationRidership] = None   # 13-41 가까운 역 승하차(자료가 없거나 1km 밖이면 null) — 선택 필드, 이전 화면은 무시
 
 
 class AnalyzeResponse(BaseModel):
@@ -519,7 +541,7 @@ class WarmProgress:
 def create_app(service: Optional[AnalysisService] = None, warm_biz: Optional[Iterable[str]] = None,
                frontend_dist: Optional[str] = None, places: Optional[PlacesClient] = None,
                ai: Optional[AiService] = None, rate_limit_per_minute: Optional[int] = None,
-               support: Optional[SupportService] = None) -> FastAPI:
+               support: Optional[SupportService] = None, ridership: Optional[RidershipStore] = None) -> FastAPI:
     """service: 주입하면 그대로 쓴다 (RuntimeData 를 다시 읽지 않음). None 이면 lifespan 에서 1회 생성.
     warm_biz: background warm 대상. None 이면 config.CODE_NAME 29개 전체.
     frontend_dist: Vite build(dist/) 경로. 주면 API 뒤에 정적 파일·SPA fallback 을 붙인다 (D-018).
@@ -578,6 +600,33 @@ def create_app(service: Optional[AnalysisService] = None, warm_biz: Optional[Ite
     rank_lock = threading.Lock()
     rank_inflight: dict = {}                       # /rank 키 → [잠금, 참조 수] (단일 계산, 쓰는 요청이 0이 되면 지운다)
     app.state.rank_inflight = rank_inflight
+
+    ridership_state: dict = {}
+
+    def station_ridership(lat: float, lng: float) -> Optional[StationRidership]:
+        """13-41: 앱 수명 동안 1회 읽은 역 승하차 자료에서 가장 가까운 역(1km 안). 자료가 없거나 실패하면 None — 카드만 빠진다."""
+        if "store" not in ridership_state:
+            with builder_lock:
+                if "store" not in ridership_state:
+                    try:
+                        ridership_state["store"] = ridership if ridership is not None else RidershipStore.load()
+                    except Exception:                    # noqa: BLE001 — 설명 자료가 깨져도 /insights 는 응답한다
+                        logging.getLogger("backend.ridership").exception("station ridership load failed")
+                        ridership_state["store"] = None
+        store = ridership_state["store"]
+        if store is None:
+            return None
+        hit = store.nearest(app.state.service.rt.stations, lat, lng)
+        if hit is None:
+            return None
+        row, dist = hit
+        meta = store.meta
+        day = lambda d: StationRidershipDay(board=d.board, alight=d.alight, days=d.days)  # noqa: E731
+        return StationRidership(name=row.name, lines=row.lines, distance_m=int(round(dist)), bands=BAND_LABELS,
+                                weekday=day(row.weekday), weekend=day(row.weekend),
+                                period_from=(meta.get("period") or {}).get("from"), period_to=(meta.get("period") or {}).get("to"),
+                                source=(meta.get("source") or {}).get("provider", "인천교통공사"),
+                                coverage=meta.get("coverage", "인천교통공사 노선만 들어 있습니다"))
 
     def context_builder() -> ContextBuilder:
         """앱 수명 동안 1개. 동시 첫 요청이 여러 개 만들지 않도록 lock 으로 한 번만 생성한다."""
@@ -670,6 +719,7 @@ def create_app(service: Optional[AnalysisService] = None, warm_biz: Optional[Ite
             raise ApiError(INVALID_BUSINESS)
         ctx = resolve_context(req.lat, req.lng)
         out = build_insights(app.state.service.rt, req.biz_code, ctx.gu_code, ctx.gu_name)
+        out.station = station_ridership(req.lat, req.lng)
         stamp_data_version(response)
         return out
 

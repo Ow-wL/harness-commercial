@@ -50,6 +50,16 @@
 
 - 2025 2Q 인구 배분 경계 ↔ 2026 경계 대응(2026-10-24, `tests/engine_v0_5/test_engine_v0_5.py`): 이름으로 연결한 SGIS 동이 2026 동과 가장 많이 겹치는 SGIS 동이 아닌 곳은 **검단구 당하동 1곳**(2026 당하동 6.10㎢ 중 SGIS 당하동 2.32㎢가 덮는 비율 37.7%, 나머지는 SGIS 검암경서동; vuski 2024도 6.10㎢ — 출처 간 차이로 보이며 원인 미확인). 해안·섬 동은 두 경계의 바다 포함 범위가 달라 덮는 비율이 낮다(송도3동 등). 교정하지 않고 한계로 둔다(`docs/ENGINE_V0_5.md` 4장).
 
+## data/extra/ — 화면 전용 보조 자료 (점수 무관, D-040)
+
+| 파일 | 인코딩 | 크기 | 내용 | 만드는 법 |
+|---|---|---|---|---|
+| `station_ridership.csv` | utf-8 | 272행 × 25 (약 28KB) | 역(68, 괄호 부기 뗀 이름 = 엔진 `RuntimeData.stations.name`) × 평일/주말 × 승차/하차 × 20개 시간대(`lt06`·`h06`~`h23`·`ge24`) 하루 평균, `lines`(이 자료의 노선)·`days`(평균에 쓴 날 수) | `python scripts/build_station_ridership.py <인천교통공사 원본 CSV>` (원본은 저장소 밖) |
+| `station_ridership.meta.json` | utf-8 | — | 출처(공공데이터포털 15159353, 이용허락범위 제한 없음)·기간(2025-07-01~2026-06-30)·포함 노선(coverage)·방법·원본 sha256 | 같은 스크립트 |
+
+- 읽는 곳: `backend/app/ridership.py`(앱 수명 동안 1회) → `POST /insights` 의 `station`(1km 안 자료 있는 가장 가까운 역). 엔진·`data/runtime` 과 무관하고 데이터 버전(`DATA_VERSION`)을 따르지 않는다.
+- 인천교통공사 노선만이다 — 같은 역의 코레일(경인선·수인분당선)·공항철도 이용자는 없다. 코레일 광역철도 자료는 원 게시판 이용 조건이 공공누리 4유형(변경금지)이라 쓰지 않는다(`docs/DATA_FLOW_POPULATION.md`).
+
 ## data/cache/
 비어 있음. 향후 비교 모집단(reference) 디스크 캐시 위치. 캐시 키와 무효화 규칙은 `docs/ARCHITECTURE.md` 5장.
 캐시 파일은 생성물이므로 commit하지 않는다 (`.gitignore`).

@@ -185,7 +185,9 @@ def test_insights_bupyeong_inflow_matches_market_panel(client):
     r = client.post("/insights", json={**BUPYEONG, "biz_code": "R10406"})
     assert r.status_code == 200, r.text
     ins = r.json()
-    assert set(ins) == {"biz_code", "gu_code", "gu_name", "engine_version", "inflow", "hours_profile", "hours_profile_note"}
+    # 13-41: station(가까운 역 승하차, 화면 자료)이 선택 필드로 더해졌다 — 부평역 앞이라 부평역
+    assert set(ins) == {"biz_code", "gu_code", "gu_name", "engine_version", "inflow", "hours_profile", "hours_profile_note", "station"}
+    assert ins["station"]["name"] == "부평"
     assert ins["engine_version"] == analyze(client)["result"]["meta"]["엔진버전"]          # R1-9: 화면이 분석과 같은 엔진인지 대조
     assert (ins["biz_code"], ins["gu_code"], ins["gu_name"]) == ("R10406", "28237", "부평구")
     inflow = ins["inflow"]

@@ -162,6 +162,11 @@ def check_insights(fetch: Fetch, engine: str = "", data_version: str | None = No
                     "profile": len(body.get("hours_profile") or [])})
     if body.get("gu_name") != "부평구" or len(inflow.get("by_hour") or []) != 24 or len(body.get("hours_profile") or []) != 24:
         fails.append(f"/insights 부평역: {summary}")
+    if "station" in body:                        # 13-41: 이 필드가 있는 리비전이면 부평역 앞은 부평역(20개 시간대)이어야 한다
+        st = body.get("station") or {}
+        summary["station"] = [st.get("name"), len(st.get("bands") or [])]
+        if summary["station"] != ["부평", 20]:
+            fails.append(f"/insights 부평역 가까운 역: {summary['station']} (기대 부평·20)")
     keys = sorted(json.loads(fetch("/analyze", BUPYEONG)[2]))
     summary["analyze_keys"] = keys
     if keys != ["context", "result"]:

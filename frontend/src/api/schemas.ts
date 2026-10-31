@@ -376,6 +376,22 @@ export const HourlyInflowSchema = z.object({
   by_hour: z.array(z.number()).length(24),
   work_ratio: z.number().nullable(),
 })
+/** 13-41: 자료가 있는 가장 가까운 역의 시간대별 승하차(인천교통공사 노선만, 하루 평균, 점수 무관) */
+const StationRidershipDaySchema = z.object({ board: z.array(z.number()), alight: z.array(z.number()), days: z.number() })
+export const StationRidershipSchema = z.object({
+  name: z.string(),
+  lines: z.string(),
+  distance_m: z.number(),
+  bands: z.array(z.string()),
+  weekday: StationRidershipDaySchema,
+  weekend: StationRidershipDaySchema,
+  period_from: z.string().nullable(),
+  period_to: z.string().nullable(),
+  source: z.string(),
+  coverage: z.string(),
+})
+export type StationRidership = z.infer<typeof StationRidershipSchema>
+
 export const InsightsResponseSchema = z.object({
   biz_code: z.string(),
   gu_code: z.string(),
@@ -384,6 +400,7 @@ export const InsightsResponseSchema = z.object({
   inflow: HourlyInflowSchema.nullable(),
   hours_profile: z.array(z.number()).length(24).nullable(),
   hours_profile_note: z.string().nullable(),
+  station: StationRidershipSchema.nullable().optional(),   // 13-41: 1km 안에 자료 있는 역이 없거나 이전 서버면 없음
 })
 export type InsightsResponse = z.infer<typeof InsightsResponseSchema>
 /** 시간대 읽기(lib/timeInsights)가 쓰는 부분 */

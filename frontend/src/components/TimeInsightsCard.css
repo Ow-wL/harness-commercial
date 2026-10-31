@@ -113,3 +113,64 @@
     margin: 14px 16px 0;
   }
 }
+
+/* 13-41 가까운 역 시간대별 승하차 (DESIGN §20 시간대 카드 안) */
+.time-card__station {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--color-border);
+}
+
+.time-card__station-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+}
+
+.time-card__station-title {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.time-card__station-lines {
+  font-weight: 500;
+  font-size: 11px;
+  color: var(--color-text-muted);
+}
+
+.time-card__daytype {
+  display: inline-flex;
+  gap: 4px;
+  margin-left: auto;
+}
+
+.time-card__daybtn {
+  min-height: 28px;
+  padding: 0 10px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface);
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+
+.time-card__daybtn[aria-pressed='true'] {
+  border-color: var(--color-accent);
+  background: var(--color-accent-subtle);
+  color: var(--color-accent);
+  font-weight: 600;
+}
+
+.time-card__station .time-chart {
+  margin-top: 8px;
+}
+
+@media print {
+  .time-card__daytype {
+    display: none !important;
+  }
+}

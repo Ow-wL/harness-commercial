@@ -9,23 +9,26 @@
       "changes": [
         {
           "type": "added",
-          "text": "분석 결과에 업종·지역에 맞는 지원사업 공고를 마감일·신청 링크와 함께 보여 줍니다(출처: 기업마당·K-Startup)."
-        },
-        {
-          "type": "added",
-          "text": "\"내 상황\"(창업 단계·청년·우대 조건)을 고르면 공고가 더 좁혀집니다. 선택은 이 브라우저에만 저장됩니다."
+          "text": "업종·지역·내 상황에 맞는 지원사업 공고를 마감일·신청 링크와 함께 보여 줍니다(출처: 기업마당·K-Startup)."
         },
         {
           "type": "added",
           "text": "AI 요약과 질문 답변이 조건에 맞는 지원사업 공고를 함께 짚어 줍니다(카드에 있는 공고만)."
+        },
+        {
+          "type": "added",
+          "text": "시간대 카드에 가까운 지하철역(인천1·2호선·7호선)의 평일·주말 시간대별 승하차를 보여 줍니다(점수와 무관)."
         }
       ],
       "work": [
         "13-33(DESIGN §22): SupportCard·lib/useSupport·content/support.ts, /health support 광고 때만 POST /support/match(업종·구·프로필), ProfileFields 분리(질문 창과 공유)·lib/profile 같은 탭 변경 알림, 보관함 스냅샷 support(공고 제목 3개), api/client 본문 읽기 중 취소를 스키마 오류로 남기던 결함 수정",
-        "13-34: AI 입력에 지원사업 후보(요약 3·질문 5, /support/match 규칙), 프롬프트 r3-1, 목록 밖 공고 언급 서버 검사(요약 항목 제거·답변 안내 문구), 요약 캐시 키에 후보 해시, 근거 지원사업_후보 → \"조건에 맞는 지원사업\""
+        "13-34: AI 입력에 지원사업 후보(요약 3·질문 5, /support/match 규칙), 프롬프트 r3-1, 목록 밖 공고 언급 서버 검사(요약 항목 제거·답변 안내 문구), 요약 캐시 키에 후보 해시, 근거 지원사업_후보 → \"조건에 맞는 지원사업\"",
+        "13-40·13-41(D-040): 유동인구 공개 자료 조사(인천 행정동 시간대 없음) → 인천교통공사 역별 시간대 승하차를 data/extra 화면 자료로(scripts/build_station_ridership.py, backend/app/ridership.py, /insights station, StationRidershipBlock). 코레일 자료는 공공누리 4유형이라 제외"
       ],
       "commits": [
-        "65c9169"
+        "65c9169",
+        "5919111",
+        "4364cb1"
       ]
     },
     {

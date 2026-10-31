@@ -1,6 +1,7 @@
 import type { AnalyzeResponse, InsightsResponse } from '../api/schemas.ts'
 import { readTime } from '../lib/timeInsights.ts'
 import { TIME_BANDS } from '../content/timeInsights.ts'
+import { StationRidershipBlock } from './StationRidershipBlock.tsx'
 import './TimeInsightsCard.css'
 
 const fmt = (v: number) => Math.round(v).toLocaleString('ko-KR')
@@ -105,6 +106,7 @@ export function TimeInsightsCard({ analysis, insights }: { analysis: AnalyzeResp
           </p>
         </div>
       </div>
+      {insights.station && <StationRidershipBlock station={insights.station} />}
     </section>
   )
 }

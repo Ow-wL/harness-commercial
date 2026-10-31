@@ -46,6 +46,8 @@ COPY scoring_engine/ scoring_engine/
 COPY backend/__init__.py backend/
 COPY backend/app/ backend/app/
 COPY data/runtime/ data/runtime/
+# 13-41 화면 자료(역 시간대별 승하차 집계, 점수 무관) — backend/app/ridership.py
+COPY data/extra/ data/extra/
 COPY ["data/geo/인천_행정동경계_2026.geojson", "data/geo/"]
 # 엔진 v0.5 인구 면적 배분용 SGIS 2025년 2분기 경계(D-028). 지도·행정동 판정용 2026 경계와 별개 — v0.3·v0.4 는 읽지 않는다
 COPY ["data/geo/SGIS_행정동경계_2025_2Q_인천.geojson", "data/geo/"]
