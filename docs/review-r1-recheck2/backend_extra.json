@@ -1,0 +1,24 @@
+{
+  "differentKeys": {
+    "bothEnteredBeforeRelease": true,
+    "maxParallel": 2,
+    "calls": 58,
+    "cacheSize": 2,
+    "inflightEmpty": true
+  },
+  "allFailThenRecover": {
+    "errors": 5,
+    "calls": 5,
+    "inflightEmpty": true,
+    "cacheSize": 0,
+    "recoveredCalls": 34,
+    "inflightEmptyAfterRecovery": true
+  },
+  "responseBuildFailure": {
+    "calls": 29,
+    "inflightEmpty": true,
+    "cacheSize": 0,
+    "recoveredCalls": 58,
+    "inflightEmptyAfterRecovery": true
+  }
+}

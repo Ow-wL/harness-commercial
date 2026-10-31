@@ -1,0 +1,52 @@
+[
+  {
+    "mode": "matching",
+    "rankFails": [],
+    "insightsFails": []
+  },
+  {
+    "mode": "data-forward",
+    "rankFails": [
+      "/rank 부평역: X-Data-Version 2099-01 (기대 2026-06)"
+    ],
+    "insightsFails": [
+      "/insights 부평역: X-Data-Version 2099-01 (기대 2026-06)"
+    ]
+  },
+  {
+    "mode": "data-reverse",
+    "rankFails": [
+      "/rank 부평역: X-Data-Version 2026-06 (기대 2099-01)"
+    ],
+    "insightsFails": [
+      "/insights 부평역: X-Data-Version 2026-06 (기대 2099-01)"
+    ]
+  },
+  {
+    "mode": "engine-only",
+    "rankFails": [
+      "/rank 부평역: engine_version mvp-0.5 (기대 mvp-0.5.1)"
+    ],
+    "insightsFails": [
+      "/insights 부평역: engine_version mvp-0.5 (기대 mvp-0.5.1)"
+    ]
+  },
+  {
+    "mode": "missing-data",
+    "rankFails": [
+      "/rank 부평역: X-Data-Version None (기대 2026-06)"
+    ],
+    "insightsFails": [
+      "/insights 부평역: X-Data-Version None (기대 2026-06)"
+    ]
+  },
+  {
+    "mode": "missing-engine",
+    "rankFails": [
+      "/rank 부평역: engine_version None (기대 mvp-0.5.1)"
+    ],
+    "insightsFails": [
+      "/insights 부평역: engine_version None (기대 mvp-0.5.1)"
+    ]
+  }
+]

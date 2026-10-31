@@ -1,0 +1,34 @@
+{
+  "normal": {
+    "requests": 3,
+    "analyze_calls": 29,
+    "expected": 29,
+    "inflight_empty": true
+  },
+  "failure_race": {
+    "statuses": {
+      "first": "RuntimeError",
+      "second": "success",
+      "third": "success"
+    },
+    "lock_missing_while_waiter_computes": false,
+    "third_computes_while_second_blocked": false,
+    "max_parallel_analyze": 1,
+    "analyze_calls": 30,
+    "single_success_plus_failure_expected": 30,
+    "inflight_empty": true,
+    "refs_while_second": 1,
+    "refs_with_third_waiting": 2
+  },
+  "insights_500": {
+    "status": 500,
+    "body": {
+      "error": {
+        "code": "internal_error",
+        "message": "서버 내부 오류가 발생했습니다.",
+        "request_id": "46a965c9fc0f4e56a01c4723a5003c4d"
+      }
+    },
+    "leaks_details": false
+  }
+}

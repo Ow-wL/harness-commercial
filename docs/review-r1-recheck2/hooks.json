@@ -1,0 +1,68 @@
+[
+  {
+    "kind": "rank",
+    "mode": "data-forward",
+    "requestsAfter15SameTokenRerenders": 1,
+    "requestsAfterRemount": 2,
+    "requestsAfterNewTokenStale": 3,
+    "recovered": "success",
+    "totalRequests": 4,
+    "renders": 24,
+    "matchingCacheReused": true
+  },
+  {
+    "kind": "rank",
+    "mode": "data-reverse",
+    "requestsAfter15SameTokenRerenders": 1,
+    "requestsAfterRemount": 2,
+    "requestsAfterNewTokenStale": 3,
+    "recovered": "success",
+    "totalRequests": 4,
+    "renders": 24,
+    "matchingCacheReused": true
+  },
+  {
+    "kind": "rank",
+    "mode": "engine-only",
+    "requestsAfter15SameTokenRerenders": 1,
+    "requestsAfterRemount": 2,
+    "requestsAfterNewTokenStale": 3,
+    "recovered": "success",
+    "totalRequests": 4,
+    "renders": 24,
+    "matchingCacheReused": true
+  },
+  {
+    "kind": "insights",
+    "mode": "data-forward",
+    "requestsAfter15SameTokenRerenders": 1,
+    "requestsAfterRemount": 2,
+    "requestsAfterNewTokenStale": 3,
+    "recovered": "success",
+    "totalRequests": 4,
+    "renders": 24,
+    "matchingCacheReused": true
+  },
+  {
+    "kind": "insights",
+    "mode": "data-reverse",
+    "requestsAfter15SameTokenRerenders": 1,
+    "requestsAfterRemount": 2,
+    "requestsAfterNewTokenStale": 3,
+    "recovered": "success",
+    "totalRequests": 4,
+    "renders": 24,
+    "matchingCacheReused": true
+  },
+  {
+    "kind": "insights",
+    "mode": "engine-only",
+    "requestsAfter15SameTokenRerenders": 1,
+    "requestsAfterRemount": 2,
+    "requestsAfterNewTokenStale": 3,
+    "recovered": "success",
+    "totalRequests": 4,
+    "renders": 24,
+    "matchingCacheReused": true
+  }
+]

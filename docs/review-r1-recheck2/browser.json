@@ -1,0 +1,97 @@
+{
+  "cases": [
+    {
+      "mode": "data-forward",
+      "stale": {
+        "analysis": "분석 결과 · 반경 500m · 데이터 묶음 2026-06",
+        "rankItems": 0,
+        "timeCards": 0,
+        "notice": "서버의 자료가 이 결과를 만든 뒤 바뀌어 순위를 함께 보이지 않습니다. 다시 분석하면 같은 자료로 맞춰집니다. 다시 분석",
+        "calls": {
+          "analyze": 1,
+          "rank": 1,
+          "insights": 1
+        },
+        "callsAfterWait": {
+          "analyze": 1,
+          "rank": 1,
+          "insights": 1
+        }
+      },
+      "recovered": {
+        "score": "62.3\n/ 100\n등급\n보통",
+        "rankItems": 6,
+        "timeCards": 1,
+        "calls": {
+          "analyze": 2,
+          "rank": 2,
+          "insights": 2
+        }
+      }
+    },
+    {
+      "mode": "data-reverse",
+      "stale": {
+        "analysis": "분석 결과 · 반경 500m · 데이터 묶음 2099-01",
+        "rankItems": 0,
+        "timeCards": 0,
+        "notice": "서버의 자료가 이 결과를 만든 뒤 바뀌어 순위를 함께 보이지 않습니다. 다시 분석하면 같은 자료로 맞춰집니다. 다시 분석",
+        "calls": {
+          "analyze": 1,
+          "rank": 1,
+          "insights": 1
+        },
+        "callsAfterWait": {
+          "analyze": 1,
+          "rank": 1,
+          "insights": 1
+        }
+      },
+      "recovered": {
+        "score": "62.3\n/ 100\n등급\n보통",
+        "rankItems": 6,
+        "timeCards": 1,
+        "calls": {
+          "analyze": 2,
+          "rank": 2,
+          "insights": 2
+        }
+      }
+    },
+    {
+      "mode": "engine-only",
+      "stale": {
+        "analysis": "분석 결과 · 반경 500m · 데이터 묶음 2026-06",
+        "rankItems": 0,
+        "timeCards": 0,
+        "notice": "서버의 자료가 이 결과를 만든 뒤 바뀌어 순위를 함께 보이지 않습니다. 다시 분석하면 같은 자료로 맞춰집니다. 다시 분석",
+        "calls": {
+          "analyze": 1,
+          "rank": 1,
+          "insights": 1
+        },
+        "callsAfterWait": {
+          "analyze": 1,
+          "rank": 1,
+          "insights": 1
+        }
+      },
+      "recovered": {
+        "score": "62.3\n/ 100\n등급\n보통",
+        "rankItems": 6,
+        "timeCards": 1,
+        "calls": {
+          "analyze": 2,
+          "rank": 2,
+          "insights": 2
+        }
+      }
+    }
+  ],
+  "errors": [],
+  "previous404": {
+    "score": "62.3\n/ 100\n등급\n보통",
+    "rankItems": 0,
+    "timeCards": 0
+  }
+}
