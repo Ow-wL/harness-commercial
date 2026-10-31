@@ -68,7 +68,7 @@ def test_incheon_and_same_gu_first_other_gu_excluded():
     assert items[0]["reasons"][:3] == ["인천 공고", "부평구 공고", "소상공인 대상"]
     assert total == 3
     assert "[인천] 남동구 소상공인 보증" in titles(run(ps, gu="남동구")[1])
-    assert "[인천] 남동구 소상공인 보증" not in titles(run(ps, gu="동구")[1])
+    assert "[인천] 남동구 소상공인 보증" not in titles(run(ps, gu="제물포구")[1])         # "동구"로 잘못 읽지 않는다
     assert len(run(ps)[1]) == 4                                                       # 구를 모르면 구로 거르지 않는다
 
 
@@ -186,3 +186,31 @@ def test_other_place_institutions_excluded_for_nationwide_only():
         prog(5, "[인천] 강서 소상공인 교류", nationwide=False),                       # 인천 공고는 이 규칙 대상 아님
     ]
     assert sorted(titles(run(ps)[1])) == sorted(["소상공인 안성맞춤 상권 컨설팅", "(부천) 소상공인 창업 공간", "[인천] 강서 소상공인 교류"])
+
+
+def test_reformed_gu_names_and_old_names_in_titles():
+    """2026-07-01 개편: 사용자 구는 새 이름(제물포·영종·서해·검단구), 공고 제목에는 옛 이름(중구·동구·서구)이 남아 있을 수 있다."""
+    ps = [
+        prog(1, "[인천] 중구 2026년 소상공인 특례보증", nationwide=False),
+        prog(2, "[인천] 서구 소상공인 경영 지원", nationwide=False),
+        prog(3, "[인천] 서해구 골목상권 지원", nationwide=False),
+    ]
+    jm = run(ps, gu="제물포구")
+    assert "[인천] 중구 2026년 소상공인 특례보증" in titles(jm[1]) and "[인천] 서구 소상공인 경영 지원" not in titles(jm[1])
+    assert "제물포구 공고" in jm[1][0]["reasons"]
+    sh = titles(run(ps, gu="서해구")[1])
+    assert set(sh) == {"[인천] 서구 소상공인 경영 지원", "[인천] 서해구 골목상권 지원"}
+    assert set(titles(run(ps, gu="검단구")[1])) == {"[인천] 서구 소상공인 경영 지원"}
+
+
+def test_gu_lists_match_engine_panel(real_service):
+    """규칙 표·서버 요청 형식·프런트 목록이 엔진 자료의 구 이름(분석 응답 context.gu_name 의 출처)과 같아야 한다."""
+    import re
+    from typing import get_args
+    engine = set(real_service.rt.panel["시군구명"])
+    assert set(load_rules()["incheon_gu"]) == engine
+    assert set(get_args(M.IncheonGu)) == engine
+    from pathlib import Path
+    ts = (Path(M.__file__).resolve().parents[2] / "frontend" / "src" / "content" / "support.ts").read_text(encoding="utf-8")
+    front = set(re.findall(r"'([가-힣]+[구군])'", ts.split("INCHEON_GU = [", 1)[1].split("]", 1)[0]))
+    assert front == engine

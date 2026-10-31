@@ -44,9 +44,15 @@ def biz_pattern(biz_code: str, biz_name: str, rules: dict[str, Any]) -> str:
     return "|".join(parts + ([extra] if extra else []))
 
 
-def _gu_in(title: str, gus: list[str]) -> list[str]:
-    alt = "|".join(sorted(map(re.escape, gus), key=len, reverse=True))     # 남동구가 동구보다 먼저
-    return [m.group(0) for m in re.finditer(alt, title)]
+def _gu_in(title: str, gus: list[str], aliases: Optional[dict] = None) -> set[str]:
+    """공고명에 나온 인천 구(개편 뒤 이름). 개편 전 이름(중구·동구·서구)은 gu_aliases 로 새 구들로 넓힌다."""
+    aliases = {k: v for k, v in (aliases or {}).items() if isinstance(v, list)}
+    names = list(gus) + list(aliases)
+    alt = "|".join(sorted(map(re.escape, names), key=len, reverse=True))   # 남동구가 동구보다 먼저
+    found: set[str] = set()
+    for m in re.finditer(alt, title):
+        found.update(aliases.get(m.group(0), [m.group(0)]))
+    return found
 
 
 def _other_place(title: str, names: str) -> bool:
@@ -86,7 +92,7 @@ def match(programs: list[Program], biz_code: str, biz_name: str, gu: Optional[st
         op = ex.get("other_place_in_title")
         if p.nationwide and op and _other_place(title, op["names"]):
             continue
-        gus = _gu_in(title, R["incheon_gu"]) if not p.nationwide else []
+        gus = _gu_in(title, R["incheon_gu"], R.get("gu_aliases")) if not p.nationwide else set()
         if gu and gus and gu not in gus:
             continue
         if stage_rule:

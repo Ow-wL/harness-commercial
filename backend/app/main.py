@@ -272,7 +272,8 @@ class AskRequest(BaseModel):
     profile: Optional[AskProfile] = None
 
 
-IncheonGu = Literal["중구", "동구", "미추홀구", "연수구", "남동구", "부평구", "계양구", "서구", "강화군", "옹진군"]
+# 2026-07-01 인천 행정체제 개편 뒤 11개 구·군 — 엔진 context.gu_name 과 같은 이름(v0.3.1 바로잡음: 개편 전 이름이었다)
+IncheonGu = Literal["강화군", "검단구", "계양구", "남동구", "미추홀구", "부평구", "서해구", "연수구", "영종구", "옹진군", "제물포구"]
 
 
 class SupportMatchRequest(BaseModel):

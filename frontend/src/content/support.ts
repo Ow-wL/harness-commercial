@@ -14,7 +14,8 @@ export const SUPPORT_TEXT = {
 } as const
 
 /** 서버가 받는 인천 구·군 이름(backend SupportMatchRequest.gu) — 분석 응답의 context.gu_name 이 이 밖이면 구 없이 묻는다 */
-export const INCHEON_GU = ['중구', '동구', '미추홀구', '연수구', '남동구', '부평구', '계양구', '서구', '강화군', '옹진군'] as const
+/** 2026-07-01 행정체제 개편 뒤 11개 구·군 (v0.3.1 바로잡음 — 개편 전 이름이라 제물포·영종·서해·검단구 사용자는 구 없이 물었다) */
+export const INCHEON_GU = ['강화군', '검단구', '계양구', '남동구', '미추홀구', '부평구', '서해구', '연수구', '영종구', '옹진군', '제물포구'] as const
 
 export const SUPPORT_SOURCE_NAME: Record<string, string> = { bizinfo: '기업마당', kstartup: 'K-Startup' }
 
