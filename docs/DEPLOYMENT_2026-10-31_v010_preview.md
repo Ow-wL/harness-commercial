@@ -1,4 +1,4 @@
-# 배포 후보 무트래픽 검증 — 앱 v0.1.0 + 엔진 v0.5.1 (2026-10-31)
+# 배포 후보 검증·운영 전환 — 앱 v0.1.0 + 엔진 v0.5.1 (2026-10-31 무트래픽 검증 1~7장 · **운영 전환 8장**)
 
 배포 후보 = v0.0.16 운영본 + R1 대시보드 리디자인(`docs/IMPROVEMENT_PLAN_2026-10-30.md` 4장, `docs/TASKS.md` 13-10~13-22) + Codex 검수 수정(R1-1~R1-10, `docs/CODEX_REVIEW_2026-10-31_v010.md` — 3회 검수 → 재검수 → 2차 재검수 통과) + 무트래픽 검증에서 찾은 수정 1건(13-22-D1). 사용자 지시 "푸시 + 무트래픽 배포". 이 문서 시점의 운영 트래픽은 `<서비스>-ef32cc5-v051`(앱 v0.0.16) 100% 그대로다. 장소 이름 검색은 서버 키가 없어 **꺼진 상태**.
 
@@ -36,3 +36,9 @@
 - 전환: `gcloud run services update-traffic <서비스> --project <프로젝트> --region asia-northeast3 --to-revisions <서비스>-2542152-v051=100` → 등록 운영 주소 확인 + `smoke_api.py check <운영 주소>`(같은 기대값) → `deployments` 운영 전환 기록 → CLAUDE.md·TASKS·README 현재 운영 상태 갱신.
 - 복구: `--to-revisions <서비스>-ef32cc5-v051=100`(v0.0.16). v0.1.0 화면이 열린 채 복구되면 `/rank`·`/insights` 404 로 두 카드만 빠지고 분석은 유지된다(R1-3, Codex 재검수에서 이전 backend 로 확인).
 - 작업 파일: `.gstack/deploy-f047257/`·`.gstack/deploy-2542152/`(git 제외 — build·push·deploy 로그, 서비스·리비전 JSON, 기대값·smoke 결과).
+
+## 8. 운영 전환 (2026-10-31 08:39 KST, 사용자 승인 "전환 진행")
+- `gcloud run services update-traffic … --to-revisions <서비스>-2542152-v051=100`. 전환 전 `ef32cc5-v051` 100% 확인, 전환 뒤 spec·status 모두 `2542152-v051` 100%(`preview`·`verify-*` 태그는 그대로).
+- 운영 주소 `smoke_api.py check`(같은 기대값) **SMOKE PASSED**: warm 87/87, 48건 불일치 0(지연 최소 102 · 중앙값 126 · 최대 269ms), `/rank` 29개 기대값 일치(캐시 적중 80ms), `/insights` 200·`/analyze` 키 `context`·`result`, 보조 응답 버전·헤더·정적 경로 검사 통과.
+- 등록 운영 주소 화면(인증 성공, 1366×768): 부평역 PC방 공유 링크 — 대시보드, 다섯 관점 행 하단 444~600 ≤ 스크롤 영역 666, 한 줄 결론 "고객성은 좋은 편이지만, 경쟁성이 약한 자리예요(참고: 반경 500m 안 같은 업종 12곳).", 순위 6행, 시간대 카드 "몰리는 편", 업데이트 내역 v0.1.0, 콘솔 오류 0. 전환 뒤 30분 리비전 ERROR·5xx 0.
+- 복구 대상: `--to-revisions <서비스>-ef32cc5-v051=100`(v0.0.16).
