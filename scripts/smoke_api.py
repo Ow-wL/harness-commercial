@@ -201,11 +201,16 @@ def check_static(fetch: Fetch) -> list[str]:
                        ("/insights", 405),                      # 13-15: POST 전용
                        ("/summary", 405), ("/ask", 405),        # R2 13-23·13-24: POST 전용
                        ("/support/match", 405)]:                # R3 13-32: POST 전용
-        s, _, d, _ = fetch(path)
+        s, h, d, _ = fetch(path)
         if s != want:
             fails.append(f"{path}: {s} (기대 {want})")
         if path == "/":
             html = d.decode("utf-8", errors="replace")
+            # 12-9 보안 헤더(v0.3.2 부터). 이전 리비전(헤더 없음)은 nosniff 가 없으면 건너뛴다
+            hdr = {k.lower(): v for k, v in (h or {}).items()}
+            if "x-content-type-options" in hdr and (hdr.get("referrer-policy") != "strict-origin-when-cross-origin"
+                                                    or not hdr.get("strict-transport-security")):
+                fails.append(f"/ 보안 헤더: {[hdr.get('referrer-policy'), hdr.get('strict-transport-security')]}")
     want_geo = {hashlib.sha256((ROOT / "data" / "geo" / f).read_bytes()).hexdigest() for f in GEOJSON}
     got_geo = set()
     assets = re.findall(r'(?:src|href)="(/assets/[^" ]+)"', html)

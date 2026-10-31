@@ -3,6 +3,21 @@
   "renumbered_until": "v0.0.10",
   "releases": [
     {
+      "version": "v0.3.2",
+      "date": "2026-11-01",
+      "title": "보안 헤더와 자료 갱신 준비",
+      "changes": [
+        {
+          "type": "improved",
+          "text": "브라우저 보안 설정(HTTPS 고정·파일 형식 고정·참조 정보 제한)을 모든 응답에 적용했습니다."
+        }
+      ],
+      "work": [
+        "12-9: 보안 헤더 Strict-Transport-Security·X-Content-Type-Options·Referrer-Policy(strict-origin-when-cross-origin — NAVER 지도 Referer 인증 유지) 모든 응답, 테스트·smoke 검사"
+      ],
+      "commits": []
+    },
+    {
       "version": "v0.3.1",
       "date": "2026-11-01",
       "title": "자료 갱신과 운영 정비",

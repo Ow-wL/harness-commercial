@@ -166,3 +166,13 @@ def test_production_app_default_minute_limit_allows_smoke_volume(real_service, d
         codes = [c.post("/analyze", json={"lat": 37.4894, "lng": 126.7246, "biz_code": "NOPE"}).status_code
                  for _ in range(M.ANALYZE_PER_MINUTE + 1)]
     assert codes[:M.ANALYZE_PER_MINUTE].count(429) == 0 and codes[-1] == 429
+
+
+def test_security_headers_on_pages_assets_api_and_errors(client):
+    """12-9: 화면·정적 파일·API·오류 응답 모두 보안 헤더. Referrer-Policy 는 NAVER 지도 인증을 위해 출처(도메인)를 보내는 값."""
+    for res in (client.get("/"), client.get("/assets/index-abc.js"), client.get("/health"),
+                client.post("/analyze", json={"lat": 37.5665, "lng": 126.978, "biz_code": "R10406"}),   # 422
+                client.get("/no-such.js")):                                                              # 404
+        assert res.headers["strict-transport-security"] == "max-age=31536000"
+        assert res.headers["x-content-type-options"] == "nosniff"
+        assert res.headers["referrer-policy"] == "strict-origin-when-cross-origin"

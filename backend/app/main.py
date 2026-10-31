@@ -443,6 +443,11 @@ def station_list(stations_df) -> list[Station]:
 
 
 # 12-9 분당 제한 대상(POST) — 분석 계열과 AI
+SECURITY_HEADERS = {                     # 12-9 (v0.3.2)
+    "Strict-Transport-Security": "max-age=31536000",
+    "X-Content-Type-Options": "nosniff",
+    "Referrer-Policy": "strict-origin-when-cross-origin",
+}
 SUMMARY_SUPPORT_CANDIDATES = 3     # 13-34: AI 요약에 넣는 지원사업 후보 수(프로필 없이 업종·구 기준)
 ASK_SUPPORT_CANDIDATES = 5         # 13-34: AI 질문에 넣는 후보 수(내 상황 포함 — 지원사업 카드와 같은 5건)
 LIMITED_PATHS = frozenset({"/analyze", "/nearby-stores", "/rank", "/insights", "/summary", "/ask", "/support/match"})
@@ -585,6 +590,15 @@ def create_app(service: Optional[AnalysisService] = None, warm_biz: Optional[Ite
     app.state.ai = ai_service
     app.state.support = support_service
     minute_limiter = MinuteLimiter(rate_limit_per_minute) if rate_limit_per_minute > 0 else None
+
+    @app.middleware("http")
+    async def security_headers(request: Request, call_next):
+        """12-9: 모든 응답(API·화면·오류)에 보안 헤더. Referrer-Policy 는 NAVER 지도 인증(Referer 의 도메인)이 동작하도록
+        다른 사이트에는 출처(도메인)만 보내는 브라우저 기본값을 명시한다 — no-referrer 는 지도 인증을 깨뜨린다. CSP 는 별도 단위."""
+        response = await call_next(request)
+        for k, v in SECURITY_HEADERS.items():
+            response.headers.setdefault(k, v)
+        return response
 
     @app.middleware("http")
     async def rate_limit(request: Request, call_next):
