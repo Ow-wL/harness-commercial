@@ -1,4 +1,4 @@
-# 배포 후보 무트래픽 검증 — 앱 v0.2.0 + 엔진 v0.5.1 (2026-10-31, AI 요약·질문)
+# 배포 후보 무트래픽 검증 — 앱 v0.2.0 + 엔진 v0.5.1 (2026-10-31, AI 요약·질문 · **운영 전환 7장**)
 
 배포 후보 = v0.1.1 운영본(`0cfb689`) + R2 AI 요약·질문(`docs/TASKS.md` 13-23~13-29, D-037) + 운영 비용 점검의 배포 스크립트·AI 하루 상한(13-C, D-038) + 분당 제한 기본값 수정(`9d22d1c`). 사용자 지시 "다음 단계 진행해줄래?"(v0.2.0 무트래픽 → 실제 AI 평가 → 화면 → 기록 → 전환 승인 요청). 이 문서 시점의 운영 트래픽은 `<서비스>-0cfb689-v051`(앱 v0.1.1) 100% 그대로다. 배포는 `scripts/deploy_cloud_run.py`(D-038)로만 했다.
 
@@ -41,3 +41,11 @@
 - 복구: `python scripts/deploy_cloud_run.py rollback <서비스>-0cfb689-v051 --apply`(v0.1.1).
 - 운영 주의: AI 상태(월·하루 집계, IP 한도)는 컨테이너 `/tmp` — 재배포·재시작 때 초기화(D-037 한계). 월 $30 의 마지막 안전장치는 Anthropic Console 조직 지출 한도 US$30.
 - 작업 파일: `.gstack/deploy-9d22d1c/`(git 제외).
+
+## 7. 운영 전환 (2026-10-31 23:37 KST, 사용자 승인 "전환 진행")
+- `python scripts/deploy_cloud_run.py switch <서비스>-9d22d1c-v051 --apply` = `update-traffic --to-revisions <서비스>-9d22d1c-v051=100` + `services update --min 1`(서비스 단위 최소 1 — A 설정, 새 리비전 안 생김). 전환 전 `0cfb689-v051` 100% 확인, 전환 뒤 status `9d22d1c-v051` 100%·서비스 `minScale` 1·리비전 최대 1.
+- 운영 주소 `smoke_api.py check`(같은 기대값) **SMOKE PASSED**: warm 87/87, 48건 불일치 0(지연 최소 108 · 중앙값 120 · 최대 187ms), `/rank` 29개 일치, `/health ai` enabled·budget ok.
+- 등록 운영 주소 화면: 지도 인증 성공, 공유 링크 부평역 PC방 500m 점수 62.3·AI 요약 카드 세 구역, 번들에 v0.2.0·"AI에게 질문", 콘솔 오류 0. 질문 창 정상 답변은 이 PC 의 오늘 질문 한도 소진으로 미확인(5장).
+- 전환 직후 리비전 ERROR·5xx·429 0.
+- 복구: `python scripts/deploy_cloud_run.py rollback <서비스>-0cfb689-v051 --apply`(v0.1.1).
+- 남은 것: `preview` 태그는 운영 리비전에 붙어 있어 추가 비용 없음(같은 인스턴스). AI 사용량은 Anthropic Console 에서 며칠 지켜본다.
