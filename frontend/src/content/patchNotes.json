@@ -25,7 +25,17 @@
         "13-25 KST 월 비용 집계 $30(80% 경고·100% 닫힘), IP 하루 /ask 10·/summary 새 20, 12-9 분석 계열·AI POST 분당 240(운영 앱만, smoke 110건/분 때문에 계획 30에서 조정), 오류 code ai_limited·ai_budget·ai_upstream·invalid_question·rate_limited",
         "13-27 로그 JSONL 30일(좌표·IP 없음), 13-28 scripts/eval_ai.py(키 있을 때만 실제 호출), 프런트 AiSummaryCard·AskDialog·lib/profile·lib/useSummary(useSideRequest 버전 대조), 오류 스키마에 새 code, smoke_api /summary·/ask 405·키 없음 503"
       ],
-      "commits": []
+      "commits": [
+        "5f7793f",
+        "8af2e5c",
+        "076820d",
+        "ad36633",
+        "547dc06",
+        "15d1dbf",
+        "db2a2ef",
+        "251930d",
+        "9d22d1c"
+      ]
     },
     {
       "version": "v0.1.1",
@@ -870,6 +880,26 @@
       "source_commit": "0cfb689",
       "engine": "mvp-0.5.1",
       "note": "운영 트래픽 100% 전환 — 보관함의 저장 당시 요약(등급·결론·규제·점수가 높은 업종), 비교 요약 거미줄, 인쇄 요약 카드, 첫 방문 안내 한 번의 흐름. 운영 API 48건 대조·화면 확인 뒤 기록. 장소 이름 검색은 서버 키가 없어 꺼진 채"
+    },
+    {
+      "id": "2026-10-31-verification-251930d",
+      "date": "2026-10-31",
+      "kind": "verification",
+      "result": "failed",
+      "app_version": "v0.2.0",
+      "source_commit": "251930d",
+      "engine": "mvp-0.5.1",
+      "note": "API 대조가 분당 요청 제한(설정값이 결정과 달리 30회로 남음)에 걸려 중단 — 수정 뒤 다시 검증. 운영 트래픽은 바꾸지 않음"
+    },
+    {
+      "id": "2026-10-31-verification-9d22d1c",
+      "date": "2026-10-31",
+      "kind": "verification",
+      "result": "passed",
+      "app_version": "v0.2.0",
+      "source_commit": "9d22d1c",
+      "engine": "mvp-0.5.1",
+      "note": "API 48건(v0.1.1 기대값과 동일 — 점수 변경 없음)·업종 순위·시간대 통과, 실제 AI 요약·질문 평가 10사례(수치 일치 99%·금지 표현 0·자료 밖 질문 거절 10/10), 지도 인증 성공 상태의 AI 요약 카드·질문 창 확인. 운영 트래픽은 바꾸지 않음"
     }
   ]
 }
