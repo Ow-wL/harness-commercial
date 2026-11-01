@@ -1,0 +1,85 @@
+/* 대시보드 시트 손잡이 (DESIGN.md §20.1). 높이 = --sheet-peek: 내렸을 때 이 줄만 화면 아래에 남는다 */
+.sheet-handle {
+  position: relative;
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-3);
+  height: var(--sheet-peek);
+  padding: 8px 12px 0 24px;
+  border-bottom: 1px solid var(--color-border);
+  cursor: grab;
+  user-select: none;
+  touch-action: none;                                      /* 끄는 동안 브라우저 스크롤·당겨서 새로고침이 끼어들지 않게 */
+}
+
+.panel[data-dragging] .sheet-handle {
+  cursor: grabbing;
+}
+
+.sheet-handle__grip {
+  position: absolute;
+  top: 6px;
+  left: 50%;
+  width: 44px;
+  height: 4px;
+  margin-left: -22px;
+  border-radius: var(--radius-pill);
+  background: var(--color-border-strong);
+}
+
+/* 요약은 내렸을 때만 — 올렸을 때는 바로 아래 결과 제목과 겹친다 */
+.sheet-handle__summary {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--color-text-primary);
+  opacity: 0;
+  transition: opacity var(--sheet-ms) ease;
+}
+
+.app[data-sheet="down"] .sheet-handle__summary {
+  opacity: 1;
+}
+
+.sheet-handle__toggle {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 36px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 10px;
+  background: var(--color-accent-subtle);
+  font: var(--text-small);
+  font-weight: 600;
+  color: var(--color-accent);
+  cursor: pointer;
+}
+
+.sheet-handle__toggle:hover {
+  background: var(--color-surface-sunken);
+}
+
+@media (pointer: coarse) {
+  .sheet-handle__toggle {
+    min-height: 44px;
+  }
+}
+
+/* 올렸을 때 "내리기" = 아래, 내렸을 때 "올리기" = 위 */
+.sheet-handle__icon {
+  display: inline-flex;
+  transform: rotate(90deg);
+  transition: transform var(--sheet-ms) ease;
+}
+
+.app[data-sheet="down"] .sheet-handle__icon {
+  transform: rotate(-90deg);
+}

@@ -65,13 +65,12 @@ describe('print.css', () => {
     expect(tokens).toMatch(/color-scheme:\s*light/)
   })
 
-  it('R1 대시보드(Codex R1-7): 접힌 관점 근거도 찍고, 지도 카드 자리 여백을 풀고, 화면 조작(정렬·전체 보기·지도 카드)은 숨긴다', () => {
+  it('R1 대시보드(Codex R1-7): 접힌 관점 근거도 찍고, 시트를 내려 둔 채여도 결과를 찍고, 화면 조작(정렬·전체 보기·시트 손잡이)은 숨긴다', () => {
     expect(rule('.perspective__evidence--folded')).toMatch(/display:\s*block !important/)
-    const head = rule('.app[data-layout] .result__head')
-    expect(head).toMatch(/padding-right:\s*0 !important/)
-    expect(head).toMatch(/min-height:\s*0 !important/)
+    expect(rule('.panel,\n  .app[data-screen] .panel,\n  .panel[data-folded]')).toMatch(/transform:\s*none !important/)
+    expect(rule('.workspace__panel')).toMatch(/visibility:\s*visible !important/)
     const hidden = printBlock.slice(printBlock.indexOf('.app__map,'), printBlock.indexOf('display: none !important'))
-    for (const s of ['.map-card__expand', '.map-card__collapse', '.map-card__pill', '.result__order', '.perspective__detail', '.rank-card__toggle', '.rank-card__retry'])
+    for (const s of ['.sheet-handle', '.sheet-scrim', '.restore-result', '.result__order', '.perspective__detail', '.rank-card__toggle', '.rank-card__retry'])
       expect(hidden).toContain(s)
     expect(rule('.rank-card__print-scope')).toMatch(/display:\s*block !important/)
   })

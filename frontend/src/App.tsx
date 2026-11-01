@@ -21,6 +21,7 @@ import { Icon } from './components/Icon.tsx'
 import { MapErrorBoundary } from './components/MapErrorBoundary.tsx'
 import { MapView, type LatLng, type MapCompare, type MapStore } from './components/MapView.tsx'
 import { MoreBelow } from './components/MoreBelow.tsx'
+import { SheetHandle } from './components/SheetHandle.tsx'
 import { NearbyStores } from './components/NearbyStores.tsx'
 import { RadiusControl } from './components/RadiusControl.tsx'
 import { RadiusTable } from './components/RadiusTable.tsx'
@@ -66,6 +67,7 @@ import { storeGlyphFor } from './lib/storeIcons.ts'
 import { buildStoreLinks } from './lib/storeLinks.ts'
 import { useNearbyRequest, type RadiusProblem } from './lib/useNearbyRequest.ts'
 import { useReferenceAddress } from './lib/useReferenceAddress.ts'
+import { usePanelMorph } from './lib/usePanelMorph.ts'
 import { useTheme } from './lib/theme.ts'
 import { stepIndex, useOnboarding } from './lib/onboarding.ts'
 import { APP_VERSION } from './lib/patchNotes.ts'
@@ -83,8 +85,10 @@ function syncHeaderOffset(header: HTMLElement | null) {
   if (height) document.documentElement.style.setProperty('--header-offset', `${Math.ceil(height)}px`)
 }
 
-/** 대시보드 지도 카드 버튼 id (13-10) — 확대·복귀 때 포커스 이동 대상 */
-const MAP_CARD_IDS = { expand: 'map-card-expand', collapse: 'map-card-collapse', pill: 'map-card-pill' } as const
+/** 대시보드 시트 전환 버튼 id — 양옆 지도를 누르거나 끌어서 전환해도 포커스가 이 버튼에 남는다 */
+const SHEET_TOGGLE_ID = 'sheet-toggle'
+/** 시트 움직임이 끝난 뒤 지도를 맞춘다(App.css --sheet-ms) */
+const SHEET_MS = 340
 
 /** radius: 반경 변경(또는 반경 복구)으로 시작한 분석 — 결과 화면에서 다시 분석하는 중·그 실패 (8-D3, S3·S8) */
 type AnalysisOrigin = 'radius'
@@ -218,12 +222,14 @@ function App() {
     onRadiusProblem: (request: AnalyzeRequest, problem: RadiusProblem) => radiusProblemRef.current(request, problem),
   }
   const [mobileScreen, setMobileScreen] = useState<MobileScreen>('map')
-  // 대시보드 배치(R1 13-10): 결과가 있으면 결과 전폭 + 지도 작은 카드. 카드를 누르면 지도 배치(기존 A3)로 — 새 결과가 오면 다시 대시보드
-  // 어느 결과에서 지도를 크게 봤는지 — 결과가 바뀌면 자동으로 대시보드로 돌아간다(effect 없이 파생)
+  // 대시보드 시트(R1 13-10, §20.1): 결과가 있으면 지도 전체 배경 + 아래에서 올라온 결과 시트. 내리면 지도를 그대로 쓴다 — 새 결과가 오면 다시 올라온다
+  // 어느 결과에서 시트를 내렸는지 — 결과가 바뀌면 자동으로 올라온다(effect 없이 파생)
   const [mapExpandedFor, setMapExpandedFor] = useState<AnalyzeResponse | null>(null)
   const [fitSeq, setFitSeq] = useState(0)
-  // 대시보드에서 패널을 아래로 내리면 지도 카드는 내용 위에 떠 있지 않게 숨기고 작은 "지도" 버튼만 남긴다(크기는 그대로 — 지도 재맞춤 없음)
-  const [panelScrolled, setPanelScrolled] = useState(false)
+  // 처음 내릴 때만 지도를 맞춘다(같은 분석을 다시 내려도 사용자가 옮긴 범위를 그대로 둔다)
+  const fittedFor = useRef<object | null>(null)
+  // 결과가 닫힌 뒤 되돌아갈 직전 분석(지도 클릭·바꾸기 등). 새 분석이 시작되면 잊는다
+  const [restorable, setRestorable] = useState<{ request: AnalyzeRequest; label: string } | null>(null)
   // NAVER SDK 상태 (7-B2, docs/ADDRESS_DESIGN.md §5.1): MapView가 onSdkState로 올린다. 참고 주소는 ready + geocoder ready일 때만 조회한다.
   // 로더를 여기서 다시 부르거나 SDK를 다시 넣지 않는다
   const [sdk, setSdk] = useState<SdkState>({ status: 'loading' })
@@ -405,6 +411,10 @@ function App() {
   }, [cancelNearbyB, setCompare])
 
   const cancelAnalysis = () => {
+    if (analysis.status === 'success') {
+      const { context, result: r } = analysis.response
+      setRestorable({ request: analysis.request, label: `${locationName(context)} · ${r.meta.업종}` })
+    }
     epoch.current++
     inflight.current?.controller.abort()
     inflight.current = null
@@ -425,6 +435,10 @@ function App() {
       epoch.current++
       inflight.current?.controller.abort()
       inflight.current = null
+      setRestorable(null)
+      // 새 분석은 시트를 올려서 보여 준다 — 캐시에서 같은 응답 객체가 다시 와도(이전 결과로 돌아가기·반경 되돌리기)
+      setMapExpandedFor(null)
+      fittedFor.current = null
       cancelNearby()
       if (!opts.keepCompare) resetCompare()
       /** A 성공 뒤: 이미 받은 같은 세대 B와 엔진버전이 다르면 B를 계약 오류로(B가 먼저 도착한 경우) */
@@ -974,34 +988,27 @@ function App() {
     result,
   )
   const mapExpanded = result !== null && mapExpandedFor === result
-  // 지도 크게 보기·결과로 돌아가기는 누른 버튼이 사라진다 → 포커스를 짝 버튼으로 옮긴다(Codex R1-8). 스크롤은 건드리지 않는다
-  const [mapFocus, setMapFocus] = useState<{ to: 'collapse' | 'opener'; opener: string } | null>(null)
-  const expandMap = (opener: string) => {
-    setMapExpandedFor(result)
-    setFitSeq((n) => n + 1)                                // 커진 지도에 지점·반경을 다시 맞춘다
-    setMapFocus({ to: 'collapse', opener })
-  }
-  const collapseMap = () => {
-    setMapExpandedFor(null)
-    setMapFocus((f) => ({ to: 'opener', opener: f?.opener ?? MAP_CARD_IDS.expand }))
-  }
-  useLayoutEffect(() => {
-    if (!mapFocus) return
-    const ids = mapFocus.to === 'collapse' ? [MAP_CARD_IDS.collapse] : [mapFocus.opener, MAP_CARD_IDS.expand, MAP_CARD_IDS.pill, 'result-title']
-    const target = ids.map((id) => document.getElementById(id)).find((el) => el !== null)
-    target?.focus({ preventScroll: true })
-  }, [mapFocus])
-  // 비교 B 고르기 중에는 지도를 눌러야 하므로 지도 배치. 비교 요약·전체 결과는 다시 대시보드
+  // 비교 B 고르기 중에는 지도를 눌러야 하므로 오른쪽 패널 배치. 비교 요약·전체 결과는 다시 시트로 올라온다
   const pickingB = compare.status !== 'off' && compare.status !== 'success'
-  // mobile(<640)은 화면 전환 방식(지도 화면 ↔ 패널 화면) 그대로 — 대시보드 배치는 데스크톱·태블릿만
-  const layout: 'dashboard' | 'map' = result && !mapExpanded && !pickingB && !isMobile() ? 'dashboard' : 'map'
-  useEffect(() => {
-    const el = panelScrollRef.current
-    if (!el) return
-    const read = () => setPanelScrolled(el.scrollTop > 160)
-    el.addEventListener('scroll', read, { passive: true })
-    return () => el.removeEventListener('scroll', read)
-  }, [layout])
+  if (pickingB && mapExpandedFor) setMapExpandedFor(null)  // B 결과가 오면 올라오게 — 렌더 중 상태 조정(이전 기록을 남기지 않는다)
+  // mobile(<640)은 화면 전환 방식(지도 화면 ↔ 패널 화면) 그대로 — 시트 배치는 데스크톱·태블릿만
+  const layout: 'dashboard' | 'map' = result && !pickingB && !isMobile() ? 'dashboard' : 'map'
+  const sheet = layout === 'map' ? undefined : mapExpanded ? 'down' : 'up'
+  const panelRef = useRef<HTMLDivElement>(null)
+  usePanelMorph(panelRef, layout)
+  // 맞춤은 시트 움직임이 끝나 지도 크기가 정해진 뒤
+  const fitTimer = useRef(0)
+  useEffect(() => () => window.clearTimeout(fitTimer.current), [])
+  const changeSheet = (lowered: boolean) => {
+    setMapExpandedFor(lowered ? result : null)
+    window.clearTimeout(fitTimer.current)
+    const shown = compare.status === 'success' ? compare.response : result
+    if (lowered && fittedFor.current !== shown) {
+      fittedFor.current = shown
+      fitTimer.current = window.setTimeout(() => setFitSeq((n) => n + 1), SHEET_MS)
+    }
+    document.getElementById(SHEET_TOGGLE_ID)?.focus({ preventScroll: true })
+  }
   // 지금 보이는 점포 기준 (§3.3·4.3): 비교가 아니면 A. 비교 중에는 B 성공 뒤에만 — 요약은 고른 기준, 전체 결과는 그 위치.
   // B 고르기·분석 중·실패에는 없다(목록·마커를 숨긴다)
   const visibleSide: CompareSide | null =
@@ -1190,6 +1197,24 @@ function App() {
     }
   }
   /** 보관함의 "같은 조건으로 다시 분석": 저장한 조건으로 **지금 서버에 다시 요청**한다(캐시 우회, 12-28-R2) — 스냅샷은 보여 주지 않는다 */
+  /** 지도 클릭·바꾸기로 닫힌 직전 결과로 돌아간다. 같은 조건이라 캐시에 있으면 요청 없이 바로 */
+  const restoreResult = () => {
+    if (!restorable || analyzing || bRequesting) return
+    const { request } = restorable
+    setLocation({ lat: request.lat, lng: request.lng })
+    setBizCode(request.biz_code)
+    if (request.radius_m !== undefined) setRadius(request.radius_m)
+    setPrevRadius(null)
+    startA(request)
+  }
+  // mobile 지도 시트에서는 위치 이름을 빼고 쓴다 — 새로 고른 위치의 시트에 이전 동네 이름이 남지 않게
+  const restoreButton = (withLabel: boolean) =>
+    restorable && !analyzing && (
+      <button type="button" className="button button--ghost-fill restore-result" onClick={restoreResult}>
+        ‹ 이전 결과로 돌아가기{withLabel && ` · ${restorable.label}`}
+      </button>
+    )
+
   const reanalyzeSaved = (site: SavedSite) => {
     if (analyzing || bRequesting) return
     cancelAnalysis()
@@ -1483,6 +1508,7 @@ function App() {
   } else {
     panelBody = (
       <div className="intro">
+        {restoreButton(true)}
         {errorAt('top')}
         <ConditionPanel
           location={location}
@@ -1543,6 +1569,14 @@ function App() {
           .join(' · ')
       : panelLabel
 
+  // 시트를 내렸을 때 손잡이 줄 요약
+  const scoreText = (r: AnalyzeResponse) => (r.result.종합.점수 === null ? '산출 불가' : `${formatScore(r.result.종합.점수)}점`)
+  const sheetSummary = !result
+    ? ''
+    : compared
+      ? `두 위치 비교 · ${result.result.meta.업종} · A ${scoreText(result)} · B ${scoreText(compared)}`
+      : `${locationName(result.context)} · ${result.result.meta.업종} · ${scoreText(result)}`
+
   return (
     <DataInfoContext.Provider value={dataInfo}>
     <div
@@ -1551,9 +1585,9 @@ function App() {
       data-screen={mobileScreen}
       data-compare={comparing ? 'on' : 'off'}
       data-layout={layout}
-      data-map-card={layout === 'dashboard' && panelScrolled ? 'hidden' : undefined}
+      data-sheet={sheet}
     >
-      <div className="app__map" ref={mapRef}>
+      <div className="app__map" ref={mapRef} inert={sheet === 'up'}>
         {/* 지도 영역 오류 격리: 지도에서 예외가 나도 지도 칸만 실패 안내로 바뀌고 패널(분석·결과·비교)은 그대로다 */}
         <MapErrorBoundary>
           <MapView
@@ -1561,7 +1595,7 @@ function App() {
             onSdkState={setSdk}
             // mobile 지도↔패널 전환 신호: 크기 알림 없이 지도 화면으로 돌아와도 크기 맞춤·미룬 정보창 처리 (6-4)
             // tablet 패널 접기도 같은 신호 — 지도 크기는 그대로라 zoom은 바꾸지 않고 컨트롤 띠·미룬 정보창만 다시 본다(D-022 순위 8)
-            layoutKey={`${mobileScreen}:${panelFolded ? 'folded' : 'open'}:${layout}`}
+            layoutKey={`${mobileScreen}:${panelFolded ? 'folded' : 'open'}:${sheet ?? layout}`}
             fitSeq={fitSeq}
             selected={location}
             radiusM={radius}
@@ -1582,23 +1616,9 @@ function App() {
             compare={mapCompare}
           />
         </MapErrorBoundary>
-        {/* 대시보드(13-10): 지도 카드 전체가 "크게 보기". 지도 배치로 돌아오면 왼쪽 위에 "결과로 돌아가기" */}
-        {layout === 'dashboard' && sdk.status !== 'failed' && (
-          <button type="button" id={MAP_CARD_IDS.expand} className="map-card__expand" onClick={() => expandMap(MAP_CARD_IDS.expand)} aria-label="지도 크게 보기">
-            <span>지도 크게 보기</span>
-          </button>
-        )}
-        {layout === 'map' && result && (
-          <button type="button" id={MAP_CARD_IDS.collapse} className="map-card__collapse" onClick={collapseMap}>
-            ‹ 결과로 돌아가기
-          </button>
-        )}
       </div>
-      {layout === 'dashboard' && panelScrolled && (
-        <button type="button" id={MAP_CARD_IDS.pill} className="map-card__pill" onClick={() => expandMap(MAP_CARD_IDS.pill)}>
-          지도 보기
-        </button>
-      )}
+      {/* 시트를 올렸을 때 양옆 지도: 누르면 시트가 내려간다. 키보드는 손잡이의 버튼 */}
+      {layout === 'dashboard' && <div className="sheet-scrim" aria-hidden="true" onClick={() => changeSheet(true)} />}
       <header ref={headerRef} className="app-header bar" data-map-obstacle>
         <span className="bar__brand">
           <span className="bar__logo" aria-hidden="true" />
@@ -1626,7 +1646,10 @@ function App() {
           <Icon name={theme === 'dark' ? 'sun' : 'moon'} size={20} />
         </button>
       </header>
-      <div className="panel" data-map-obstacle={layout === 'map' || undefined} data-folded={panelFolded || undefined}>
+      <div ref={panelRef} className="panel" data-map-obstacle={layout === 'map' || undefined} data-folded={panelFolded || undefined}>
+        {layout === 'dashboard' && (
+          <SheetHandle toggleId={SHEET_TOGGLE_ID} lowered={sheet === 'down'} summary={sheetSummary} controls="workspace-panel" onChange={changeSheet} />
+        )}
         {/* tablet(640~1100px)에서만 보인다 — 패널을 접어 지도를 넓게 본다 (P9) */}
         <div className="panel__fold">
           {/* 펼친 상태에서는 패널 제목과 겹치므로 접혔을 때만 */}
@@ -1727,6 +1750,7 @@ function App() {
             </>
           ) : (
             <>
+              {restoreButton(false)}
               <p className="map-sheet__title">어디에, 어떤 가게를 열까요?</p>
               <p className="map-sheet__text">
                 {location ? (

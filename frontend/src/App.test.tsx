@@ -55,6 +55,7 @@ vi.mock('./components/MapView.tsx', () => ({
         data-compare-guide={props.compare?.guide ?? undefined}
         data-store-context={props.storeContext}
         data-layout-key={props.layoutKey}
+        data-fit-seq={props.fitSeq}
         data-theme={props.theme}
       >
         <button type="button" onClick={() => props.interactive && props.onSelect({ lat: 37.4894, lng: 126.7246 })}>
@@ -3933,22 +3934,98 @@ describe('인쇄 (12-15, 계획 1-3)', () => {
   })
 })
 
-describe('대시보드 지도 카드 (13-10) — 키보드로 확대·복귀해도 포커스가 사라지지 않는다 (Codex R1-8)', () => {
-  it('"지도 크게 보기" → "결과로 돌아가기"로, 돌아오면 다시 "지도 크게 보기"로 포커스가 옮겨진다', async () => {
+describe('대시보드 시트 (13-10, §20.1) — 올리고 내려도 결과·포커스가 그대로다', () => {
+  const app = () => document.querySelector('.app')!
+  const openResult = async () => {
     mockApi({ analyze: [{ status: 200, body: fixture }], nearby: [{ status: 200, body: nearbyFixture }] })
     render(<App />)
     await selectBupyeongPcBang()
     fireEvent.click(analyzeButton())
     await screen.findByRole('heading', { level: 1, name: '부평구 부평1동 · PC방 분석' })
-    const expand = screen.getByRole('button', { name: '지도 크게 보기' })
-    expand.focus()
-    fireEvent.click(expand)
-    const collapse = screen.getByRole('button', { name: '‹ 결과로 돌아가기' })
-    expect(document.activeElement).toBe(collapse)
-    expect(screen.queryByRole('button', { name: '지도 크게 보기' })).toBeNull()
-    fireEvent.click(collapse)
-    expect(document.activeElement).toBe(screen.getByRole('button', { name: '지도 크게 보기' }))
-    expect(document.activeElement).not.toBe(document.body)
+  }
+
+  it('"지도 크게 보기" → 시트가 내려가고 "대시보드 올리기"로 그대로 돌아온다. 포커스는 같은 버튼에 남고 지도는 전체 배경', async () => {
+    await openResult()
+    expect(app()).toHaveAttribute('data-layout', 'dashboard')
+    expect(app()).toHaveAttribute('data-sheet', 'up')
+    const toggle = screen.getByRole('button', { name: '지도 크게 보기' })
+    expect(toggle).toHaveAttribute('aria-expanded', 'true')
+    toggle.focus()
+    fireEvent.click(toggle)
+    expect(app()).toHaveAttribute('data-sheet', 'down')
+    expect(toggle).toHaveAccessibleName('대시보드 올리기')
+    expect(toggle).toHaveAttribute('aria-expanded', 'false')
+    expect(document.activeElement).toBe(toggle)
+    expect(document.querySelector('.sheet-handle')).toHaveTextContent('부평구 부평1동 · PC방')
+    expect(screen.getByTestId('map')).toHaveAttribute('data-layout-key', expect.stringMatching(/:down$/))
+    fireEvent.click(toggle)
+    expect(app()).toHaveAttribute('data-sheet', 'up')
+    expect(document.activeElement).toBe(toggle)
+    expect(screen.getByRole('heading', { level: 1, name: '부평구 부평1동 · PC방 분석' })).toBeInTheDocument()
+  })
+
+  it('올렸을 때 지도는 inert — 키보드로 시트 뒤 지도를 눌러 결과를 잃지 않는다. 내리면 풀린다. 양옆 지도를 누르면 내려간다', async () => {
+    await openResult()
+    const mapArea = document.querySelector('.app__map')!
+    expect(mapArea).toHaveAttribute('inert')
+    fireEvent.click(document.querySelector('.sheet-scrim')!)
+    expect(app()).toHaveAttribute('data-sheet', 'down')
+    expect(mapArea).not.toHaveAttribute('inert')
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: '대시보드 올리기' }))
+  })
+
+  it('처음 내릴 때만 범위를 맞춘다 — 다시 내려도 사용자가 옮긴 지도를 되돌리지 않는다', async () => {
+    await openResult()
+    vi.useFakeTimers()
+    try {
+      const fit = () => Number(screen.getByTestId('map').getAttribute('data-fit-seq'))
+      const before = fit()
+      fireEvent.click(screen.getByRole('button', { name: '지도 크게 보기' }))
+      act(() => {
+        vi.advanceTimersByTime(400)
+      })
+      expect(fit()).toBe(before + 1)
+      fireEvent.click(screen.getByRole('button', { name: '대시보드 올리기' }))
+      fireEvent.click(screen.getByRole('button', { name: '지도 크게 보기' }))
+      act(() => {
+        vi.advanceTimersByTime(400)
+      })
+      expect(fit()).toBe(before + 1)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('시트를 내린 채 지도를 눌러 결과가 닫혀도 "이전 결과로 돌아가기"로 같은 결과가 요청 없이 돌아오고 시트가 올라온다', async () => {
+    const fetchMock = mockApi({ analyze: [{ status: 200, body: fixture }], nearby: [{ status: 200, body: nearbyFixture }] })
+    render(<App />)
+    await selectBupyeongPcBang()
+    fireEvent.click(analyzeButton())
+    await screen.findByRole('heading', { level: 1, name: '부평구 부평1동 · PC방 분석' })
+    fireEvent.click(screen.getByRole('button', { name: '지도 크게 보기' }))
+    fireEvent.click(screen.getByRole('button', { name: '지도 클릭: 송도' }))
+    expect(screen.queryByRole('heading', { level: 1, name: '부평구 부평1동 · PC방 분석' })).toBeNull()
+    expect(app()).toHaveAttribute('data-layout', 'map')
+    const analyzeCalls = () => fetchMock.mock.calls.filter(([url]) => url === '/analyze').length
+    const before = analyzeCalls()
+    fireEvent.click(screen.getByRole('button', { name: /이전 결과로 돌아가기 · 부평구 부평1동 · PC방/ }))
+    await screen.findByRole('heading', { level: 1, name: '부평구 부평1동 · PC방 분석' })
+    expect(analyzeCalls()).toBe(before)
+    expect(app()).toHaveAttribute('data-sheet', 'up')
+    expect(screen.queryByRole('button', { name: /이전 결과로 돌아가기/ })).toBeNull()
+  })
+
+  it('비교 B 고르기는 오른쪽 패널 배치(시트 손잡이 없음)이고, 시트를 내린 채 시작해도 비교를 취소하면 시트가 올라온 결과로 돌아온다', async () => {
+    await openResult()
+    fireEvent.click(screen.getByRole('button', { name: '지도 크게 보기' }))
+    expect(app()).toHaveAttribute('data-sheet', 'down')
+    fireEvent.click(screen.getAllByRole('button', { name: '다른 위치와 비교' })[0]!)
+    expect(app()).toHaveAttribute('data-layout', 'map')
+    expect(app()).not.toHaveAttribute('data-sheet')
+    expect(document.querySelector('.sheet-handle')).toBeNull()
+    fireEvent.click(screen.getAllByRole('button', { name: '비교 취소' })[0]!)
+    expect(app()).toHaveAttribute('data-sheet', 'up')
+    expect(screen.getByRole('heading', { level: 1, name: '부평구 부평1동 · PC방 분석' })).toBeInTheDocument()
   })
 })
 

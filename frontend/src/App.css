@@ -11,7 +11,8 @@
   --a3-bar-h: 44px;
   /* 지도 위 우리 요소가 피할 영역: 지도에 보이는 부분의 오른쪽 끝 = 패널 왼쪽 */
   --map-visible-right: calc(var(--a3-panel-w) + var(--a3-gap) * 2);
-  --map-visible-top: calc(var(--a3-gap) + var(--a3-bar-h) + 12px);
+  /* 조건 바가 두 줄(1366 폭 지도 배치 등)이 되면 잰 높이(--header-offset, App syncHeaderOffset)를 쓴다 — 지도 위 요소가 바에 가려지지 않게 */
+  --map-visible-top: calc(var(--a3-gap) + var(--header-offset, var(--a3-bar-h)) + 12px);
 }
 
 @media (max-width: 1100px) {
@@ -357,6 +358,21 @@
   display: none;
 }
 
+/* 지도를 눌러 결과가 닫힌 뒤 "이전 결과로 돌아가기" (분석 전 패널 맨 위·mobile 시트) */
+.restore-result {
+  display: block;
+  width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.intro > .restore-result {
+  flex: none;
+  width: calc(100% - 48px);
+  margin: 16px 24px 0;
+}
+
 /* 글자 핀 A/B (지도 마커와 같은 모양, 비교 머리·전체 결과 제목·버튼) */
 .pin-letter {
   display: inline-flex;
@@ -408,7 +424,6 @@
   :root {
     --a3-gap: 12px;
     --map-visible-right: 12px;
-    /* 조건 바가 두 줄(반경 묶음)이 될 수 있어 잰 높이(--header-offset, App syncHeaderOffset)를 쓴다 */
     --map-visible-top: calc(var(--a3-gap) + var(--header-offset, var(--a3-bar-h)) + 10px);
   }
 
@@ -618,155 +633,96 @@
   }
 }
 
-/* ─── 대시보드 레이아웃 (R1 13-10, DESIGN.md §20.1) ───
- * 결과가 있고 지도를 크게 보지 않을 때(data-layout="dashboard"): 결과 패널이 화면 전폭(최대 1200px 가운데), 지도는 오른쪽 위 작은
- * 카드(320×200)로 접힌다 — 지도 DOM 은 그대로(unmount 금지, A2 재발 방지) 크기만 바뀌고, 카드를 누르면 data-layout="map"(기존 A3 배치)로
- * 돌아가 위치 바꾸기·점포 레이어·범위 맞춤을 쓴다. 분석 전·비교 B 고르기·mobile(<640, 화면 전환 방식 그대로)은 map 배치.
+/* ─── 대시보드 시트 (R1 13-10 → 2026-11-02 개정, DESIGN.md §20.1) ───
+ * 결과가 있으면(data-layout="dashboard") 지도는 늘 전체 배경이고, 결과 패널은 아래에서 올라온 시트다(최대 1200px 가운데, 양옆으로 지도가 보인다).
+ * data-sheet="up": 조건 바 아래까지 올라옴. data-sheet="down": 손잡이 한 줄만 남기고 내려감 — 지도를 그대로 쓴다.
+ * 분석 전·비교 B 고르기·mobile(<640, 화면 전환 방식 그대로)은 map 배치(오른쪽 패널). 패널 DOM 은 하나라 배치가 바뀌어도 내용·스크롤이 유지된다.
  */
 @media (min-width: 640px) {
   .app[data-layout="dashboard"] {
     --map-visible-right: var(--a3-gap);
-    --map-card-w: 320px;
-    --map-card-h: 200px;
-    /* 조건 바 아래 시작선 — 바가 두 줄(좁은 태블릿·긴 업종명·글자 확대)이 되면 잰 높이(--header-offset, syncHeaderOffset)를 쓴다(Codex R1-2) */
+    --sheet-peek: 52px;
+    --sheet-ms: 340ms;
+    /* 조건 바 아래 시작선 — 바가 두 줄(좁은 태블릿·긴 업종명·글자 확대)이 되면 잰 높이를 쓴다(Codex R1-2) */
     --dash-top: calc(var(--a3-gap) + var(--header-offset, var(--a3-bar-h)) + 12px);
   }
 
-  /* 조건 바 아래부터 전폭(최대 1200px 가운데). 바는 그대로 위에 남는다 */
   .app[data-layout="dashboard"] .panel {
     top: var(--dash-top);
     left: var(--a3-gap);
+    bottom: 0;
     width: auto;
     max-width: 1200px;
     margin: 0 auto;
+    border-bottom: 0;
+    border-radius: 18px 18px 0 0;
+    transition: transform var(--sheet-ms) cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+
+  .app[data-sheet="down"] .panel {
+    transform: translateY(calc(100% - var(--sheet-peek)));
+  }
+
+  /* 끄는 동안은 손가락을 바로 따라간다(SheetHandle 이 inline transform) */
+  .app[data-layout="dashboard"] .panel[data-dragging] {
+    transition: none;
+  }
+
+  /* 내려간 시트 안 내용은 움직임이 끝나면 포커스·스크린리더에서도 빠진다. 끄는 동안은 보인다 */
+  .app[data-sheet="down"] .panel:not([data-dragging]) > .workspace__panel,
+  .app[data-sheet="down"] .panel:not([data-dragging]) > .panel__foot {
+    visibility: hidden;
+    transition: visibility 0s linear var(--sheet-ms);
   }
 
   .app[data-layout="dashboard"] .panel__fold {
     display: none;
   }
 
-  .app[data-layout="dashboard"] .app__map {
-    inset: auto;
-    top: calc(var(--dash-top) + 16px);
-    /* 패널(최대 1200px 가운데)의 오른쪽 위 안쪽 */
-    right: max(calc(var(--a3-gap) + 16px), calc((100% - 1200px) / 2 + 16px));
-    width: var(--map-card-w);
-    height: var(--map-card-h);
-    z-index: 4;
-    overflow: hidden;
-    border: 1px solid var(--color-map-ui-edge);
-    border-radius: 14px;
-    box-shadow: var(--shadow-panel);
+  /* 내렸을 때 지도는 손잡이 줄 위에서 끝난다 — 로고·축척·범례가 가리지 않게(mobile 시트와 같은 원칙, §19.1) */
+  .app[data-sheet="down"] .app__map {
+    bottom: var(--sheet-peek);
   }
 
-  .app[data-layout="dashboard"] .map__legend,
-  .app[data-layout="dashboard"] .map__controls,
-  .app[data-layout="dashboard"] .map__guide,
-  .app[data-layout="dashboard"] .map__store-bar {
+  /* 넓은 화면에서 손잡이 줄 양옆을 채우는 띠 */
+  .app[data-sheet="down"]::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 2;
+    height: var(--sheet-peek);
+    border-top: 1px solid var(--color-map-ui-edge);
+    background: var(--color-surface);
+  }
+
+  /* 올렸을 때 지도 조작은 쉰다 — 범례·컨트롤은 시트 뒤라 숨기고, 양옆 지도를 누르면 시트가 내려간다(지도 클릭으로 위치가 바뀌지 않는다) */
+  .app[data-sheet="up"] .map__legend,
+  .app[data-sheet="up"] .map__controls,
+  .app[data-sheet="up"] .map__guide,
+  .app[data-sheet="up"] .map__store-bar {
     display: none;
   }
 
-  /* 패널 맨 위 안내(비교 중 공유 링크 안내·반경 다시 분석 중)도 지도 카드 자리를 비워 둔다 — 카드가 글자를 덮지 않게 */
-  .app[data-layout="dashboard"] .panel__notes:not(.panel__notes--in-result) {
-    padding-right: calc(var(--map-card-w) + 40px);
-  }
-
-  /* 결과 머리(제목·점수 카드)는 지도 카드 자리를 비워 둔다 */
-  .app[data-layout="dashboard"] .result__head {
-    padding-right: calc(var(--map-card-w) + 40px);
-    min-height: calc(var(--map-card-h) + 40px);
-  }
-
-  /* 지도 카드 전체가 "크게 보기" 버튼 — 지도 클릭으로 위치가 바뀌지 않게 덮는다 */
-  .map-card__expand {
+  .sheet-scrim {
     position: absolute;
     inset: 0;
-    z-index: 5;
-    display: flex;
-    align-items: flex-end;
-    justify-content: flex-start;
-    padding: 10px;
-    border: 0;
-    background: transparent;
-    cursor: pointer;
-  }
-
-  .map-card__expand span,
-  .map-card__collapse {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    height: 32px;
-    padding: 0 12px;
-    border: 1px solid var(--color-map-ui-edge);
-    border-radius: var(--radius-pill);
-    background: var(--color-surface);
-    box-shadow: var(--shadow-map-ui);
-    font: var(--text-small);
-    font-weight: 600;
-    color: var(--color-accent);
-  }
-
-  /* 지도 배치에서 결과로 돌아가기: 지도 왼쪽 위(조건 바 아래) */
-  .map-card__collapse {
-    position: absolute;
-    top: var(--map-visible-top);
-    left: var(--a3-gap);
-    z-index: 5;
-    height: 36px;
-    cursor: pointer;
-  }
-}
-
-@media (max-width: 1100px) and (min-width: 640px) {
-  .app[data-layout="dashboard"] {
-    --map-card-w: 280px;
-    --map-card-h: 176px;
-  }
-}
-
-/* 좁은 태블릿(640~859): 지도 카드를 줄여 점수 카드 폭을 남긴다(Codex R1-2) */
-@media (max-width: 859px) and (min-width: 640px) {
-  .app[data-layout="dashboard"] {
-    --map-card-w: 200px;
-    --map-card-h: 128px;
-  }
-}
-
-@media (max-width: 639px) {
-  .map-card__expand,
-  .map-card__collapse {
-    display: none;
-  }
-}
-
-/* 대시보드에서 패널을 내리면 지도 카드를 숨기고(크기 유지 — 재맞춤 없음) 오른쪽 위 작은 버튼만 */
-@media (min-width: 640px) {
-  .app[data-layout="dashboard"][data-map-card="hidden"] .app__map {
-    visibility: hidden;
+    z-index: 1;
+    background: color-mix(in srgb, var(--color-bg) 30%, transparent);
+    opacity: 0;
     pointer-events: none;
+    transition: opacity var(--sheet-ms) ease;
   }
 
-  .map-card__pill {
-    position: absolute;
-    top: calc(var(--dash-top) + 16px);
-    right: max(calc(var(--a3-gap) + 16px), calc((100% - 1200px) / 2 + 16px));
-    z-index: 5;
-    height: 36px;
-    padding: 0 14px;
-    border: 1px solid var(--color-map-ui-edge);
-    border-radius: var(--radius-pill);
-    background: var(--color-surface);
-    box-shadow: var(--shadow-map-ui);
-    font: var(--text-small);
-    font-weight: 600;
-    color: var(--color-accent);
-    cursor: pointer;
+  .app[data-sheet="up"] .sheet-scrim {
+    opacity: 1;
+    pointer-events: auto;
   }
 }
 
 @media (max-width: 639px) {
-  .map-card__pill {
+  .sheet-scrim {
     display: none;
   }
 }

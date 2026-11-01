@@ -145,6 +145,29 @@ describe('참고 주소 줄 — mobile sheet 공간 (7-B2, ADDRESS_DESIGN §5.5)
   })
 })
 
+describe('대시보드 시트 (§20.1)', () => {
+  const rule = (selector: string) => {
+    const at = appCss.indexOf(`${selector} {`)
+    expect(at, `${selector} 규칙`).toBeGreaterThan(-1)
+    return appCss.slice(at, appCss.indexOf('}', at))
+  }
+
+  it('지도 위 요소의 시작선은 조건 바의 잰 높이 아래다 — 1366 폭에서 바가 두 줄이 돼도 가리지 않는다', () => {
+    expect(appCss).toMatch(/--map-visible-top: calc\(var\(--a3-gap\) \+ var\(--header-offset, var\(--a3-bar-h\)\) \+ 12px\);/)
+  })
+
+  it('지도는 대시보드에서도 전체 배경이다 — 크기를 바꾸는 규칙은 내렸을 때 손잡이 줄 위로 끝나는 것뿐', () => {
+    expect(appCss).not.toMatch(/\.app\[data-layout="dashboard"\] \.app__map/)
+    expect(rule('.app[data-sheet="down"] .app__map')).toMatch(/bottom: var\(--sheet-peek\);/)
+  })
+
+  it('내리면 손잡이 줄만 남기고, 내려간 내용은 움직임이 끝나면 포커스에서 빠진다. 끄는 동안은 transition 없이 따라간다', () => {
+    expect(rule('.app[data-sheet="down"] .panel')).toMatch(/transform: translateY\(calc\(100% - var\(--sheet-peek\)\)\);/)
+    expect(rule('.app[data-sheet="down"] .panel:not([data-dragging]) > .panel__foot')).toMatch(/visibility: hidden;/)
+    expect(rule('.app[data-layout="dashboard"] .panel[data-dragging]')).toMatch(/transition: none;/)
+  })
+})
+
 describe('tablet 패널 접기 (P9, A3)', () => {
   const tabletAt = appCss.indexOf('@media (min-width: 640px) and (max-width: 1100px) {\n  .panel__fold {')
   const tablet = appCss.slice(tabletAt, appCss.indexOf('\n}\n', tabletAt))

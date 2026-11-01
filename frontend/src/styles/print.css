@@ -113,9 +113,9 @@
   .coach,
   .more-below,
   .tabs,
-  .map-card__expand,
-  .map-card__collapse,
-  .map-card__pill,
+  .sheet-handle,
+  .sheet-scrim,
+  .restore-result,
   .result__order,
   .perspective__detail,
   .rank-card__toggle,
@@ -123,10 +123,8 @@
     display: none !important;
   }
 
-  /* 대시보드(13-10)의 지도 카드 자리 여백은 종이에 필요 없다(지도는 인쇄하지 않는다, Codex R1-7) */
-  .app[data-layout] .result__head {
-    padding-right: 0 !important;
-    min-height: 0 !important;
+  .app[data-sheet]::after {
+    display: none !important;
   }
 
   /* 관점 근거: 접힌 행도 모두 찍는다 */
@@ -152,6 +150,7 @@
     height: auto !important;
     max-height: none !important;
     inset: auto !important;
+    transform: none !important;                            /* 시트를 내려 둔 채 인쇄해도 결과는 그대로 찍는다 */
     overflow: visible !important;
     border: 0 !important;
     border-radius: 0 !important;
@@ -165,6 +164,7 @@
 
   .workspace__panel {
     position: static !important;
+    visibility: visible !important;
     flex: none !important;
     height: auto !important;
     max-height: none !important;
