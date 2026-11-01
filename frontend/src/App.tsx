@@ -928,13 +928,6 @@ function App() {
     return () => observer.disconnect()
   }, [])
 
-  // 결과가 나오면 결과 제목으로 포커스를 옮긴다 (스크린리더·키보드 사용자가 새 내용 시작점을 안다)
-  useEffect(() => {
-    if (analysis.status !== 'success') return
-    syncHeaderOffset(headerRef.current)
-    document.getElementById('result-title')?.focus()
-  }, [analysis.status])
-
   // 비교 화면 전환 뒤 포커스 (렌더가 끝난 뒤라 새로 생긴 요소도 찾는다). 오류 블록은 그 안 첫 버튼(행동)으로.
   // layout effect: 화면이 그려지기 전에 옮긴다 — 사라진 요소에 포커스가 남은 프레임이 없고, 순서가 늘 같다.
   // resetScroll(전체 결과 열기): 스크롤하는 쪽이 desktop은 패널, tablet·mobile은 문서라 대상의 조상을 모두 맨 위로 둔 **다음**
@@ -949,6 +942,14 @@ function App() {
     syncHeaderOffset(headerRef.current)
     target?.focus()
   }, [focusRequest])
+
+  // 결과가 나오면 결과 제목으로 포커스를 옮긴다 (스크린리더·키보드 사용자가 새 내용 시작점을 안다).
+  // layout effect: 화면이 그려지기 전에 끝낸다 — 결과가 보인 직후의 조작이 옮긴 포커스를 뒤늦게 빼앗기지 않게. 같은 커밋이면 위 focusRequest 뒤라 제목이 이긴다
+  useLayoutEffect(() => {
+    if (analysis.status !== 'success') return
+    syncHeaderOffset(headerRef.current)
+    document.getElementById('result-title')?.focus()
+  }, [analysis.status])
 
   const result = analysis.status === 'success' ? analysis.response : null
   // 이 자리 업종 순위(13-16): 단일 결과의 좌표·반경으로 — 비교 중에는 요청하지 않는다(A 결과 카드에만)
@@ -992,7 +993,10 @@ function App() {
   const pickingB = compare.status !== 'off' && compare.status !== 'success'
   if (pickingB && mapExpandedFor) setMapExpandedFor(null)  // B 결과가 오면 올라오게 — 렌더 중 상태 조정(이전 기록을 남기지 않는다)
   // mobile(<640)은 화면 전환 방식(지도 화면 ↔ 패널 화면) 그대로 — 시트 배치는 데스크톱·태블릿만
-  const layout: 'dashboard' | 'map' = result && !pickingB && !isMobile() ? 'dashboard' : 'map'
+  // 지도가 실패한 동안도 오른쪽 패널 배치 — 시트가 실패 안내·"지도 다시 불러오기"를 덮지 않게. 다시 불러오는 중(loading)에는 자리를 바꾸지 않는다
+  const [mapFailed, setMapFailed] = useState(false)
+  if (sdk.status !== 'loading' && (sdk.status === 'failed') !== mapFailed) setMapFailed(sdk.status === 'failed')
+  const layout: 'dashboard' | 'map' = result && !pickingB && !mapFailed && !isMobile() ? 'dashboard' : 'map'
   const sheet = layout === 'map' ? undefined : mapExpanded ? 'down' : 'up'
   const panelRef = useRef<HTMLDivElement>(null)
   usePanelMorph(panelRef, layout)

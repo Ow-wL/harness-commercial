@@ -73,6 +73,9 @@ vi.mock('./components/MapView.tsx', () => ({
         <button type="button" onClick={() => props.onSdkState?.({ status: 'failed', kind: 'auth' })}>
           SDK 인증 실패
         </button>
+        <button type="button" onClick={() => props.onSdkState?.({ status: 'loading' })}>
+          SDK 불러오는 중
+        </button>
         {props.stores?.[1] && (
           <button type="button" onClick={() => props.onStoreSelect?.(props.stores![1]!.id)}>
             지도 점포 마커: {props.stores[1].name}
@@ -4015,6 +4018,20 @@ describe('대시보드 시트 (13-10, §20.1) — 올리고 내려도 결과·�
     expect(analyzeCalls()).toBe(before)
     expect(app()).toHaveAttribute('data-sheet', 'up')
     expect(screen.queryByRole('button', { name: /이전 결과로 돌아가기/ })).toBeNull()
+  })
+
+  it('지도가 실패한 동안은 오른쪽 패널 배치라 시트가 실패 안내를 덮지 않고 지도도 inert 가 아니다. 다시 불러오는 동안은 그대로, 지도가 준비되면 시트로 (D-030)', async () => {
+    await openResult()
+    fireEvent.click(screen.getByRole('button', { name: 'SDK 인증 실패' }))
+    expect(app()).toHaveAttribute('data-layout', 'map')
+    expect(app()).not.toHaveAttribute('data-sheet')
+    expect(document.querySelector('.sheet-handle')).toBeNull()
+    expect(document.querySelector('.app__map')).not.toHaveAttribute('inert')
+    expect(screen.getByRole('heading', { level: 1, name: '부평구 부평1동 · PC방 분석' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'SDK 불러오는 중' }))
+    expect(app()).toHaveAttribute('data-layout', 'map')
+    fireEvent.click(screen.getByRole('button', { name: 'SDK 준비' }))
+    expect(app()).toHaveAttribute('data-sheet', 'up')
   })
 
   it('비교 B 고르기는 오른쪽 패널 배치(시트 손잡이 없음)이고, 시트를 내린 채 시작해도 비교를 취소하면 시트가 올라온 결과로 돌아온다', async () => {
