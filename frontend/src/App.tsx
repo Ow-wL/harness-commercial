@@ -1625,7 +1625,12 @@ function App() {
       {layout === 'dashboard' && <div className="sheet-scrim" aria-hidden="true" onClick={() => changeSheet(true)} />}
       <header ref={headerRef} className="app-header bar" data-map-obstacle>
         <span className="bar__brand">
-          <span className="bar__logo" aria-hidden="true" />
+          {/* public/favicon.svg 와 같은 모양, 색만 테마를 따른다 */}
+          <svg className="bar__logo" viewBox="0 0 32 32" aria-hidden="true">
+            <rect className="bar__logo-tile" width="32" height="32" rx="8" />
+            <path className="bar__logo-pin" d="M16 5c-5.2 0-9.2 4-9.2 9.1C6.8 20.8 16 27 16 27s9.2-6.2 9.2-12.9C25.2 9 21.2 5 16 5z" />
+            <circle className="bar__logo-tile" cx="16" cy="14.2" r="3.6" />
+          </svg>
           <span className="bar__name">우리동네 상권</span>
         </span>
         {barCondition}
