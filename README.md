@@ -1,85 +1,206 @@
-# 우리동네 상권분석 매니저 — 웹 개발 저장소
+<div align="center">
 
-인천 지도에서 위치와 업종을 고르면 버전 선택형 스코어링 엔진으로 상권을 분석하는 웹 애플리케이션.
-엔진은 프로세스당 하나 — `SCORING_ENGINE_VERSION = v0_3(코드 기본) | v0_4(반경 300·500·1,000m) | v0_5(팀 전달 v0.5 + 반경) | v0_5_1(v0.5 + 분동 배분 결함 수정, D-029, **현재 운영**)` (`docs/ENGINE_V0_5.md`).
-현재 상태(2026-11-01): **운영 = 앱 v0.3.2 + 엔진 v0.5.1 + 데이터 2026-09**(2026-11-01 05:19 KST 전환, `docs/DEPLOYMENT_2026-11-01_v032_preview.md` — 브라우저 보안 헤더, Firebase Hosting 짧은 주소 대응(D-042); 그 바탕인 v0.3.1(04:20 KST, `docs/DEPLOYMENT_2026-11-01_v031_preview.md`) — 상가·인구·유동 자료 2026년 9월 기준, 지원사업 구 이름 개편 반영; 그 바탕인 v0.3.0(02:59 KST, `docs/DEPLOYMENT_2026-11-01_v030_preview.md`) — 조건에 맞는 지원사업 공고(기업마당·K-Startup)와 AI 연결, 가까운 지하철역 시간대별 승하차; 그 바탕인 v0.2.0(2026-10-31 23:37 KST, `docs/DEPLOYMENT_2026-10-31_v020_preview.md`) — AI 요약·AI에게 질문(분석 자료만 근거, 하루·월 사용 한도); 그 바탕인 v0.1.1(09:20 KST, `docs/DEPLOYMENT_2026-10-31_v011_preview.md`) — 보관함 저장 당시 요약·비교 거미줄·인쇄 요약·첫 방문 안내; 그 바탕인 v0.1.0(08:39 KST, `docs/DEPLOYMENT_2026-10-31_v010_preview.md`) — R1 대시보드: 결과 전폭·지도 카드·한 줄 결론·거미줄·점수순 관점, 업종 순위, 시간대·인구 카드, 역 이름 제안; 직전 v0.0.16(R0 긴급 수정)은 같은 날 02:20 KST 전환). A3 지도 탐색형·블루안 UI(`DESIGN.md` §19), 라이트·다크 테마, 반경 300·500·1,000m, 두 위치 비교, 주소 검색, 첫 방문 안내, 업데이트 내역, 데이터 묶음 표시, 0차 "정확한 의미"(근거 줄·자료 단위·확인 필요 줄, gzip·favicon)까지 운영 반영. 1차 "활용"(`docs/IMPROVEMENT_PLAN_2026-10-29.md` 3장, D-036) — 조건 공유 링크·반경별 비교 표·현장 확인 카드·후보 보관함·인쇄·장소 이름 검색(서버에 검색 키가 있을 때만, 현재 운영은 꺼짐)까지 운영 반영(Codex 검수 통과, 지적 5건 수정, `docs/CODEX_REVIEW_2026-10-29_v0015.md`). 다음: 2차 "체계"(`docs/TASKS.md` 12-7~12-12) — 사용자 지시로 시작. 현재 운영 상태의 기준 기록은 `CLAUDE.md`와 `docs/TASKS.md` "현재 운영 상태"다.
+# 🗺️ 우리동네 상권분석 매니저
 
-## MVP 기능
-- **지도 위치 선택**: NAVER Maps(Dynamic Map)에서 클릭하거나 좌표를 직접 입력. 마커 + 반경 500m 원 표시
-- **지도 범위 맞춤**(8차 8-B1, D-022): 새 위치를 고르면 반경 원이 지도의 사용 영역(범례·컨트롤을 뺀 곳)에 맞게 보이도록 zoom·중심을 옮긴다. 사용자가 직접 확대·이동하면 미뤄 둔 자동 맞춤을 하지 않고, 범례의 "범위에 맞추기"로 다시 맞춘다. 점포 정보창은 사용 영역 안에서 선택 지점을 가리지 않게 연다. 두 위치 비교(8-B2)에서는 B를 고르면 두 원이 함께 잘 보이면 함께, 너무 멀면 B 원을 맞추고 "두 위치 모두 보기"로 두 위치를 한 화면에 본다
-- **주소로 찾기·참고 주소**(7차, D-021): NAVER 지도 SDK Geocoder로 주소를 검색해 위치를 고르고(단일·비교 B), 고른 좌표의 도로명/지번 주소를 "참고 주소 · … (NAVER 지도)"로 보인다. 주소는 분석에 쓰지 않는다(분석 행정동은 backend 판정). 콘솔에서 Geocoding·Reverse Geocoding을 선택해야 하며, 실패해도 지도·좌표 입력·분석은 그대로다
-- **업종 선택**: `GET /businesses`의 29개 업종·4개 그룹 (엔진 `config` 그대로, frontend 하드코딩 없음)
-- **분석**: `POST /analyze` (FastAPI) → 좌표 → 인천 행정동 판정(`LocationResolver`) → `ContextBuilder` → 엔진 v0.3. 엔진 결과는 바꾸지 않고 그대로 전달
-- **결과 화면**: 종합 점수, 5대 관점, 병목·주의할 점, 데이터 충족률, 세부지표, 데이터 출처 (`DESIGN.md`)
-- **행정동 경계 강조**: 분석된 행정동 polygon을 지도에 표시 (`data/geo` 경계 파일을 backend와 같은 것으로 사용)
-- 오류는 `error.code`별 안내 (인천 밖·바다, 주변 점포 없음, 입력 오류, 내부 오류 + request_id)
+**인천 지도에서 자리와 업종을 고르면, 그 자리를 다섯 관점으로 살펴 줍니다.**
 
-## 설치·검증
+예비 창업자가 "여기에 이 가게를 열어도 될까?"를 공개 데이터로 먼저 따져 보는 웹 서비스입니다.
 
-```powershell
-.\scripts\setup.ps1      # .venv 생성 + Python 의존성 설치 (Python 3.10+)
-.\scripts\check.ps1      # 전체 검증 — 배포 후보 완료 판정 (원본 무결성, 엔진, golden, backend, frontend, 패치노트)
-.\scripts\check.ps1 --jobs 5         # 같은 전체 검증을 Python 테스트 동시 실행으로 (약 11분)
-.\scripts\check.ps1 --only e2e        # 자동 E2E smoke (Playwright, 가짜 NAVER SDK — 처음 한 번 npx playwright install chromium)
-.\scripts\check.ps1 --only frontend   # 작업 중 고른 단계만 (--list 로 키 확인, 전체 check 아님 — CLAUDE.md 검증 규칙)
-```
-bash: `scripts/setup.sh`, `scripts/check.sh`. frontend 의존성은 `frontend/`에서 `npm install` (Node `^20.19` 또는 `>=22.12`).
+[![check](https://github.com/Ow-wL/harness-commercial/actions/workflows/check.yml/badge.svg)](https://github.com/Ow-wL/harness-commercial/actions/workflows/check.yml) ![앱](https://img.shields.io/badge/%EC%95%B1-v0.3.2-1B5CBE) ![엔진](https://img.shields.io/badge/%EC%97%94%EC%A7%84-v0.5.1-1B5CBE) ![데이터](https://img.shields.io/badge/%EB%8D%B0%EC%9D%B4%ED%84%B0-2026--09-1B5CBE)
 
-## 개발 실행
+![React](https://img.shields.io/badge/React-20232A?logo=react&logoColor=61DAFB) ![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white) ![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white) ![Python](https://img.shields.io/badge/Python_3.10-3776AB?logo=python&logoColor=white) ![Cloud Run](https://img.shields.io/badge/Cloud_Run-4285F4?logo=googlecloud&logoColor=white)
 
-```powershell
-# 1) backend (저장소 루트, .venv 활성화 상태) — 데이터 로드 약 4s 뒤 요청 수신, 업종 warm은 background
-python -m uvicorn backend.app.main:app --port 8000
+<img src="docs/images/result-light.png" alt="부평구 부평1동 카페의 분석 결과. 종합 60.3점, 다섯 관점 막대와 거미줄 그래프, 반경 500m 지도" width="860">
 
-# 1-0) 엔진 v0.5 로 띄우기 (PowerShell) — /health engine.version = "mvp-0.5", 반경 300·500·1,000m
-$env:SCORING_ENGINE_VERSION = "v0_5"; python -m uvicorn backend.app.main:app --port 8000
+</div>
 
-# 1-1) venv 활성화 
-.\.venv\Scripts\Activate.ps1
+> [!IMPORTANT]
+> **점수는 매출이나 성공 확률이 아닙니다.** 인천의 다른 동네와 견준 상대 위치입니다. 음식 9개 업종으로 사후 검증한 결과, 점수가 높은 곳일수록 3년 생존율이 높다는 일관된 관계는 확인되지 않았습니다(평균 순위상관 −0.067, 95% 구간 −0.179~+0.042). 입력 자료가 비교 대상 개업 시기보다 뒤여서 예측 성능을 잰 값도 아닙니다. → [검증 문서](docs/VALIDATION_2026-11-01.md)
 
-# 1-2) venv 비활성화 
-deactivate
-```
-```powershell
-# 2) frontend (frontend/) — http://localhost:5173, /businesses·/analyze 는 vite dev proxy가 backend로 넘긴다
-npm run dev
-```
-자세한 내용: `backend/README.md`, `frontend/README.md`.
+## 목차
 
-## Production 실행 (Docker, Cloud Run 준비)
+[화면](#-화면) · [주요 기능](#-주요-기능) · [다섯 관점](#-다섯-관점) · [구조](#%EF%B8%8F-구조) · [빠른 시작](#-빠른-시작) · [검증](#-검증) · [배포](#-배포) · [데이터 출처](#%EF%B8%8F-데이터-출처) · [문서](#-문서)
 
-FastAPI 하나가 API와 frontend build를 같은 origin에서 서빙한다 (`docs/DECISIONS.md` D-018). Node 서버 없음.
+## 📸 화면
 
-```powershell
-docker build --build-arg VITE_NAVER_MAP_CLIENT_ID=<NAVER Maps Client ID> -t harness-commercial .
-```
-```powershell
-docker run --rm -p 8080:8080 harness-commercial   # http://localhost:8080 , /health 의 warm.done=true 후 시연
-```
-Docker 없이 같은 구성: `frontend/`에서 `npm run build` 후 루트에서 `FRONTEND_DIST=frontend/dist`로 uvicorn 실행.
-NAVER 콘솔 Web 서비스 URL에 접속 주소(로컬 `http://localhost:8080`, Cloud Run URL)를 등록해야 지도가 뜬다.
+<table>
+  <tr>
+    <td width="50%" align="center"><img src="docs/images/start-light.png" alt="인천 지도와 위치·업종·반경을 고르는 시작 패널"><br><sub><b>시작</b> — 지도에서 자리를 누르고 업종과 반경을 고릅니다</sub></td>
+    <td width="50%" align="center"><img src="docs/images/compare-light.png" alt="부평1동과 송도2동의 카페 조건을 관점별로 비교한 화면"><br><sub><b>두 위치 비교</b> — 관점별 차이를 한 화면에서 봅니다</sub></td>
+  </tr>
+  <tr>
+    <td colspan="2" align="center"><img src="docs/images/mobile-dark.png" alt="휴대폰 폭의 다크 테마 분석 결과" width="260"><br><sub><b>모바일·다크 테마</b></sub></td>
+  </tr>
+</table>
 
-## 환경변수 (값은 commit하지 않는다)
+<sub>로컬 개발 서버에서 앱 v0.3.2·엔진 v0.5.1·데이터 2026-09로 찍은 화면입니다(2026-11-01). AI·지원사업 카드는 키 없이 실행해 빠져 있습니다. 지도 © NAVER Corp.</sub>
 
-| 파일 | 용도 | 키 |
+## ✨ 주요 기능
+
+| | 기능 | 내용 |
 |---|---|---|
-| `frontend/.env` | 지도 표시 (필수) | `VITE_NAVER_MAP_CLIENT_ID` — NAVER Maps Client ID만. Client Secret은 넣지 않는다. 선택: `BACKEND_URL` (dev proxy 대상), `VITE_NAVER_MAP_GL=1`(제품 지도를 GL로 띄우는 검수용, 기본 끔), `VITE_NAVER_MAP_STYLE_ID`(NAVER Style Editor My Style ID — 다크 테마 지도의 GL 다크 스타일, 미설정 또는 스타일 실패 시 밝은 지도 사용), `VITE_NAVER_MAP_LIGHT_STYLE_ID`(선택 — 라이트 테마 지도의 GL 라이트 스타일, 없으면 NAVER 기본 밝은 지도. 묶음 A, `DESIGN.md` §19.7) |
-| 루트 `.env` | SGIS 유지보수·검증 스크립트 전용 (`scripts/fetch_sgis_boundary.py`, `scripts/verify_guwol_admin_dong.py`). 앱 실행에는 필요 없다 | `SGIS_CONSUMER_KEY`, `SGIS_CONSUMER_SECRET` |
+| 📍 | **위치 고르기** | 지도 클릭, 주소 검색, 역 이름, 좌표 입력 |
+| 🏪 | **업종 29개** | 고객밀착형·유동인구형·목적방문형·체류소비형, 유형마다 관점 가중치가 다릅니다 |
+| ⭕ | **분석 반경** | 300m · 500m · 1km, 반경별 비교 표 |
+| 📊 | **결과 대시보드** | 종합 점수와 등급, 한 줄 결론, 거미줄 그래프, 점수순 관점 막대, 근거 펼쳐 보기 |
+| 🏆 | **업종 순위** | 같은 자리에서 점수가 높은 업종 순서 |
+| 🕒 | **시간대와 사람** | 구 단위 시간대별 유입, 가까운 지하철역 승하차(점수와 무관) |
+| ⚠️ | **규제 경고** | 학교 주변 규제 업종이면 점수 위에 경고를 펼쳐 보입니다 |
+| ⚖️ | **두 위치 비교** | A·B 관점별 차이, 거미줄 겹쳐 보기 |
+| 🤖 | **AI 요약·질문** | 분석 자료만 근거로 답하고 문장마다 근거를 표시합니다. 하루·월 사용 한도가 있습니다 |
+| 💰 | **지원사업 공고** | 업종·지역에 맞는 공고(기업마당·K-Startup)를 마감일과 함께 보여 줍니다 |
+| 🔖 | **활용 도구** | 조건 공유 링크, 후보 보관함, 인쇄 요약, 현장 확인 카드 |
+| 🌗 | **편의** | 라이트·다크 테마, 첫 방문 안내, 업데이트 내역 |
 
-템플릿은 `frontend/.env.example`, `.env.example` (빈 값). 두 `.env`는 `.gitignore` 대상이다.
+> 장소 이름 검색은 구현되어 있지만 서버에 NAVER 검색 키가 없어 지금 운영에서는 꺼져 있습니다.
 
-## 구조
+## 🧭 다섯 관점
 
-| 경로 | 내용 |
+| 관점 | 무엇을 보나 | 자료 단위 |
+|---|---|---|
+| **시장성** | 구로 들어오는 사람 수, 업종에 맞는 시간대인지 | 구 |
+| **고객성** | 타겟 연령 인구, 종사자, 1인 가구 | 행정동 |
+| **경쟁성** | 반경 안 같은 업종 점포와 점포당 잠재 수요 | 반경 |
+| **입지성** | 지하철역까지의 거리와 역세권 강도, 유인시설 | 좌표 |
+| **안정성** | 3년 생존율, 폐업률, 평균 업력, 임대료(최대 13개 업종만 산출) | 구·상권 |
+
+각 지표는 인천 안 비교 집단에서의 상대 위치로 바꾼 뒤, 업종 유형별 가중치로 합칩니다. 자세한 내용은 [ENGINE.md](docs/ENGINE.md)와 [ENGINE_V0_5.md](docs/ENGINE_V0_5.md)에 있습니다.
+
+## 🏗️ 구조
+
+```mermaid
+flowchart LR
+    U(["사용자"]) --> F["Frontend<br/>React · TypeScript · Vite<br/>NAVER Maps"]
+    F -->|"REST, Zod 응답 검증"| B["Backend<br/>FastAPI"]
+    B --> C["Analysis Context Builder<br/>좌표 → 행정동 → 입력 조립"]
+    C --> E["Scoring Engine<br/>버전 선택 · 결과 그대로 전달"]
+    D[("데이터 버전<br/>data/versions")] --> C
+    B -.->|"선택 기능"| X["Anthropic API<br/>기업마당 · K-Startup"]
+```
+
+- **Frontend는 엔진을 직접 부르지 않습니다.** 화면에 맞춘 변환은 엔진 밖에서 합니다.
+- **점수 계산은 새 엔진 버전으로만 바꿉니다.** 앱 버전, 엔진 버전, 데이터 버전을 따로 관리합니다.
+- **FastAPI 하나가 API와 화면을 같은 주소로 제공합니다.** 운영에는 Node 서버가 없습니다.
+
+<details>
+<summary><b>저장소 구성</b></summary>
+
+```text
+backend/          FastAPI: 분석·점포·AI·지원사업 API, 오류 계약, 사용 제한
+frontend/         React 앱: 지도·조건·결과 화면, 패치노트(src/content/patchNotes.json)
+scoring_engine/   엔진 사본(v0_3 · v0_4 · v0_5 · v0_5_1) + 로더·캐시·location·service
+sources/          팀이 전달한 원본 (읽기 전용, 해시 검증)
+data/
+  runtime/        기본 입력 데이터 (팀 가공본과 바이트 동일)
+  versions/       데이터 버전 묶음 (데이터 파일은 git 밖)
+  geo/            인천 행정동·구 경계
+  extra/          화면 전용 자료 (점수에 쓰지 않음)
+scripts/          check, 배포, 데이터 ETL, smoke, 검증 재현
+tests/            무결성, 엔진, golden regression, 데이터 스키마
+docs/             설계·결정·작업·배포 기록
+```
+
+</details>
+
+## 🚀 빠른 시작
+
+**필요한 것:** Python 3.10+ · Node `^20.19` 또는 `>=22.12` · NAVER Maps Client ID
+
+```powershell
+.\scripts\setup.ps1                 # .venv 생성과 Python 의존성 설치 (bash: scripts/setup.sh)
+```
+```powershell
+npm --prefix frontend install       # 프런트 의존성 설치
+```
+
+`frontend/.env`를 만들어 `VITE_NAVER_MAP_CLIENT_ID`를 넣습니다. NAVER 콘솔의 Web 서비스 URL에 `http://localhost:5173`도 등록해야 지도가 뜹니다.
+
+```powershell
+.\.venv\Scripts\python.exe scripts\run_local_backend.py    # backend — http://127.0.0.1:8000, 운영과 같은 엔진 v0.5.1
+```
+```powershell
+npm --prefix frontend run dev                              # frontend — http://localhost:5173
+```
+
+업종 사전 계산(warm)은 뒤에서 돌아가므로 서버가 뜨면 바로 쓸 수 있고, 계산 전 조합의 첫 요청만 조금 느립니다.
+
+<details>
+<summary><b>환경변수</b> (값은 커밋하지 않습니다)</summary>
+
+| 위치 | 키 | 용도 |
+|---|---|---|
+| `frontend/.env` | `VITE_NAVER_MAP_CLIENT_ID` | **필수.** 지도 표시. Client Secret은 넣지 않습니다 |
+| | `VITE_NAVER_MAP_STYLE_ID`, `VITE_NAVER_MAP_LIGHT_STYLE_ID` | 선택. 다크·라이트 지도 스타일 |
+| | `VITE_NAVER_MAP_GL`, `BACKEND_URL` | 선택. GL 지도 검수용, 개발 프록시 대상 |
+| 서버 환경 | `SCORING_ENGINE_VERSION` | `v0_3`(코드 기본) · `v0_4` · `v0_5` · `v0_5_1`(운영) |
+| | `DATA_VERSION` | 데이터 묶음(예: `2026-09`). 없으면 `data/runtime` |
+| | `ANTHROPIC_API_KEY` | 선택. AI 요약·질문 |
+| | `BIZINFO_API_KEY`, `DATA_GO_KR_API_KEY` | 선택. 지원사업 공고 |
+| | `NAVER_SEARCH_CLIENT_ID`, `NAVER_SEARCH_CLIENT_SECRET` | 선택. 장소 이름 검색 |
+| 루트 `.env` | `SGIS_CONSUMER_KEY`, `SGIS_CONSUMER_SECRET` | SGIS 유지보수 스크립트 전용. 앱 실행에는 필요 없습니다 |
+
+키가 없는 선택 기능은 꺼진 채로 동작합니다. 템플릿은 `.env.example`, `frontend/.env.example`입니다.
+
+</details>
+
+더 자세한 내용은 [backend/README.md](backend/README.md)와 [frontend/README.md](frontend/README.md)에 있습니다.
+
+## ✅ 검증
+
+```powershell
+.\scripts\check.ps1 --jobs 5                # 전체 check (약 11분)
+```
+```powershell
+.\scripts\check.ps1 --only frontend         # 고른 단계만, 키 목록은 --list (전체 check로 치지 않습니다)
+```
+```powershell
+.\scripts\check.ps1 --only e2e              # E2E smoke (Playwright, 가짜 NAVER SDK)
+```
+
+| 지켜지는 것 | 방법 |
 |---|---|
-| `sources/team_v0.3/` | 팀 원본 (읽기 전용, 해시 검증) |
-| `scoring_engine/` | 엔진 v0.3 사본(`v0_3/`, 수정 금지) + 데이터 로더·캐시·`service`·`location`(좌표 → 행정동 → SiteContext) |
-| `backend/` | FastAPI: `/health`, `/businesses`, `/analyze`, 오류 계약 |
-| `frontend/` | React + TypeScript + Vite: 지도·조건 패널·결과 화면, Zod 응답 검증 |
-| `data/runtime/` | 엔진 입력 데이터 (원본 `07_가공데이터`와 바이트 동일) |
-| `data/geo/` | 인천 행정동 경계 158개 (2026-07 기준, 구월1·3동 SGIS 교정) |
-| `tests/` | 무결성, 엔진 단위, 데이터 스키마, golden regression, location |
-| `docs/` | 구조·엔진·데이터·작업·결정 (`ARCHITECTURE`, `ENGINE`, `DATA`, `TASKS`, `DECISIONS`), 8차 설계 `UX_REDESIGN`, 주간 보고 `reports/` |
-| `frontend/spike/`, `docs/spikes/` | 개발 서버 전용 검수 페이지(빌드 밖)와 재현 기록 — 8-B0 지도 맞춤(`map-fit-spike.html`), A3 NAVER 다크 지도·스타일 실패 복구(`a3-naver-review.html`, `docs/spikes/a3-naver/README.md`) |
+| 팀 원본이 그대로인지 | 해시 매니페스트 대조 |
+| 기존 점수가 그대로인지 | 엔진 버전별 golden regression |
+| 엔진 사본 변경이 허용 범위 안인지 | 허용 diff 테스트 |
+| 화면과 API 계약이 맞는지 | Zod 스키마, 백엔드·프런트 테스트, E2E |
+| 커밋과 배포가 기록되는지 | `scripts/patch_notes.py check` |
 
-작업 규칙은 `CLAUDE.md`, UI 규칙은 `DESIGN.md`.
+마지막 전체 check는 `1c95e66`(v0.3.2) 기준 19단계 통과입니다(v0.3 382 · v0.4 61 · v0.5 104 · v0.5.1 40 · backend 258, 1건 skip · frontend 1,022). push마다 도는 빠른 CI와 매일 밤 전체 CI는 GitHub Actions에서 실행합니다.
+
+아직 확인하지 못한 환경은 실기기, Safari, Firefox, 스크린리더입니다.
+
+## 📦 배포
+
+```powershell
+docker build --build-arg VITE_NAVER_MAP_CLIENT_ID=<Client ID> -t harness-commercial .
+```
+```powershell
+docker run --rm -p 8080:8080 harness-commercial    # http://localhost:8080
+```
+
+운영은 Cloud Run과 Firebase Hosting 앞단으로 구성합니다. 무트래픽 후보 리비전에서 API smoke와 화면을 확인한 뒤 트래픽을 전환하고, 직전 리비전을 복구 대상으로 남깁니다. Cloud Run 배포·전환·태그 정리는 [`scripts/deploy_cloud_run.py`](scripts/deploy_cloud_run.py)로만 합니다. 배포 기록은 `docs/DEPLOYMENT_*.md`와 앱의 "업데이트 내역"에 남습니다.
+
+## 🗂️ 데이터 출처
+
+| 쓰이는 곳 | 출처 |
+|---|---|
+| 경쟁성 · 입지성 | 소상공인시장진흥공단 상가(상권)정보 |
+| 고객성 | 행정안전부 행정동 성별·연령별 인구, SGIS 행정구역 통계 |
+| 시장성 | 서울시 수도권 생활이동(KT) |
+| 입지성 | 전국도시철도 역사정보, 전국초중등학교 위치 |
+| 안정성 | 행정안전부 인허가(인터넷컴퓨터게임시설제공업, 일반·휴게음식점), 한국부동산원 R-ONE 소규모상가 임대료 |
+| 화면 참고 | 인천교통공사 역별 승하차, 기업마당·K-Startup 공고 |
+
+자료별 기준일은 앱의 데이터 출처 표와 `/health`에서 확인할 수 있습니다. 새 원본 자료가 나왔는지는 GitHub Actions가 매주 확인해 알려 줍니다.
+
+## 📚 문서
+
+| 문서 | 내용 |
+|---|---|
+| [CLAUDE.md](CLAUDE.md) | 작업 규칙, 보호 경로, 완료 기준, 현재 운영 기록 |
+| [DESIGN.md](DESIGN.md) | UI 규칙과 디자인 시스템 |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | 데이터 흐름과 캐시 경계 |
+| [docs/ENGINE.md](docs/ENGINE.md) · [ENGINE_V0_5.md](docs/ENGINE_V0_5.md) · [ENGINE_V0_6_REQUEST.md](docs/ENGINE_V0_6_REQUEST.md) | 엔진 입출력, v0.5 변경, 다음 버전 요청 |
+| [docs/DATA.md](docs/DATA.md) · [DATA_VERSIONING.md](docs/DATA_VERSIONING.md) | 데이터 파일과 버전 갱신 절차 |
+| [docs/VALIDATION_2026-11-01.md](docs/VALIDATION_2026-11-01.md) | 사후 생존 검증과 검증 설계 |
+| [docs/TASKS.md](docs/TASKS.md) · [DECISIONS.md](docs/DECISIONS.md) | 남은 작업과 기술 결정 |
