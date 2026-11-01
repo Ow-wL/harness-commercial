@@ -949,7 +949,7 @@ describe('두 위치 비교 — B 분석 상태 (5차-B2, docs/COMPARE_DESIGN.md
       expect(getList('PC방 점포 목록')).toBeInTheDocument()
       expect(screen.getByTestId('map')).toHaveAttribute('data-stores', '12')
       expect(nearbyCalls(fetchMock)).toHaveLength(2)
-    })
+    }, 20000)                                                 // 긴 흐름이라 부하가 크면 기본 5초를 넘긴다(단독 약 2~6초)
 
     it('요약 / A 전체 / B 전체 각 화면에서 id가 유일하고 접근성 참조가 이어진다 (펼친 뒤 aria-controls)', async () => {
       await compareWithGuwol()
@@ -3942,6 +3942,8 @@ describe('대시보드 시트 (13-10, §20.1) — 올리고 내려도 결과·�
     await selectBupyeongPcBang()
     fireEvent.click(analyzeButton())
     await screen.findByRole('heading', { level: 1, name: '부평구 부평1동 · PC방 분석' })
+    // 결과 제목으로 포커스를 옮기는 effect 가 끝난 뒤 조작한다 — 부하가 크면 그 effect 가 클릭 뒤로 밀려 포커스를 가져간다
+    await waitFor(() => expect(document.activeElement).toHaveAttribute('id', 'result-title'))
   }
 
   it('"지도 크게 보기" → 시트가 내려가고 "대시보드 올리기"로 그대로 돌아온다. 포커스는 같은 버튼에 남고 지도는 전체 배경', async () => {
