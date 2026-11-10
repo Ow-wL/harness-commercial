@@ -6,7 +6,7 @@
 
 예비 창업자가 "여기에 이 가게를 열어도 될까?"를 공개 데이터로 먼저 따져 보는 웹 서비스입니다.
 
-[![check](https://github.com/Ow-wL/harness-commercial/actions/workflows/check.yml/badge.svg)](https://github.com/Ow-wL/harness-commercial/actions/workflows/check.yml) ![앱](https://img.shields.io/badge/%EC%95%B1-v0.3.2-1B5CBE) ![엔진](https://img.shields.io/badge/%EC%97%94%EC%A7%84-v0.5.1-1B5CBE) ![데이터](https://img.shields.io/badge/%EB%8D%B0%EC%9D%B4%ED%84%B0-2026--09-1B5CBE)
+[![check](https://github.com/Ow-wL/harness-commercial/actions/workflows/check.yml/badge.svg)](https://github.com/Ow-wL/harness-commercial/actions/workflows/check.yml) ![앱](https://img.shields.io/badge/%EC%95%B1-v0.3.4-1B5CBE) ![엔진](https://img.shields.io/badge/%EC%97%94%EC%A7%84-v0.5.1-1B5CBE) ![데이터](https://img.shields.io/badge/%EB%8D%B0%EC%9D%B4%ED%84%B0-2026--09-1B5CBE)
 
 ![React](https://img.shields.io/badge/React-20232A?logo=react&logoColor=61DAFB) ![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white) ![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white) ![Python](https://img.shields.io/badge/Python_3.10-3776AB?logo=python&logoColor=white) ![Cloud Run](https://img.shields.io/badge/Cloud_Run-4285F4?logo=googlecloud&logoColor=white)
 
@@ -33,7 +33,7 @@
   </tr>
 </table>
 
-<sub>로컬 개발 서버에서 앱 v0.3.2·엔진 v0.5.1·데이터 2026-09로 찍은 화면입니다(2026-11-01). AI·지원사업 카드는 키 없이 실행해 빠져 있습니다. 지도 © NAVER Corp.</sub>
+<sub>운영 화면(앱 v0.3.4·엔진 v0.5.1·데이터 2026-09)에서 찍었습니다(2026-11-10). 결과는 지도 위로 끌어올리는 시트로 보이고, 지도를 크게 본 뒤에도 이전 결과로 돌아올 수 있습니다. 지도 © NAVER Corp.</sub>
 
 ## ✨ 주요 기능
 
@@ -42,7 +42,7 @@
 | 📍 | **위치 고르기** | 지도 클릭, 주소 검색, 역 이름, 좌표 입력 |
 | 🏪 | **업종 29개** | 고객밀착형·유동인구형·목적방문형·체류소비형, 유형마다 관점 가중치가 다릅니다 |
 | ⭕ | **분석 반경** | 300m · 500m · 1km, 반경별 비교 표 |
-| 📊 | **결과 대시보드** | 종합 점수와 등급, 한 줄 결론, 거미줄 그래프, 점수순 관점 막대, 근거 펼쳐 보기 |
+| 📊 | **결과 대시보드** | 지도 위로 끌어올리는 결과 시트 — 종합 점수와 등급, 한 줄 결론, 거미줄 그래프, 점수순 관점 막대, 근거 펼쳐 보기 |
 | 🏆 | **업종 순위** | 같은 자리에서 점수가 높은 업종 순서 |
 | 🕒 | **시간대와 사람** | 구 단위 시간대별 유입, 가까운 지하철역 승하차(점수와 무관) |
 | ⚠️ | **규제 경고** | 학교 주변 규제 업종이면 점수 위에 경고를 펼쳐 보입니다 |
@@ -165,7 +165,7 @@ npm --prefix frontend run dev                              # frontend — http:/
 | 화면과 API 계약이 맞는지 | Zod 스키마, 백엔드·프런트 테스트, E2E |
 | 커밋과 배포가 기록되는지 | `scripts/patch_notes.py check` |
 
-마지막 전체 check는 `1c95e66`(v0.3.2) 기준 19단계 통과입니다(v0.3 382 · v0.4 61 · v0.5 104 · v0.5.1 40 · backend 258, 1건 skip · frontend 1,022). push마다 도는 빠른 CI와 매일 밤 전체 CI는 GitHub Actions에서 실행합니다.
+마지막 전체 check는 `875ebed`(v0.3.4) 기준 19단계 통과입니다(v0.3 382 · v0.4 61 · v0.5 104 · v0.5.1 40 · backend 258, 1건 skip · frontend 1,038). push마다 도는 빠른 CI와 매일 밤 전체 CI는 GitHub Actions에서 실행합니다.
 
 아직 확인하지 못한 환경은 실기기, Safari, Firefox, 스크린리더입니다.
 

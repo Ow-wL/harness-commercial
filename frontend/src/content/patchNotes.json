@@ -15,7 +15,10 @@
       "work": [
         "13-45: 시안 4개 중 사용자 선택 A안. public/favicon.svg 와 조건 바 로고를 같은 도형으로 교체, 조건 바 로고는 인라인 SVG 로 테마 색(--color-accent·--color-bg)을 따른다"
       ],
-      "commits": []
+      "commits": [
+        "875ebed",
+        "5ed802a"
+      ]
     },
     {
       "version": "v0.3.3",
@@ -1189,6 +1192,26 @@
       "source_commit": "9e96e6f",
       "engine": "mvp-0.5.1",
       "note": "운영 트래픽 100% 전환 — 지도 위로 끌어올리는 결과 대시보드, 패널이 이어서 움직이는 전환, 이전 결과로 돌아가기. 운영 API 48건 대조·화면 확인 뒤 기록"
+    },
+    {
+      "id": "2026-11-10-verification-875ebed",
+      "kind": "verification",
+      "result": "passed",
+      "date": "2026-11-10",
+      "app_version": "v0.3.4",
+      "source_commit": "875ebed",
+      "engine": "mvp-0.5.1",
+      "note": "API 48건·업종 순위·가까운 역 통과(첫 대조는 시작 직후 미리 계산이 덜 끝나 실패, 끝난 뒤 다시 대조), 지도 인증 성공 상태에서 새 로고·탭 아이콘·업데이트 내역 확인"
+    },
+    {
+      "id": "2026-11-10-production-875ebed",
+      "kind": "production",
+      "result": "done",
+      "date": "2026-11-10",
+      "app_version": "v0.3.4",
+      "source_commit": "875ebed",
+      "engine": "mvp-0.5.1",
+      "note": "운영 트래픽 100% 전환 — 브라우저 탭과 상단 바의 위치 핀 로고. 운영 API 48건 대조·화면 확인 뒤 기록"
     }
   ]
 }
