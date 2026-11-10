@@ -47,7 +47,8 @@
         "lib/conclusion main·fact(점수 카드는 결론 + 참고 칩, text 는 보관함·이전과 같다), lib/timeInsights plain·detail + 공통 DataNote(접힌 자료 안내, 인쇄는 펼침), 시간대 인구 숫자 타일, 역 승하차 각주 접기, GapsLine 칩(끝 괄호 설명은 칩 안 작은 줄)"
       ],
       "commits": [
-        "2aab21d"
+        "2aab21d",
+        "151ca36"
       ]
     },
     {
@@ -1329,6 +1330,26 @@
       "source_commit": "2aab21d",
       "engine": "mvp-0.5.1",
       "note": "운영 트래픽 100% 전환 — 읽기 쉬운 AI 요약과 지원사업 카드, 결론·시간대·확인 필요 정리. 운영 API 48건 대조·화면 확인 뒤 기록"
+    },
+    {
+      "id": "2026-11-10-verification-0999fde",
+      "kind": "verification",
+      "result": "passed",
+      "date": "2026-11-10",
+      "app_version": "v0.4.2",
+      "source_commit": "0999fde",
+      "engine": "mvp-0.5.1",
+      "note": "API 48건·업종 순위·가까운 역 통과, 지도 인증 성공 상태에서 상세 근거 질문 여섯 개·자료 칸·원문 접기 확인"
+    },
+    {
+      "id": "2026-11-10-production-0999fde",
+      "kind": "production",
+      "result": "done",
+      "date": "2026-11-10",
+      "app_version": "v0.4.2",
+      "source_commit": "0999fde",
+      "engine": "mvp-0.5.1",
+      "note": "운영 트래픽 100% 전환 — 읽기 쉬운 상세 근거(질문형 점수 읽는 법, 자료 칸, 원문 접기). 운영 API 48건 대조·화면 확인 뒤 기록"
     }
   ]
 }
