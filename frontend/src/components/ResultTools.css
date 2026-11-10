@@ -32,3 +32,34 @@
   width: 100%;
   font: var(--text-small);
 }
+
+/* 휴대폰으로 이어보기 (13-46): QR 은 늘 흰 바탕(카메라가 읽게), 옆에 한 줄 안내 */
+.result-tools__qr {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: var(--color-surface);
+}
+
+.result-tools__qr .qr-code {
+  flex: none;
+  border-radius: 6px;
+}
+
+.result-tools__qr-text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  font: var(--text-small);
+  color: var(--color-text-secondary);
+}
+
+.result-tools__qr-text strong {
+  font: var(--text-body);
+  font-weight: 700;
+  color: var(--color-text-primary);
+}

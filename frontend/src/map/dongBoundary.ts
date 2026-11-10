@@ -57,3 +57,13 @@ export async function findDongRings(guCode: string, dongName: string): Promise<D
     polygon.map((ring) => ring.map(([lng, lat]) => ({ lat, lng }))),
   )
 }
+
+/** 업종 지도(13-46)용: 모든 행정동 경계. 같은 파일을 한 번만 받는다 */
+export async function allDongRings(): Promise<{ guCode: string; dongName: string; rings: DongRings[] }[]> {
+  const boundary = await loadBoundary()
+  return boundary.features.map((f) => ({
+    guCode: f.properties.시군구코드,
+    dongName: f.properties.행정동명,
+    rings: f.geometry.coordinates.map((polygon) => polygon.map((ring) => ring.map(([lng, lat]) => ({ lat, lng })))),
+  }))
+}

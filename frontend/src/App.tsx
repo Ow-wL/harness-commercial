@@ -21,6 +21,7 @@ import { Icon } from './components/Icon.tsx'
 import { MapErrorBoundary } from './components/MapErrorBoundary.tsx'
 import { MapView, type LatLng, type MapCompare, type MapStore } from './components/MapView.tsx'
 import { MoreBelow } from './components/MoreBelow.tsx'
+import { QrCode } from './components/QrCode.tsx'
 import { SheetHandle } from './components/SheetHandle.tsx'
 import { NearbyStores } from './components/NearbyStores.tsx'
 import { RadiusControl } from './components/RadiusControl.tsx'
@@ -30,6 +31,8 @@ import { ResultTools } from './components/ResultTools.tsx'
 import { TimeInsightsCard } from './components/TimeInsightsCard.tsx'
 import { useInsights } from './lib/useInsights.ts'
 import { useSummary } from './lib/useSummary.ts'
+import { dongKey, heatLayer, heatmapMatches, loadHeatmap, topDongs, type Heatmap } from './lib/heatmap.ts'
+import { ATTRACT_BIZ, ATTRACT_HEAT_MS, ATTRACT_RESULT_MS, KIOSK_IDLE_MS, readKioskFlag, useIdleWatch } from './lib/kiosk.ts'
 import { AiSummaryCard } from './components/AiSummaryCard.tsx'
 import { AskDialog } from './components/AskDialog.tsx'
 import { SupportCard } from './components/SupportCard.tsx'
@@ -952,6 +955,93 @@ function App() {
   }, [analysis.status])
 
   const result = analysis.status === 'success' ? analysis.response : null
+  // 업종 지도(13-46, D-045): 서버와 같은 엔진·데이터로 만든 파일만. 업종을 고르고 위치를 아직 안 골랐을 때(결과·비교 없음) 보인다.
+  // 끄면(heatOffBiz) 그 업종 동안은 다시 켜지 않고, 업종을 바꾸면 다시 보인다
+  const [heatmap, setHeatmap] = useState<Heatmap | null>(null)
+  const [heatOffBiz, setHeatOffBiz] = useState<string | null>(null)
+  useEffect(() => {
+    if (!serverEngine || !dataInfo) return
+    let cancelled = false
+    loadHeatmap()
+      .then((h) => !cancelled && setHeatmap(heatmapMatches(h, { engine: serverEngine, data: dataInfo.version }) ? h : null))
+      .catch(() => !cancelled && setHeatmap(null))       // 파일이 없거나 깨졌으면 업종 지도 없이 그대로
+    return () => {
+      cancelled = true
+    }
+  }, [serverEngine, dataInfo])
+  const heatBizName =
+    bizCode && businesses.status === 'ready'
+      ? businesses.catalog.groups.flatMap((g) => g.businesses).find((b) => b.code === bizCode)?.name ?? null
+      : null
+  const mapHeat = useMemo(() => {
+    if (!heatmap || !bizCode || !heatBizName || heatOffBiz === bizCode) return null
+    const layer = heatLayer(heatmap, bizCode)
+    return layer ? { layer, title: heatBizName, onClose: () => setHeatOffBiz(bizCode) } : null
+  }, [heatmap, bizCode, heatBizName, heatOffBiz])
+
+  // 전시 모드(13-46, D-045, lib/kiosk): 아무도 만지지 않으면 업종 지도 ↔ 높은 동 분석을 번갈아 보이고(attract),
+  // 누가 화면을 누르면 멈추고 처음 화면으로. 마지막 조작 뒤 KIOSK_IDLE_MS 가 지나면 다시 자동 시연
+  const [kiosk] = useState(readKioskFlag)
+  const [attract, setAttract] = useState(kiosk)
+  const [overviewSeq, setOverviewSeq] = useState(0)
+  const attractRef = useRef(attract)
+  const kioskActs = useRef<{ reset: () => void; show: (point: LatLng, biz: string) => void }>({ reset: () => {}, show: () => {} })
+  useEffect(() => {
+    attractRef.current = attract
+    kioskActs.current = {
+      reset: () => {
+        cancelAnalysis()
+        setLocation(null)
+        setAskOpen(false)
+        setHeatOffBiz(null)
+        setOverviewSeq((n) => n + 1)
+      },
+      show: (point, biz) => {
+        setLocation(point)
+        setBizCode(biz)
+        setRadius(DEFAULT_RADIUS_M)
+        setPrevRadius(null)
+        startA(buildRequest(point, biz, DEFAULT_RADIUS_M, radiusEnabled))
+      },
+    }
+  })
+  useIdleWatch(
+    kiosk,
+    KIOSK_IDLE_MS,
+    () => {
+      if (!attractRef.current) return
+      setAttract(false)                                      // 누가 만졌다: 시연을 멈추고 빈 처음 화면으로
+      kioskActs.current.reset()
+      setBizCode(null)
+    },
+    () => setAttract(true),
+  )
+  useEffect(() => {
+    if (!attract || !heatmap) return
+    let step = 0
+    let timer = 0
+    const run = () => {
+      const biz = ATTRACT_BIZ[Math.floor(step / 2) % ATTRACT_BIZ.length]!
+      if (step % 2 === 0) {
+        kioskActs.current.reset()
+        setBizCode(biz)
+        timer = window.setTimeout(next, ATTRACT_HEAT_MS)
+        return
+      }
+      const layer = heatLayer(heatmap, biz)
+      const tops = layer ? topDongs(layer, 3) : []
+      const pick = tops[Math.floor(step / 2 / ATTRACT_BIZ.length) % Math.max(1, tops.length)]
+      const dong = pick && heatmap.dongs.find((d) => dongKey(d.gu_code, d.dong) === pick.key)
+      if (dong) kioskActs.current.show({ lat: dong.lat, lng: dong.lng }, biz)
+      timer = window.setTimeout(next, dong ? ATTRACT_RESULT_MS : 0)
+    }
+    const next = () => {
+      step++
+      run()
+    }
+    run()
+    return () => window.clearTimeout(timer)
+  }, [attract, heatmap])
   // 이 자리 업종 순위(13-16): 단일 결과의 좌표·반경으로 — 비교 중에는 요청하지 않는다(A 결과 카드에만)
   // 분석 결과의 엔진·데이터 버전: 순위·시간대 요청의 키 꼬리표이자 받은 응답의 대조 기준 — 다르면 표시·캐시하지 않는다(R1-9).
   // 새 분석 응답(객체)이면 실패·불일치도 다시 시도한다
@@ -1618,9 +1708,28 @@ function App() {
                 : undefined
             }
             compare={mapCompare}
+            heat={!result && !comparing && analysis.status !== 'loading' ? mapHeat : null}
+            overviewSeq={overviewSeq}
           />
         </MapErrorBoundary>
       </div>
+      {kiosk && result && currentShare && (
+        // 전시 모드: 결과의 공유 링크를 화면 오른쪽 여백에 늘 띄운다 — 관람객이 휴대폰으로 찍어 가져간다
+        <aside className="kiosk-qr" aria-label="휴대폰으로 이어보기">
+          <QrCode text={shareUrl(currentShare)} size={92} label="이 분석을 휴대폰에서 여는 QR 코드" />
+          <p>휴대폰으로 찍어 이어보기</p>
+        </aside>
+      )}
+      {kiosk && attract && (
+        // 전시 모드 자동 시연 중 안내: 어디를 눌러도 멈춘다(입력은 lib/kiosk 가 캡처 단계에서 본다)
+        <div className="kiosk-attract" role="status">
+          <span className="kiosk-attract__dot" aria-hidden="true" />
+          <span>
+            <strong>화면을 눌러 직접 해 보세요</strong>
+            지도에서 자리를 누르고 업종을 고르면, 그 자리를 다섯 관점으로 바로 분석합니다
+          </span>
+        </div>
+      )}
       {/* 시트를 올렸을 때 양옆 지도: 누르면 시트가 내려간다. 키보드는 손잡이의 버튼 */}
       {layout === 'dashboard' && <div className="sheet-scrim" aria-hidden="true" onClick={() => changeSheet(true)} />}
       <header ref={headerRef} className="app-header bar" data-map-obstacle>

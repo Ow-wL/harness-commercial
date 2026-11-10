@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent } from 'react'
-import { findDongRings } from '../map/dongBoundary.ts'
+import { allDongRings, findDongRings } from '../map/dongBoundary.ts'
 import { boundaryTier, loadGuBoundaries, type BoundaryTier } from '../map/guBoundary.ts'
 import { lastStyleStatus, styleStatusSince } from '../map/styleStatus.ts'
 import {
@@ -42,7 +42,9 @@ import {
   type NaverMarker,
   type NaverPolygon,
 } from '../map/naverMaps.ts'
-import { formatRadius } from '../lib/format.ts'
+import { formatRadius, formatScore } from '../lib/format.ts'
+import { motionAllowed } from '../lib/useCountUp.ts'
+import { dongKey, HEAT_BINS, heatTone, topDongs, type HeatLayer } from '../lib/heatmap.ts'
 import { STORE_GLYPH_FALLBACK, STORE_MARKER_SIZE, storeMarkerHtml, storeMarkerMode, type StoreGlyph, type StoreMarkerMode } from '../lib/storeIcons.ts'
 import { STORE_LINKS_NOTE, type StoreLinks } from '../lib/storeLinks.ts'
 import { Icon } from './Icon.tsx'
@@ -137,6 +139,13 @@ export type MapViewProps = {
    * 복구한다(§19.3.1). 중심·줌·오버레이·선택은 새 지도로 이어진다. 생략하면 다크
    */
   theme?: 'light' | 'dark'
+  /**
+   * 업종 지도(13-46, D-045): 행정동마다 미리 계산한 그 업종 점수로 색칠한다. 동을 누르면 그 지점을 고른 것과 같다(지도 클릭과 같은 규칙).
+   * title 은 떠 있는 카드 제목(예: "카페"), onClose 가 있으면 끄기 버튼. null·생략이면 그리지 않는다
+   */
+  heat?: { layer: HeatLayer; title: string; onClose?: () => void } | null
+  /** 인천 전체 보기 요청(전시 모드, 13-46): 값이 바뀔 때마다 처음 화면의 중심·축척으로 부드럽게 돌아간다. 0은 요청 없음 */
+  overviewSeq?: number
 }
 
 /** 인천 중심 초기 화면 (인천광역시청 부근) */
@@ -255,6 +264,119 @@ function useDongPolygons(api: NaverMapsApi | null, map: NaverMap | null, guCode?
       release('행정동 경계 정리', polygons.map((p) => () => p.setMap(null)))
     }
   }, [api, map, guCode, dongName])
+}
+
+/**
+ * 업종 지도 층(13-46, D-045): 모든 행정동을 점수 구간 색으로 칠한다(반투명, 지도 글자가 비치게). 동을 누르면 그 자리를
+ * 고른 것과 같고(onPick — 지도 클릭과 같은 규칙), 마우스를 올리면 onHover(동 열쇠). 층이 바뀌면 다시 그린다
+ */
+function useHeatPolygons(
+  api: NaverMapsApi | null,
+  map: NaverMap | null,
+  layer: HeatLayer | null,
+  onPick: (e: NaverMapEvent) => void,
+  onHover: (key: string | null) => void,
+) {
+  const pickRef = useRef(onPick)
+  const hoverRef = useRef(onHover)
+  useEffect(() => {
+    pickRef.current = onPick
+    hoverRef.current = onHover
+  })
+  useEffect(() => {
+    if (!api || !map || !layer) return
+    let cancelled = false
+    const polygons: NaverPolygon[] = []
+    const listeners: unknown[] = []
+    allDongRings()
+      .then((dongs) => {
+        if (cancelled) return
+        const opacity = Number.parseFloat(token('--map-heat-opacity')) || 0.5
+        for (const d of dongs) {
+          const key = dongKey(d.guCode, d.dongName)
+          const tone = heatTone(layer.scores.get(key))
+          for (const polygon of d.rings) {
+            const p = new api.Polygon({
+              map,
+              paths: polygon.map((ring) => ring.map((pt) => new api.LatLng(pt.lat, pt.lng))),
+              fillColor: token(`--color-heat-${tone}`),
+              fillOpacity: tone === 'none' ? 1 : opacity,
+              strokeColor: token('--color-heat-stroke'),
+              strokeWeight: 1,
+              clickable: true,
+            })
+            polygons.push(p)
+            listeners.push(
+              api.Event.addListener(p, 'click', (e) => pickRef.current(e)),
+              api.Event.addListener(p, 'mouseover', () => {
+                p.setOptions?.({ strokeWeight: 3 })
+                hoverRef.current(key)
+              }),
+              api.Event.addListener(p, 'mouseout', () => {
+                p.setOptions?.({ strokeWeight: 1 })
+                hoverRef.current(null)
+              }),
+            )
+          }
+        }
+      })
+      .catch((e: unknown) => console.error('[map] 업종 지도 경계를 불러오지 못했습니다', e))
+    return () => {
+      cancelled = true
+      hoverRef.current(null)
+      release('업종 지도 정리', [
+        ...listeners.map((l) => () => api.Event.removeListener(l)),
+        ...polygons.map((p) => () => p.setMap(null)),
+      ])
+    }
+  }, [api, map, layer])
+}
+
+/** 결과 공개 파동(13-46, D-045) 한 번의 길이와 반복 수 */
+const RIPPLE_MS = 1400
+const RIPPLE_TIMES = 2
+/** 파동 원의 가장 작은 반경(m). 0 이면 SDK 가 음수 크기 SVG 를 만들어 콘솔 오류가 난다 */
+const RIPPLE_MIN_M = 20
+
+/**
+ * 결과 공개 파동(13-46, D-045): 분석이 끝나 행정동이 정해지면 선택 지점에서 반경보다 조금 큰 원이 두 번 퍼지며 사라진다.
+ * 반경 원·맞춤·클릭에는 손대지 않는 별도 원(클릭 받지 않음). 움직임 줄이기 설정·matchMedia 없음이면 그리지 않는다
+ */
+function useRadiusRipple(api: NaverMapsApi | null, map: NaverMap | null, center: LatLng | null, dongKey: string | null, radiusM: number) {
+  const lat = center?.lat
+  const lng = center?.lng
+  useEffect(() => {
+    if (!api || !map || !dongKey || lat === undefined || lng === undefined || !motionAllowed()) return
+    const max = radiusM * 1.25
+    const ripple = new api.Circle({
+      map,
+      center: new api.LatLng(lat, lng),
+      radius: RIPPLE_MIN_M,
+      fillOpacity: 0,
+      strokeColor: token(RADIUS_TOKENS.A.stroke),
+      strokeWeight: 3,
+      strokeOpacity: 1,
+      clickable: false,
+    })
+    let raf = 0
+    const start = performance.now()
+    const tick = (now: number) => {
+      const elapsed = now - start
+      if (elapsed >= RIPPLE_MS * RIPPLE_TIMES) {
+        ripple.setMap(null)
+        return
+      }
+      const t = (elapsed % RIPPLE_MS) / RIPPLE_MS
+      ripple.setRadius(Math.max(RIPPLE_MIN_M, max * (1 - Math.pow(1 - t, 2))))
+      ripple.setOptions?.({ strokeOpacity: 1 - t })
+      raf = requestAnimationFrame(tick)
+    }
+    raf = requestAnimationFrame(tick)
+    return () => {
+      cancelAnimationFrame(raf)
+      release('결과 파동 정리', [() => ripple.setMap(null)])
+    }
+  }, [api, map, dongKey, lat, lng, radiusM])
 }
 
 /**
@@ -404,7 +526,7 @@ function mapObstacles(section: HTMLElement, canvas: HTMLElement | null): Rect[] 
   const m = section.getBoundingClientRect()
   const rel = (b: DOMRect): Rect => ({ x: b.left - m.left, y: b.top - m.top, w: b.width, h: b.height })
   const out: Rect[] = []
-  for (const el of section.querySelectorAll<HTMLElement>('.map__legend, .map__guide, .map__store-bar, .map__controls')) {
+  for (const el of section.querySelectorAll<HTMLElement>('.map__legend, .map__guide, .map__store-bar, .map__controls, .map__heat')) {
     const b = el.getBoundingClientRect()
     if (b.width > 0 && b.height > 0) out.push(rel(b))
   }
@@ -555,6 +677,8 @@ export function MapView({
   layoutKey,
   fitSeq = 0,
   theme = 'dark',
+  heat = null,
+  overviewSeq = 0,
 }: MapViewProps) {
   const sectionRef = useRef<HTMLElement>(null)
   /** React가 그리는 지도 자리. SDK 지도 요소(canvas)는 세대마다 이 안에 새로 만든다(8-DK) */
@@ -1135,6 +1259,17 @@ export function MapView({
   useEffect(() => {
     if (fitSeq > 0) fitToRangeRef.current()
   }, [fitSeq])
+  // 인천 전체 보기(전시 모드 업종 지도): 처음 화면과 같은 중심·래스터 축척(GL 은 1 작다)
+  useEffect(() => {
+    if (overviewSeq === 0 || !api || !map) return
+    lockedRef.current = false
+    try {
+      map.setCenter(new api.LatLng(INCHEON_CENTER.lat, INCHEON_CENTER.lng))
+      map.setZoom(renderModeRef.current === 2 ? INITIAL_ZOOM - 1 : INITIAL_ZOOM, true)
+    } catch (e) {
+      console.error('[map] 인천 전체 보기 실패', e)
+    }
+  }, [overviewSeq, api, map])
 
   // 선택 지점(A) 마커 + 반경 원. 다시 클릭하면 같은 오버레이를 옮긴다. 비교 중이면 글자 "A" 마커(B를 아직 안 골라도)
   const comparing = compare !== null
@@ -1398,6 +1533,22 @@ export function MapView({
   useGuBoundaries(api, map, renderModeRef)
   // 분석된 행정동 경계 강조: A, 그리고 성공한 B. B가 A와 같은 동이면 다시 그리지 않는다
   useDongPolygons(api, map, dong?.guCode, dong?.dongName)
+  useRadiusRipple(api, map, selected, dong ? `${dong.guCode}|${dong.dongName}` : null, radiusM)
+  // 업종 지도(13-46): 동을 누르면 지도 클릭과 같은 규칙으로 고른다. 마우스를 올린 동은 카드에 이름·점수
+  const [heatHover, setHeatHover] = useState<string | null>(null)
+  const heatLayer = map && !error ? (heat?.layer ?? null) : null
+  useHeatPolygons(
+    api,
+    map,
+    heatLayer,
+    (e) => {
+      if (!interactiveRef.current) return
+      onSelectRef.current({ lat: round(e.coord.lat()), lng: round(e.coord.lng()) })
+    },
+    setHeatHover,
+  )
+  const heatTop = heat ? topDongs(heat.layer, 3) : []
+  const hoverScore = heat && heatHover ? heat.layer.scores.get(heatHover) : undefined
   const bDong = compare?.dong ?? null
   const bSameDong = bDong !== null && dong !== null && bDong.guCode === dong.guCode && bDong.dongName === dong.dongName
   useDongPolygons(api, map, bSameDong ? undefined : bDong?.guCode, bSameDong ? undefined : bDong?.dongName)
@@ -1449,6 +1600,44 @@ export function MapView({
       )}
       {map && !error && (compare ? compare.guide : !selected && '지도를 눌러 위치를 고르세요') && (
         <p className="map__guide">{compare ? compare.guide : '지도를 눌러 위치를 고르세요'}</p>
+      )}
+      {map && !error && heat && (
+        <section className="map__heat" aria-label={`업종 지도 — ${heat.title}`}>
+          <div className="map__heat-head">
+            <p className="map__heat-title">
+              <strong>{heat.title}</strong>, 인천 어디가 높을까?
+            </p>
+            {heat.onClose && (
+              <button type="button" className="map__heat-close" onClick={heat.onClose} aria-label="업종 지도 끄기">
+                <Icon name="x" size={14} />
+              </button>
+            )}
+          </div>
+          <ol className="map__heat-scale" aria-label="색 구간">
+            {HEAT_BINS.map((b) => (
+              <li key={b.tone}>
+                <span className={`map__heat-swatch map__heat-swatch--${b.tone}`} aria-hidden="true" />
+                {b.label}
+              </li>
+            ))}
+          </ol>
+          {heatTop.length > 0 && (
+            <p className="map__heat-top">
+              높은 동{' '}
+              {heatTop.map((t, i) => (
+                <span key={t.key} className="map__heat-top-item">
+                  {i + 1}. {t.name} {formatScore(t.score)}
+                </span>
+              ))}
+            </p>
+          )}
+          <p className="map__heat-hover" aria-live="polite">
+            {heatHover && heat.layer.names.has(heatHover)
+              ? `${heat.layer.names.get(heatHover)} · ${hoverScore === null || hoverScore === undefined ? '점수 없음(반경 안 자료 부족)' : `${formatScore(hoverScore)}점`} — 누르면 이 자리 고르기`
+              : '색칠된 동을 누르면 그 자리를 고릅니다'}
+          </p>
+          <p className="map__heat-note">동마다 한 지점·반경 {formatRadius(heat.layer.radiusM)} · 50 = 인천 동네 평균 지점 · 점수는 매출이 아닙니다</p>
+        </section>
       )}
       {map && !error && (
         <ul className="map__legend" aria-label="지도 범례">

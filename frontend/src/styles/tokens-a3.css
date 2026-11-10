@@ -47,6 +47,15 @@
   --shadow-map-ui: 0 10px 28px rgba(10, 18, 38, 0.34), 0 2px 6px rgba(10, 18, 38, 0.22);
   /* 결과 패널 그림자(라이트: 옅게, 다크: 진하게 — 아래에서 덮는다) */
   --shadow-panel: 0 20px 50px rgba(10, 18, 38, 0.18);
+  /* 업종 지도(13-46, D-045): 50(인천 동네 평균 지점) 가운데 회색, 위 파랑·아래 주황 발산형 5구간. 지도가 비치게 반투명 */
+  --color-heat-high2: #1c5cab;
+  --color-heat-high1: #6da7ec;
+  --color-heat-mid: #b4b2a9;
+  --color-heat-low1: #f0a27a;
+  --color-heat-low2: #d95926;
+  --color-heat-none: rgba(120, 128, 140, 0.18);
+  --color-heat-stroke: rgba(255, 255, 255, 0.75);
+  --map-heat-opacity: 0.5;
 }
 
 /* ── 다크 UI (§19.2 블루안): data-theme="light"가 아닌 모든 경우 — 제품 기본 ── */
@@ -164,4 +173,12 @@
   --map-band-pad-top: 2px;
   --color-map-ui-edge: rgba(140, 165, 220, 0.22);
   --shadow-map-ui: var(--shadow-sm);
+  --color-heat-high2: #5598e7;
+  --color-heat-high1: #9ec5f4;
+  --color-heat-mid: #8a8984;
+  --color-heat-low1: #f5b18e;
+  --color-heat-low2: #eb6834;
+  --color-heat-none: rgba(149, 163, 189, 0.12);
+  --color-heat-stroke: rgba(10, 18, 38, 0.55);
+  --map-heat-opacity: 0.55;
 }

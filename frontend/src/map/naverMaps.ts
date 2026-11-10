@@ -63,6 +63,8 @@ export interface NaverMarker extends NaverOverlay {
 export interface NaverCircle extends NaverOverlay {
   setCenter(latlng: NaverLatLng): void
   setRadius(radius: number): void
+  /** 선 투명도 등 옵션 변경(결과 공개 파동, 13-46). 없으면 바꾸지 않는다 */
+  setOptions?(options: Record<string, unknown>): void
 }
 
 export interface NaverPolygon extends NaverOverlay {

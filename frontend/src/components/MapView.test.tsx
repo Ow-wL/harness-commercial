@@ -13,6 +13,11 @@ vi.mock('../map/dongBoundary.ts', () => ({
     { lat: 37.49, lng: 126.72 },
     { lat: 37.49, lng: 126.73 },
   ]]]),
+  // 업종 지도(13-46): 동 2개 — 점수 있는 동·점수 없는 동
+  allDongRings: vi.fn(async () => [
+    { guCode: '28237', dongName: '부평1동', rings: [[[{ lat: 37.48, lng: 126.72 }, { lat: 37.49, lng: 126.72 }, { lat: 37.49, lng: 126.73 }]]] },
+    { guCode: '28710', dongName: '화도면', rings: [[[{ lat: 37.6, lng: 126.4 }, { lat: 37.61, lng: 126.4 }, { lat: 37.61, lng: 126.41 }]]] },
+  ]),
 }))
 
 // 구 경계·외곽선 파일(약 160KB) 대신 외곽 1개·구 2개 사각형 — 줌 단계 규칙(boundaryTier)은 실제 모듈 것을 쓴다 (묶음 A)
@@ -2073,5 +2078,59 @@ describe('MapView — 인증 실패·초기화 실패 격리', () => {
     } finally {
       ;(fakeSdk as { Map: unknown }).Map = RealMap
     }
+  })
+})
+
+describe('MapView — 업종 지도 (13-46, D-045)', () => {
+  const layer = {
+    biz: 'I21201',
+    radiusM: 500,
+    scores: new Map<string, number | null>([['28237|부평1동', 66.1], ['28710|화도면', null]]),
+    names: new Map([['28237|부평1동', '부평구 부평1동'], ['28710|화도면', '강화군 화도면']]),
+  }
+  const heatPolygons = () =>
+    vi.mocked(fakeSdk.Polygon).mock.calls.map(([o]) => o as { fillColor: string; clickable: boolean }).filter((o) => o.clickable)
+
+  it('동마다 점수 구간 색으로 칠하고, 카드에 업종·색 구간·높은 동을 보인다. 점수 없는 동은 회색(none)', async () => {
+    vi.mocked(fakeSdk.Polygon).mockClear()
+    await mount(props({ heat: { layer, title: '카페' } }))
+    await waitFor(() => expect(heatPolygons()).toHaveLength(2))
+    const card = screen.getByRole('region', { name: '업종 지도 — 카페' })
+    expect(card).toHaveTextContent('카페, 인천 어디가 높을까?')
+    expect(card).toHaveTextContent('65 이상')
+    expect(card).toHaveTextContent('1. 부평구 부평1동 66.1')
+    expect(card).toHaveTextContent('50 = 인천 동네 평균 지점')
+    expect(card).not.toHaveTextContent('화도면')                    // 점수 없는 동은 높은 동 목록에 없다
+  })
+
+  it('동을 누르면 지도 클릭과 같이 고르고(interactive 일 때만), 올리면 이름·점수를 한 줄로 보인다', async () => {
+    const onSelect = vi.fn()
+    vi.mocked(fakeSdk.Polygon).mockClear()
+    const view = await mount(props({ heat: { layer, title: '카페' }, onSelect }))
+    await waitFor(() => expect(heatPolygons()).toHaveLength(2))
+    const target = vi.mocked(fakeSdk.Polygon).mock.results.at(-2)!.value
+    const fire = (type: string, e?: unknown) =>
+      act(() => listeners.filter((l) => l.target === target && l.type === type).forEach((l) => (l.handler as (e: unknown) => void)(e)))
+    fire('mouseover')
+    expect(screen.getByRole('region', { name: '업종 지도 — 카페' })).toHaveTextContent('부평구 부평1동 · 66.1점 — 누르면 이 자리 고르기')
+    fire('click', { coord: new FakeLatLng(37.4851234, 126.7251234) })
+    expect(onSelect).toHaveBeenCalledWith({ lat: 37.485123, lng: 126.725123 })
+    view.rerender(<MapView {...props({ heat: { layer, title: '카페' }, onSelect, interactive: false })} />)
+    fire('click', { coord: new FakeLatLng(37.5, 126.7) })
+    expect(onSelect).toHaveBeenCalledTimes(1)
+  })
+
+  it('끄기 버튼은 onClose 를 부르고, heat 가 없으면 층을 지운다', async () => {
+    const onClose = vi.fn()
+    vi.mocked(fakeSdk.Polygon).mockClear()
+    const view = await mount(props({ heat: { layer, title: '카페', onClose } }))
+    await waitFor(() => expect(heatPolygons()).toHaveLength(2))
+    fireEvent.click(screen.getByRole('button', { name: '업종 지도 끄기' }))
+    expect(onClose).toHaveBeenCalled()
+    const { calls, results } = vi.mocked(fakeSdk.Polygon).mock
+    const drawn = results.filter((_, i) => (calls[i]![0] as { clickable: boolean }).clickable).map((r) => r.value)
+    view.rerender(<MapView {...props({ heat: null })} />)
+    drawn.forEach((p) => expect(p.setMap).toHaveBeenCalledWith(null))
+    expect(screen.queryByRole('region', { name: /업종 지도/ })).not.toBeInTheDocument()
   })
 })

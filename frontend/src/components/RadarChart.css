@@ -1,4 +1,4 @@
-/* 거미줄 그래프 (13-13): 링 4개(50 은 점선 기준), 축, 등급색 면 + 점. B(비교)는 빈 면·점선. 모션 없음 */
+/* 거미줄 그래프 (13-13): 링 4개(50 은 점선 기준), 축, 등급색 면 + 점. B(비교)는 빈 면·점선. 처음 나타날 때만 펼침(13-46, 끝에) */
 .radar {
   margin: 0;
   display: flex;
@@ -101,4 +101,34 @@
 
 .radar__legend-item--b .radar__legend-swatch {
   background: repeating-linear-gradient(90deg, var(--color-persp-competition, #6d5ba8) 0 4px, transparent 4px 7px);
+}
+
+/* 결과 공개 연출(13-46, D-045): 면이 가운데서 펼쳐지고 점이 뒤따른다. 움직임 줄이기 설정이면 움직이지 않는다 */
+@media (prefers-reduced-motion: no-preference) {
+  .radar__series {
+    transform-box: view-box;
+    transform-origin: center;
+    animation: radar-grow 800ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  }
+
+  .radar__series--b {
+    animation-delay: 150ms;
+  }
+
+  .radar__dot {
+    animation: radar-dot 300ms ease-out 650ms both;
+  }
+}
+
+@keyframes radar-grow {
+  from {
+    transform: scale(0);
+    opacity: 0;
+  }
+}
+
+@keyframes radar-dot {
+  from {
+    opacity: 0;
+  }
 }

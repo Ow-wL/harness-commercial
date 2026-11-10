@@ -1,11 +1,13 @@
 import { useId, useState } from 'react'
 import { Icon } from './Icon.tsx'
+import { QrCode } from './QrCode.tsx'
 import './ResultTools.css'
 
 /**
  * 결과 활용 줄 (1차 "활용", 계획 1-1·1-2·1-3): 결과·비교 머리 위의 작은 조작 — 링크 복사 · 인쇄 · 보관.
  * - 링크 복사(12-3): 지금 조건의 공유 링크(lib/shareLink)를 클립보드에. 막히면(권한·옛 브라우저) 주소를 읽기 전용 입력란에
  *   보여 직접 복사하게 한다. 링크에는 점수가 없다 — 여는 쪽에서 같은 조건으로 다시 분석한다.
+ * - 휴대폰으로(13-46): 같은 공유 링크를 QR 로 펼쳐 휴대폰 카메라로 이어 본다.
  * - 인쇄(12-15)·보관(보관함)은 부르는 쪽이 넘길 때만 그린다.
  * 결과 내용은 바꾸지 않는다. 분석 요청도 보내지 않는다.
  */
@@ -22,6 +24,8 @@ export function ResultTools({
   save?: { saved: boolean; onSave: () => void; message: string | null }
 }) {
   const [status, setStatus] = useState<string | null>(null)
+  const [qr, setQr] = useState(false)
+  const qrId = useId()
   const [fallback, setFallback] = useState(false)
   const inputId = useId()
 
@@ -47,6 +51,18 @@ export function ResultTools({
             링크 복사
           </button>
         )}
+        {shareUrl && (
+          <button
+            type="button"
+            className="button-ghost button-ghost--small result-tools__button"
+            aria-expanded={qr}
+            aria-controls={qrId}
+            onClick={() => setQr((v) => !v)}
+          >
+            <Icon name="smartphone" size={16} />
+            휴대폰으로
+          </button>
+        )}
         {onPrint && (
           <button type="button" className="button-ghost button-ghost--small result-tools__button" onClick={onPrint}>
             <Icon name="printer" size={16} />
@@ -65,6 +81,15 @@ export function ResultTools({
           </button>
         )}
       </div>
+      {qr && shareUrl && (
+        <div id={qrId} className="result-tools__qr">
+          <QrCode text={shareUrl} label="이 분석을 휴대폰에서 여는 QR 코드" />
+          <p className="result-tools__qr-text">
+            <strong>휴대폰 카메라로 찍어 보세요</strong>
+            같은 위치·업종·반경으로 휴대폰에서 다시 분석합니다.
+          </p>
+        </div>
+      )}
       {status && (
         <p className="result-tools__status" role="status">
           {status}

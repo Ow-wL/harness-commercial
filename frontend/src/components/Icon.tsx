@@ -78,6 +78,13 @@ const PATHS = {
     </>
   ),
   bookmark: <path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z" />,
+  // 휴대폰으로 이어보기(13-46, QR) — Lucide `smartphone`
+  smartphone: (
+    <>
+      <rect x="5" y="2" width="14" height="20" rx="2" />
+      <path d="M12 18h.01" />
+    </>
+  ),
 } as const
 
 export type IconName = keyof typeof PATHS

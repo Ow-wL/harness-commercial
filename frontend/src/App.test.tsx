@@ -4,6 +4,7 @@ import type { Mock } from 'vitest'
 import App from './App.tsx'
 import type { MapViewProps } from './components/MapView.tsx'
 import fixture from './fixtures/bupyeong-pcbang.json'
+import { resetHeatmapForTest } from './lib/heatmap.ts'
 import nearbyFixture from './fixtures/bupyeong-pcbang-nearby.json'
 import guwolFixture from './fixtures/compare-guwol-pcbang.json'
 import guwolNearbyFixture from './fixtures/compare-guwol-pcbang-nearby.json'
@@ -56,6 +57,8 @@ vi.mock('./components/MapView.tsx', () => ({
         data-store-context={props.storeContext}
         data-layout-key={props.layoutKey}
         data-fit-seq={props.fitSeq}
+        data-heat={props.heat ? `${props.heat.title}:${props.heat.layer.biz}` : undefined}
+        data-overview-seq={props.overviewSeq}
         data-theme={props.theme}
       >
         <button type="button" onClick={() => props.interactive && props.onSelect({ lat: 37.4894, lng: 126.7246 })}>
@@ -132,6 +135,7 @@ function mockApi({
   rank = [] as Reply[],
   summary = [] as Reply[],
   support = [] as Reply[],
+  heatmap = undefined as Reply | undefined,
 } = {}) {
   const queue = [...analyze]
   const nearbyQueue = [...nearby]
@@ -158,6 +162,8 @@ function mockApi({
                 ? (rankQueue.shift() ?? NOT_FOUND)
                 : url === '/stations' || url === '/insights' || url === '/ask'
                   ? NOT_FOUND
+                  : url === '/heatmap.json'
+                    ? (heatmap ?? NOT_FOUND)               // 13-46 업종 지도 파일: 없으면 업종 지도 없이 그대로
                   : url === '/summary'
                     ? (summaryQueue.shift() ?? NOT_FOUND)
                     : url === '/support/match'
@@ -4218,5 +4224,79 @@ describe('장소 이름으로 찾기 (12-14, 계획 1-6, D-036) — 서버가 /h
     expect(screen.getByTestId('map')).toHaveAttribute('data-selected', '37.4894,126.7246')   // A 그대로
     expect(analyzeCalls(fetchMock)).toHaveLength(1)
     expect(document.activeElement).toBe(within(bCard).getByRole('button', { name: 'B 분석하기' }))
+  })
+})
+
+describe('전시 개선 (13-46, D-045) — 업종 지도·전시 모드', () => {
+  const HEALTH_HEAT = {
+    status: 200,
+    body: {
+      ...OLD_HEALTH,
+      engine: { version: 'mvp-0.5.1', radius_options: [300, 500, 1000], default_radius_m: 500 },
+      data: { version: '2026-09', as_of: {} },
+    },
+  }
+  const HEATMAP = (engine = 'mvp-0.5.1') => ({
+    status: 200,
+    body: {
+      engine,
+      data: '2026-09',
+      radius_m: 500,
+      dongs: [{ gu_code: '28237', gu: '부평구', dong: '부평1동', lat: 37.4894, lng: 126.7246 }],
+      scores: { R10406: [62.4], R10407: [70.1] },
+    },
+  })
+  const map = () => screen.getByTestId('map')
+  const pickPcBang = async () => {
+    const select = await screen.findByRole('combobox', { name: '업종' })
+    await waitFor(() => expect(select).toBeEnabled())
+    fireEvent.change(select, { target: { value: 'R10406' } })
+  }
+
+  const ok = (body: unknown, version?: string) => ({ status: 200, body, headers: version ? { 'X-Data-Version': version } : undefined })
+
+  afterEach(() => {
+    localStorage.removeItem('kiosk')
+    resetHeatmapForTest()                                  // 받은 파일은 모듈에 남는다 — 테스트마다 새로 받게
+  })
+
+  it('서버와 같은 엔진·데이터의 파일이면 업종을 고른 뒤 위치를 고르기 전까지 업종 지도를 보이고, 결과가 나오면 거둔다', async () => {
+    mockApi({ health: HEALTH_HEAT, heatmap: HEATMAP(), analyze: [ok(fixture, '2026-09')], nearby: [ok(nearbyFixture, '2026-09')] })
+    render(<App />)
+    await pickPcBang()
+    await waitFor(() => expect(map()).toHaveAttribute('data-heat', 'PC방:R10406'))
+    fireEvent.click(screen.getByRole('button', { name: '지도 클릭: 부평역' }))
+    expect(map()).toHaveAttribute('data-heat', 'PC방:R10406')        // 고른 뒤에도 분석 전에는 그대로(어디가 높은지 보며 고른다)
+    fireEvent.click(analyzeButton())
+    await screen.findByRole('heading', { level: 1, name: '부평구 부평1동 · PC방 분석' })
+    expect(map()).not.toHaveAttribute('data-heat')
+  })
+
+  it('엔진이 다른 파일·파일 없음이면 업종 지도를 보이지 않는다', async () => {
+    mockApi({ health: HEALTH_HEAT, heatmap: HEATMAP('mvp-0.3') })
+    render(<App />)
+    await pickPcBang()
+    await waitFor(() => expect(analyzeButton()).toBeInTheDocument())
+    expect(map()).not.toHaveAttribute('data-heat')
+  })
+
+  it('전시 모드(kiosk=1)면 자동 시연 안내와 업종 지도로 시작하고, 화면을 누르면 멈추고 빈 처음 화면으로 돌아간다', async () => {
+    localStorage.setItem('kiosk', '1')
+    mockApi({ health: HEALTH_HEAT, heatmap: HEATMAP() })
+    render(<App />)
+    expect(screen.getByText('화면을 눌러 직접 해 보세요')).toBeInTheDocument()
+    // 업종 지도 파일이 오면 자동 시연 첫 차례: 처음 화면으로 되돌리고 인천 전체 보기를 요청한다
+    await waitFor(() => expect(Number(map().getAttribute('data-overview-seq'))).toBeGreaterThan(0))
+    fireEvent.pointerDown(document.body)
+    expect(screen.queryByText('화면을 눌러 직접 해 보세요')).not.toBeInTheDocument()
+    expect(map()).toHaveAttribute('data-selected', '')
+    expect(screen.getByRole('combobox', { name: '업종' })).toHaveValue('')   // 업종도 비운다 — 다음 관람객이 처음부터
+  })
+
+  it('일반 화면에는 전시 모드 안내가 없다', async () => {
+    mockApi({ health: HEALTH_HEAT, heatmap: HEATMAP() })
+    render(<App />)
+    await pickPcBang()
+    expect(screen.queryByText('화면을 눌러 직접 해 보세요')).not.toBeInTheDocument()
   })
 })

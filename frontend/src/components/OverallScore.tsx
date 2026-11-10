@@ -3,6 +3,7 @@ import type { EngineResult } from '../api/schemas.ts'
 import { formatScore } from '../lib/format.ts'
 import { gradeLabel, gradeOf } from '../lib/grade.ts'
 import { scoreHelp } from '../lib/scoreHelp.ts'
+import { useCountUp } from '../lib/useCountUp.ts'
 import { RegulationBadge } from './ResultAlerts.tsx'
 import './OverallScore.css'
 
@@ -25,6 +26,7 @@ export function OverallScore({
   const [helpOpen, setHelpOpen] = useState(false)
   const helpId = useId()
   const grade = gradeOf(summary.점수)
+  const counting = useCountUp(summary.점수)
 
   return (
     <section className="overall" aria-labelledby="overall-caption">
@@ -33,7 +35,17 @@ export function OverallScore({
           <p className="overall__unavailable">산출 불가</p>
         ) : (
           <p className={`overall__number${grade ? ` overall__number--${grade}` : ''}`}>
-            {formatScore(summary.점수)}
+            {counting.running && counting.value !== null ? (
+              <>
+                {/* 결과 공개 연출(13-46): 오르는 숫자는 보이기만, 화면 읽기에는 최종값 */}
+                <span className="overall__count" aria-hidden="true">
+                  {formatScore(counting.value)}
+                </span>
+                <span className="visually-hidden">{formatScore(summary.점수)}</span>
+              </>
+            ) : (
+              formatScore(summary.점수)
+            )}
             <span className="overall__unit">/ 100</span>
             {grade && (
               <span className={`overall__grade grade grade--${grade}`}>

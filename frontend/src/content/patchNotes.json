@@ -3,6 +3,31 @@
   "renumbered_until": "v0.0.10",
   "releases": [
     {
+      "version": "v0.4.0",
+      "date": "2026-11-10",
+      "title": "인천 업종 지도와 전시 모드",
+      "changes": [
+        {
+          "type": "added",
+          "text": "업종을 고르면 인천 동네마다 그 업종 점수를 색으로 칠한 지도를 보여 줍니다. 동을 누르면 그 자리를 바로 고를 수 있습니다."
+        },
+        {
+          "type": "added",
+          "text": "결과의 \"휴대폰으로\"를 누르면 QR 코드가 나와, 휴대폰 카메라로 같은 분석을 이어 볼 수 있습니다."
+        },
+        {
+          "type": "improved",
+          "text": "결과가 나타날 때 점수가 차오르고 거미줄 그래프가 펼쳐지며, 지도에서 반경이 퍼져 나갑니다."
+        }
+      ],
+      "work": [
+        "13-46(D-045): scripts/build_heatmap.py 가 /rank(TestClient)로 동 158 × 업종 29 점수를 public/heatmap.json 에 만든다(엔진 v0.5.1·데이터 2026-09, 점수 없음 6동). 화면은 /health 엔진·데이터와 같을 때만 그린다(lib/heatmap). MapView heat 층·카드·클릭 고르기, 발산형 5구간 --color-heat-* 토큰",
+        "결과 공개 연출: lib/useCountUp(움직임 허용일 때만 0.9s, 화면 읽기에는 최종값)·막대·거미줄 CSS 애니메이션·지도 반경 파동(useRadiusRipple). DESIGN §12 개정, §23 신설",
+        "QR: qrcode-generator 2.0.4(MIT, 고정) + QrCode SVG, 결과 활용 줄 \"휴대폰으로\". 전시 모드 lib/kiosk(?kiosk=1 기억·idle 90초·자동 시연 업종 8개)와 오른쪽 QR 카드·안내 알약"
+      ],
+      "commits": []
+    },
+    {
       "version": "v0.3.4",
       "date": "2026-11-02",
       "title": "위치 핀 로고",
@@ -17,7 +42,8 @@
       ],
       "commits": [
         "875ebed",
-        "5ed802a"
+        "5ed802a",
+        "e3c48ce"
       ]
     },
     {
