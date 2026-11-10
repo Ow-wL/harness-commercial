@@ -25,7 +25,9 @@
         "결과 공개 연출: lib/useCountUp(움직임 허용일 때만 0.9s, 화면 읽기에는 최종값)·막대·거미줄 CSS 애니메이션·지도 반경 파동(useRadiusRipple). DESIGN §12 개정, §23 신설",
         "QR: qrcode-generator 2.0.4(MIT, 고정) + QrCode SVG, 결과 활용 줄 \"휴대폰으로\". 전시 모드 lib/kiosk(?kiosk=1 기억·idle 90초·자동 시연 업종 8개)와 오른쪽 QR 카드·안내 알약"
       ],
-      "commits": []
+      "commits": [
+        "d95b91f"
+      ]
     },
     {
       "version": "v0.3.4",
@@ -1238,6 +1240,26 @@
       "source_commit": "875ebed",
       "engine": "mvp-0.5.1",
       "note": "운영 트래픽 100% 전환 — 브라우저 탭과 상단 바의 위치 핀 로고. 운영 API 48건 대조·화면 확인 뒤 기록"
+    },
+    {
+      "id": "2026-11-10-verification-d95b91f",
+      "kind": "verification",
+      "result": "passed",
+      "date": "2026-11-10",
+      "app_version": "v0.4.0",
+      "source_commit": "d95b91f",
+      "engine": "mvp-0.5.1",
+      "note": "API 48건·업종 순위·가까운 역 통과, 지도 인증 성공 상태에서 업종 지도·점수 차오름·휴대폰 QR·전시 모드(시작·누르면 멈춤) 확인"
+    },
+    {
+      "id": "2026-11-10-production-d95b91f",
+      "kind": "production",
+      "result": "done",
+      "date": "2026-11-10",
+      "app_version": "v0.4.0",
+      "source_commit": "d95b91f",
+      "engine": "mvp-0.5.1",
+      "note": "운영 트래픽 100% 전환 — 인천 업종 지도, 결과 공개 연출, 휴대폰으로 이어보기, 전시 모드. 운영 API 48건 대조·화면 확인 뒤 기록"
     }
   ]
 }

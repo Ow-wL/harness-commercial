@@ -6,7 +6,7 @@
 
 예비 창업자가 "여기에 이 가게를 열어도 될까?"를 공개 데이터로 먼저 따져 보는 웹 서비스입니다.
 
-[![check](https://github.com/Ow-wL/harness-commercial/actions/workflows/check.yml/badge.svg)](https://github.com/Ow-wL/harness-commercial/actions/workflows/check.yml) ![앱](https://img.shields.io/badge/%EC%95%B1-v0.3.4-1B5CBE) ![엔진](https://img.shields.io/badge/%EC%97%94%EC%A7%84-v0.5.1-1B5CBE) ![데이터](https://img.shields.io/badge/%EB%8D%B0%EC%9D%B4%ED%84%B0-2026--09-1B5CBE)
+[![check](https://github.com/Ow-wL/harness-commercial/actions/workflows/check.yml/badge.svg)](https://github.com/Ow-wL/harness-commercial/actions/workflows/check.yml) ![앱](https://img.shields.io/badge/%EC%95%B1-v0.4.0-1B5CBE) ![엔진](https://img.shields.io/badge/%EC%97%94%EC%A7%84-v0.5.1-1B5CBE) ![데이터](https://img.shields.io/badge/%EB%8D%B0%EC%9D%B4%ED%84%B0-2026--09-1B5CBE)
 
 ![React](https://img.shields.io/badge/React-20232A?logo=react&logoColor=61DAFB) ![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white) ![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white) ![Python](https://img.shields.io/badge/Python_3.10-3776AB?logo=python&logoColor=white) ![Cloud Run](https://img.shields.io/badge/Cloud_Run-4285F4?logo=googlecloud&logoColor=white)
 
@@ -39,6 +39,7 @@
 
 | | 기능 | 내용 |
 |---|---|---|
+| 🗺️ | **업종 지도** | 업종을 고르면 인천 동네마다 그 업종 점수를 색으로 칠해 어디가 높은지 한눈에 봅니다 |
 | 📍 | **위치 고르기** | 지도 클릭, 주소 검색, 역 이름, 좌표 입력 |
 | 🏪 | **업종 29개** | 고객밀착형·유동인구형·목적방문형·체류소비형, 유형마다 관점 가중치가 다릅니다 |
 | ⭕ | **분석 반경** | 300m · 500m · 1km, 반경별 비교 표 |
@@ -49,7 +50,8 @@
 | ⚖️ | **두 위치 비교** | A·B 관점별 차이, 거미줄 겹쳐 보기 |
 | 🤖 | **AI 요약·질문** | 분석 자료만 근거로 답하고 문장마다 근거를 표시합니다. 하루·월 사용 한도가 있습니다 |
 | 💰 | **지원사업 공고** | 업종·지역에 맞는 공고(기업마당·K-Startup)를 마감일과 함께 보여 줍니다 |
-| 🔖 | **활용 도구** | 조건 공유 링크, 후보 보관함, 인쇄 요약, 현장 확인 카드 |
+| 🔖 | **활용 도구** | 조건 공유 링크, 휴대폰으로 이어보는 QR, 후보 보관함, 인쇄 요약, 현장 확인 카드 |
+| 🖥️ | **전시 모드** | 주소에 `?kiosk=1` — 아무도 만지지 않으면 업종 지도와 분석을 자동으로 보여 주고, 누르면 멈춥니다 |
 | 🌗 | **편의** | 라이트·다크 테마, 첫 방문 안내, 업데이트 내역 |
 
 > 장소 이름 검색은 구현되어 있지만 서버에 NAVER 검색 키가 없어 지금 운영에서는 꺼져 있습니다.
