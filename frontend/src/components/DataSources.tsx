@@ -1,6 +1,7 @@
 import { isAreaWeightedEngine, type EngineResult } from '../api/schemas.ts'
 import { useContext } from 'react'
 import { dataVersionLabel, formatAsOf, ResultDataVersionContext, useResultAsOf } from '../lib/dataVersion.ts'
+import { DataNote } from './DataNote.tsx'
 
 type Source = {
   perspective: string
@@ -166,14 +167,17 @@ export function DataSources({ meta, disclaimer }: { meta: EngineResult['meta']; 
           </tbody>
         </table>
       </div>
-      <p className="result-section__note">
-        분석 반경 {meta.분석반경_m}m · 업종코드 {meta.업종코드} · 엔진 {meta.엔진버전}
-      </p>
-      {v05 && <p className="result-section__note">엔진 비교 기준 원문: {meta.정규화_기준}</p>}
-      <h3 className="result-section__subtitle">엔진 면책 원문({meta.엔진버전})</h3>
-      <p className="result-section__note">분석 엔진이 결과와 함께 내는 문장을 바꾸지 않고 그대로 옮겼습니다.</p>
-      <p className="disclaimer">{disclaimer}</p>
-      <p className="result-section__note">{DISCLAIMER_NOTE}</p>
+      {/* v0.4.2: 계산 정보·엔진 원문(면책 포함)은 접힌 "엔진 원문·계산 정보"로 — 문장은 그대로, 인쇄는 펼친다 */}
+      <DataNote label="엔진 원문·계산 정보">
+        <p className="result-section__note">
+          분석 반경 {meta.분석반경_m}m · 업종코드 {meta.업종코드} · 엔진 {meta.엔진버전}
+        </p>
+        {v05 && <p className="result-section__note">엔진 비교 기준 원문: {meta.정규화_기준}</p>}
+        <h3 className="result-section__subtitle">엔진 면책 원문({meta.엔진버전})</h3>
+        <p className="result-section__note">분석 엔진이 결과와 함께 내는 문장을 바꾸지 않고 그대로 옮겼습니다.</p>
+        <p className="disclaimer">{disclaimer}</p>
+        <p className="result-section__note">{DISCLAIMER_NOTE}</p>
+      </DataNote>
     </section>
   )
 }

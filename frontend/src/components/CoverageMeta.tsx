@@ -49,7 +49,7 @@ export function CoverageMeta({
         </span>
       </span>
       {missing.length > 0 && (
-        <span className="coverage__item">
+        <span className="coverage__item coverage__item--wide">
           일부 자료가 없어 <strong>{missing.length}</strong>개 항목은 빼고 계산: {missing.join(', ')}
         </span>
       )}

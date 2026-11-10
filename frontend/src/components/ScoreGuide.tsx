@@ -125,8 +125,10 @@ export function ScoreReadingGuide({
 
   return (
     <Disclosure label="점수 읽는 법" className="guide guide--reading">
-      <section className="guide__section">
-        <h3 className="guide__heading">세부지표 점수와 관점·종합 점수</h3>
+      <GuideQuestion
+        q="점수는 어떻게 계산하나요?"
+        a="세부지표마다 인천 비교 대상과 견준 백분위를 내고, 관점·종합 점수는 그 가중평균이에요. 순위가 아니에요."
+      >
         <p>
           세부지표 점수는 인천 비교 대상(관점마다 다름, 아래 "데이터 출처"의 비교 대상 표)과 견준 백분위입니다. 높을수록
           좋은 지표는 이 값보다 낮은 곳의 비율, 낮을수록 좋은 지표(동종업종 비중·최근접역 거리·폐업률·임대료)는 이 값과
@@ -150,10 +152,9 @@ export function ScoreReadingGuide({
             나옵니다. 고객성 인구와 경쟁성 잠재수요는 같은 분석 반경 안의 값을 행정동 경계 면적 비율로 나눠 계산합니다.
           </p>
         )}
-      </section>
+      </GuideQuestion>
 
-      <section className="guide__section">
-        <h3 className="guide__heading">데이터가 없을 때</h3>
+      <GuideQuestion q="자료가 없으면 어떻게 하나요?" a="0점으로 치지 않고 빼고, 남은 지표끼리 가중치를 다시 나눠요.">
         <p>
           데이터가 없는 세부지표는 0점으로 치지 않고 빼고, 남은 지표의 가중치를 합이 1이 되게 다시 나눕니다. 세부지표가
           설계 가중치의 {formatRatio(MIN_COVERAGE)} 미만만 계산되면 그 관점은 점수를 내지 않고, 종합 점수는 점수를 낸
@@ -162,10 +163,12 @@ export function ScoreReadingGuide({
         <p className="guide__fact">
           이 결과: 5개 관점 중 {scored}개 산출 · 이번 종합에 적용된 가중치 {weightList(summary.적용_가중치, indicators)}
         </p>
-      </section>
+      </GuideQuestion>
 
-      <section className="guide__section">
-        <h3 className="guide__heading">충족률 · 자료 등급 · 병목</h3>
+      <GuideQuestion
+        q="충족률·자료 등급·병목은 무슨 뜻인가요?"
+        a="계산된 자료의 비율, 자료가 얼마나 촘촘한지, 다섯 관점 중 가장 낮은 점수예요."
+      >
         <ul className="guide__limits">
           <li>
             충족률: 관점마다 설계 가중치 중 실제로 계산된 세부지표의 비율입니다. 종합의 데이터 충족률은 점수를 낸 관점의
@@ -182,10 +185,9 @@ export function ScoreReadingGuide({
             때문입니다.
           </li>
         </ul>
-      </section>
+      </GuideQuestion>
 
-      <section className="guide__section">
-        <h3 className="guide__heading">업종별 가중치</h3>
+      <GuideQuestion q="업종마다 무엇이 다른가요?" a="업종을 4개 그룹으로 나눠 관점 가중치를 다르게 둬요. 실제 성과로 검증한 값은 아니에요.">
         <p>
           업종을 4개 그룹(고객밀착형·유동인구형·목적방문형·체류소비형)으로 나눠 그룹마다 관점 가중치를 다르게 둡니다.
           동네 단골이 중요한 업종과 지나가는 손님이 중요한 업종은 봐야 할 관점이 다르다는 설계 판단이며, 안정성에
@@ -195,10 +197,9 @@ export function ScoreReadingGuide({
         <p className="guide__fact">
           이 업종({meta.업종} · {groupName(meta.업종그룹)}) 기본 가중치: {weightList(summary.기본_가중치, indicators)}
         </p>
-      </section>
+      </GuideQuestion>
 
-      <section className="guide__section">
-        <h3 className="guide__heading">성공 확률이나 매출 예측이 아닙니다</h3>
+      <GuideQuestion q="점수가 높으면 장사가 잘되나요?" a="그렇게 말할 수 없어요. 점수는 성공 확률이나 매출 예측이 아니에요.">
         <p>
           점수는 공공데이터 지표를 인천 비교 대상과 견준 값을 합친 것입니다. 창업 성공 확률이나 매출·수익을 예측하지
           않습니다. 인천은 행정동 단위 매출 원자료가 공개되지 않아 매출은 추정하지 않습니다. 임대 조건·유동 동선·경쟁
@@ -208,10 +209,9 @@ export function ScoreReadingGuide({
           분석팀의 사후 점검(인천 음식 9개 업종, 2013년 이후 개업한 음식점의 실제 3년 생존과 점수 비교)에서도 점수가 높은
           곳의 가게가 더 오래 살아남는다는 관계는 확인되지 않았습니다. 점수는 생존이나 성공을 예측하도록 만든 값이 아닙니다.
         </p>
-      </section>
+      </GuideQuestion>
 
-      <section className="guide__section">
-        <h3 className="guide__heading">일반 웹 분석에서 임대료가 빠지는 이유</h3>
+      <GuideQuestion q="임대료는 왜 빠졌나요?" a="인천은 9개 상권만 공표되어, 지도에서 고른 위치에 임대료를 연결할 수 없어요.">
         <p>
           임대료 자료(한국부동산원 소규모상가 임대료)는 인천에서 9개 상권만 공표되고 상권 경계가 이미지로만 제공되어,
           지도에서 고른 위치를 어느 상권에 연결할 근거가 없습니다. 그래서 일반 웹 분석은 모든 위치에서 임대료를 빼고
@@ -223,7 +223,32 @@ export function ScoreReadingGuide({
           비해 비싼가"를 뜻하지 않습니다. 임대료가 높은 상권은 수요도 큰 경우가 많습니다. 실제 임대 조건은 현장에서
           확인해야 합니다.
         </p>
-      </section>
+      </GuideQuestion>
     </Disclosure>
+  )
+}
+
+/**
+ * 점수 읽는 법의 질문 하나 (v0.4.2): 질문(제목 버튼) + 굵은 한 줄 답(늘 보임) + 자세한 설명(눌러서 펼침).
+ * 설명은 접혀 있어도 DOM 에 두고 화면에서만 숨긴다 — "점수 읽는 법"을 펼쳐 인쇄하면 모두 찍힌다(ScoreGuide.css). 문장은 이전과 같다.
+ */
+function GuideQuestion({ q, a, children }: { q: string; a: string; children: ReactNode }) {
+  const [open, setOpen] = useState(false)
+  const bodyId = useId()
+  return (
+    <section className={`guide__section guide__q${open ? ' guide__q--open' : ''}`}>
+      <h3 className="guide__heading">
+        <button type="button" className="guide__q-toggle" aria-expanded={open} aria-controls={bodyId} onClick={() => setOpen((v) => !v)}>
+          <span className="chevron" data-open={open}>
+            <Icon name="chevron-right" size={14} />
+          </span>
+          {q}
+        </button>
+      </h3>
+      <p className="guide__answer">{a}</p>
+      <div id={bodyId} className={`guide__q-body${open ? '' : ' guide__q-body--folded'}`}>
+        {children}
+      </div>
+    </section>
   )
 }

@@ -64,6 +64,68 @@
   color: var(--color-text-primary);
 }
 
+/* v0.4.2 점수 읽는 법의 질문: 질문 버튼 + 굵은 한 줄 답(늘 보임) + 펼치는 설명(인쇄는 늘) */
+.guide__q {
+  gap: 4px;
+  padding-bottom: var(--space-3);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.guide__q:last-child {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
+.guide__q-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 28px;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  text-align: left;
+  cursor: pointer;
+}
+
+.guide__q-toggle .chevron {
+  display: inline-flex;
+  color: var(--color-text-muted);
+  transition: transform 0.15s ease;
+}
+
+.guide__q-toggle .chevron[data-open='true'] {
+  transform: rotate(90deg);
+}
+
+.guide__answer {
+  padding-left: 18px;
+  font-weight: 600;
+  color: var(--color-accent);
+}
+
+.guide__q-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-top: 4px;
+  padding-left: 18px;
+  color: var(--color-text-secondary);
+}
+
+.guide__q-body--folded {
+  display: none;
+}
+
+@media print {
+  .guide__q-body--folded {
+    display: flex !important;
+  }
+}
+
 /* 점수 읽는 법: 섹션 머리 바로 아래, 관점 아코디언 위 */
 .guide--reading {
   margin-bottom: var(--space-2);

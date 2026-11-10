@@ -1,30 +1,29 @@
 /* 메타 줄: 안쪽 표면 --color-surface-muted (DESIGN.md §11 단계 1′) */
+/* v0.4.2: 한 줄 나열 → 작은 칸(관점 산출 · 빠진 항목 · 가중치 · 진입장벽). 글자는 그대로, 칸마다 경계 */
 .coverage {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-1) var(--space-2);
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr));
+  gap: var(--space-2);
   margin: 0;
-  padding: var(--space-3) var(--space-4);
-  border-radius: var(--radius-md);
-  background: var(--color-surface-muted);
   font: var(--text-small);
   color: var(--color-text-secondary);
 }
 
 .coverage__item {
-  display: inline-flex;
+  display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: var(--space-1);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-muted);
+  line-height: 1.5;
 }
 
-/* 충족 1줄의 조각 구분 "·" (8-C1b): 앞 조각 끝에 붙여, 좁은 폭에서 접혀도 줄이 "·"로 시작하지 않게 한다.
-   장식 — 조각은 각자 span이라 스크린리더에서도 끊어 읽힌다 */
-.coverage__item:not(:last-child)::after {
-  content: "·";
-  content: "·" / "";                                     /* 대체 글자 빈 문자열 — 지원 브라우저에서는 읽지 않는다 */
-  margin-left: var(--space-1);
-  color: var(--color-text-muted);
+/* 빠진 세부지표 목록은 길어서 한 줄 전체, 짧은 칸들 뒤로(화면 순서만 — 읽는 순서·인쇄 글자는 그대로) */
+.coverage__item--wide {
+  grid-column: 1 / -1;
+  order: 1;
 }
 
 .coverage__item strong {

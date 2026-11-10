@@ -96,16 +96,32 @@ describe('관점 설명 (DESIGN.md §8.9a)', () => {
 })
 
 describe('점수 읽는 법 (DESIGN.md §8.9b)', () => {
+  // v0.4.2: 주제 제목을 질문으로 — 질문마다 한 줄 답이 늘 보이고 설명은 눌러서 펼친다
   const READING_TOPICS = [
-    '세부지표 점수와 관점·종합 점수',
-    '데이터가 없을 때',
-    '충족률 · 자료 등급 · 병목',
-    '업종별 가중치',
-    '성공 확률이나 매출 예측이 아닙니다',
-    '일반 웹 분석에서 임대료가 빠지는 이유',
+    '점수는 어떻게 계산하나요?',
+    '자료가 없으면 어떻게 하나요?',
+    '충족률·자료 등급·병목은 무슨 뜻인가요?',
+    '업종마다 무엇이 다른가요?',
+    '점수가 높으면 장사가 잘되나요?',
+    '임대료는 왜 빠졌나요?',
   ]
 
-  it('기본 접힘이고, 펼치면 여섯 주제가 보인다', () => {
+  it('질문마다 한 줄 답은 늘 보이고, 설명은 눌러서 펼친다(접혀도 DOM 에 있어 인쇄된다)', () => {
+    render(<AnalysisResult analysis={PCBANG} />)
+    fireEvent.click(getInTab(EVIDENCE_TAB, 'button', { name: '점수 읽는 법' }))
+    const region = screen.getByRole('region', { name: '점수 읽는 법' })
+    expect(region.querySelectorAll('.guide__answer')).toHaveLength(6)
+    const q = within(region).getByRole('button', { name: '임대료는 왜 빠졌나요?' })
+    const body = document.getElementById(q.getAttribute('aria-controls')!)!
+    expect(q).toHaveAttribute('aria-expanded', 'false')
+    expect(body).toHaveClass('guide__q-body--folded')
+    expect(body).toHaveTextContent('9개 상권만 공표')
+    fireEvent.click(q)
+    expect(q).toHaveAttribute('aria-expanded', 'true')
+    expect(body).not.toHaveClass('guide__q-body--folded')
+  })
+
+  it('기본 접힘이고, 펼치면 여섯 질문이 보인다', () => {
     render(<AnalysisResult analysis={PCBANG} />)
     const toggle = getInTab(EVIDENCE_TAB, 'button', { name: '점수 읽는 법' })
     expect(toggle).toHaveAttribute('aria-expanded', 'false')

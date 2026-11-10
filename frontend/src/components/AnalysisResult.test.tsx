@@ -163,6 +163,11 @@ describe('AnalysisResult — 실제 /analyze 응답(부평역 · PC방)', () => 
     // 12-4: 원문 "상대 순위"가 요약의 "순위가 아닙니다"와 충돌하지 않게 원문 아래 화면 주석 한 줄 (원문 불변)
     expect(fixture.result.면책).toContain('상대 순위')
     expect(within(sources).getByText(DISCLAIMER_NOTE)).toBeInTheDocument()
+    // v0.4.2: 엔진 원문·계산 정보는 접힌 "엔진 원문·계산 정보" 안(문장 그대로, DOM 에 있어 인쇄된다)
+    const fold = within(sources).getByText(fixture.result.면책).closest('.data-note__body')!
+    expect(fold).toHaveClass('data-note__body--folded')
+    fireEvent.click(within(sources).getByRole('button', { name: '엔진 원문·계산 정보' }))
+    expect(fold).not.toHaveClass('data-note__body--folded')
   })
 
   it('관점 막대 범례는 50을 "인천 중앙"이 아니라 척도 중간으로 설명한다', () => {
@@ -431,6 +436,8 @@ describe('AnalysisResult — 근거 줄·행 chip 통합·충족 1줄 (8-C1b, do
     ])
     expect(document.querySelector('.coverage')).not.toHaveTextContent('데이터 충족')
     expect(document.querySelector('.coverage')).not.toHaveTextContent('100%')
+    // v0.4.2: 칸 배치 — 긴 빠진 항목 목록만 한 줄 전체
+    expect([...document.querySelectorAll('.coverage__item--wide')].map((el) => el.textContent)).toEqual([coverageItems()[1]])
   })
 
   it('부평역 네일숍: 병목 chip은 유지(경고 톤) + 근거 줄, 미산출 안정성은 근거 줄 없이 미산출 안내만', () => {
