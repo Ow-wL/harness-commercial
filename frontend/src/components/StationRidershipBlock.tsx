@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import type { StationRidership } from '../api/schemas.ts'
 import { formatDistance } from '../lib/format.ts'
+import { DataNote } from './DataNote.tsx'
 
 const fmt = (v: number) => Math.round(v).toLocaleString('ko-KR')
 /** "18시" → "18시예요", "06시 전" → "06시 전이에요" (마지막 글자 받침) */
@@ -58,10 +59,13 @@ export function StationRidershipBlock({ station }: { station: StationRidership }
       <p className="time-card__line">
         {DAY_LABEL[day]} 하루 평균 하차 {fmt(sum(d.alight))}명 · 승차 {fmt(sum(d.board))}명, 하차가 가장 많은 때는 {yeyo(station.bands[peakAt] ?? '')}.
       </p>
-      <p className="time-card__note">
-        {station.source} {period ? `${period} ` : ''}{DAY_LABEL[day]} {fmt(d.days)}일 평균. {station.coverage} 역을 오간 사람 수라 주변 상권 방문과 같지 않으며,
-        점수에는 쓰지 않는 참고 자료입니다.
-      </p>
+      <p className="time-card__hint">역을 오간 사람 수예요 · 점수와 무관한 참고 자료</p>
+      <DataNote>
+        <p className="time-card__note">
+          {station.source} {period ? `${period} ` : ''}{DAY_LABEL[day]} {fmt(d.days)}일 평균. {station.coverage} 역을 오간 사람 수라 주변 상권 방문과 같지 않으며,
+          점수에는 쓰지 않는 참고 자료입니다.
+        </p>
+      </DataNote>
     </div>
   )
 }

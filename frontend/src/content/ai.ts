@@ -4,10 +4,13 @@
  */
 export const AI_TEXT = {
   summaryTitle: 'AI 요약',
-  summaryNote: 'AI가 이 분석 자료만 보고 쓴 요약입니다. 틀릴 수 있으니 숫자는 위 카드와 상세 근거에서 확인하세요.',
+  summaryNote: 'AI가 이 분석 자료만 보고 쓴 요약이에요. 틀릴 수 있으니 숫자는 위 카드에서 확인하세요.',
   good: '좋은 점',
   bad: '주의할 점',
   check: '결정 전에 확인할 것',
+  fieldsShow: '근거 자료 보기',
+  fieldsHide: '근거 자료 숨기기',
+  showSupport: '지원사업 보기',
   loading: 'AI 요약을 쓰는 중…',
   askOpen: 'AI에게 질문',
   askTitle: '이 분석에 대해 질문하기',

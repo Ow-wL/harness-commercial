@@ -85,6 +85,30 @@ const PATHS = {
       <path d="M12 18h.01" />
     </>
   ),
+  // v0.4.1 AI 요약 패널·지원사업 카드 — Lucide `clipboard-check`, `square`, `external-link`, `building-2`
+  'clipboard-check': (
+    <>
+      <rect x="8" y="2" width="8" height="4" rx="1" />
+      <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
+      <path d="m9 14 2 2 4-4" />
+    </>
+  ),
+  square: <rect x="4" y="4" width="16" height="16" rx="3" />,
+  'external-link': (
+    <>
+      <path d="M15 3h6v6" />
+      <path d="M10 14 21 3" />
+      <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+    </>
+  ),
+  building: (
+    <>
+      <path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18z" />
+      <path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2" />
+      <path d="M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2" />
+      <path d="M10 6h4M10 10h4M10 14h4M10 18h4" />
+    </>
+  ),
 } as const
 
 export type IconName = keyof typeof PATHS

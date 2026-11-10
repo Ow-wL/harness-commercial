@@ -17,7 +17,12 @@ import { GRADE_FLOOR } from './grade.ts'
 import { withJosa } from './josa.ts'
 
 export type Conclusion = {
+  /** 결론 한 줄 전체("…약한 자리예요(참고: …).") — 보관함 스냅샷·모바일 지도 시트 */
   text: string
+  /** v0.4.1 점수 카드: "(참고: …)"를 뺀 결론 문장 */
+  main: string
+  /** v0.4.1 점수 카드: 약한 관점의 참고 사실(엔진 raw) — 결론 아래 작은 칩. 없으면 null */
+  fact: string | null
   strongest: { key: PerspectiveKey; label: string; score: number } | null
   weakest: { key: PerspectiveKey; label: string; score: number } | null
   /** 어느 규칙으로 만들었는지(테스트·AI 요약 입력용) */
@@ -27,8 +32,8 @@ export type Conclusion = {
 const n = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : null)
 const fmt = (v: number) => Math.round(v).toLocaleString('ko-KR')
 
-/** 약한 관점 옆 "(참고: …)" — 엔진 raw 사실만. 숫자가 없으면 빈 문자열 */
-function fact(ind: Indicator, radiusM: number): string {
+/** 약한 관점의 참고 사실 — 엔진 raw 사실만. 숫자가 없으면 null */
+function fact(ind: Indicator, radiusM: number): string | null {
   const raw = ind.raw as Readonly<Record<string, unknown>>
   let text: string | null
   switch (ind.key) {
@@ -55,14 +60,15 @@ function fact(ind: Indicator, radiusM: number): string {
     default:
       text = null
   }
-  return text ? `(참고: ${text})` : ''
+  return text
 }
 
 export function conclusion({ result }: AnalyzeResponse): Conclusion {
   const scored = result.지표.filter((i): i is Indicator & { score: number } => i.score !== null)
   const ctx = { business: result.meta.업종, radiusM: result.meta.분석반경_m }
   if (result.종합.점수 === null || scored.length === 0) {
-    return { text: '산출한 관점이 없어 종합 점수를 내지 않았습니다.', strongest: null, weakest: null, rule: 'none' }
+    const t = '산출한 관점이 없어 종합 점수를 내지 않았습니다.'
+    return { text: t, main: t, fact: null, strongest: null, weakest: null, rule: 'none' }
   }
   // 엔진이 고른 최고·병목 지표를 우선, 없으면 점수로
   const byScore = [...scored].sort((a, b) => b.score - a.score)
@@ -70,27 +76,38 @@ export function conclusion({ result }: AnalyzeResponse): Conclusion {
   const weak = scored.find((i) => i.key === result.종합.병목_지표) ?? byScore[byScore.length - 1]!
   const S = { key: strong.key, label: strong.label, score: strong.score }
   const W = { key: weak.key, label: weak.label, score: weak.score }
+  // 참고 사실 없이 끝나는 문장(text = main, fact null)
+  const plain = (t: string, rule: Conclusion['rule']): Conclusion => ({ text: t, main: t, fact: null, strongest: S, weakest: W, rule })
   if (scored.length === 1) {
-    return { text: `${strong.label}만 산출했습니다(${formatScore(strong.score)}점). 나머지 관점은 자료가 없어요.`, strongest: S, weakest: W, rule: 'single' }
+    return plain(`${strong.label}만 산출했습니다(${formatScore(strong.score)}점). 나머지 관점은 자료가 없어요.`, 'single')
   }
   const sLabel = strong.label
   const wLabel = weak.label
-  const ref = fact(weak, ctx.radiusM)
+  const f = fact(weak, ctx.radiusM)
+  // 약한 관점 끝에 "(참고: …)" — text 는 붙인 문장(이전과 같다), main 은 뗀 문장, fact 는 따로
+  const withRef = (body: (ref: string) => string, rule: Conclusion['rule']): Conclusion => ({
+    text: body(f ? `(참고: ${f})` : ''),
+    main: body(''),
+    fact: f,
+    strongest: S,
+    weakest: W,
+    rule,
+  })
   if (strong.score < GRADE_FLOOR.mid) {
-    return { text: `전반적으로 점수가 낮은 자리예요. ${withJosa(sLabel, '이')} 그중 높은 편이고, ${withJosa(wLabel, '이')} 가장 낮아요${ref}.`, strongest: S, weakest: W, rule: 'all-low' }
+    return withRef((ref) => `전반적으로 점수가 낮은 자리예요. ${withJosa(sLabel, '이')} 그중 높은 편이고, ${withJosa(wLabel, '이')} 가장 낮아요${ref}.`, 'all-low')
   }
   if (weak.score < GRADE_FLOOR.weak) {
     const level = strong.score >= GRADE_FLOOR.good ? '좋은' : '보통인'
-    return { text: `${withJosa(sLabel, '은')} ${level} 편이지만, ${withJosa(wLabel, '이')} 매우 낮아요${ref}.`, strongest: S, weakest: W, rule: 'weak-alert' }
+    return withRef((ref) => `${withJosa(sLabel, '은')} ${level} 편이지만, ${withJosa(wLabel, '이')} 매우 낮아요${ref}.`, 'weak-alert')
   }
   if (strong.score >= GRADE_FLOOR.good && weak.score < GRADE_FLOOR.mid) {
-    return { text: `${withJosa(sLabel, '은')} 좋은 편이지만, ${withJosa(wLabel, '이')} 약한 자리예요${ref}.`, strongest: S, weakest: W, rule: 'strong-weak' }
+    return withRef((ref) => `${withJosa(sLabel, '은')} 좋은 편이지만, ${withJosa(wLabel, '이')} 약한 자리예요${ref}.`, 'strong-weak')
   }
   if (scored.every((i) => i.score >= GRADE_FLOOR.mid && i.score < GRADE_FLOOR.good)) {
-    return { text: '전반적으로 무난한 자리예요. 특별히 강하거나 약한 관점이 없어요.', strongest: S, weakest: W, rule: 'flat' }
+    return plain('전반적으로 무난한 자리예요. 특별히 강하거나 약한 관점이 없어요.', 'flat')
   }
   if (strong.score >= GRADE_FLOOR.good) {
-    return { text: `${withJosa(sLabel, '이')} 특히 좋은 자리예요(${EASY_WORDS[strong.key].noun}).`, strongest: S, weakest: W, rule: 'strong-only' }
+    return plain(`${withJosa(sLabel, '이')} 특히 좋은 자리예요(${EASY_WORDS[strong.key].noun}).`, 'strong-only')
   }
-  return { text: `${withJosa(sLabel, '이')} 가장 높고, ${withJosa(wLabel, '은')} 약한 편이에요${ref}.`, strongest: S, weakest: W, rule: 'mixed' }
+  return withRef((ref) => `${withJosa(sLabel, '이')} 가장 높고, ${withJosa(wLabel, '은')} 약한 편이에요${ref}.`, 'mixed')
 }

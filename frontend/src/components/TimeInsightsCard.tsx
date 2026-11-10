@@ -1,6 +1,7 @@
 import type { AnalyzeResponse, InsightsResponse } from '../api/schemas.ts'
 import { readTime } from '../lib/timeInsights.ts'
 import { TIME_BANDS } from '../content/timeInsights.ts'
+import { DataNote } from './DataNote.tsx'
 import { StationRidershipBlock } from './StationRidershipBlock.tsx'
 import './TimeInsightsCard.css'
 
@@ -73,7 +74,8 @@ export function TimeInsightsCard({ analysis, insights }: { analysis: AnalyzeResp
           </figcaption>
         </figure>
         <div className="time-card__text">
-          {reading.lines.map((line) => (
+          {/* v0.4.1: 읽기 문장은 괄호 설명을 뗀 짧은 문장, 설명은 아래 "자료 안내" */}
+          {reading.plain.map((line) => (
             <p key={line} className="time-card__line">
               {line}
             </p>
@@ -83,7 +85,7 @@ export function TimeInsightsCard({ analysis, insights }: { analysis: AnalyzeResp
               <div>
                 <dt>주요 손님층 연령 거주</dt>
                 <dd>
-                  {fmt(target)}명{targetShare !== null && ` · ${pct(targetShare)}`}
+                  {fmt(target)}명{targetShare !== null && <span className="time-card__pop-sub"> · {pct(targetShare)}</span>}
                 </dd>
               </div>
             )}
@@ -100,12 +102,15 @@ export function TimeInsightsCard({ analysis, insights }: { analysis: AnalyzeResp
               </div>
             )}
           </dl>
-          <p className="time-card__note">
-            인구는 {popBasis} 기준(엔진 고객성 자료), 유입은 구 단위 생활이동 자료입니다. 점수에는 이미 반영된 값이며 여기서 점수를 더하지 않습니다.
-            {insights.hours_profile_note && ` ${insights.hours_profile_note}`}
-          </p>
         </div>
       </div>
+      <DataNote>
+        {reading.detail && <p>{reading.detail}</p>}
+        <p className="time-card__note">
+          인구는 {popBasis} 기준(엔진 고객성 자료), 유입은 구 단위 생활이동 자료입니다. 점수에는 이미 반영된 값이며 여기서 점수를 더하지 않습니다.
+          {insights.hours_profile_note && ` ${insights.hours_profile_note}`}
+        </p>
+      </DataNote>
       {insights.station && <StationRidershipBlock station={insights.station} />}
     </section>
   )

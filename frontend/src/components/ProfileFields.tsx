@@ -7,10 +7,39 @@ import { AI_TEXT } from '../content/ai.ts'
 import type { Profile } from '../lib/profile.ts'
 import './AskDialog.css'
 
-export function ProfileFields({ profile, onChange, open = false }: { profile: Profile; onChange: (p: Profile) => void; open?: boolean }) {
+export function ProfileFields({
+  profile,
+  onChange,
+  open = false,
+  bare = false,
+  id,
+}: {
+  profile: Profile
+  onChange: (p: Profile) => void
+  open?: boolean
+  /** v0.4.1 지원사업 카드: 접힘(details) 없이 칸만 — 여닫기는 부르는 쪽 버튼이 한다 */
+  bare?: boolean
+  id?: string
+}) {
+  const fields = <Fields profile={profile} onChange={onChange} />
+  if (bare) {
+    return (
+      <div id={id} className="ask__profile ask__profile--bare" role="group" aria-label={AI_TEXT.profileTitle}>
+        {fields}
+      </div>
+    )
+  }
   return (
-    <details className="ask__profile" open={open || undefined}>
+    <details id={id} className="ask__profile" open={open || undefined}>
       <summary>{AI_TEXT.profileTitle}</summary>
+      {fields}
+    </details>
+  )
+}
+
+function Fields({ profile, onChange }: { profile: Profile; onChange: (p: Profile) => void }) {
+  return (
+    <>
       <p className="ask__privacy">{AI_TEXT.profileNote}</p>
       <label className="ask__field">
         창업 단계
@@ -50,6 +79,6 @@ export function ProfileFields({ profile, onChange, open = false }: { profile: Pr
           </label>
         ))}
       </fieldset>
-    </details>
+    </>
   )
 }

@@ -42,6 +42,9 @@ describe('timeInsights — 시간대 읽기 (13-15, Codex R1-1)', () => {
     expect(r.level).toBe('high')
     expect(r.lines[1]).toBe('PC방은 영업 시간대에 사람이 몰리는 편이에요(주로 저녁 영업 · 시간대 적합도 1.32, 1.0 = 24시간 고르게 퍼졌을 때).')
     expect(r.lines.join(' ')).not.toContain('엇갈')
+    // v0.4.1 카드: 괄호를 뗀 문장 + 설명 따로
+    expect(r.plain).toEqual([r.lines[0], 'PC방은 영업 시간대에 사람이 몰리는 편이에요.'])
+    expect(r.detail).toBe('주로 저녁 영업 · 시간대 적합도 1.32, 1.0 = 24시간 고르게 퍼졌을 때')
   })
 
   it('피크 구간이 달라도 겹침이 크면 엇갈린다고 하지 않는다(엔진 식으로 계산한 적합도 > 1)', () => {
@@ -74,6 +77,8 @@ describe('timeInsights — 시간대 읽기 (13-15, Codex R1-1)', () => {
     expect(r.level).toBeNull()
     expect(r.lines[1]).toBe('PC방은 주로 저녁에 영업하는 업종이에요 — 이 시간대 유동은 현장에서 확인하세요.')
     expect(r.lines.join(' ')).not.toMatch(/엇갈|겹쳐|몰리는/)
+    expect(r.plain).toEqual(r.lines)
+    expect(r.detail).toBeNull()
     const only = readTime(ins(hour([12]), null), 'PC방')!
     expect(only.businessPeak).toBeNull()
     expect(only.lines).toHaveLength(1)

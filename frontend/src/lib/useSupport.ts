@@ -20,7 +20,7 @@ export function clearSupportCache() {
 
 /** body 의 키 순서를 고정해 같은 조건이면 같은 캐시 키 */
 export function supportKey(b: SupportMatchBody): string {
-  return JSON.stringify({ biz_code: b.biz_code, ...(b.gu ? { gu: b.gu } : {}), profile: b.profile })
+  return JSON.stringify({ biz_code: b.biz_code, ...(b.gu ? { gu: b.gu } : {}), profile: b.profile, ...(b.limit !== undefined ? { limit: b.limit } : {}) })
 }
 
 export function useSupport(request: SupportMatchBody | null, token: unknown = null) {

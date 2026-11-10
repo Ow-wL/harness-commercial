@@ -31,6 +31,7 @@ import { ResultTools } from './components/ResultTools.tsx'
 import { TimeInsightsCard } from './components/TimeInsightsCard.tsx'
 import { useInsights } from './lib/useInsights.ts'
 import { useSummary } from './lib/useSummary.ts'
+import { motionAllowed } from './lib/useCountUp.ts'
 import { dongKey, heatLayer, heatmapMatches, loadHeatmap, topDongs, type Heatmap } from './lib/heatmap.ts'
 import { ATTRACT_BIZ, ATTRACT_HEAT_MS, ATTRACT_RESULT_MS, KIOSK_IDLE_MS, readKioskFlag, useIdleWatch } from './lib/kiosk.ts'
 import { AiSummaryCard } from './components/AiSummaryCard.tsx'
@@ -38,7 +39,7 @@ import { AskDialog } from './components/AskDialog.tsx'
 import { SupportCard } from './components/SupportCard.tsx'
 import { useSupport } from './lib/useSupport.ts'
 import { profileBody, useProfile, writeProfile } from './lib/profile.ts'
-import { INCHEON_GU } from './content/support.ts'
+import { INCHEON_GU, SUPPORT_LIMIT } from './content/support.ts'
 import { useRank } from './lib/useRank.ts'
 import { SavedSites } from './components/SavedSites.tsx'
 import { ReferenceAddress } from './components/ReferenceAddress.tsx'
@@ -1074,10 +1075,18 @@ function App() {
           biz_code: analysis.request.biz_code,
           ...(supportGu && (INCHEON_GU as readonly string[]).includes(supportGu) ? { gu: supportGu } : {}),
           profile: profileBody(profile),
+          limit: SUPPORT_LIMIT,
         }
       : null,
     result,
   )
+  // v0.4.1: AI 요약의 "지원사업 보기" — 지원사업 카드 제목으로 스크롤·포커스
+  const showSupportCard = () => {
+    const heading = document.getElementById('support-card-title')
+    if (!heading) return
+    heading.scrollIntoView?.({ block: 'start', behavior: motionAllowed() ? 'smooth' : 'auto' })
+    heading.focus({ preventScroll: true })
+  }
   const mapExpanded = result !== null && mapExpandedFor === result
   // 비교 B 고르기 중에는 지도를 눌러야 하므로 오른쪽 패널 배치. 비교 요약·전체 결과는 다시 시트로 올라온다
   const pickingB = compare.status !== 'off' && compare.status !== 'success'
@@ -1528,7 +1537,17 @@ function App() {
           </>
         }
         timeCard={<TimeInsightsCard analysis={result} insights={insightsState.status === 'success' ? insightsState.data : null} />}
-        aiCard={aiReady ? <AiSummaryCard state={summaryState} onRetry={summaryState.retry} onAsk={() => setAskOpen(true)} /> : null}
+        aiCard={
+          aiReady ? (
+            <AiSummaryCard
+              state={summaryState}
+              onRetry={summaryState.retry}
+              onAsk={() => setAskOpen(true)}
+              indicators={result.result.지표}
+              onShowSupport={supportReady ? showSupportCard : undefined}
+            />
+          ) : null
+        }
         supportCard={
           supportReady ? (
             <SupportCard
@@ -1849,7 +1868,8 @@ function App() {
                 </span>
               </p>
               <p className="map-sheet__headline">
-                <HeadlineText text={conclusion(result).text} />
+                {/* v0.4.1: 좁은 지도 시트는 "(참고: …)" 없이 결론 문장만 — 참고 사실은 결과 패널 점수 카드에 */}
+                <HeadlineText text={conclusion(result).main} />
               </p>
               {/* 참고 주소 한 줄(7-B2, 말줄임 · 작은 높이에서는 숨김 — ReferenceAddress.css). 분석에 쓴 context 좌표 */}
               {addressOf(result)}

@@ -4,6 +4,8 @@
  * 값·점수는 다루지 않는다. 모르는 키는 한글 조각이 있으면 밑줄만 띄어 쓰고, 영어뿐이면 보이지 않는다(내부 이름 노출 금지).
  */
 
+import type { PerspectiveKey } from '../api/schemas.ts'
+
 const PERSPECTIVE: Record<string, string> = {
   market: '시장성',
   customer: '고객성',
@@ -121,6 +123,21 @@ export function fieldLabel(path: string): string | null {
   const last = [...rest].reverse().find((s) => HANGUL.test(s)) ?? (HANGUL.test(root) ? root : undefined)
   return last ? words(last) : null
 }
+
+/** 근거 키 목록에서 처음 나오는 관점(지표.<관점>.…) — AI 요약 항목의 관점 칩(v0.4.1). 없으면 null */
+export function fieldPerspective(paths: readonly string[]): PerspectiveKey | null {
+  for (const p of paths) {
+    const [root, key] = p.trim().split('.')
+    if (root === '지표' && key !== undefined && key in PERSPECTIVE) return key as PerspectiveKey
+  }
+  return null
+}
+
+/** 관점 키 → 이름 (칩에 점수가 없을 때) */
+export const perspectiveName = (key: PerspectiveKey): string => PERSPECTIVE[key] ?? key
+
+/** 근거 키 목록에 지원사업 후보(지원사업_후보.S1 …)가 있는가 — "지원사업 보기" 연결(v0.4.1) */
+export const citesSupport = (paths: readonly string[]) => paths.some((p) => p.trim().startsWith('지원사업_후보'))
 
 /** 근거 키 목록 → 겹치지 않는 이름 목록(순서 유지) */
 export function fieldLabels(paths: readonly string[]): string[] {

@@ -99,8 +99,14 @@ describe('AnalysisResult — 실제 /analyze 응답(부평역 · PC방)', () => 
     const summary = screen.getByRole('region', { name: '종합 적합도' })
     expect(summary).not.toHaveTextContent('가장 강한 관점')
     // R1 13-12: 한 줄 결론 템플릿(고객성 강점 ≥70 · 경쟁성 약점 <40)
-    expect(document.querySelector('.score-card__conclusion')).toHaveTextContent(conclusion(FIXTURE).text)
-    expect(conclusion(FIXTURE).rule).toBe('strong-weak')
+    // v0.4.1: 결론 문장과 "(참고: …)" 사실을 나눠 보인다 — 결론은 main, 사실은 아래 칩
+    const c = conclusion(FIXTURE)
+    expect(document.querySelector('.score-card__conclusion')).toHaveTextContent(c.main)
+    expect(document.querySelector('.score-card__conclusion')).not.toHaveTextContent('참고')
+    expect(c.fact).not.toBeNull()
+    expect(document.querySelector('.score-card__fact')).toHaveTextContent(`참고${c.fact}`)
+    expect(c.text).toBe(c.main.replace(/\.$/, `(참고: ${c.fact}).`))
+    expect(c.rule).toBe('strong-weak')
   })
 
   it('관점 행을 누르면 근거가 펼쳐지고, "상세 근거 ›"는 상세 근거 탭의 그 관점을 펼치고 그 제목으로 포커스가 간다 (A3 → R1)', () => {
@@ -311,7 +317,7 @@ describe('AnalysisResult — 헤드라인·주의 요약 띠 (8-C1a)', () => {
     renderResult()
     const title = screen.getByRole('heading', { level: 1 })
     const head = document.querySelector<HTMLElement>('.score-card__conclusion')!
-    expect(head).toHaveTextContent(conclusion(FIXTURE).text)
+    expect(head).toHaveTextContent(conclusion(FIXTURE).main)
     const band = screen.getByRole('region', { name: '데이터 한계' })
     fireEvent.click(band.querySelector('summary')!)
     const overall = screen.getByRole('region', { name: '종합 적합도' })

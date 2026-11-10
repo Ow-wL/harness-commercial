@@ -5,6 +5,7 @@ import type { ProfileSuggestion } from '../api/schemas.ts'
 import { AI_ERROR_TEXT, AI_TEXT, SUGGESTED_QUESTIONS } from '../content/ai.ts'
 import { mergeSuggestion, profileBody, readProfile, writeProfile, type Profile } from '../lib/profile.ts'
 import { Icon } from './Icon.tsx'
+import { NumberEmphasis } from './NumberEmphasis.tsx'
 import { ProfileFields } from './ProfileFields.tsx'
 import './AskDialog.css'
 
@@ -133,7 +134,7 @@ export function AskDialog({ target, onClose }: { target: AskTarget; onClose: () 
             {messages.map((m, i) => (
               <li key={i} className={`ask__msg ask__msg--${m.role}`}>
                 <span className="visually-hidden">{m.role === 'user' ? '내 질문: ' : 'AI 답변: '}</span>
-                {m.content}
+                {m.role === 'assistant' ? <AnswerText text={m.content} /> : m.content}
                 {m.suggestion && (
                   <ProfileSuggestionBox suggestion={m.suggestion} onSave={() => updateProfile(mergeSuggestion(profile, m.suggestion!))} />
                 )}
@@ -169,6 +170,40 @@ export function AskDialog({ target, onClose }: { target: AskTarget; onClose: () 
       </div>
     </div>,
     document.body,
+  )
+}
+
+/**
+ * AI 답(v0.4.1, 프롬프트 r4-1): 첫 줄 = 결론(굵게), "- " 줄 = 항목 목록, 숫자 강조. 형식을 따르지 않은 답(이전 프롬프트 등)은 줄 그대로.
+ * 문장은 바꾸지 않는다 — 줄 앞 "- "만 목록 기호로 바꾼다.
+ */
+export function AnswerText({ text }: { text: string }) {
+  const lines = text.split('\n').map((l) => l.trim()).filter(Boolean)
+  const bullet = /^[-•·]\s+/
+  const [head, ...rest] = lines
+  if (head === undefined) return null
+  const items = rest.filter((l) => bullet.test(l))
+  const others = rest.filter((l) => !bullet.test(l))
+  return (
+    <span className="ask__answer">
+      <span className="ask__answer-head">
+        <NumberEmphasis text={head.replace(bullet, '')} />
+      </span>
+      {others.map((l, i) => (
+        <span key={`p${i}`} className="ask__answer-line">
+          <NumberEmphasis text={l} />
+        </span>
+      ))}
+      {items.length > 0 && (
+        <span className="ask__answer-list" role="list">
+          {items.map((l, i) => (
+            <span key={i} className="ask__answer-item" role="listitem">
+              <NumberEmphasis text={l.replace(bullet, '')} />
+            </span>
+          ))}
+        </span>
+      )}
+    </span>
   )
 }
 

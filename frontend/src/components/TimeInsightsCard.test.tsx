@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import { AnalyzeResponseSchema, InsightsResponseSchema } from '../api/schemas.ts'
 import pcFixture from '../fixtures/bupyeong-pcbang.json'
@@ -40,7 +40,12 @@ describe('TimeInsightsCard — 시간대·인구 카드 (13-15)', () => {
   it('겹침 판단은 엔진 시간대 적합도(1.32 > 1.20)로 — 유입 피크(낮)와 영업 피크(저녁)가 달라도 "엇갈려요"가 아니다 (Codex R1-1)', () => {
     const { container } = render(<TimeInsightsCard analysis={PC} insights={insights(hour([11, 12, 13, 14, 15, 16]), hour([19, 20, 21]))} />)
     expect(screen.getByText(/^부평구는 낮\(11~16시\)/)).toBeInTheDocument()
-    expect(screen.getByText(/PC방은 영업 시간대에 사람이 몰리는 편이에요\(주로 저녁 영업 · 시간대 적합도 1\.32/)).toBeInTheDocument()
+    // v0.4.1: 문장은 괄호 설명 없이, 설명(영업 시간대·적합도)은 접힌 "자료 안내"에
+    expect(screen.getByText('PC방은 영업 시간대에 사람이 몰리는 편이에요.')).toBeInTheDocument()
+    const note = screen.getByText(/^주로 저녁 영업 · 시간대 적합도 1\.32, 1\.0 = 24시간 고르게 퍼졌을 때$/)
+    expect(note.closest('.data-note__body')).toHaveClass('data-note__body--folded')
+    fireEvent.click(screen.getByRole('button', { name: '자료 안내' }))
+    expect(note.closest('.data-note__body')).not.toHaveClass('data-note__body--folded')
     expect(container.textContent).not.toContain('엇갈')
   })
 

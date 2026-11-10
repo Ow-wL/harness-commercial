@@ -38,6 +38,9 @@ describe('conclusion — 한 줄 결론 템플릿 (13-12, 팀 B1 · Codex R1-5)'
     expect(c.rule).toBe('strong-weak')
     expect(c.text).toBe(`시장성은 좋은 편이지만, 경쟁성이 약한 자리예요(참고: 반경 500m 안 같은 업종 ${r.result.지표[2].raw.동종점포수}곳).`)
     expect(c.text).not.toContain('(가)')
+    // v0.4.1: 점수 카드는 결론(main)과 참고 사실(fact)을 나눠 보인다
+    expect(c.main).toBe('시장성은 좋은 편이지만, 경쟁성이 약한 자리예요.')
+    expect(c.fact).toBe(`반경 500m 안 같은 업종 ${r.result.지표[2].raw.동종점포수}곳`)
   })
 
   it('모든 관점 < 25(Codex 경계 입력 [24,20,15,10,5]): "좋다"고 하지 않고 전반적으로 낮다고 먼저 말한다', () => {
@@ -87,11 +90,16 @@ describe('conclusion — 한 줄 결론 템플릿 (13-12, 팀 B1 · Codex R1-5)'
     const r = setScores(clone(PC), [75, 60, 35, 55, 50])
     delete (r.result.지표[2].raw as Record<string, unknown>).동종점포수
     expect(conclusion(r).text).toBe('시장성은 좋은 편이지만, 경쟁성이 약한 자리예요.')
+    expect(conclusion(r).main).toBe(conclusion(r).text)
+    expect(conclusion(r).fact).toBeNull()
   })
 
   it('쉬운말 표·결론 문장에 순위·확률·추천·단정 표현이 없다', () => {
     for (const w of Object.values(EASY_WORDS)) expect(w.noun).not.toMatch(FORBIDDEN)
     const inputs = [PC, NAIL, SCHOOL, setScores(clone(PC), [24, 20, 15, 10, 5]), setScores(clone(PC), [62, 55, 30, 50, 45])]
-    for (const r of inputs) expect(conclusion(r).text).not.toMatch(FORBIDDEN)
+    for (const r of inputs) {
+      expect(conclusion(r).text).not.toMatch(FORBIDDEN)
+      expect(conclusion(r).main).not.toContain('참고')
+    }
   })
 })

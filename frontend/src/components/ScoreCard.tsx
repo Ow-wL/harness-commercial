@@ -17,8 +17,15 @@ export function ScoreCard({ analysis }: { analysis: AnalyzeResponse }) {
       <RegulationBanner alert={regulation} />
       <OverallScore summary={analysis.result.종합} engineVersion={analysis.result.meta.엔진버전} regulated={regulation !== null} />
       <p className="score-card__conclusion" data-rule={c.rule}>
-        {c.text}
+        {c.main}
       </p>
+      {/* v0.4.1: 약한 관점의 참고 사실은 결론 문장에서 떼어 작은 칩으로(엔진 raw 사실 — 원인을 단정하지 않는다) */}
+      {c.fact && (
+        <p className="score-card__fact">
+          <span className="score-card__fact-label">참고</span>
+          {c.fact}
+        </p>
+      )}
       <WeakPerspectiveLine alert={weakAlert(analysis)} />
     </section>
   )

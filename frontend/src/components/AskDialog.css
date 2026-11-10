@@ -56,6 +56,51 @@
   color: var(--color-text-muted);
 }
 
+/* v0.4.1 AI 답: 결론 한 줄(굵게) + 항목 목록 */
+.ask__msg--assistant {
+  white-space: normal;
+}
+
+.ask__answer,
+.ask__answer-head,
+.ask__answer-line {
+  display: block;
+}
+
+.ask__answer-head {
+  font-weight: 600;
+}
+
+.ask__answer-line {
+  margin-top: 4px;
+}
+
+.ask__answer-list {
+  display: grid;
+  gap: 3px;
+  margin-top: 6px;
+}
+
+.ask__answer-item {
+  position: relative;
+  padding-left: 14px;
+}
+
+.ask__answer-item::before {
+  content: "";
+  position: absolute;
+  top: 0.65em;
+  left: 3px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--color-accent);
+}
+
+.ask__answer .num-em {
+  font-weight: 700;
+}
+
 .ask__suggest {
   display: block;
   margin-top: 6px;

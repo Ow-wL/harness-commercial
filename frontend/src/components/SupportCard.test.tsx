@@ -27,22 +27,29 @@ const DATA: SupportMatchResponse = SupportMatchResponseSchema.parse({
 const card = (state: Parameters<typeof SupportCard>[0]['state'], profile = EMPTY_PROFILE, onProfile = vi.fn(), onRetry = vi.fn()) =>
   render(<SupportCard state={state} profile={profile} onProfile={onProfile} onRetry={onRetry} condition="PC방 · 부평구" />)
 
-describe('SupportCard — 조건에 맞는 지원사업 (R3 13-33)', () => {
-  it('공고 링크(새 창)·마감·배지·이유·출처, 신청 링크는 공고 주소와 다를 때만', () => {
-    card({ status: 'success', data: DATA })
+describe('SupportCard — 조건에 맞는 지원사업 (R3 13-33, v0.4.1 카드)', () => {
+  it('공고 카드: 분야·마감·공고명·개요·기관·배지·이유·"공고 보기"(새 창)·출처, 신청 링크는 공고 주소와 다를 때만', () => {
+    const data = SupportMatchResponseSchema.parse({ ...DATA, items: [{ ...DATA.items[0]!, summary: '원도심 소상공인에게 보증을 지원합니다.' }, DATA.items[1]!] })
+    card({ status: 'success', data })
     expect(screen.getByRole('heading', { name: '조건에 맞는 지원사업' })).toBeInTheDocument()
     expect(screen.getByText('12건 중 2건')).toBeInTheDocument()
-    expect(screen.getByText('PC방 · 부평구 기준')).toBeInTheDocument()
+    expect(screen.getByText('PC방', { selector: '.support-card__cond' })).toBeInTheDocument()
+    expect(screen.getByText('부평구', { selector: '.support-card__cond' })).toBeInTheDocument()
     const rows = screen.getAllByRole('listitem').filter((li) => li.classList.contains('support-card__item'))
     expect(rows).toHaveLength(2)
     const first = within(rows[0]!)
-    const link = first.getByRole('link', { name: /\[인천\] 소상공인 특례보증/ })
+    expect(first.getByRole('heading', { level: 3, name: '[인천] 소상공인 특례보증' })).toBeInTheDocument()
+    expect(first.getByText('금융')).toHaveClass('support-item__category')
+    expect(first.getByText('원도심 소상공인에게 보증을 지원합니다.')).toBeInTheDocument()
+    const link = first.getByRole('link', { name: /^공고 보기\s*— \[인천\] 소상공인 특례보증 \(새 창\)$/ })
     expect(link).toHaveAttribute('href', 'https://www.bizinfo.go.kr/view?1')
     expect(link).toHaveAttribute('target', '_blank')
     expect(link).toHaveAttribute('rel', 'noopener noreferrer')
     expect(first.getByText('예산 소진시까지')).toBeInTheDocument()
     expect(first.getByText('인천')).toBeInTheDocument()
-    expect(first.getByText('인천 공고 · 소상공인 대상')).toBeInTheDocument()
+    expect(first.getByText('인천광역시')).toBeInTheDocument()
+    const why = first.getByRole('list', { name: '조건에 맞는 이유' })
+    expect(within(why).getAllByRole('listitem').map((li) => li.textContent)).toEqual(['인천 공고', '소상공인 대상'])
     expect(first.queryByRole('link', { name: /신청 페이지/ })).toBeNull()
     const second = within(rows[1]!)
     expect(second.getByText('D-3')).toHaveClass('support-card__due--soon')
@@ -53,18 +60,35 @@ describe('SupportCard — 조건에 맞는 지원사업 (R3 13-33)', () => {
     expect(document.body).not.toHaveTextContent('추천')
   })
 
-  it('내 상황이 비면 좁히기 안내 + 입력 칸, 바꾸면 onProfile', () => {
+  it('처음 6건, "N건 더 보기"로 나머지', () => {
+    const items = Array.from({ length: 8 }, (_, i) => item({ id: `bizinfo:${i}`, title: `공고 ${i}` }))
+    card({ status: 'success', data: { as_of: '2026-11-01T06:00:00+09:00', total: 30, items } })
+    expect(screen.getAllByRole('article')).toHaveLength(6)
+    expect(screen.getByText('30건 중 6건')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: '2건 더 보기' }))
+    expect(screen.getAllByRole('article')).toHaveLength(8)
+    expect(screen.getByText('30건 중 8건')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '접기' })).toHaveAttribute('aria-expanded', 'true')
+  })
+
+  it('내 상황이 비면 좁히기 안내 + "내 상황 고르기"로 입력 칸을 펼치고, 바꾸면 onProfile', () => {
     const onProfile = vi.fn()
     card({ status: 'success', data: DATA }, EMPTY_PROFILE, onProfile)
     expect(screen.getByText(/더 좁혀져요/)).toBeInTheDocument()
+    expect(screen.queryByRole('combobox', { name: '창업 단계' })).toBeNull()
+    const open = screen.getByRole('button', { name: '+ 내 상황 고르기' })
+    expect(open).toHaveAttribute('aria-expanded', 'false')
+    fireEvent.click(open)
+    expect(open).toHaveAttribute('aria-expanded', 'true')
     fireEvent.change(screen.getByRole('combobox', { name: '창업 단계' }), { target: { value: '예비' } })
     expect(onProfile).toHaveBeenCalledWith({ stage: '예비', youth: null, preferred: [] })
   })
 
-  it('내 상황이 있으면 안내 없이 "내 상황 기준"', () => {
-    card({ status: 'success', data: DATA }, { stage: '운영 중', youth: null, preferred: [] })
+  it('내 상황이 있으면 안내 없이 내 상황 칩과 "내 상황 바꾸기"', () => {
+    card({ status: 'success', data: DATA }, { stage: '운영 중', youth: true, preferred: ['여성'] })
     expect(screen.queryByText(/더 좁혀져요/)).toBeNull()
-    expect(screen.getByText('PC방 · 부평구 · 내 상황 기준')).toBeInTheDocument()
+    expect(screen.getByText('내 상황 · 운영 중 · 청년 · 여성')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '내 상황 바꾸기' })).toBeInTheDocument()
   })
 
   it('빈 결과·아직 수집 전·불러오기 실패(다시 시도)·idle', () => {

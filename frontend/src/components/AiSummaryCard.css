@@ -1,4 +1,4 @@
-/* AI 요약 카드 (R2 13-23, DESIGN §21) — 업종 순위 카드와 같은 자리 규칙 */
+/* AI 요약 카드 (R2 13-23 → v0.4.1 패널 개편, DESIGN §21) — 업종 순위 카드와 같은 자리 규칙 */
 .ai-card {
   margin: 16px 24px 0;
   padding: 16px 18px;
@@ -26,19 +26,19 @@
   cursor: pointer;
 }
 
-.ai-card__status,
-.ai-card__note {
+.ai-card__status {
   margin: 10px 0 0;
   font-size: 12px;
   line-height: 1.5;
   color: var(--color-text-muted);
 }
 
+/* 세 패널: 넓은 결과 영역(≥640) 세 칸, 좁으면 위아래 */
 .ai-card__groups {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 12px;
-  margin-top: 10px;
+  gap: 10px;
+  margin-top: 12px;
 }
 
 @container (min-width: 640px) {
@@ -47,40 +47,166 @@
   }
 }
 
+.ai-card__group {
+  --ai-tone: var(--color-accent);
+  --ai-tint: var(--color-accent-subtle);
+  padding: 10px;
+  border-radius: 12px;
+  background: var(--ai-tint);
+}
+
+.ai-card__group--good {
+  --ai-tone: var(--color-grade-good);
+  --ai-tint: var(--color-grade-good-subtle);
+}
+
+.ai-card__group--bad {
+  --ai-tone: var(--color-grade-alert);
+  --ai-tint: var(--color-grade-alert-subtle);
+}
+
 .ai-card__group-title {
-  margin: 0 0 4px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 2px 8px;
   font-size: 13px;
   font-weight: 700;
+  color: var(--ai-tone);
 }
 
-.ai-card__group--good .ai-card__group-title {
-  color: var(--color-grade-good);
-}
-
-.ai-card__group--bad .ai-card__group-title {
-  color: var(--color-grade-alert);
-}
-
-.ai-card__group--check .ai-card__group-title {
-  color: var(--color-accent);
+.ai-card__count {
+  min-width: 18px;
+  padding: 0 5px;
+  border-radius: var(--radius-pill);
+  background: var(--color-surface);
+  font-size: 11px;
+  line-height: 18px;
+  text-align: center;
 }
 
 .ai-card__list {
+  display: grid;
+  gap: 6px;
   margin: 0;
-  padding-left: 18px;
+  padding: 0;
+  list-style: none;
+}
+
+.ai-card__item {
+  display: flex;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--color-surface);
   font-size: 14px;
   line-height: 1.55;
   color: var(--color-text-primary);
 }
 
+.ai-card__box {
+  flex: none;
+  padding-top: 3px;
+  color: var(--ai-tone);
+}
+
+.ai-card__body {
+  min-width: 0;
+}
+
+/* 관점 칩: 엔진 점수(AI 문장이 아니라 결과 값) — 등급색 */
+.ai-card__chip {
+  display: block;
+  width: fit-content;
+  margin-bottom: 3px;
+  padding: 0 7px;
+  border: 1px solid currentColor;
+  border-radius: var(--radius-pill);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.6;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-secondary);
+}
+
+.ai-card__chip--good { color: var(--color-grade-good); }
+.ai-card__chip--mid { color: var(--color-grade-mid); }
+.ai-card__chip--weak { color: var(--color-grade-weak); }
+.ai-card__chip--alert { color: var(--color-grade-alert); }
+
+.ai-card__text .num-em {
+  font-weight: 700;
+}
+
+.ai-card__link {
+  margin-left: 6px;
+  padding: 0;
+  border: 0;
+  background: none;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-accent);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+/* 근거 자료 이름: 기본 숨김(화면만), "근거 자료 보기"로 펼친다 */
 .ai-card__fields {
+  display: none;
   font-size: 11px;
   color: var(--color-text-muted);
+}
+
+.ai-card--fields .ai-card__fields {
+  display: block;
+  margin-top: 2px;
+}
+
+.ai-card__foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px 12px;
+  margin-top: 10px;
+}
+
+.ai-card__note {
+  display: flex;
+  align-items: flex-start;
+  gap: 5px;
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--color-text-muted);
+}
+
+.ai-card__note .icon {
+  flex: none;
+  margin-top: 2px;
+}
+
+.ai-card__fields-toggle {
+  min-height: 28px;
+  padding: 0 10px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface);
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+
+.ai-card__fields-toggle[aria-pressed='true'] {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
 }
 
 @media (max-width: 639px) {
   .ai-card {
     margin: 12px 16px 0;
+    padding: 12px 14px;
   }
 }
 
@@ -89,7 +215,13 @@
     break-inside: avoid;
   }
 
-  .ai-card__ask {
+  .ai-card__ask,
+  .ai-card__fields-toggle,
+  .ai-card__link {
     display: none !important;
+  }
+
+  .ai-card__fields {
+    display: block !important;
   }
 }

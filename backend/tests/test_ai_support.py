@@ -96,7 +96,7 @@ def test_summary_gets_three_candidates_and_drops_unlisted_program(client):
     assert "목록에 있는 공고만" not in data and "지원사업_후보" in fake.calls[-1]["system"]
     check = [i["text"] for i in r.json()["check"]]
     assert check == [f"경쟁이 세니 「{LISTED}」 공고 원문에서 자격을 확인해 보세요."]                 # 목록 밖 항목은 빠진다
-    assert r.json()["prompt_version"] == "r3-1"
+    assert r.json()["prompt_version"] == "r4-1"
 
 
 def test_summary_cache_key_follows_candidates(client):

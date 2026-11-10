@@ -46,6 +46,10 @@ export type TimeReading = {
   level: FitLevel | null
   /** 읽기 문장 1~2줄 */
   lines: string[]
+  /** v0.4.1 카드: 괄호 설명을 뺀 읽기 문장(lines 와 같은 수) */
+  plain: string[]
+  /** v0.4.1 카드: 뺀 괄호 설명("주로 저녁 영업 · 시간대 적합도 1.32, 1.0 = …") — "자료 안내"에 */
+  detail: string | null
 }
 
 /** market: 엔진 시장성 지표의 시간대 적합도(raw)·flags */
@@ -70,17 +74,23 @@ export function readTime(
   ]
     .filter(Boolean)
     .join(' · ')
-  const paren = detail ? `(${detail})` : ''
   const subject = withJosa(business, '은')
+  const plain = [...lines]
+  // 괄호 설명이 붙는 문장: lines 는 붙인 문장(이전과 같다), plain 은 뗀 문장
+  const push = (body: (paren: string) => string) => {
+    lines.push(body(detail ? `(${detail})` : ''))
+    plain.push(body(''))
+  }
   if (level === 'high') {
-    lines.push(`${subject} 영업 시간대에 사람이 몰리는 편이에요${paren}.`)
+    push((p) => `${subject} 영업 시간대에 사람이 몰리는 편이에요${p}.`)
   } else if (level === 'low') {
-    lines.push(`${subject} 영업 시간대와 유입 시간대가 엇갈리는 편이에요${paren} — 영업 시간대의 실제 유동은 현장에서 확인하세요.`)
+    push((p) => `${subject} 영업 시간대와 유입 시간대가 엇갈리는 편이에요${p} — 영업 시간대의 실제 유동은 현장에서 확인하세요.`)
   } else if (level === 'normal') {
-    lines.push(`${subject} 영업 시간대의 유입이 보통 수준이에요${paren}.`)
+    push((p) => `${subject} 영업 시간대의 유입이 보통 수준이에요${p}.`)
   } else if (businessPeak) {
     // 적합도가 없으면 관찰만: 피크 구간이 다르다고 엇갈린다고 단정하지 않는다
-    lines.push(`${subject} 주로 ${businessPeak.band.label}에 영업하는 업종이에요 — 이 시간대 유동은 현장에서 확인하세요.`)
+    push(() => `${subject} 주로 ${businessPeak.band.label}에 영업하는 업종이에요 — 이 시간대 유동은 현장에서 확인하세요.`)
   }
-  return { inflowPeak, businessPeak, level, lines }
+  const usedDetail = level !== null && detail ? detail : null
+  return { inflowPeak, businessPeak, level, lines, plain, detail: usedDetail }
 }

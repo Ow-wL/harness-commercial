@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi, type Mock } from 'vitest'
 import { PROFILE_KEY, readProfile } from '../lib/profile.ts'
-import { AskDialog } from './AskDialog.tsx'
+import { AnswerText, AskDialog } from './AskDialog.tsx'
 
 const TARGET = { lat: 37.4894, lng: 126.7246, biz_code: 'R10406', radius_m: 500, title: '부평구 부평1동 · PC방' }
 const json = (status: number, body: unknown) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } })
@@ -22,6 +22,14 @@ describe('AskDialog — AI 자유 질문 (R2 13-24·13-26)', () => {
     window.localStorage.removeItem(PROFILE_KEY)
   })
 
+  it('답 형식(r4-1): 첫 줄은 결론, "- " 줄은 목록, 형식 밖 줄은 그대로', () => {
+    const { container } = render(<AnswerText text={'경쟁이 센 편이에요.\n- 같은 업종 101곳\n- 점포당 수요 275명\n참고로 유입은 구 단위예요.'} />)
+    expect(container.querySelector('.ask__answer-head')).toHaveTextContent('경쟁이 센 편이에요.')
+    expect(screen.getAllByRole('listitem').map((li) => li.textContent)).toEqual(['같은 업종 101곳', '점포당 수요 275명'])
+    expect(container.querySelector('.ask__answer-line')).toHaveTextContent('참고로 유입은 구 단위예요.')
+    expect(container.textContent).not.toContain('- ')
+  })
+
   it('추천 질문 칩 → 질문·답변, 보내는 값은 조건(좌표·업종·반경)과 질문뿐, 고지 문구', async () => {
     const fetchMock = vi.fn(async () => json(200, answer('경쟁성은 31.9점이에요.')))
     vi.stubGlobal('fetch', fetchMock)
@@ -30,7 +38,10 @@ describe('AskDialog — AI 자유 질문 (R2 13-24·13-26)', () => {
     expect(dialog).toHaveTextContent('30일 보관')
     expect(dialog).toHaveTextContent('위치 좌표·IP는 남기지 않습니다')
     fireEvent.click(within(screen.getByRole('group', { name: '추천 질문' })).getByRole('button', { name: '왜 이 점수가 나왔나요?' }))
-    expect(await screen.findByText('경쟁성은 31.9점이에요.')).toBeInTheDocument()
+    await waitFor(() => expect(document.querySelector('.ask__answer-head')).not.toBeNull())
+    const head = document.querySelector('.ask__answer-head')!
+    expect(head).toHaveTextContent('경쟁성은 31.9점이에요.')
+    expect(head.querySelector('.num-em')).toHaveTextContent('31.9점')
     expect(bodies(fetchMock)[0]).toEqual({ lat: 37.4894, lng: 126.7246, biz_code: 'R10406', radius_m: 500, question: '왜 이 점수가 나왔나요?', history: [], profile: null })
   })
 

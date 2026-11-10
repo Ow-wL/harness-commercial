@@ -148,7 +148,7 @@ export function askQuestion(
   return request('/ask', AskResponseSchema, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), signal })
 }
 
-export type SupportMatchBody = { biz_code: string; gu?: string; profile: AskProfileBody | null }
+export type SupportMatchBody = { biz_code: string; gu?: string; profile: AskProfileBody | null; limit?: number }
 /** POST /support/match — 조건에 맞는 지원사업 공고(R3 13-32). 서버가 /health support.enabled 로 광고할 때만 부른다 */
 export function fetchSupportMatch(body: SupportMatchBody, signal?: AbortSignal): Promise<ApiResult<SupportMatchResponse>> {
   return request('/support/match', SupportMatchResponseSchema, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), signal })
