@@ -40,3 +40,6 @@ frontend/playwright-report/
 
 # 지원사업 공고 스냅샷(배포 때 이미지에만 — scripts/build_support_snapshot.py, v0.3.1)
 data/extra/support-snapshot.json
+
+# 발표 자료 캡처(다시 만들기: docs/presentation/generator/capture-prod.js)
+docs/presentation/generator/shots-prod/
