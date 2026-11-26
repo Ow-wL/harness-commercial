@@ -1,0 +1,74 @@
+/*
+ * 터치 목표 44px (DESIGN §14·§15, 13-50): 손가락으로 쓰는 화면(mobile 폭·터치 기기)에서만 건다.
+ * 컴포넌트 CSS 뒤에 불러와 같은 우선순위의 높이 규칙을 덮는다(main.tsx). 마우스 화면의 밀도는 그대로 둔다.
+ * - 줄 안에서 커져도 되는 조작: min-height 44px
+ * - 높이가 고정된 띠 안의 조작(조건 바 반경·바꾸기, 지도 카드 닫기, 평일/주말): 모양은 두고 누르는 영역만 ::after 로 넓힌다
+ */
+@media (max-width: 639px), (pointer: coarse) {
+  .tabs__tab,
+  .result-tools__button,
+  .more-below__button {
+    height: auto;
+    min-height: var(--control-height-touch);
+  }
+
+  .ai-card__ask,
+  .ai-card__fields-toggle,
+  .ask__chip,
+  .coach__next,
+  .coach__skip,
+  .location__coords-toggle,
+  .data-note__toggle,
+  .field-check__done,
+  .rank-card__retry,
+  .rank-card__toggle,
+  .guide__q-toggle,
+  .sheet-handle__toggle,
+  .station-suggest__item,
+  .support-card__cond,
+  .support-item__open,
+  .support-card__more,
+  .updates__details > summary,
+  .step .radius-control__button {
+    min-height: var(--control-height-touch);
+  }
+
+  .support-item__open,
+  .rank-card__toggle,
+  .nearby__links a,
+  .map-store-info__links a {
+    display: inline-flex;
+    align-items: center;
+  }
+
+  .nearby__links a,
+  .map-store-info__links a {
+    min-height: 36px;
+  }
+
+  .radius-control--bar .radius-control__button,
+  .bar__edit,
+  .map__heat-close,
+  .time-card__daybtn,
+  .overall__help-toggle {
+    position: relative;
+  }
+
+  .radius-control--bar .radius-control__button::after,
+  .bar__edit::after,
+  .map__heat-close::after,
+  .time-card__daybtn::after,
+  .overall__help-toggle::after {
+    content: '';
+    position: absolute;
+    inset: -8px 0;
+  }
+
+  .map__heat-close::after {
+    inset: -8px;
+  }
+
+  .overall__help-toggle::after {
+    inset: -12px -6px;
+  }
+}

@@ -14,7 +14,7 @@
   justify-content: space-between;
   margin: 12px 0 2px calc(64px + 12px);
   margin-right: calc(46px + 12px);
-  font-size: 11px;
+  font-size: 12px;
   color: var(--color-text-muted);
   font-variant-numeric: tabular-nums;
 }
@@ -214,7 +214,7 @@ button.perspective__button:hover .perspective__label {
   padding: 0 6px;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-pill);
-  font-size: 11px;
+  font-size: 12px;
   line-height: 16px;
   color: var(--color-text-muted);
   white-space: nowrap;

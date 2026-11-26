@@ -43,6 +43,7 @@ import { INCHEON_GU, SUPPORT_LIMIT } from './content/support.ts'
 import { useRank } from './lib/useRank.ts'
 import { SavedSites } from './components/SavedSites.tsx'
 import { ReferenceAddress } from './components/ReferenceAddress.tsx'
+import { ServiceInfo } from './components/ServiceInfo.tsx'
 import { UpdateNotes } from './components/UpdateNotes.tsx'
 import type { SdkState } from './map/naverMaps.ts'
 import type { CompareSide } from './lib/compare.ts'
@@ -1764,6 +1765,8 @@ function App() {
         {barCondition}
         {radiusInBar && radiusControl}
         {/* 업데이트 내역(D-031): 지도 영역 밖이라 지도 SDK가 실패해도 열 수 있다. 열고 닫아도 분석·비교 상태는 그대로 */}
+        {/* 서비스 안내(13-50): 소개·자료 출처·개인정보 처리. 업데이트 내역처럼 지도 영역 밖 */}
+        <ServiceInfo />
         <UpdateNotes />
         {/* 후보 보관함(12-25): 지도 영역 밖. 다시 분석은 저장한 조건으로 지금 서버에서 새로(스냅샷을 결과로 보이지 않는다) */}
         <SavedSites

@@ -4,7 +4,7 @@ import './MoreBelow.css'
 
 /**
  * "↓ 아래에 ○○ 포함 더 있어요" (A3 §19.1, 시안 a3.js moreBelow): 패널·펼친 시트 스크롤 영역 아래에 실제로 잘린 항목이 있을 때만
- * 아래 끝에 붙어 보이고, 끝까지 내리면 사라진다. 누르면 화면 70%만큼 내린다. 안내 문구만 넘치면 보이지 않는다.
+ * 아래 끝에 붙어 보이고, 반 화면 넘게 내리거나 끝까지 내리면 사라진다(맨 위로 돌아오면 다시 보인다). 누르면 화면 70%만큼 내린다. 안내 문구만 넘치면 보이지 않는다.
  * 스크롤·크기 변화·탭 전환·펼침(aria-expanded·hidden)마다 다시 잰다
  */
 export function MoreBelow({ scrollerRef }: { scrollerRef: RefObject<HTMLElement | null> }) {

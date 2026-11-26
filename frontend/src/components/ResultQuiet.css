@@ -81,7 +81,7 @@
 .result--quiet .perspective__button:has(.perspective__missing) { grid-template-columns: 64px minmax(0, 1fr) 64px; }
 .result--quiet .perspective__missing { white-space: nowrap; }
 .result--quiet .perspectives__scale { margin-top: 4px; }
-.result__brief-note { margin: 24px 0 6px; color: var(--color-text-muted); font-size: 11px; line-height: 1.6; }
+.result__brief-note { margin: 24px 0 6px; color: var(--color-text-muted); font-size: 12px; line-height: 1.6; }
 .result--explained .result__brief-note { display: none; }
 
 .band--disclosure {

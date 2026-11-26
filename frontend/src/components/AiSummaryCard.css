@@ -80,7 +80,7 @@
   padding: 0 5px;
   border-radius: var(--radius-pill);
   background: var(--color-surface);
-  font-size: 11px;
+  font-size: 12px;
   line-height: 18px;
   text-align: center;
 }
@@ -122,7 +122,7 @@
   padding: 0 7px;
   border: 1px solid currentColor;
   border-radius: var(--radius-pill);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
   line-height: 1.6;
   font-variant-numeric: tabular-nums;
@@ -154,7 +154,7 @@
 /* 근거 자료 이름: 기본 숨김(화면만), "근거 자료 보기"로 펼친다 */
 .ai-card__fields {
   display: none;
-  font-size: 11px;
+  font-size: 12px;
   color: var(--color-text-muted);
 }
 

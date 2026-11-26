@@ -147,6 +147,8 @@ export function AskDialog({ target, onClose }: { target: AskTarget; onClose: () 
               {error}
             </p>
           )}
+          {/* 보관 고지는 입력·전송보다 먼저 읽히게 입력란 위에 둔다 (13-50) */}
+          <p className="ask__privacy">{AI_TEXT.privacy}</p>
           <form className="ask__form" onSubmit={onSubmit}>
             <label className="visually-hidden" htmlFor="ask-input">
               질문
@@ -165,7 +167,6 @@ export function AskDialog({ target, onClose }: { target: AskTarget; onClose: () 
             </button>
           </form>
           <ProfileFields profile={profile} onChange={updateProfile} />
-          <p className="ask__privacy">{AI_TEXT.privacy}</p>
         </div>
       </div>
     </div>,

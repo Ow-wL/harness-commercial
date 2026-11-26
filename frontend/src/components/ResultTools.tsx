@@ -35,7 +35,7 @@ export function ResultTools({
       if (!navigator.clipboard?.writeText) throw new Error('clipboard 없음')
       await navigator.clipboard.writeText(shareUrl)
       setFallback(false)
-      setStatus('링크를 복사했습니다. 링크로 열면 같은 조건으로 다시 분석합니다.')
+      setStatus('링크를 복사했습니다. 링크에는 이 위치 좌표·업종·반경이 들어 있고, 열면 같은 조건으로 다시 분석합니다.')
     } catch {
       setFallback(true)
       setStatus('자동 복사가 되지 않아 아래 주소를 직접 복사하세요.')

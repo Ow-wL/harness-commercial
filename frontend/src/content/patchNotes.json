@@ -3,6 +3,29 @@
   "renumbered_until": "v0.0.10",
   "releases": [
     {
+      "version": "v0.5.0",
+      "date": "2026-11-26",
+      "title": "휴대폰에서 누르기 쉽게 · 서비스 안내",
+      "changes": [
+        {
+          "type": "improved",
+          "text": "휴대폰에서 버튼과 탭이 손가락으로 누르기 쉬운 크기가 되고, 작은 글자가 커졌습니다."
+        },
+        {
+          "type": "added",
+          "text": "위쪽 ⓘ 버튼에서 서비스 소개, 쓰는 자료, 개인정보를 어떻게 다루는지 볼 수 있습니다."
+        },
+        {
+          "type": "improved",
+          "text": "\"아래에 더 있어요\" 표시는 조금 내려 읽기 시작하면 사라져 내용을 가리지 않습니다. AI 질문의 보관 안내는 입력란 위로 옮겼습니다."
+        }
+      ],
+      "work": [
+        "13-50(D-048) 1단계: styles/touch.css(터치 목표 44px — mobile 폭·터치 기기만), 11px 이하 글자 12px, lib/moreBelow 반 화면 넘게 내리면 숨김, ServiceInfo(서비스 안내 모달)·content/serviceInfo.ts, AskDialog 보관 고지 위치, 링크 복사 안내에 좌표 포함 고지"
+      ],
+      "commits": []
+    },
+    {
       "version": "v0.4.3",
       "date": "2026-11-26",
       "title": "처음 열면 다크 모드",
@@ -15,7 +38,9 @@
       "work": [
         "13-49(D-047): 첫 방문(저장된 선택 없음) 테마를 시스템 prefers-color-scheme 대신 다크로. theme.ts 의 시스템 설정 해석·구독 제거, index.html 첫 그리기 스크립트 같은 규칙, 테스트·DESIGN §19.7 개정"
       ],
-      "commits": []
+      "commits": [
+        "15ad44e"
+      ]
     },
     {
       "version": "v0.4.2",

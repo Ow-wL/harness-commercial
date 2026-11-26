@@ -28,6 +28,11 @@ describe('hiddenBelow', () => {
   it('끝까지(30px 안) 내렸으면 null — 표시가 사라진다', () => {
     expect(hiddenBelow(scroller([{ name: '안정성', bottom: 700 }], { height: 600, scrollHeight: 900, scrollTop: 280 }))).toBeNull()
   })
+  it('반 화면 넘게 내렸으면 아래에 잘린 항목이 있어도 null — 읽는 내내 내용을 가리지 않는다 (13-50)', () => {
+    const rows = [{ name: '안정성', bottom: 700 }]
+    expect(hiddenBelow(scroller(rows, { height: 600, scrollHeight: 3000, scrollTop: 300 }))).toBe('안정성')
+    expect(hiddenBelow(scroller(rows, { height: 600, scrollHeight: 3000, scrollTop: 301 }))).toBeNull()
+  })
   it('잘린 항목이 없으면(안내 문구만 넘침) null', () => {
     expect(hiddenBelow(scroller([{ name: '시장성', bottom: 500 }], { height: 600, scrollHeight: 900, scrollTop: 0 }))).toBeNull()
   })

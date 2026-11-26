@@ -136,7 +136,7 @@
   padding: 1px 8px;
   border-radius: var(--radius-pill);
   background: var(--color-accent-subtle);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
   line-height: 1.6;
   color: var(--color-accent);
@@ -148,7 +148,7 @@
   padding: 1px 8px;
   border-radius: var(--radius-pill);
   background: var(--color-surface);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
   line-height: 1.6;
   color: var(--color-text-muted);
@@ -205,7 +205,7 @@
   padding: 0 6px;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-pill);
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.6;
 }
 

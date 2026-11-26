@@ -1,0 +1,39 @@
+/* 서비스 안내(13-50): 모달 틀은 UpdateNotes.css, 여기는 조건 바 버튼 자리와 본문 구역만 */
+
+/* 오른쪽 끝 묶음의 첫 버튼이 margin-left:auto 를 맡는다 — 안내 버튼이 업데이트 버튼 앞에 온다 */
+.bar__info + .bar__updates {
+  margin-left: 0;
+}
+
+.service-info__section {
+  margin-top: var(--space-5);
+}
+
+.service-info__title {
+  margin: 0 0 var(--space-2);
+  font: var(--text-card-title);
+}
+
+.service-info__list {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding-left: 18px;
+  font: var(--text-small);
+  line-height: 1.6;
+  color: var(--color-text-secondary);
+}
+
+.service-info__contact {
+  margin: 0;
+  font: var(--text-small);
+  color: var(--color-text-secondary);
+}
+
+.service-info__contact a {
+  color: var(--color-accent);
+}
+
+.service-info__section + .updates__foot {
+  margin-top: var(--space-5);
+}
