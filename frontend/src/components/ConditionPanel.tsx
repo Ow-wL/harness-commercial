@@ -8,6 +8,8 @@ import { AddressSearch } from './AddressSearch.tsx'
 import { CoordinateForm } from './CoordinateForm.tsx'
 import { Icon } from './Icon.tsx'
 import { LocationMethodSwitch, type LocationMethod } from './LocationMethodSwitch.tsx'
+import { availableMethod } from '../lib/locationSearch.ts'
+import { LocationSearch } from './LocationSearch.tsx'
 import { MyLocationButton } from './MyLocationButton.tsx'
 import { PlaceSearch } from './PlaceSearch.tsx'
 import type { LatLng } from './MapView.tsx'
@@ -223,7 +225,7 @@ function LocationField({
   const bodyRef = useRef<HTMLDivElement>(null)
   const mapButtonRef = useRef<HTMLButtonElement>(null)
   // Geocoder가 꺼지면 "주소로 찾기"가, 서버 광고가 없으면 "장소 이름"이 없어진다 — 그동안은 지도 안내를 보인다
-  const shown: LocationMethod = (method === 'address' && !searchApi) || (method === 'place' && !placesReady) ? 'map' : method
+  const shown: LocationMethod = availableMethod(method, searchApi !== null, placesReady)
 
   // 주소 검색 결과를 고르면 위치 요약으로 포커스 (§10 Q2). 고른 좌표가 그려진 뒤에 옮긴다
   const [focusSummary, setFocusSummary] = useState(0)
@@ -307,6 +309,9 @@ function LocationField({
             {/* 13-50: 지금 있는 자리를 바로 고른다 — 좌표 입력과 같은 선택 경로 */}
             <MyLocationButton disabled={disabled} onLocate={onLocationInput} />
           </>
+        )}
+        {shown === 'search' && searchApi && placesReady && (
+          <LocationSearch api={searchApi} disabled={disabled} onSelect={selectFromSearch} onFocusLost={onSearchFocusLost} />
         )}
         {shown === 'address' && searchApi && (
           <AddressSearch

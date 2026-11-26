@@ -215,7 +215,7 @@ function errorText(f: ApiFailure): string {
 }
 
 /** 결과 한 줄: 이름(분류) + 도로명(없으면 지번) 주소. 인천 밖은 주소 앞 시·도로 알 수 있다 */
-function PlaceButton({ item, disabled, onSelect }: { item: PlaceItem; disabled: boolean; onSelect: (item: PlaceItem) => void }) {
+export function PlaceButton({ item, disabled, onSelect }: { item: PlaceItem; disabled: boolean; onSelect: (item: PlaceItem) => void }) {
   const address = item.road_address ?? item.jibun_address ?? `좌표 ${item.lat}, ${item.lng}`
   const outside = address.startsWith(INCHEON_SIDO) || address.startsWith('인천') ? null : '인천 밖일 수 있음'
   const category = item.category.split('>').pop()?.trim()

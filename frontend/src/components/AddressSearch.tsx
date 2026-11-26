@@ -266,7 +266,7 @@ export function AddressSearch({
 }
 
 /** 결과 한 줄: 도로명주소(없으면 지번) + 보조로 지번. 인천 밖 시·도는 이름만 caption으로(선택은 막지 않는다) */
-function ResultButton({ item, disabled, onSelect }: { item: GeocodeItem; disabled: boolean; onSelect: (item: GeocodeItem) => void }) {
+export function ResultButton({ item, disabled, onSelect }: { item: GeocodeItem; disabled: boolean; onSelect: (item: GeocodeItem) => void }) {
   const primary = item.roadAddress ?? item.jibunAddress ?? `좌표 ${item.lat}, ${item.lng}`
   const secondary = item.roadAddress && item.jibunAddress ? item.jibunAddress : null
   const otherSido = item.sido && item.sido !== INCHEON_SIDO ? item.sido : null

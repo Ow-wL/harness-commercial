@@ -1,11 +1,11 @@
 import type { Ref } from 'react'
 import './LocationMethodSwitch.css'
 
-export type LocationMethod = 'map' | 'address' | 'place' | 'coords'
+export type LocationMethod = 'map' | 'search' | 'address' | 'place' | 'coords'
 
 /**
  * 위치 입력 방법 segmented 1줄 (P2·P3, docs/UX_REDESIGN_APPROVAL_DRAFT.md A.5 · DESIGN.md §7.4):
- * [지도에서 고르기 │ 주소로 찾기 │ 장소 이름 │ 좌표 입력] — 각 44px, aria-pressed. "주소로 찾기"는 Geocoder가 준비됐을 때만,
+ * [지도에서 고르기 │ 검색으로 찾기 │ 좌표 입력] — 각 44px, aria-pressed. 주소·장소 검색 중 하나만 되면 그 자리에 "주소로 찾기" 또는 "장소 이름"(13-52). "주소로 찾기"는 Geocoder가 준비됐을 때만,
  * "장소 이름"(12-14)은 서버가 /health 로 장소 검색을 광고할 때만 그린다.
  * 무엇을 열지는 부르는 쪽이 정한다(조건 패널: 그 방법의 안내·폼 하나 / mobile 지도 sheet: 패널로 가서 그 폼을 바로 연다).
  */
@@ -28,8 +28,13 @@ export function LocationMethodSwitch({
 }) {
   const methods: { key: LocationMethod; label: string }[] = [
     { key: 'map', label: '지도에서 고르기' },
-    ...(addressReady ? [{ key: 'address' as const, label: '주소로 찾기' }] : []),
-    ...(placesReady ? [{ key: 'place' as const, label: '장소 이름' }] : []),
+    // 13-52: 주소·장소 검색이 둘 다 되면 검색창 하나로 합친다 — 하나만 되면 기존 이름 그대로
+    ...(addressReady && placesReady
+      ? [{ key: 'search' as const, label: '검색으로 찾기' }]
+      : [
+          ...(addressReady ? [{ key: 'address' as const, label: '주소로 찾기' }] : []),
+          ...(placesReady ? [{ key: 'place' as const, label: '장소 이름' }] : []),
+        ]),
     { key: 'coords', label: '좌표 입력' },
   ]
   return (

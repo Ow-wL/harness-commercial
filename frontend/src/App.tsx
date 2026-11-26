@@ -16,6 +16,7 @@ import { ComparePanel, CompareSheet } from './components/ComparePanel.tsx'
 import { CompareDetail, CompareResult, StoreSideSwitch } from './components/CompareResult.tsx'
 import { ConditionPanel, type BusinessesState } from './components/ConditionPanel.tsx'
 import { LocationMethodSwitch, type LocationMethod } from './components/LocationMethodSwitch.tsx'
+import { availableMethod } from './lib/locationSearch.ts'
 import { ErrorBlock } from './components/ErrorBlock.tsx'
 import { Icon } from './components/Icon.tsx'
 import { MapErrorBoundary } from './components/MapErrorBoundary.tsx'
@@ -1957,7 +1958,7 @@ function App() {
               {/* 조건 패널과 같은 segmented·같은 상태 (B5): 주소·좌표를 누르면 패널로 가서 그 폼을 바로 연다 */}
               <LocationMethodSwitch
                 // 주소 기능이 꺼지면 조건 패널처럼 지도 안내로 본다
-                value={(locationMethod === 'address' && !searchApi) || (locationMethod === 'place' && !placesReady) ? 'map' : locationMethod}
+                value={availableMethod(locationMethod, searchApi !== null, placesReady)}
                 addressReady={searchApi !== null}
                 placesReady={placesReady}
                 disabled={analyzing}
