@@ -9,7 +9,7 @@
       "changes": [
         {
           "type": "improved",
-          "text": "휴대폰에서 버튼과 탭이 손가락으로 누르기 쉬운 크기가 되고, 작은 글자가 커졌습니다."
+          "text": "휴대폰에서 버튼과 탭이 손가락으로 누르기 쉬운 크기가 되고, 작은 글자가 커졌습니다. AI 요약은 다섯 관점 바로 아래에서 먼저 보입니다."
         },
         {
           "type": "added",
@@ -22,7 +22,8 @@
       ],
       "work": [
         "13-50(D-048) 1단계: styles/touch.css(터치 목표 44px — mobile 폭·터치 기기만), 11px 이하 글자 12px, lib/moreBelow 반 화면 넘게 내리면 숨김, ServiceInfo(서비스 안내 모달)·content/serviceInfo.ts, AskDialog 보관 고지 위치, 링크 복사 안내에 좌표 포함 고지",
-        "13-50 2~4단계: 간단 화면 관점 행의 남는 구분점 제거(ResultQuiet.css), MyLocationButton(브라우저 위치 → 좌표 입력과 같은 선택 경로), manifest.json·apple-touch-icon·icon-192/512·theme-color(테마에 맞춤), scripts/build_share_assets.py"
+        "13-50 2~4단계: 간단 화면 관점 행의 남는 구분점 제거(ResultQuiet.css), MyLocationButton(브라우저 위치 → 좌표 입력과 같은 선택 경로), manifest.json·apple-touch-icon·icon-192/512·theme-color(테마에 맞춤), scripts/build_share_assets.py",
+        "13-50 AI 요약 위치(사용자 결정): 결과 카드 순서를 다섯 관점 → AI 요약 → 시간대 → 업종 순위 → 지원사업으로"
       ],
       "commits": [
         "04d351a",
@@ -43,7 +44,8 @@
         "13-49(D-047): 첫 방문(저장된 선택 없음) 테마를 시스템 prefers-color-scheme 대신 다크로. theme.ts 의 시스템 설정 해석·구독 제거, index.html 첫 그리기 스크립트 같은 규칙, 테스트·DESIGN §19.7 개정"
       ],
       "commits": [
-        "15ad44e"
+        "15ad44e",
+        "d28c91d"
       ]
     },
     {

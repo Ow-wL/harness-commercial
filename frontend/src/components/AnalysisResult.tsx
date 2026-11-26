@@ -176,9 +176,10 @@ export function AnalysisResult({
           <p className="result__persp-note">막대·거미줄의 점선 50은 인천 동네 평균 지점입니다 · 행을 누르면 근거가 펼쳐집니다.</p>
         </section>
 
+        {/* 13-50: AI 요약은 다섯 관점 바로 아래 — 가장 읽기 쉬운 내용을 먼저. AI 가 꺼져 있으면(aiCard 없음) 시간대부터 그대로 */}
+        {aiCard}
         {timeCard}
         {rankCard}
-        {aiCard}
         {supportCard}
         {notes}
         {tools}
