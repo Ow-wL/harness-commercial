@@ -278,6 +278,16 @@
   table {
     break-inside: avoid;
   }
+
+  /* 13-51: 접힌 "더 알아보기" 줄은 종이에 모두 펼친다 — 펼침 화살표·보조 설명은 뺀다 */
+  .fold__body[hidden] {
+    display: block !important;
+  }
+
+  .fold__chevron,
+  .fold__hint {
+    display: none;
+  }
 }
 
 /* 화면에서는 인쇄 머리말이 없다 */

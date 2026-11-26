@@ -83,6 +83,10 @@ describe('print.css', () => {
     expect(printBlock).not.toMatch(/\.result__body\s*\{\s*break-before/)        // 상세는 요약 뒤로 이어진다(빈 쪽 없음)
   })
 
+  it('접힌 "더 알아보기" 줄은 종이에 모두 펼친다 (13-51)', () => {
+    expect(css).toMatch(/\.fold__body\[hidden\]\s*\{\s*display:\s*block !important/)
+  })
+
   it('화면 규칙에는 인쇄 머리말 숨김만 있다', () => {
     const screenPart = css.slice(css.lastIndexOf('.print-only {'))
     expect(screenPart).toMatch(/\.print-only \{\s*display:\s*none;\s*\}/)

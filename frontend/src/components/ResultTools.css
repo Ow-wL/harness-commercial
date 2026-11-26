@@ -63,3 +63,30 @@
   font-weight: 700;
   color: var(--color-text-primary);
 }
+
+/* 13-51: 비교 시작은 이 줄의 주 버튼 — 다른 조작과 같은 높이 */
+.result-tools__compare {
+  height: 36px;
+  padding: 0 14px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+@media (max-width: 639px), (pointer: coarse) {
+  .result-tools__compare {
+    height: var(--control-height-touch);
+  }
+}
+
+/* ghost 버튼은 글자 기준으로 왼쪽을 맞추려고 줄이 살짝 밖으로 나가 있다 — 채워진 비교 버튼은 카드 왼쪽 선에 맞춘다 */
+.result-tools__compare {
+  margin-left: 24px;
+  margin-right: 4px;
+}
+
+@media (max-width: 639px) {
+  .result-tools__compare {
+    margin-left: 12px;
+  }
+}

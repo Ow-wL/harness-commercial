@@ -222,3 +222,34 @@
     padding: 12px 16px calc(14px + env(safe-area-inset-bottom));
   }
 }
+
+/* 13-51: 접힌 반경 줄 — "분석 반경 500m · 바꾸기" */
+.step-fold__summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 44px;
+  list-style: none;
+  cursor: pointer;
+  font: var(--text-small);
+  color: var(--color-text-secondary);
+}
+
+.step-fold__summary::-webkit-details-marker {
+  display: none;
+}
+
+.step-fold__label {
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.step-fold__action {
+  color: var(--color-accent);
+  font-weight: 600;
+}
+
+.step-fold[open] .step-fold__action {
+  display: none;
+}

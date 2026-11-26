@@ -15,6 +15,7 @@ export function ResultTools({
   shareUrl,
   onPrint,
   save,
+  compare,
 }: {
   /** 지금 조건의 공유 링크. null 이면 링크 복사 없음 */
   shareUrl: string | null
@@ -22,6 +23,8 @@ export function ResultTools({
   onPrint?: () => void
   /** 보관함에 저장. saved: 같은 조건이 이미 보관돼 있음(누르면 지금 결과로 갱신). message: 저장 결과 안내(App) */
   save?: { saved: boolean; onSave: () => void; message: string | null }
+  /** 다른 위치와 비교 시작 (13-51: 패널 아래 고정 버튼에서 이 줄로 옮김). id 는 비교 종료 뒤 포커스를 돌려받는 자리 */
+  compare?: { id: string; onStart: () => void }
 }) {
   const [status, setStatus] = useState<string | null>(null)
   const [qr, setQr] = useState(false)
@@ -45,6 +48,11 @@ export function ResultTools({
   return (
     <div className="result-tools" role="group" aria-label="결과 활용">
       <div className="result-tools__row">
+        {compare && (
+          <button id={compare.id} type="button" className="button button--primary result-tools__compare" onClick={compare.onStart}>
+            다른 위치와 비교
+          </button>
+        )}
         {shareUrl && (
           <button type="button" className="button-ghost button-ghost--small result-tools__button" onClick={() => void copy()}>
             <Icon name="link" size={16} />

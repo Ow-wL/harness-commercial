@@ -50,6 +50,7 @@
   .bar__edit,
   .map__heat-close,
   .time-card__daybtn,
+  .ai-card__link,
   .overall__help-toggle {
     position: relative;
   }
@@ -58,6 +59,7 @@
   .bar__edit::after,
   .map__heat-close::after,
   .time-card__daybtn::after,
+  .ai-card__link::after,
   .overall__help-toggle::after {
     content: '';
     position: absolute;
@@ -68,7 +70,8 @@
     inset: -8px;
   }
 
+  .ai-card__link::after,
   .overall__help-toggle::after {
-    inset: -12px -6px;
+    inset: -14px -6px;
   }
 }

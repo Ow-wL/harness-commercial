@@ -1082,11 +1082,16 @@ function App() {
     result,
   )
   // v0.4.1: AI 요약의 "지원사업 보기" — 지원사업 카드 제목으로 스크롤·포커스
+  // 13-51: 지원사업은 접힌 줄 안에 있다 — 먼저 줄을 펼치고(신호), 펼쳐진 다음 그림에서 제목으로 간다
+  const [supportOpenSignal, setSupportOpenSignal] = useState(0)
   const showSupportCard = () => {
-    const heading = document.getElementById('support-card-title')
-    if (!heading) return
-    heading.scrollIntoView?.({ block: 'start', behavior: motionAllowed() ? 'smooth' : 'auto' })
-    heading.focus({ preventScroll: true })
+    setSupportOpenSignal((n) => n + 1)
+    window.setTimeout(() => {
+      const heading = document.getElementById('support-card-title')
+      if (!heading) return
+      heading.scrollIntoView?.({ block: 'start', behavior: motionAllowed() ? 'smooth' : 'auto' })
+      heading.focus({ preventScroll: true })
+    }, 0)
   }
   const mapExpanded = result !== null && mapExpandedFor === result
   // 비교 B 고르기 중에는 지도를 눌러야 하므로 오른쪽 패널 배치. 비교 요약·전체 결과는 다시 시트로 올라온다
@@ -1278,6 +1283,27 @@ function App() {
 
   // 후보 보관함(12-25): 이 브라우저 저장소의 목록을 state 로 들고, 저장·메모·삭제 때 같이 쓴다. 같은 조건은 스냅샷만 갱신
   const [savedSites, setSavedSites] = useState<SavedSite[]>(() => readSavedSites())
+  // 13-51: mobile 조건 바의 "더보기" 메뉴(안내·업데이트·테마). 메뉴 밖을 누르거나 Escape 로 닫는다 — 메뉴에서 연 모달 안의 조작은 밖으로 보지 않는다
+  const [moreOpen, setMoreOpen] = useState(false)
+  const moreRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!moreOpen) return
+    const onDown = (e: PointerEvent) => {
+      const t = e.target
+      if (!(t instanceof Element)) return
+      if (moreRef.current?.contains(t) || t.closest('.updates-backdrop')) return
+      setMoreOpen(false)
+    }
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !document.querySelector('.updates-backdrop')) setMoreOpen(false)
+    }
+    document.addEventListener('pointerdown', onDown)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('pointerdown', onDown)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [moreOpen])
   const [saveMessage, setSaveMessage] = useState<{ key: string; text: string } | null>(null)
   const saveCurrent = () => {
     if (analysis.status !== 'success') return
@@ -1429,8 +1455,8 @@ function App() {
     ) : null
 
   /** 패널 아래 고정 행동 (mobile에서는 "지도 보기"를 앞에) */
-  const foot = (children: ReactNode) => (
-    <div className="panel__foot">
+  const foot = (children: ReactNode, mobileOnly = false) => (
+    <div className={`panel__foot${mobileOnly ? ' panel__foot--mobile' : ''}`}>
       <button
         type="button"
         className="button button--ghost-fill mobile-only"
@@ -1582,6 +1608,7 @@ function App() {
           <ResultTools
             shareUrl={currentShare ? shareUrl(currentShare) : null}
             onPrint={printResult}
+            compare={{ id: COMPARE_IDS.start, onStart: startCompare }}
             save={{
               saved: analysis.status === 'success' && savedSites.some((s) => s.key === cacheKey(analysis.request)),
               onSave: saveCurrent,
@@ -1590,6 +1617,7 @@ function App() {
           />
         }
         eyebrowAction={replayHelp('result')}
+        supportOpenSignal={supportOpenSignal}
         radiusTable={radiusTable}
         fieldNotes={analysis.status === 'success' ? fieldNotesFor(analysis.request) : undefined}
         address={addressOf(result)}
@@ -1614,11 +1642,8 @@ function App() {
         />
       </>
     )
-    panelFoot = foot(
-      <button id={COMPARE_IDS.start} type="button" className="button button--primary" onClick={startCompare}>
-        다른 위치와 비교
-      </button>,
-    )
+    // 13-51: "다른 위치와 비교"는 결과 활용 줄로 옮겼다 — 아래 고정 행은 mobile 의 "지도 보기"만 남는다(넓은 화면에서는 행 자체가 없다)
+    panelFoot = foot(null, true)
   } else {
     panelBody = (
       <div className="intro">
@@ -1645,6 +1670,8 @@ function App() {
           methodFocus={methodFocus}
           onMethodChange={setLocationMethod}
           radiusStep={radiusControl}
+          radiusSummary={formatRadius(radius)}
+          radiusOpen={radius !== DEFAULT_RADIUS_M || radiusStatus !== null || (analysis.status === 'error' && analysis.origin === 'radius')}
           coach={conditionCoach}
           onReplayHelp={() => sendTour({ type: 'replay', screen: 'conditions' })}
         >
@@ -1765,9 +1792,6 @@ function App() {
         {barCondition}
         {radiusInBar && radiusControl}
         {/* 업데이트 내역(D-031): 지도 영역 밖이라 지도 SDK가 실패해도 열 수 있다. 열고 닫아도 분석·비교 상태는 그대로 */}
-        {/* 서비스 안내(13-50): 소개·자료 출처·개인정보 처리. 업데이트 내역처럼 지도 영역 밖 */}
-        <ServiceInfo />
-        <UpdateNotes />
         {/* 후보 보관함(12-25): 지도 영역 밖. 다시 분석은 저장한 조건으로 지금 서버에서 새로(스냅샷을 결과로 보이지 않는다) */}
         <SavedSites
           sites={savedSites}
@@ -1775,16 +1799,41 @@ function App() {
           onMemo={(id, memo) => setSavedSites(updateSiteMemo(savedSites, id, memo))}
           onRemove={(id) => setSavedSites(removeSite(savedSites, id))}
         />
-        {/* 테마 전환(묶음 A, §19.7): 누르면 그 선택을 저장하고 패널·지도가 함께 바뀐다. 아이콘은 "바뀔 테마"가 아니라 지금 상태 반대 행동 */}
-        <button
-          type="button"
-          className="bar__theme"
-          aria-label={theme === 'dark' ? '라이트 모드로 전환' : '다크 모드로 전환'}
-          title={theme === 'dark' ? '라이트 모드로 전환' : '다크 모드로 전환'}
-          onClick={() => setThemePreference(theme === 'dark' ? 'light' : 'dark')}
-        >
-          <Icon name={theme === 'dark' ? 'sun' : 'moon'} size={20} />
-        </button>
+        {/* 13-51: 안내·업데이트·테마는 한 묶음 — mobile 에서는 "더보기" 버튼 아래 메뉴로 접는다(넓은 화면은 CSS 가 묶음을 풀어 그대로 나열) */}
+        <div ref={moreRef} className="bar__more" data-open={moreOpen || undefined}>
+          <button
+            type="button"
+            className="bar__updates bar__more-toggle"
+            aria-label="더보기"
+            aria-expanded={moreOpen}
+            aria-controls="bar-more-items"
+            onClick={() => setMoreOpen((v) => !v)}
+          >
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true">
+              <circle cx="5" cy="12" r="1.8" />
+              <circle cx="12" cy="12" r="1.8" />
+              <circle cx="19" cy="12" r="1.8" />
+            </svg>
+          </button>
+          <div id="bar-more-items" className="bar__more-items">
+            {/* 서비스 안내(13-50): 소개·자료 출처·개인정보 처리. 업데이트 내역처럼 지도 영역 밖 */}
+            <ServiceInfo />
+            <UpdateNotes />
+            {/* 테마 전환(묶음 A, §19.7): 누르면 그 선택을 저장하고 패널·지도가 함께 바뀐다. 아이콘은 "바뀔 테마"가 아니라 지금 상태 반대 행동 */}
+            <button
+              type="button"
+              className="bar__theme"
+              aria-label={theme === 'dark' ? '라이트 모드로 전환' : '다크 모드로 전환'}
+              title={theme === 'dark' ? '라이트 모드로 전환' : '다크 모드로 전환'}
+              onClick={() => setThemePreference(theme === 'dark' ? 'light' : 'dark')}
+            >
+              <Icon name={theme === 'dark' ? 'sun' : 'moon'} size={20} />
+              <span className="bar__updates-label bar__theme-label" aria-hidden="true">
+                {theme === 'dark' ? '라이트 모드' : '다크 모드'}
+              </span>
+            </button>
+          </div>
+        </div>
       </header>
       <div ref={panelRef} className="panel" data-map-obstacle={layout === 'map' || undefined} data-folded={panelFolded || undefined}>
         {layout === 'dashboard' && (

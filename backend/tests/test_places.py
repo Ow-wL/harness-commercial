@@ -97,9 +97,9 @@ def test_search_proxies_and_returns_display_fields_only(caplog):
     assert set(body["places"][1]) == {"name", "category", "road_address", "jibun_address", "lat", "lng"}
     # 상류 호출: 키 헤더, 공백을 다듬은 검색어, display 5
     url, headers = ok_fetch.calls[0]
-    assert url.startswith("https://openapi.naver.com/v1/search/local.json?")
+    assert url.startswith("https://naverapihub.apigw.ntruss.com/search/v1/local?")
     assert "query=%EB%B6%80%ED%8F%89%EC%97%AD" in url and "display=5" in url
-    assert headers == {"X-Naver-Client-Id": "id", "X-Naver-Client-Secret": "secret"}
+    assert headers == {"X-NCP-APIGW-API-KEY-ID": "id", "X-NCP-APIGW-API-KEY": "secret"}
     # 로그에 검색어·주소·키가 없다
     assert "부평" not in caplog.text and "secret" not in caplog.text
     assert "places ok 2 results" in caplog.text

@@ -17,8 +17,9 @@ async function openApp(page: Page, mode: FakeSdkMode): Promise<string[]> {
     route.fulfill({ status: 200, contentType: 'application/javascript', body: fakeNaverSdk(mode) }),
   )
   await page.goto('/')
-  // 화면 크기와 무관하게 보이는 조건 바 버튼으로 준비를 확인한다(모바일 첫 화면은 지도·시트라 패널이 숨어 있다)
-  await expect(page.getByRole('button', { name: /모드로 전환/ })).toBeVisible()
+  // 화면 크기와 무관하게 보이는 조건 바 버튼으로 준비를 확인한다(모바일 첫 화면은 지도·시트라 패널이 숨어 있다).
+  // 13-51: 테마·안내·업데이트는 mobile 에서 "더보기" 메뉴 안이라, 늘 보이는 보관함 버튼을 본다
+  await expect(page.getByRole('button', { name: /^보관함/ })).toBeVisible()
   return pageErrors
 }
 
@@ -104,6 +105,12 @@ test('모바일 375 — 분석 전 시트의 참고 주소는 보이고, 결과 
   await expect(page.locator('.map-sheet__value')).toHaveText('62.3')
   await expect(sheetAddress).toHaveCSS('display', 'none')
   expect(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth)).toBe(false)
+  // 13-51: mobile 조건 바의 "더보기" — 닫혀 있으면 안내·업데이트·테마가 숨고, 열면 보인다
+  await expect(page.getByRole('button', { name: '업데이트 내역' })).toBeHidden()
+  await page.getByRole('button', { name: '더보기' }).click()
+  await expect(page.getByRole('button', { name: '업데이트 내역' })).toBeVisible()
+  await expect(page.getByRole('button', { name: /모드로 전환/ })).toBeVisible()
+  await expect(page.getByRole('button', { name: '서비스 안내' })).toBeVisible()
   expect(pageErrors).toEqual([])
 })
 

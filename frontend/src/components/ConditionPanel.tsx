@@ -55,6 +55,8 @@ export function ConditionPanel({
   methodFocus = 0,
   onMethodChange,
   radiusStep,
+  radiusSummary,
+  radiusOpen,
   coach = null,
   onReplayHelp,
   children,
@@ -86,6 +88,10 @@ export function ConditionPanel({
   onMethodChange: (method: LocationMethod) => void
   /** ③ 분석 반경 (8-D3 RadiusControl — 서버가 반경을 2개 이상 광고할 때만 App이 넘긴다) */
   radiusStep?: ReactNode
+  /** 접힌 반경 줄에 보일 지금 반경 ("500m") */
+  radiusSummary?: string
+  /** 반경 줄을 펼쳐 둘지 (기본값이 아님·변경 진행·실패) */
+  radiusOpen?: boolean
   /** 첫 방문 안내 말풍선 ①~③ (묶음 D). null이면 없음 — 해당 단계 요소 바로 아래 인라인 */
   coach?: ConditionCoach | null
   /** "사용 방법 다시 보기"(머리 오른쪽) — 넘기지 않으면 버튼 없음 */
@@ -138,7 +144,17 @@ export function ConditionPanel({
         onRetry={onRetryBusinesses}
       />
       {coachAt('business')}
-      {radiusStep && <div className="field step">{radiusStep}</div>}
+      {/* 13-51(D-049): 반경은 기본값으로 충분한 경우가 많아 한 줄로 접어 둔다 — 지금 적용될 반경은 늘 보이고, 누르면 고를 수 있다.
+          기본값이 아니거나 반경 변경이 진행·실패 중이면 펼쳐 둔다(복구 버튼이 숨지 않게) */}
+      {radiusStep && (
+        <details className="field step step-fold" open={radiusOpen || undefined}>
+          <summary className="step-fold__summary">
+            <span className="step-fold__label">분석 반경 {radiusSummary}</span>
+            <span className="step-fold__action">바꾸기</span>
+          </summary>
+          {radiusStep}
+        </details>
+      )}
       {children}
       <div className="conditions__submit">
         <button

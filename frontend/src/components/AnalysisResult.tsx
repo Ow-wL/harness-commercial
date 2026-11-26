@@ -18,6 +18,7 @@ import { PerspectiveScores, type PerspectiveOrder } from './PerspectiveScores.ts
 import { RadarChart } from './RadarChart.tsx'
 import { ScoreCard } from './ScoreCard.tsx'
 import { TabRevealContext, useResultTabs, useTabIdBase, type TabDef } from '../lib/resultTabs.ts'
+import { FoldSection } from './FoldSection.tsx'
 import { TabList, TabPanel } from './ResultTabs.tsx'
 import { WarningPanel } from './WarningPanel.tsx'
 import './AnalysisResult.css'
@@ -28,7 +29,7 @@ type ResultTab = 'evidence' | 'stores' | 'field' | 'radius'
 /**
  * 분석 결과 — 대시보드 (R1 13-10~13-14·13-19, DESIGN.md §20, 팀 점검 보고서 시안 규칙 1~5).
  * 읽는 순서: 위치·업종 → (규제 배너) → 종합 점수 + 등급 + 한 줄 결론 + (주의 관점 한 줄) → 다섯 관점(거미줄 + 점수순 막대, 근거는 행을 펼쳐서)
- * → 시간대·인구 카드(13-15) → 이 자리 업종 순위(13-16) → 결과 활용 줄·안내(B3: 첫 화면에서 아래로) → 탭(상세 근거 · 주변 점포 · 현장 확인 ·
+ * → AI 요약 → 결과 활용 줄·안내 → "더 알아보기" 접힌 줄(13-51: 시간대·인구 13-15 / 업종 순위 13-16 / 지원사업) → 탭(상세 근거 · 주변 점포 · 현장 확인 ·
  * 반경별 비교) → 접힌 "데이터 한계 N개"(B4: 확인 필요 줄 + 주의 요약을 한 곳에) → 면책 한 줄.
  * 입력은 AnalyzeResponseSchema로 검증된 값만 받는다. 엔진 값은 그대로 보여 준다(정렬·등급·결론은 표시만).
  */
@@ -47,6 +48,7 @@ export function AnalysisResult({
   rankCard,
   aiCard,
   supportCard,
+  supportOpenSignal,
 }: {
   analysis: AnalyzeResponse
   /** 주변 점포 탭 내용 (App이 별도 요청 상태와 함께 넘긴다) */
@@ -75,6 +77,8 @@ export function AnalysisResult({
   aiCard?: ReactNode
   /** R3 13-33 지원사업 카드(서버가 지원사업 자료를 광고할 때만) — AI 요약 다음 */
   supportCard?: ReactNode
+  /** 값이 바뀌면 지원사업 줄을 펼친다 (AI 요약의 "지원사업 보기") */
+  supportOpenSignal?: number
 }) {
   const { context, result } = analysis
   const dataVersion = dataVersionOf(analysis)   // 9-C4: 응답 헤더 X-Data-Version (모르면 null)
@@ -176,13 +180,33 @@ export function AnalysisResult({
           <p className="result__persp-note">막대·거미줄의 점선 50은 인천 동네 평균 지점입니다 · 행을 누르면 근거가 펼쳐집니다.</p>
         </section>
 
-        {/* 13-50: AI 요약은 다섯 관점 바로 아래 — 가장 읽기 쉬운 내용을 먼저. AI 가 꺼져 있으면(aiCard 없음) 시간대부터 그대로 */}
+        {/* 13-50: AI 요약은 다섯 관점 바로 아래 — 가장 읽기 쉬운 내용을 먼저 */}
         {aiCard}
-        {timeCard}
-        {rankCard}
-        {supportCard}
         {notes}
         {tools}
+
+        {/* 13-51(D-049) 두 단 구성: 위(점수·관점·AI 요약·활용 줄)는 늘 보이고, 시간대·업종 순위·지원사업은 질문 한 줄로 접어 둔다.
+            접힌 카드는 DOM 에 그대로 있다(자료 요청·인쇄는 그대로) */}
+        {(timeCard || rankCard || supportCard) && (
+          <section className="folds" aria-label="더 알아보기">
+            <p className="folds__title" aria-hidden="true">더 알아보기</p>
+            {timeCard && (
+              <FoldSection id="fold-time" label="언제, 어떤 사람이 많나요?" hint="시간대별 유입 · 주요 손님층 · 가까운 역">
+                {timeCard}
+              </FoldSection>
+            )}
+            {rankCard && (
+              <FoldSection id="fold-rank" label="이 자리에서 다른 업종은 어떤가요?" hint="같은 자리의 업종별 점수">
+                {rankCard}
+              </FoldSection>
+            )}
+            {supportCard && (
+              <FoldSection id="fold-support" label="받을 수 있는 지원사업이 있나요?" hint="업종·지역 조건에 맞는 공고" openSignal={supportOpenSignal}>
+                {supportCard}
+              </FoldSection>
+            )}
+          </section>
+        )}
 
         <TabList label="자세히 보기" tabs={tabs} selected={tab} onSelect={setTab} idBase={idBase} />
         <div className="result__body">

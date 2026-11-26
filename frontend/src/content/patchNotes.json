@@ -3,6 +3,32 @@
   "renumbered_until": "v0.0.10",
   "releases": [
     {
+      "version": "v0.6.0",
+      "date": "2026-11-26",
+      "title": "더 단순한 화면 · 장소 이름 검색",
+      "changes": [
+        {
+          "type": "improved",
+          "text": "결과 화면이 짧아졌습니다. 점수·다섯 관점·AI 요약만 먼저 보이고, 시간대·다른 업종·지원사업은 \"더 알아보기\"에서 질문 한 줄을 눌러 펼칩니다."
+        },
+        {
+          "type": "added",
+          "text": "역·건물·가게 이름으로 위치를 찾을 수 있습니다(\"장소 이름\")."
+        },
+        {
+          "type": "improved",
+          "text": "분석 반경은 기본 500m 한 줄로 줄였고, 휴대폰 위쪽 버튼은 \"더보기\" 메뉴로 묶어 화면을 넓게 씁니다."
+        }
+      ],
+      "work": [
+        "13-51(D-049) 화면 단순화: FoldSection(더 알아보기 접힌 줄 — 시간대·업종 순위·지원사업, DOM 유지·인쇄 펼침), 다른 위치와 비교를 결과 활용 줄로(패널 아래 고정 행은 mobile 지도 보기만), 조건 패널 반경 단계를 details 한 줄로(기본값 아님·변경 진행·실패면 펼침)",
+        "13-51 mobile 조건 바: 안내·업데이트·테마를 더보기 메뉴로(넓은 화면은 display: contents 로 그대로), 반경·보관함·더보기가 한 줄",
+        "13-51 장소 이름 검색: backend/app/places.py 를 NAVER API HUB 지역 검색(주소·인증 헤더)으로, deploy_cloud_run.py --places·run_local_backend.py --secrets 에 Secret 이름 추가",
+        "13-51 링크 미리보기: og:image·og:url(공개된 짧은 주소)·twitter:card, public/og.png"
+      ],
+      "commits": []
+    },
+    {
       "version": "v0.5.0",
       "date": "2026-11-26",
       "title": "휴대폰에서 누르기 쉽게 · 서비스 안내 · 현재 위치",
@@ -28,7 +54,8 @@
       "commits": [
         "04d351a",
         "0a3b7f2",
-        "f10be10"
+        "f10be10",
+        "c8b54e1"
       ]
     },
     {

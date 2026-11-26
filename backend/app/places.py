@@ -4,7 +4,8 @@
 NAVER 검색(지역) API 는 비밀키(Client ID·Secret)가 필요해 프런트가 직접 부를 수 없다 → backend 가 대신 부른다.
   POST /places {"q": "부평역"}  →  {"count": n, "places": [{"name", "category", "road_address", "jibun_address", "lat", "lng"}]}
   (POST 본문 — GET 쿼리였다면 uvicorn·Cloud Run 요청 로그의 경로에 검색어가 남는다. 본문은 요청 로그에 찍히지 않는다)
-- 키는 환경변수 NAVER_SEARCH_CLIENT_ID / NAVER_SEARCH_CLIENT_SECRET (운영은 Cloud Run Secret). 없으면 기능을 끈다
+- 키는 환경변수 NAVER_SEARCH_CLIENT_ID / NAVER_SEARCH_CLIENT_SECRET (운영은 Cloud Run Secret `naver-search-client-id`·
+  `naver-search-client-secret` — NAVER API HUB 의 Client ID·Client Secret). 없으면 기능을 끈다
   (GET /health places.enabled=false, GET /places 503 places_unavailable) — 프런트는 광고가 있을 때만 "장소 이름" 입력 방법을 보인다.
 - 결과는 **좌표 선택일 뿐**이다. 분석 행정동 판정은 /analyze 의 ContextBuilder 가 좌표로 한다(장소 이름·주소로 덮어쓰지 않는다).
 - 검색 원문(q)·결과를 서버 로그에 남기지 않는다. 로그는 상태 코드·소요 시간뿐(요청 로그에도 경로 `/places` 만).
@@ -27,7 +28,11 @@ from typing import Callable, Optional
 
 logger = logging.getLogger("backend.places")
 
-NAVER_LOCAL_SEARCH_URL = "https://openapi.naver.com/v1/search/local.json"
+# NAVER API HUB(네이버 클라우드 플랫폼) 지역 검색 — 2026-11-26 사용자가 이 경로로 키를 발급했다(13-51). 응답 형식은 예전
+# openapi.naver.com/v1/search/local.json 과 같고, 주소와 인증 헤더만 다르다.
+NAVER_LOCAL_SEARCH_URL = "https://naverapihub.apigw.ntruss.com/search/v1/local"
+KEY_ID_HEADER = "X-NCP-APIGW-API-KEY-ID"
+KEY_HEADER = "X-NCP-APIGW-API-KEY"
 CLIENT_ID_ENV = "NAVER_SEARCH_CLIENT_ID"
 CLIENT_SECRET_ENV = "NAVER_SEARCH_CLIENT_SECRET"
 MAX_QUERY_CHARS = 60
@@ -69,12 +74,14 @@ def clean_title(title: str) -> str:
 
 
 def _coord(value: object) -> Optional[float]:
-    """mapx/mapy: WGS84 × 1e7 의 정수 문자열. 숫자가 아니면 None."""
+    """mapx/mapy: WGS84 × 1e7 의 정수 문자열(예: "1267236000"). 도(degree) 소수로 오는 경우도 받는다. 숫자가 아니면 None."""
     try:
-        n = int(str(value))
+        n = float(str(value))
     except (TypeError, ValueError):
         return None
-    return n / 1e7
+    if n != n or n in (float("inf"), float("-inf")):
+        return None
+    return n if abs(n) <= 180 else n / 1e7
 
 
 def parse_places(body: bytes) -> list[Place]:
@@ -121,7 +128,7 @@ class PlacesClient:
     def search(self, query: str) -> list[Place]:
         assert self.enabled
         url = f"{NAVER_LOCAL_SEARCH_URL}?{urllib.parse.urlencode({'query': query, 'display': DISPLAY})}"
-        headers = {"X-Naver-Client-Id": self.client_id or "", "X-Naver-Client-Secret": self.client_secret or ""}
+        headers = {KEY_ID_HEADER: self.client_id or "", KEY_HEADER: self.client_secret or ""}
         started = time.perf_counter()
         try:
             status, body = self.fetch(url, headers)

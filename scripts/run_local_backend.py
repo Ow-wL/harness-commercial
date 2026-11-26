@@ -18,7 +18,8 @@ import tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-SECRETS = {"ANTHROPIC_API_KEY": "anthropic-api-key", "BIZINFO_API_KEY": "bizinfo-api-key", "DATA_GO_KR_API_KEY": "data-go-kr-api-key"}
+SECRETS = {"ANTHROPIC_API_KEY": "anthropic-api-key", "BIZINFO_API_KEY": "bizinfo-api-key", "DATA_GO_KR_API_KEY": "data-go-kr-api-key",
+           "NAVER_SEARCH_CLIENT_ID": "naver-search-client-id", "NAVER_SEARCH_CLIENT_SECRET": "naver-search-client-secret"}
 
 
 def load_secrets() -> None:

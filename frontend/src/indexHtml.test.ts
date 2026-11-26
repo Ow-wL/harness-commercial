@@ -24,8 +24,11 @@ describe('index.html 메타 (12-5)', () => {
     expect(JSON.stringify(manifest)).not.toMatch(/run\.app|web\.app|googleapis/)
   })
 
-  it('메타에 서비스 주소·클라우드 식별정보가 없다', () => {
-    expect(html).not.toMatch(/run\.app|googleapis|asia-northeast|og:url|og:image/)
+  it('메타에 클라우드 식별정보가 없고, 미리보기 이미지는 공개된 짧은 주소의 og.png 다 (13-51)', () => {
+    expect(html).not.toMatch(/run\.app|googleapis|asia-northeast/)
+    expect(html).toMatch(/<meta property="og:image" content="https:\/\/harness-commercial\.web\.app\/og\.png"/)
+    expect(html).toMatch(/<meta property="og:url" content="https:\/\/harness-commercial\.web\.app\/"/)
+    expect(existsSync(join(root, 'public', 'og.png'))).toBe(true)
   })
 
   it('public/ 에 favicon.svg·robots.txt 가 있고 robots 는 API 경로를 막는다', () => {

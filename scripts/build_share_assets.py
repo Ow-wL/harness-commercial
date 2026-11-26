@@ -4,8 +4,8 @@
 
 frontend/public/ 에 아래 파일을 다시 만든다(로고 모양은 favicon.svg 와 같다 — 파란 둥근 사각형 안의 위치 핀).
   apple-touch-icon.png (180)  icon-192.png  icon-512.png
---og 를 주면 og.png(1200x630, 링크 미리보기)도 만든다 — index.html 이 아직 og:image 를 쓰지 않아(12-5: 공개 번들에 서비스 주소 금지,
-미리보기 이미지는 절대 주소가 필요) 기본으로는 만들지 않는다. 글자는 Windows 기본 글꼴(맑은 고딕).
+--og 를 주면 og.png(1200x630, 링크 미리보기 — index.html 의 og:image, 13-51)도 다시 만든다. 글자를 Windows 기본 글꼴(맑은 고딕)로
+그려서 글꼴이 있는 기기에서만 만들 수 있어 옵션이다.
 로고·문구를 바꾸면 다시 실행하고 결과를 커밋한다. 점수·데이터와 무관하다.
 """
 from __future__ import annotations

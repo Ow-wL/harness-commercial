@@ -55,3 +55,14 @@ def test_dry_run_does_not_execute(capsys, monkeypatch):
     monkeypatch.setattr(D.subprocess, "run", lambda *a, **k: called.append(a))
     assert D.main(["candidate", "abc1234"]) == 0
     assert not called and "dry run" in capsys.readouterr().out
+
+
+def test_candidate_with_places_links_search_secrets_by_name_only():
+    """13-51: --places 는 장소 검색 키 두 개를 Secret 이름으로만 연결한다(값 없음). 주지 않으면 연결하지 않는다."""
+    cmd = D.candidate_cmd("abc1234", "abc1234-v051", ai=True, support=True, places=True)
+    secrets = cmd[cmd.index("--update-secrets") + 1]
+    assert "NAVER_SEARCH_CLIENT_ID=naver-search-client-id:latest" in secrets
+    assert "NAVER_SEARCH_CLIENT_SECRET=naver-search-client-secret:latest" in secrets
+    assert "ANTHROPIC_API_KEY=anthropic-api-key:latest" in secrets
+    without = D.candidate_cmd("abc1234", "abc1234-v051", ai=True, support=True)
+    assert "NAVER_SEARCH" not in " ".join(without)

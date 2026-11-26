@@ -1,0 +1,94 @@
+/* 접힌 줄 (13-51): 질문 한 줄 + 펼침. 줄 사이는 얇은 선, 펼치면 안의 카드가 그대로 보인다 */
+.folds {
+  margin: 18px 24px 0;
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  background: var(--color-surface);
+  overflow: hidden;
+}
+
+.folds__title {
+  margin: 0;
+  padding: 12px 16px 4px;
+  font: var(--text-caption);
+  color: var(--color-text-muted);
+}
+
+.fold + .fold {
+  border-top: 1px solid var(--color-border);
+}
+
+.fold__toggle {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 56px;
+  padding: 10px 16px;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  color: var(--color-text-primary);
+  cursor: pointer;
+}
+
+.fold__toggle:hover {
+  background: var(--color-surface-muted);
+}
+
+.fold__text {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.fold__label {
+  font: var(--text-card-title);
+}
+
+.fold__hint {
+  font: var(--text-caption);
+  font-weight: 400;
+  color: var(--color-text-muted);
+}
+
+.fold__chevron {
+  flex: none;
+  color: var(--color-text-muted);
+  transition: transform 0.15s ease;
+}
+
+.fold--open .fold__chevron {
+  transform: rotate(180deg);
+}
+
+/* 펼친 카드는 줄 안에 맞춘다 — 카드 자체의 바깥 여백·테두리는 줄이 대신한다 */
+.fold__body {
+  padding: 0 12px 14px;
+}
+
+.fold__body > * {
+  margin: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fold__chevron {
+    transition: none;
+  }
+}
+
+@media (max-width: 639px) {
+  .folds {
+    margin-inline: 16px;
+  }
+}
+
+/* 줄 안의 카드: 바깥 여백·테두리·바탕은 줄이 대신한다 (카드 CSS 보다 뒤에 오도록 선택자를 한 단계 더 준다) */
+.folds .fold__body > * {
+  margin: 0;
+  border: 0;
+  box-shadow: none;
+  background: transparent;
+  padding-inline: 4px;
+}
