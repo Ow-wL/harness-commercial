@@ -27,7 +27,8 @@
       ],
       "commits": [
         "04d351a",
-        "0a3b7f2"
+        "0a3b7f2",
+        "f10be10"
       ]
     },
     {
@@ -1418,6 +1419,26 @@
       "source_commit": "15ad44e",
       "engine": "mvp-0.5.1",
       "note": "운영 트래픽 100% 전환 — 처음 열면 다크 모드. 운영 API 48건 대조·화면 확인 뒤 기록"
+    },
+    {
+      "id": "2026-11-26-verification-f10be10",
+      "kind": "verification",
+      "result": "passed",
+      "date": "2026-11-26",
+      "app_version": "v0.5.0",
+      "source_commit": "f10be10",
+      "engine": "mvp-0.5.1",
+      "note": "API 48건·업종 순위·가까운 역 통과, 서비스 안내 창·AI 요약 위치·홈 화면 아이콘·휴대폰 화면 확인"
+    },
+    {
+      "id": "2026-11-26-production-f10be10",
+      "kind": "production",
+      "result": "done",
+      "date": "2026-11-26",
+      "app_version": "v0.5.0",
+      "source_commit": "f10be10",
+      "engine": "mvp-0.5.1",
+      "note": "운영 트래픽 100% 전환 — 휴대폰 터치 영역·서비스 안내·현재 위치·AI 요약 위치. 운영 API 48건 대조·화면 확인 뒤 기록"
     }
   ]
 }
