@@ -25,7 +25,8 @@
         "13-50 2~4단계: 간단 화면 관점 행의 남는 구분점 제거(ResultQuiet.css), MyLocationButton(브라우저 위치 → 좌표 입력과 같은 선택 경로), manifest.json·apple-touch-icon·icon-192/512·theme-color(테마에 맞춤), scripts/build_share_assets.py"
       ],
       "commits": [
-        "04d351a"
+        "04d351a",
+        "0a3b7f2"
       ]
     },
     {
@@ -1395,6 +1396,26 @@
       "source_commit": "0999fde",
       "engine": "mvp-0.5.1",
       "note": "운영 트래픽 100% 전환 — 읽기 쉬운 상세 근거(질문형 점수 읽는 법, 자료 칸, 원문 접기). 운영 API 48건 대조·화면 확인 뒤 기록"
+    },
+    {
+      "id": "2026-11-26-verification-15ad44e",
+      "kind": "verification",
+      "result": "passed",
+      "date": "2026-11-26",
+      "app_version": "v0.4.3",
+      "source_commit": "15ad44e",
+      "engine": "mvp-0.5.1",
+      "note": "API 48건·업종 순위·가까운 역 통과, 기기 설정이 라이트여도 첫 화면 다크·라이트 선택 유지 확인"
+    },
+    {
+      "id": "2026-11-26-production-15ad44e",
+      "kind": "production",
+      "result": "done",
+      "date": "2026-11-26",
+      "app_version": "v0.4.3",
+      "source_commit": "15ad44e",
+      "engine": "mvp-0.5.1",
+      "note": "운영 트래픽 100% 전환 — 처음 열면 다크 모드. 운영 API 48건 대조·화면 확인 뒤 기록"
     }
   ]
 }
