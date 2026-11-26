@@ -26,7 +26,9 @@
         "13-51 장소 이름 검색: backend/app/places.py 를 NAVER API HUB 지역 검색(주소·인증 헤더)으로, deploy_cloud_run.py --places·run_local_backend.py --secrets 에 Secret 이름 추가",
         "13-51 링크 미리보기: og:image·og:url(공개된 짧은 주소)·twitter:card, public/og.png"
       ],
-      "commits": []
+      "commits": [
+        "771607d"
+      ]
     },
     {
       "version": "v0.5.0",
@@ -1466,6 +1468,26 @@
       "source_commit": "f10be10",
       "engine": "mvp-0.5.1",
       "note": "운영 트래픽 100% 전환 — 휴대폰 터치 영역·서비스 안내·현재 위치·AI 요약 위치. 운영 API 48건 대조·화면 확인 뒤 기록"
+    },
+    {
+      "id": "2026-11-26-verification-771607d",
+      "kind": "verification",
+      "result": "passed",
+      "date": "2026-11-26",
+      "app_version": "v0.6.0",
+      "source_commit": "771607d",
+      "engine": "mvp-0.5.1",
+      "note": "API 48건·업종 순위 통과, 장소 이름 검색 실제 호출, 더 알아보기 접힌 줄·비교 버튼·휴대폰 더보기 메뉴·미리보기 이미지 확인"
+    },
+    {
+      "id": "2026-11-26-production-771607d",
+      "kind": "production",
+      "result": "done",
+      "date": "2026-11-26",
+      "app_version": "v0.6.0",
+      "source_commit": "771607d",
+      "engine": "mvp-0.5.1",
+      "note": "운영 트래픽 100% 전환 — 더 단순한 결과 화면·장소 이름 검색·휴대폰 더보기 메뉴. 운영 API 48건 대조·화면 확인 뒤 기록"
     }
   ]
 }
