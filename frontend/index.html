@@ -17,6 +17,10 @@
     />
     <meta property="og:locale" content="ko_KR" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <!-- 13-50: 홈 화면 아이콘·앱 이름·브라우저 위쪽 띠 색. 색은 아래 스크립트가 고른 테마에 맞춘다(다크 #0A1226 · 라이트 #F5F7FA = --color-bg) -->
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="theme-color" content="#0A1226" />
     <!-- 테마를 첫 그리기 전에 건다(깜빡임 방지). 규칙은 src/lib/theme.ts와 같다: 저장된 선택 > 다크(시스템 설정은 보지 않는다) -->
     <script>
       (function () {
@@ -26,6 +30,8 @@
           if (saved === 'light' || saved === 'dark') theme = saved
         } catch (e) {}
         document.documentElement.setAttribute('data-theme', theme)
+        var bar = document.querySelector('meta[name="theme-color"]')
+        if (bar && theme === 'light') bar.setAttribute('content', '#F5F7FA')
       })()
     </script>
   </head>

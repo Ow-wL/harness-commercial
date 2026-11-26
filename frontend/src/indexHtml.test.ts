@@ -13,6 +13,17 @@ describe('index.html 메타 (12-5)', () => {
     expect(html).toMatch(/<link rel="icon" href="\/favicon\.svg" type="image\/svg\+xml"/)
   })
 
+  it('홈 화면 아이콘·manifest·위쪽 띠 색이 있고, manifest 의 아이콘 파일이 public/ 에 있다 (13-50)', () => {
+    expect(html).toMatch(/<link rel="apple-touch-icon" href="\/apple-touch-icon\.png"/)
+    expect(html).toMatch(/<link rel="manifest" href="\/manifest\.json"/)
+    expect(html).toMatch(/<meta name="theme-color" content="#0A1226"/)
+    const manifest = JSON.parse(readFileSync(join(root, 'public', 'manifest.json'), 'utf-8')) as { start_url: string; icons: { src: string }[] }
+    expect(manifest.start_url).toBe('/')
+    for (const icon of manifest.icons) expect(existsSync(join(root, 'public', icon.src))).toBe(true)
+    expect(existsSync(join(root, 'public', 'apple-touch-icon.png'))).toBe(true)
+    expect(JSON.stringify(manifest)).not.toMatch(/run\.app|web\.app|googleapis/)
+  })
+
   it('메타에 서비스 주소·클라우드 식별정보가 없다', () => {
     expect(html).not.toMatch(/run\.app|googleapis|asia-northeast|og:url|og:image/)
   })

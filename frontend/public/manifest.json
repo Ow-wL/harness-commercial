@@ -1,0 +1,27 @@
+{
+  "name": "우리동네 상권분석 매니저",
+  "short_name": "우리동네 상권",
+  "description": "인천 지도에서 자리와 업종을 고르면 공공데이터 다섯 관점으로 상권을 살펴봅니다.",
+  "lang": "ko",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0A1226",
+  "theme_color": "#0A1226",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}

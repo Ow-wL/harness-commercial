@@ -5,7 +5,7 @@
     {
       "version": "v0.5.0",
       "date": "2026-11-26",
-      "title": "휴대폰에서 누르기 쉽게 · 서비스 안내",
+      "title": "휴대폰에서 누르기 쉽게 · 서비스 안내 · 현재 위치",
       "changes": [
         {
           "type": "improved",
@@ -16,14 +16,17 @@
           "text": "위쪽 ⓘ 버튼에서 서비스 소개, 쓰는 자료, 개인정보를 어떻게 다루는지 볼 수 있습니다."
         },
         {
-          "type": "improved",
-          "text": "\"아래에 더 있어요\" 표시는 조금 내려 읽기 시작하면 사라져 내용을 가리지 않습니다. AI 질문의 보관 안내는 입력란 위로 옮겼습니다."
+          "type": "added",
+          "text": "\"현재 위치로 고르기\" 버튼으로 지금 있는 자리를 바로 고를 수 있고, 휴대폰 홈 화면에 추가하면 앱 아이콘으로 열립니다."
         }
       ],
       "work": [
-        "13-50(D-048) 1단계: styles/touch.css(터치 목표 44px — mobile 폭·터치 기기만), 11px 이하 글자 12px, lib/moreBelow 반 화면 넘게 내리면 숨김, ServiceInfo(서비스 안내 모달)·content/serviceInfo.ts, AskDialog 보관 고지 위치, 링크 복사 안내에 좌표 포함 고지"
+        "13-50(D-048) 1단계: styles/touch.css(터치 목표 44px — mobile 폭·터치 기기만), 11px 이하 글자 12px, lib/moreBelow 반 화면 넘게 내리면 숨김, ServiceInfo(서비스 안내 모달)·content/serviceInfo.ts, AskDialog 보관 고지 위치, 링크 복사 안내에 좌표 포함 고지",
+        "13-50 2~4단계: 간단 화면 관점 행의 남는 구분점 제거(ResultQuiet.css), MyLocationButton(브라우저 위치 → 좌표 입력과 같은 선택 경로), manifest.json·apple-touch-icon·icon-192/512·theme-color(테마에 맞춤), scripts/build_share_assets.py"
       ],
-      "commits": []
+      "commits": [
+        "04d351a"
+      ]
     },
     {
       "version": "v0.4.3",

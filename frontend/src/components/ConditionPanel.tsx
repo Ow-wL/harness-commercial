@@ -8,6 +8,7 @@ import { AddressSearch } from './AddressSearch.tsx'
 import { CoordinateForm } from './CoordinateForm.tsx'
 import { Icon } from './Icon.tsx'
 import { LocationMethodSwitch, type LocationMethod } from './LocationMethodSwitch.tsx'
+import { MyLocationButton } from './MyLocationButton.tsx'
 import { PlaceSearch } from './PlaceSearch.tsx'
 import type { LatLng } from './MapView.tsx'
 import { CoachMark, ReplayHelpButton } from './CoachMark.tsx'
@@ -283,9 +284,13 @@ function LocationField({
       />
       <div ref={bodyRef} id={methodId} className="location__method-body">
         {shown === 'map' && (
-          <p className="field__hint">
-            {location ? '지도를 다시 누르면 그 자리로 바뀝니다.' : '지도를 눌러 위치를 고르세요.'}
-          </p>
+          <>
+            <p className="field__hint">
+              {location ? '지도를 다시 누르면 그 자리로 바뀝니다.' : '지도를 눌러 위치를 고르세요.'}
+            </p>
+            {/* 13-50: 지금 있는 자리를 바로 고른다 — 좌표 입력과 같은 선택 경로 */}
+            <MyLocationButton disabled={disabled} onLocate={onLocationInput} />
+          </>
         )}
         {shown === 'address' && searchApi && (
           <AddressSearch

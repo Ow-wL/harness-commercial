@@ -39,8 +39,12 @@ export function resolveTheme(pref: ThemePreference): Theme {
   return pref === 'system' ? DEFAULT_THEME : pref
 }
 
+/** 브라우저 위쪽 띠 색(meta theme-color) = 그 테마의 --color-bg. index.html 첫 그리기 스크립트와 같은 값 (13-50) */
+export const THEME_BAR_COLOR: Record<Theme, string> = { dark: '#0A1226', light: '#F5F7FA' }
+
 export function applyTheme(theme: Theme): void {
   document.documentElement.dataset.theme = theme
+  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', THEME_BAR_COLOR[theme])
 }
 
 /**

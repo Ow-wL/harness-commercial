@@ -114,3 +114,10 @@
   .compare.result--quiet .band { margin-top: 4px; }
   .compare.result--quiet .tabs { margin-top: 8px; }
 }
+
+/* 13-50: 간단 화면에서 숨긴 "가장 높음/낮음" 라벨 앞에 구분점만 남지 않게 — 뒤에 보이는 조각이 없으면 구분점을 지운다 */
+.result--quiet:not(.result--explained) .perspective__tags > :has(+ .perspective__strongest:last-child)::after,
+.result--quiet:not(.result--explained) .perspective__tags > :has(+ .perspective__lowest:last-child)::after,
+.result--quiet:not(.result--explained) .perspective__tags > :has(+ .perspective__strongest + .perspective__lowest:last-child)::after {
+  content: none;
+}

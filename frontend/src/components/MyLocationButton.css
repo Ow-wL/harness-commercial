@@ -1,0 +1,22 @@
+/* "현재 위치로 고르기" (13-50): 지도에서 고르기 안내 아래의 보조 버튼 */
+.my-location {
+  margin-top: var(--space-2);
+}
+
+.my-location__button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.my-location__error {
+  margin: var(--space-2) 0 0;
+  font: var(--text-small);
+  color: var(--color-text-secondary);
+}
+
+@media (max-width: 639px), (pointer: coarse) {
+  .my-location__button {
+    min-height: var(--control-height-touch);
+  }
+}
