@@ -3,6 +3,21 @@
   "renumbered_until": "v0.0.10",
   "releases": [
     {
+      "version": "v0.4.3",
+      "date": "2026-11-26",
+      "title": "처음 열면 다크 모드",
+      "changes": [
+        {
+          "type": "improved",
+          "text": "처음 접속하면 기기 설정과 상관없이 다크 모드로 열립니다. 라이트 모드를 고르면 다음에도 그대로 기억합니다."
+        }
+      ],
+      "work": [
+        "13-49(D-047): 첫 방문(저장된 선택 없음) 테마를 시스템 prefers-color-scheme 대신 다크로. theme.ts 의 시스템 설정 해석·구독 제거, index.html 첫 그리기 스크립트 같은 규칙, 테스트·DESIGN §19.7 개정"
+      ],
+      "commits": []
+    },
+    {
       "version": "v0.4.2",
       "date": "2026-11-10",
       "title": "읽기 쉬운 상세 근거",
@@ -20,7 +35,9 @@
         "13-48(D-046 이어서, 3단계): ScoreReadingGuide 주제 6개를 GuideQuestion(질문 버튼 + 늘 보이는 한 줄 답 + 접힌 설명 — DOM 유지, 인쇄 펼침)으로, 설명 문장은 그대로. CoverageMeta 한 줄 나열 → 칸 격자(빠진 항목만 한 줄 전체, 글자 그대로). DataSources 의 반경·업종코드·엔진·비교 기준 원문·엔진 면책 원문·주석을 DataNote \"엔진 원문·계산 정보\"로 접음(원문 그대로)"
       ],
       "commits": [
-        "0999fde"
+        "0999fde",
+        "2d0665b",
+        "b51f537"
       ]
     },
     {

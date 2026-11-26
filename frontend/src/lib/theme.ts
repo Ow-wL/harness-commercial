@@ -1,8 +1,9 @@
 /**
- * 화면 테마 (묶음 A, DESIGN.md §19.7): 사용자 선택(라이트·다크)을 저장하고, 선택이 없으면 시스템 설정을 따른다.
+ * 화면 테마 (묶음 A, DESIGN.md §19.7): 사용자 선택(라이트·다크)을 저장하고, 선택이 없으면 다크다.
  *
- * - 선택 저장: localStorage `theme` = 'light' | 'dark'. 없거나 읽을 수 없으면 'system'(시스템 설정 따름).
- * - 시스템 설정: `prefers-color-scheme`. matchMedia가 없으면(옛 환경·테스트) 다크 — 제품 기본 화면이 다크다(§19.2).
+ * - 선택 저장: localStorage `theme` = 'light' | 'dark'. 없거나 읽을 수 없으면 'system'(= 아직 고르지 않음).
+ * - 기본값: 고르지 않았으면 시스템 설정(`prefers-color-scheme`)과 상관없이 다크 — 제품 기본 화면이 다크다(§19.2).
+ *   2026-11-26 사용자 지시로 "첫 방문은 시스템 설정 따름"(D-025 결정 2)을 바꿨다(D-047).
  * - 적용: `<html data-theme="light|dark">`. 첫 그리기 전에는 index.html의 인라인 스크립트가 같은 규칙으로 먼저 건다(깜빡임 방지).
  *   CSS는 `data-theme="light"`일 때만 §17 밝은 토큰, 그 밖은 다크(tokens-a3.css) — JS가 없어도 다크다.
  * - 지도 톤(`data-map-tone`)은 이 값과 별개다: 테마는 **의도**, 지도 톤은 **실제 렌더 결과**(§19.3). MapView가 테마에 맞는
@@ -14,7 +15,7 @@ export type Theme = 'light' | 'dark'
 export type ThemePreference = Theme | 'system'
 
 export const THEME_STORAGE_KEY = 'theme'
-const DARK_QUERY = '(prefers-color-scheme: dark)'
+export const DEFAULT_THEME: Theme = 'dark'
 
 export function readPreference(): ThemePreference {
   try {
@@ -34,14 +35,8 @@ export function writePreference(pref: ThemePreference): void {
   }
 }
 
-export function systemTheme(): Theme {
-  const mq = typeof window.matchMedia === 'function' ? window.matchMedia(DARK_QUERY) : null
-  if (!mq) return 'dark'
-  return mq.matches ? 'dark' : 'light'
-}
-
-export function resolveTheme(pref: ThemePreference, system: Theme = systemTheme()): Theme {
-  return pref === 'system' ? system : pref
+export function resolveTheme(pref: ThemePreference): Theme {
+  return pref === 'system' ? DEFAULT_THEME : pref
 }
 
 export function applyTheme(theme: Theme): void {
@@ -49,27 +44,15 @@ export function applyTheme(theme: Theme): void {
 }
 
 /**
- * 테마 상태. 선택을 바꾸면 저장하고 바로 적용한다. 'system'인 동안만 시스템 설정 변화를 따라간다.
+ * 테마 상태. 선택을 바꾸면 저장하고 바로 적용한다. 고르기 전에는 다크다.
  */
 export function useTheme(): { theme: Theme; preference: ThemePreference; setPreference: (pref: ThemePreference) => void } {
   const [preference, setPreferenceState] = useState<ThemePreference>(readPreference)
-  const [system, setSystem] = useState<Theme>(systemTheme)
-  const theme = resolveTheme(preference, system)
+  const theme = resolveTheme(preference)
 
   useEffect(() => {
     applyTheme(theme)
   }, [theme])
-
-  useEffect(() => {
-    if (preference !== 'system' || typeof window.matchMedia !== 'function') return
-    const mq = window.matchMedia(DARK_QUERY)
-    const onChange = () => setSystem(mq.matches ? 'dark' : 'light')
-    onChange()
-    // 옛 브라우저·테스트 대역은 change 구독이 없을 수 있다 — 그러면 마운트 시점 값만 쓴다
-    if (typeof mq.addEventListener !== 'function') return
-    mq.addEventListener('change', onChange)
-    return () => mq.removeEventListener('change', onChange)
-  }, [preference])
 
   const setPreference = useCallback((pref: ThemePreference) => {
     writePreference(pref)

@@ -3291,9 +3291,9 @@ describe('테마 전환 (묶음 A, DESIGN.md §19.7)', () => {
     delete document.documentElement.dataset.theme
   })
 
-  it('첫 방문은 시스템 설정을 따르고, 버튼을 누르면 반대 테마로 바꿔 저장하며 MapView에 넘긴다', async () => {
+  it('첫 방문은 시스템이 라이트여도 다크이고, 버튼을 누르면 반대 테마로 바꿔 저장하며 MapView에 넘긴다 (D-047)', async () => {
     mockApi()
-    vi.stubGlobal('matchMedia', (q: string) => ({ matches: q === '(prefers-color-scheme: dark)', media: q }))
+    vi.stubGlobal('matchMedia', (q: string) => ({ matches: q === '(prefers-color-scheme: light)', media: q }))
     render(<App />)
     expect(document.documentElement.dataset.theme).toBe('dark')
     expect(screen.getByTestId('map')).toHaveAttribute('data-theme', 'dark')
@@ -3305,7 +3305,7 @@ describe('테마 전환 (묶음 A, DESIGN.md §19.7)', () => {
     expect(screen.getByRole('button', { name: '다크 모드로 전환' })).toBeInTheDocument()
   })
 
-  it('저장된 선택이 있으면 시스템 설정보다 우선한다', async () => {
+  it('저장된 선택(라이트)은 다시 와도 유지된다', async () => {
     mockApi()
     window.localStorage.setItem('theme', 'light')
     vi.stubGlobal('matchMedia', (q: string) => ({ matches: q === '(prefers-color-scheme: dark)', media: q }))
