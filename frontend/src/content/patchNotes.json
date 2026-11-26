@@ -15,7 +15,9 @@
       "work": [
         "13-52(D-050): LocationSearch(주소 Geocoder + /places 를 함께 1회씩, 주소 3건 + 장소 5건 한 목록, 한쪽 실패 시 다른 쪽만), LocationMethodSwitch 는 둘 다 되면 \"검색으로 찾기\" 하나(하나만 되면 기존 이름), lib/locationSearch.availableMethod 로 조건 패널·mobile 시트가 같은 규칙"
       ],
-      "commits": []
+      "commits": [
+        "7e21393"
+      ]
     },
     {
       "version": "v0.6.0",
@@ -1504,6 +1506,26 @@
       "source_commit": "771607d",
       "engine": "mvp-0.5.1",
       "note": "운영 트래픽 100% 전환 — 더 단순한 결과 화면·장소 이름 검색·휴대폰 더보기 메뉴. 운영 API 48건 대조·화면 확인 뒤 기록"
+    },
+    {
+      "id": "2026-11-26-verification-7e21393",
+      "kind": "verification",
+      "result": "passed",
+      "date": "2026-11-26",
+      "app_version": "v0.6.1",
+      "source_commit": "7e21393",
+      "engine": "mvp-0.5.1",
+      "note": "API 48건·업종 순위 통과, 검색창 하나로 주소(부평대로 1)·장소(부평역) 찾기와 결과 선택 확인"
+    },
+    {
+      "id": "2026-11-26-production-7e21393",
+      "kind": "production",
+      "result": "done",
+      "date": "2026-11-26",
+      "app_version": "v0.6.1",
+      "source_commit": "7e21393",
+      "engine": "mvp-0.5.1",
+      "note": "운영 트래픽 100% 전환 — 주소·장소 이름을 검색창 하나로. 운영 API 48건 대조·화면 확인 뒤 기록"
     }
   ]
 }
