@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react'
+import { useRef, useState, type ReactNode } from 'react'
 import type { AnalyzeResponse } from '../api/schemas.ts'
 import { singleBand } from '../lib/attentionBand.ts'
 import { dataVersionLabel, dataVersionOf, ResultDataVersionContext } from '../lib/dataVersion.ts'
@@ -19,6 +19,7 @@ import { RadarChart } from './RadarChart.tsx'
 import { ScoreCard } from './ScoreCard.tsx'
 import { TabRevealContext, useResultTabs, useTabIdBase, type TabDef } from '../lib/resultTabs.ts'
 import { FoldSection } from './FoldSection.tsx'
+import { motionAllowed } from '../lib/useCountUp.ts'
 import { TabList, TabPanel } from './ResultTabs.tsx'
 import { WarningPanel } from './WarningPanel.tsx'
 import './AnalysisResult.css'
@@ -93,6 +94,14 @@ export function AnalysisResult({
     setTab('evidence')
     setOpenRequest((r) => ({ key, n: (r?.n ?? 0) + 1 }))
   }
+  // "자세히 보기"(13-54): 요약 아래 다섯 관점으로 내려가고 그 제목에 포커스를 둔다. 내용은 늘 DOM 에 있다(인쇄·보관·이동 링크 그대로)
+  const perspectivesRef = useRef<HTMLHeadingElement>(null)
+  const goToDetail = () => {
+    const heading = perspectivesRef.current
+    if (!heading) return
+    heading.focus({ preventScroll: true })
+    heading.scrollIntoView?.({ block: 'start', behavior: motionAllowed() ? 'smooth' : 'auto' })
+  }
   const checks = fieldChecks(analysis)
   const gaps = gapLines(analysis)
   const band = singleBand(analysis)
@@ -140,11 +149,17 @@ export function AnalysisResult({
             </div>
           </details>
           <ScoreCard analysis={analysis} />
+          {/* 13-54(§27): 결과 활용 줄을 요약 바로 아래로(이전: AI 요약 아래) — 첫 화면에서 비교·공유·보관까지 닿는다 */}
+          {tools}
+          <button type="button" className="result__more" onClick={goToDetail}>
+            자세히 보기
+            <span className="result__more-arrow" aria-hidden="true">↓</span>
+          </button>
         </div>
 
         <section className="result__perspectives" aria-labelledby="perspectives-heading">
           <div className="result__section-head">
-            <h2 id="perspectives-heading" className="result__section-title">다섯 관점</h2>
+            <h2 id="perspectives-heading" className="result__section-title" tabIndex={-1} ref={perspectivesRef}>다섯 관점</h2>
             <div className="result__section-actions">
               <button
                 type="button"
@@ -183,7 +198,6 @@ export function AnalysisResult({
         {/* 13-50: AI 요약은 다섯 관점 바로 아래 — 가장 읽기 쉬운 내용을 먼저 */}
         {aiCard}
         {notes}
-        {tools}
 
         {/* 13-51(D-049) 두 단 구성: 위(점수·관점·AI 요약·활용 줄)는 늘 보이고, 시간대·업종 순위·지원사업은 질문 한 줄로 접어 둔다.
             접힌 카드는 DOM 에 그대로 있다(자료 요청·인쇄는 그대로) */}

@@ -477,3 +477,55 @@
     margin-right: 16px;
   }
 }
+
+/* "자세히 보기"(13-54, §27): 요약 아래 다섯 관점으로 내려간다 */
+.result__more {
+  display: inline-flex;
+  align-items: center;
+  align-self: center;
+  gap: 6px;
+  min-height: var(--control-height-touch);
+  margin-top: 10px;
+  padding: 0 20px;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-muted);
+  font: var(--text-small);
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  cursor: pointer;
+  transition: background-color var(--duration-fast) ease-out;
+}
+
+.result__more:hover {
+  background: var(--color-surface-sunken);
+}
+
+.result__more-arrow {
+  color: var(--color-accent);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .result__more-arrow {
+    animation: result-more-nudge 1.6s ease-in-out infinite;
+  }
+}
+
+@keyframes result-more-nudge {
+  50% { transform: translateY(3px); }
+}
+
+@media print {
+  .result__more { display: none; }
+}
+
+/* 요약 안의 결과 활용 줄(13-54): 가운데 정렬 */
+.result__head > .result-tools {
+  align-self: center;
+  margin-top: 16px;
+}
+
+.result__head > .result-tools .result-tools__row {
+  justify-content: center;
+}

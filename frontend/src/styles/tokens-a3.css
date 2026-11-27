@@ -89,6 +89,10 @@
   --color-accent-fill-active: linear-gradient(100deg, #35BDEB, #69E0C9);
   --color-on-accent-fill: #04141C;                  /* 그라데이션 가장 어두운 끝(#35BDEB) 대비 8.9 */
   --color-focus-halo: rgba(63, 208, 255, 0.3);
+  --color-ring-a: #3B82FF;
+  --color-ring-b: #3FD0FF;
+  --color-ring-c: #7DF3DC;
+  --color-ring-glow: rgba(63, 208, 255, 0.55);
 
   /* data — 다섯 관점 막대는 한 색 */
   --color-data-bar: #A3AAB4;

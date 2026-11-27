@@ -1,25 +1,29 @@
-/* 종합 점수 카드 (13-11): 카드 바탕 + 한 줄 결론(큰 글자). 종합 숫자·등급은 OverallScore, 배너·주의 줄은 ResultAlerts */
+/* 종합 점수 카드 (13-11 → 13-54 §27): 상자 없이 가운데 정렬한 요약 — 고리 뒤에 옅은 빛, 한 줄 결론(큰 글자). 종합 숫자·등급은 OverallScore, 배너·주의 줄은 ResultAlerts */
 .score-card {
-  margin-top: 14px;
-  padding: 16px 18px 14px;
-  border: 1px solid var(--color-border);
-  border-radius: 16px;
-  background:
-    linear-gradient(135deg, var(--color-accent-subtle) 0%, transparent 55%),
-    var(--color-surface-muted);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-top: 10px;
+  padding: 16px 0 4px;
+  background: radial-gradient(closest-side at 50% 126px, var(--color-accent-subtle), transparent);
+  text-align: center;
 }
 
 .score-card .regulation {
+  align-self: stretch;
   margin: 0 0 12px;
+  text-align: left;
 }
 
 .score-card .overall {
+  align-self: stretch;
   margin-top: 0;
 }
 
 .score-card__conclusion {
-  margin: 12px 0 0;
-  font-size: 17px;
+  max-width: 28em;
+  margin: 16px 0 0;
+  font-size: 24px;
   font-weight: 700;
   line-height: 1.45;
   letter-spacing: -0.01em;
@@ -56,11 +60,12 @@
 
 @media (max-width: 639px) {
   .score-card {
-    margin-top: 10px;
-    padding: 14px 14px 12px;
+    margin-top: 6px;
+    padding: 10px 0 2px;
   }
 
   .score-card__conclusion {
-    font-size: 16px;
+    margin-top: 12px;
+    font-size: 19px;
   }
 }

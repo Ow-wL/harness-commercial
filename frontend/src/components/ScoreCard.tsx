@@ -2,12 +2,14 @@ import type { AnalyzeResponse } from '../api/schemas.ts'
 import { regulationAlert, weakAlert } from '../lib/alerts.ts'
 import { conclusion } from '../lib/conclusion.ts'
 import { OverallScore } from './OverallScore.tsx'
+import { PerspectiveRings } from './PerspectiveRings.tsx'
 import { RegulationBanner, WeakPerspectiveLine } from './ResultAlerts.tsx'
 import './ScoreCard.css'
 
 /**
  * 종합 점수 카드 (13-11, 대시보드 — DESIGN.md §20.2): (규제 배너, 13-1) → 큰 숫자 + 등급 + 규제 배지(OverallScore) → 한 줄 결론(13-12 템플릿,
  * R2 의 AI 요약이 이 자리를 대체·보강한다) → 주의 관점 한 줄(13-3). 순서가 곧 읽는 순서다: 점수보다 먼저 보여야 할 것이 위에 온다.
+ * 13-54(§27): 가운데 정렬 요약 — 점수 고리 → 한 줄 결론 → 참고 칩 → (주의 줄) → 다섯 관점 작은 고리(PerspectiveRings, 한눈 보기).
  */
 export function ScoreCard({ analysis }: { analysis: AnalyzeResponse }) {
   const regulation = regulationAlert(analysis)
@@ -27,6 +29,7 @@ export function ScoreCard({ analysis }: { analysis: AnalyzeResponse }) {
         </p>
       )}
       <WeakPerspectiveLine alert={weakAlert(analysis)} />
+      <PerspectiveRings indicators={analysis.result.지표} />
     </section>
   )
 }

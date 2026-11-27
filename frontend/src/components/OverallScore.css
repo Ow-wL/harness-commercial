@@ -1,24 +1,59 @@
-/* 종합 점수 (A3 §19.1): 64px 숫자(≤1100px·낮은 화면 56px, mobile 52/40px) + "/ 100" + 오른쪽 정렬 설명 2줄 */
+/* 종합 점수 (A3 §19.1 → 13-54 §27): 가운데 정렬. 점수 고리(220px, 낮은 화면 190 · mobile 176) 안에 숫자 + "/ 100" + 등급, 아래에 설명 한 줄 */
 .overall {
   margin-top: 18px;
 }
 
-/* 숫자 줄(숫자·/100·등급·규제 배지)이 패널 폭을 넘으면 오른쪽 설명이 다음 줄로 내려간다 — 설명 글자가 세로로 쪼개지지 않게(13-1·13-4) */
 .overall__score {
   display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  gap: 6px 12px;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
 }
 
-.overall__number {
+.overall__dial {
+  position: relative;
   display: flex;
-  align-items: flex-end;
-  gap: 12px;
+  align-items: center;
+  justify-content: center;
+  width: 220px;
+  height: 220px;
+}
+
+.overall__ring {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.overall__ring-track,
+.overall__ring-arc {
+  fill: none;
+  stroke-width: 16;
+}
+
+.overall__ring-track { stroke: var(--color-data-track); }
+
+.overall__ring-arc {
+  stroke-linecap: round;
+  filter: drop-shadow(0 0 9px var(--color-ring-glow));
+}
+
+.overall__ring-stop--a { stop-color: var(--color-ring-a); }
+.overall__ring-stop--b { stop-color: var(--color-ring-b); }
+.overall__ring-stop--c { stop-color: var(--color-ring-c); }
+
+.overall__number {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
   margin: 0;
-  font-size: 64px;
-  font-weight: 600;
-  line-height: 0.86;
+  font-size: 60px;
+  font-weight: 700;
+  line-height: 1;
   letter-spacing: -0.045em;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
@@ -26,8 +61,7 @@
 }
 
 .overall__unit {
-  padding-bottom: 4px;
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 500;
   letter-spacing: 0;
   color: var(--color-text-muted);
@@ -38,14 +72,9 @@
 .overall__number--weak { color: var(--color-grade-weak); }
 .overall__number--alert { color: var(--color-grade-alert); }
 
-.overall__grade {
-  align-self: flex-end;
-  margin-bottom: 3px;
-}
-
+.overall__grade,
 .overall__number .regulation-badge {
-  align-self: flex-end;
-  margin-bottom: 3px;
+  align-self: center;
 }
 
 /* 등급 pill 공통 (종합·관점·비교): 글자 등급 + 등급색 테두리. 색만으로 뜻을 전하지 않는다 */
@@ -67,6 +96,7 @@
 .grade--alert { color: var(--color-grade-alert); background: var(--color-grade-alert-subtle); }
 
 .overall__unavailable {
+  position: relative;
   margin: 0;
   font-size: 32px;
   font-weight: 600;
@@ -75,10 +105,12 @@
 }
 
 .overall__cap {
-  margin-left: auto;
-  padding-bottom: 4px;
-  text-align: right;
-  white-space: nowrap;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: center;
+  gap: 2px 10px;
+  text-align: center;
 }
 
 .overall__caption {
@@ -130,8 +162,13 @@
 }
 
 @media (max-width: 1100px), (max-height: 860px) {
+  .overall__dial {
+    width: 190px;
+    height: 190px;
+  }
+
   .overall__number {
-    font-size: 56px;
+    font-size: 52px;
   }
 
   .overall {
@@ -144,8 +181,13 @@
     margin-top: 6px;
   }
 
+  .overall__dial {
+    width: 176px;
+    height: 176px;
+  }
+
   .overall__number {
-    font-size: 40px;
+    font-size: 46px;
   }
 }
 

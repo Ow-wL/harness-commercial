@@ -29,6 +29,11 @@
   --color-accent-fill-active: #123E84;
   --color-on-accent-fill: #FFFFFF;          /* 13-53: 버튼 채움 위 글자(다크는 그라데이션 위 어두운 글자) */
   --color-focus-halo: rgba(29, 91, 191, 0.25);
+  /* 13-54: 점수 고리 그라데이션(파랑 → 청록 → 초록)과 빛 번짐 */
+  --color-ring-a: #2563EB;
+  --color-ring-b: #06B6D4;
+  --color-ring-c: #10C9A5;
+  --color-ring-glow: rgba(37, 99, 235, 0.2);
 
   /* color — data (점수·차트 전용) */
   --color-data-bar: #4A6B94;
