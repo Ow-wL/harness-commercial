@@ -1,5 +1,7 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
+// Pretendard 를 사이트에 포함(13-53): 글자 범위별로 나뉜 woff2 중 화면에 쓰인 범위만 내려받는다. --font-sans 1순위와 같은 이름
+import 'pretendard/dist/web/variable/pretendardvariable-dynamic-subset.css'
 import './styles/tokens.css'
 import './styles/tokens-a3.css'
 import './styles/global.css'

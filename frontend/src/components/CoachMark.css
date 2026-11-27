@@ -69,7 +69,7 @@
 
 .coach__next {
   background: var(--color-accent-fill);
-  color: var(--color-text-inverse);
+  color: var(--color-on-accent-fill);
 }
 
 .coach__next:hover {

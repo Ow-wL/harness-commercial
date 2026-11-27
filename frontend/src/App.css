@@ -83,16 +83,8 @@
 .bar__logo {
   display: block;
   flex: none;
-  width: 22px;
-  height: 22px;
-}
-
-.bar__logo-tile {
-  fill: var(--color-accent);
-}
-
-.bar__logo-pin {
-  fill: var(--color-bg);
+  width: 26px;
+  height: 26px;
 }
 
 .bar__cond {

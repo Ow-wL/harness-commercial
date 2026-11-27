@@ -1783,10 +1783,18 @@ function App() {
       <header ref={headerRef} className="app-header bar" data-map-obstacle>
         <span className="bar__brand">
           {/* public/favicon.svg 와 같은 모양, 색만 테마를 따른다 */}
-          <svg className="bar__logo" viewBox="0 0 32 32" aria-hidden="true">
-            <rect className="bar__logo-tile" width="32" height="32" rx="8" />
-            <path className="bar__logo-pin" d="M16 5c-5.2 0-9.2 4-9.2 9.1C6.8 20.8 16 27 16 27s9.2-6.2 9.2-12.9C25.2 9 21.2 5 16 5z" />
-            <circle className="bar__logo-tile" cx="16" cy="14.2" r="3.6" />
+          {/* favicon.svg 와 같은 모양(13-53): 짙은 파랑 둥근 사각형 · 서해 물결 두 겹 · 흰 위치 핀. 색은 테마와 무관한 로고 고정색 */}
+          <svg className="bar__logo" viewBox="0 0 64 64" aria-hidden="true">
+            <clipPath id="bar-logo-tile">
+              <rect width="64" height="64" rx="16" />
+            </clipPath>
+            <g clipPath="url(#bar-logo-tile)">
+              <rect width="64" height="64" fill="#0b3a8f" />
+              <path d="M0 42c8-6 16-6 24 0s16 6 24 0 12-5 16-3v25H0z" fill="#1b6fe0" />
+              <path d="M0 52c8-5 16-5 24 0s16 5 24 0 12-4 16-2v14H0z" fill="#49b4f5" />
+            </g>
+            <path d="M32 9c-9.4 0-16.6 7.2-16.6 16.4C15.4 37.5 32 50 32 50s16.6-12.5 16.6-24.6C48.6 16.2 41.4 9 32 9z" fill="#ffffff" />
+            <circle cx="32" cy="25.5" r="6.5" fill="#0b3a8f" />
           </svg>
           <span className="bar__name">우리동네 상권</span>
         </span>

@@ -3,6 +3,25 @@
   "renumbered_until": "v0.0.10",
   "releases": [
     {
+      "version": "v0.7.0",
+      "date": "2026-11-28",
+      "title": "새 로고와 새 화면 색",
+      "changes": [
+        {
+          "type": "improved",
+          "text": "로고를 바다 물결 위의 위치 핀으로 바꾸고, 어두운 화면의 색을 남색에서 차분한 검은 바탕과 하늘색·민트 강조로 다듬었습니다."
+        },
+        {
+          "type": "improved",
+          "text": "글꼴을 사이트에 함께 담아 어느 기기에서나 같은 글씨로 보입니다. 버튼과 카드의 모서리도 더 둥글어졌습니다."
+        }
+      ],
+      "work": [
+        "13-53(D-051) 화면 개편 1단계: 로고(favicon·조건 바·홈 화면 아이콘·링크 미리보기), Pretendard dynamic subset 포함, 다크 색 토큰(무채색 바탕·그라데이션 주 버튼·--color-on-accent-fill), 모서리 6/12/18. 화면 구조·문구·점수 표시는 그대로"
+      ],
+      "commits": []
+    },
+    {
       "version": "v0.6.1",
       "date": "2026-11-26",
       "title": "검색창 하나로 위치 찾기",
@@ -16,7 +35,8 @@
         "13-52(D-050): LocationSearch(주소 Geocoder + /places 를 함께 1회씩, 주소 3건 + 장소 5건 한 목록, 한쪽 실패 시 다른 쪽만), LocationMethodSwitch 는 둘 다 되면 \"검색으로 찾기\" 하나(하나만 되면 기존 이름), lib/locationSearch.availableMethod 로 조건 패널·mobile 시트가 같은 규칙"
       ],
       "commits": [
-        "7e21393"
+        "7e21393",
+        "26221e7"
       ]
     },
     {

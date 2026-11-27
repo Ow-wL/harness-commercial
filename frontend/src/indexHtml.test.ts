@@ -16,7 +16,7 @@ describe('index.html 메타 (12-5)', () => {
   it('홈 화면 아이콘·manifest·위쪽 띠 색이 있고, manifest 의 아이콘 파일이 public/ 에 있다 (13-50)', () => {
     expect(html).toMatch(/<link rel="apple-touch-icon" href="\/apple-touch-icon\.png"/)
     expect(html).toMatch(/<link rel="manifest" href="\/manifest\.json"/)
-    expect(html).toMatch(/<meta name="theme-color" content="#0A1226"/)
+    expect(html).toMatch(/<meta name="theme-color" content="#07080A"/)
     const manifest = JSON.parse(readFileSync(join(root, 'public', 'manifest.json'), 'utf-8')) as { start_url: string; icons: { src: string }[] }
     expect(manifest.start_url).toBe('/')
     for (const icon of manifest.icons) expect(existsSync(join(root, 'public', icon.src))).toBe(true)

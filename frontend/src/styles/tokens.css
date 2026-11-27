@@ -27,6 +27,7 @@
   --color-accent-fill: #1D5BBF;
   --color-accent-fill-hover: #174CA0;
   --color-accent-fill-active: #123E84;
+  --color-on-accent-fill: #FFFFFF;          /* 13-53: 버튼 채움 위 글자(다크는 그라데이션 위 어두운 글자) */
   --color-focus-halo: rgba(29, 91, 191, 0.25);
 
   /* color — data (점수·차트 전용) */
@@ -108,9 +109,9 @@
   --space-16: 64px;
 
   /* radius */
-  --radius-sm: 4px;      /* 막대·skeleton·작은 요소 */
-  --radius-md: 6px;      /* 버튼·입력·경고 블록 */
-  --radius-lg: 8px;      /* 카드·목록·sheet 상단 */
+  --radius-sm: 6px;      /* 막대·skeleton·작은 요소 */
+  --radius-md: 12px;     /* 버튼·입력·경고 블록 (13-53: 6 → 12) */
+  --radius-lg: 18px;     /* 카드·목록·sheet 상단 (13-53: 8 → 18) */
   --radius-pill: 999px;  /* chip 전용 */
 
   /* elevation */
