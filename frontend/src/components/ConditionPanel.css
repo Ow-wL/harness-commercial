@@ -12,8 +12,8 @@
 
 .conditions__title {
   margin: 6px 0 0;
-  font-size: 22px;
-  font-weight: 700;
+  font-size: 28px;
+  font-weight: 800;
   line-height: 1.3;
   letter-spacing: -0.02em;
   color: var(--color-text-primary);
@@ -21,9 +21,9 @@
 
 .conditions__lead {
   margin: 8px 0 0;
-  font-size: 13px;
+  font-size: 15px;
   line-height: 1.55;
-  color: var(--color-text-muted);
+  color: var(--color-text-secondary);
 }
 
 /* 단계: 위아래 18px, 구분선. 제목 앞 번호 원은 CSS counter(라벨 글자에 섞이지 않는다) */
@@ -252,4 +252,12 @@
 
 .step-fold[open] .step-fold__action {
   display: none;
+}
+
+/* 13-56(§29): 분석하기는 알약 모양 큰 버튼 — 분석 전 화면에서 가장 밝은 것 하나 */
+.conditions__submit .button--primary {
+  height: 52px;
+  border-radius: var(--radius-pill);
+  font-size: 16px;
+  font-weight: 700;
 }
