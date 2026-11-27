@@ -512,3 +512,62 @@ describe('AnalysisResult — 8-C1d 한글화·[이 점수는?]', () => {
     expect(toggle).toHaveAttribute('aria-controls', screen.getByRole('list', { name: '이 점수는?' }).id)
   })
 })
+
+describe('AnalysisResult — 결과 구역 탭 (13-55, DESIGN.md §28)', () => {
+  const sectionTab = (name: string) => within(screen.getByRole('tablist', { name: '결과 구역' })).getByRole('tab', { name })
+  const panelOf = (tab: HTMLElement) => document.getElementById(tab.getAttribute('aria-controls')!)!
+
+  it('카드가 있는 구역만 탭이 생기고, 처음에는 다섯 관점이 고른 구역이다', () => {
+    renderResult()
+    const names = within(screen.getByRole('tablist', { name: '결과 구역' })).getAllByRole('tab').map((t) => t.textContent)
+    expect(names).toEqual(['다섯 관점', '더 보기'])   // AI·시간대·지원사업 카드를 주지 않았다
+    expect(sectionTab('다섯 관점')).toHaveAttribute('aria-selected', 'true')
+    expect(panelOf(sectionTab('다섯 관점'))).toHaveClass('section-panel--on')
+    expect(panelOf(sectionTab('더 보기'))).not.toHaveClass('section-panel--on')
+  })
+
+  it('카드를 주면 그 구역 탭이 순서대로 생기고, 탭을 고르면 그 구역만 고른 상태가 된다 — 구역은 모두 DOM 에 남는다(인쇄·보관)', () => {
+    render(
+      <AnalysisResult
+        analysis={FIXTURE}
+        aiCard={<p>AI 카드</p>}
+        timeCard={<p>시간대 카드</p>}
+        supportCard={<p>지원사업 카드</p>}
+        rankCard={<p>업종 순위 카드</p>}
+      />,
+    )
+    const names = within(screen.getByRole('tablist', { name: '결과 구역' })).getAllByRole('tab').map((t) => t.textContent)
+    expect(names).toEqual(['다섯 관점', 'AI 요약', '시간대와 사람', '지원사업', '더 보기'])
+    fireEvent.click(sectionTab('시간대와 사람'))
+    expect(sectionTab('시간대와 사람')).toHaveAttribute('aria-selected', 'true')
+    expect(sectionTab('다섯 관점')).toHaveAttribute('aria-selected', 'false')
+    expect(document.querySelectorAll('.section-panel--on')).toHaveLength(1)
+    expect(panelOf(sectionTab('시간대와 사람'))).toHaveTextContent('시간대 카드')
+    // 고르지 않은 구역의 내용도 DOM 에 그대로다
+    expect(screen.getByText('AI 카드')).toBeInTheDocument()
+    expect(screen.getByText('지원사업 카드')).toBeInTheDocument()
+    expect(panelOf(sectionTab('더 보기'))).toHaveTextContent('업종 순위 카드')
+  })
+
+  it('관점 행의 "상세 근거 ›"는 더 보기 구역과 상세 근거 탭을 함께 고른다', () => {
+    renderResult()
+    const row = expandRow(perspectiveRows()[0]!)
+    fireEvent.click(within(row).getByRole('button', { name: '상세 근거 ›' }))
+    expect(sectionTab('더 보기')).toHaveAttribute('aria-selected', 'true')
+    expect(panelOf(sectionTab('더 보기'))).toHaveClass('section-panel--on')
+    expect(screen.getByRole('tab', { name: '상세 근거' })).toHaveAttribute('aria-selected', 'true')
+  })
+
+  it('지원사업 보기 신호가 바뀌면 지원사업 구역을 고른다', () => {
+    const { rerender } = render(<AnalysisResult analysis={FIXTURE} supportCard={<p>지원사업 카드</p>} supportOpenSignal={0} />)
+    expect(sectionTab('지원사업')).toHaveAttribute('aria-selected', 'false')
+    rerender(<AnalysisResult analysis={FIXTURE} supportCard={<p>지원사업 카드</p>} supportOpenSignal={1} />)
+    expect(sectionTab('지원사업')).toHaveAttribute('aria-selected', 'true')
+  })
+
+  it('"자세히 보기"는 구역 탭으로 가서 고른 탭에 포커스를 둔다', () => {
+    renderResult()
+    fireEvent.click(screen.getByRole('button', { name: /자세히 보기/ }))
+    expect(sectionTab('다섯 관점')).toHaveFocus()
+  })
+})

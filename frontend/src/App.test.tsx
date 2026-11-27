@@ -4158,11 +4158,12 @@ describe('지원사업 카드 (R3 13-33) — 서버가 /health support 로 광�
     await selectBupyeongPcBang()
     fireEvent.click(analyzeButton())
     await screen.findByRole('heading', { level: 1, name: '부평구 부평1동 · PC방 분석' })
-    // 13-51: 지원사업은 "더 알아보기"의 접힌 줄 — 접혀 있어도 자료는 받아 두고, 줄을 펼치면 보인다
-    const fold = await screen.findByRole('button', { name: /받을 수 있는 지원사업이 있나요/ })
-    expect(fold).toHaveAttribute('aria-expanded', 'false')
-    fireEvent.click(fold)
-    expect(fold).toHaveAttribute('aria-expanded', 'true')
+    // 13-55: 지원사업은 구역 탭 — 고르지 않아도 자료는 받아 두고, 탭을 고르면 그 구역이 보인다
+    const supportTab = await screen.findByRole('tab', { name: '지원사업' })
+    expect(supportTab).toHaveAttribute('aria-selected', 'false')
+    fireEvent.click(supportTab)
+    expect(supportTab).toHaveAttribute('aria-selected', 'true')
+    expect(document.getElementById(supportTab.getAttribute('aria-controls')!)).toHaveClass('section-panel--on')
     expect(await screen.findByRole('link', { name: /\[인천\] 소상공인 특례보증/ })).toBeInTheDocument()
     const bodies = () => fetchMock.mock.calls.filter(([url]) => url === '/support/match').map((c) => JSON.parse(((c as unknown[])[1] as RequestInit).body as string))
     expect(bodies()).toEqual([{ biz_code: 'R10406', gu: '부평구', profile: null, limit: 10 }])

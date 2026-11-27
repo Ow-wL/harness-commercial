@@ -51,3 +51,70 @@
     margin: 14px 16px 0;
   }
 }
+
+/* 결과 구역 탭 (13-55, §28): 알약 한 줄 — 고른 구역은 주 버튼 채움. 좁으면 옆으로 민다. 요약 아래에 붙어 있다 */
+.tabs.tabs--sections {
+  gap: 8px;
+  margin-top: 16px;
+  padding: 8px 0;
+  border-radius: 0;
+  background: var(--color-surface);
+  box-shadow: none;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.tabs--sections::-webkit-scrollbar {
+  display: none;
+}
+
+.tabs--sections .tabs__tab {
+  flex: 0 0 auto;
+  height: 40px;
+  padding: 0 16px;
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-muted);
+  font-size: 14px;
+  color: var(--color-text-primary);
+  transition:
+    background-color var(--duration-base) ease-out,
+    color var(--duration-base) ease-out;
+}
+
+.tabs--sections .tabs__tab:hover {
+  background: var(--color-surface-sunken);
+  color: var(--color-text-primary);
+}
+
+.tabs--sections .tabs__tab[aria-selected="true"] {
+  background: var(--color-accent-fill);
+  color: var(--color-on-accent-fill);
+  box-shadow: none;
+}
+
+/* 구역 패널: 고른 구역만 보인다. 나타날 때 아래에서 떠오른다(움직임을 줄인 기기는 바로) */
+.section-panel {
+  display: none;
+}
+
+.section-panel--on {
+  display: block;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .section-panel--on {
+    animation: section-in 340ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+}
+
+@keyframes section-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+}
+
+/* "더 보기" 구역 안쪽 탭(상세 근거 등)은 구역 탭 아래에 붙는다 */
+.section-panel .tabs {
+  top: 56px;
+}

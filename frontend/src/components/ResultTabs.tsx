@@ -14,12 +14,15 @@ export function TabList<K extends string>({
   selected,
   onSelect,
   idBase,
+  className,
 }: {
   label: string
   tabs: readonly TabDef<K>[]
   selected: K
   onSelect: (key: K) => void
   idBase: string
+  /** 묶음 모양을 바꾸는 덧붙임 클래스 (예: 결과 구역 탭 `tabs--sections`) */
+  className?: string
 }) {
   const refs = useRef(new Map<K, HTMLButtonElement>())
   const onKeyDown = (e: KeyboardEvent<HTMLButtonElement>, index: number) => {
@@ -37,7 +40,7 @@ export function TabList<K extends string>({
     refs.current.get(key)?.focus()
   }
   return (
-    <div className="tabs" role="tablist" aria-label={label}>
+    <div className={`tabs${className ? ` ${className}` : ''}`} role="tablist" aria-label={label}>
       {tabs.map((t, i) => (
         <button
           key={t.key}

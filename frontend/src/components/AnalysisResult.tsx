@@ -1,4 +1,4 @@
-import { useRef, useState, type ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import type { AnalyzeResponse } from '../api/schemas.ts'
 import { singleBand } from '../lib/attentionBand.ts'
 import { dataVersionLabel, dataVersionOf, ResultDataVersionContext } from '../lib/dataVersion.ts'
@@ -18,7 +18,6 @@ import { PerspectiveScores, type PerspectiveOrder } from './PerspectiveScores.ts
 import { RadarChart } from './RadarChart.tsx'
 import { ScoreCard } from './ScoreCard.tsx'
 import { TabRevealContext, useResultTabs, useTabIdBase, type TabDef } from '../lib/resultTabs.ts'
-import { FoldSection } from './FoldSection.tsx'
 import { motionAllowed } from '../lib/useCountUp.ts'
 import { TabList, TabPanel } from './ResultTabs.tsx'
 import { WarningPanel } from './WarningPanel.tsx'
@@ -87,20 +86,44 @@ export function AnalysisResult({
   const [order, setOrder] = useState<PerspectiveOrder>('score')
   const { tab, setTab, reveal } = useResultTabs<ResultTab>('evidence')
   const idBase = useTabIdBase()
+  const sectionIdBase = `${idBase}s`
+  // 구역 탭(13-55): 다섯 관점 · AI 요약 · 시간대와 사람 · 지원사업 · 더 보기. 카드가 없는 구역(AI·지원사업이 꺼진 서버 등)은 탭도 없다
+  const [section, setSection] = useState<ResultSection>('persp')
+  const sectionTabs: TabDef<ResultSection>[] = [
+    { key: 'persp', label: '다섯 관점' },
+    ...(aiCard ? [{ key: 'ai' as const, label: 'AI 요약' }] : []),
+    ...(timeCard ? [{ key: 'time' as const, label: '시간대와 사람' }] : []),
+    ...(supportCard ? [{ key: 'support' as const, label: '지원사업' }] : []),
+    { key: 'more', label: '더 보기' },
+  ]
+  // 고른 구역의 카드가 사라지면(다른 조건으로 다시 분석 등) 첫 구역으로
+  const activeSection = sectionTabs.some((t) => t.key === section) ? section : 'persp'
+  // AI 요약의 "지원사업 보기": 신호가 바뀌면 지원사업 구역을 고른다(렌더 중 상태 맞추기)
+  const [seenSupportSignal, setSeenSupportSignal] = useState(supportOpenSignal)
+  if (supportOpenSignal !== seenSupportSignal) {
+    setSeenSupportSignal(supportOpenSignal)
+    setSection('support')
+  }
+  // 대상 id 로 가기: 대상이 든 구역을 먼저 고르고, 안쪽 탭(상세 근거 등)은 기존 reveal 이 고른 뒤 포커스한다
+  const revealAll = (id: string) => {
+    const key = document.getElementById(id)?.closest<HTMLElement>('[data-section]')?.dataset.section as ResultSection | undefined
+    if (key && key !== activeSection) setSection(key)
+    reveal(id)
+  }
   const station = nearestStation(result.지표)
   // 관점 행의 "상세 근거 ›"를 누르면 상세 근거 탭의 그 관점을 펼치고 그리로 간다
   const [openRequest, setOpenRequest] = useState<{ key: string; n: number } | null>(null)
   const openDetail = (key: string) => {
+    setSection('more')
     setTab('evidence')
     setOpenRequest((r) => ({ key, n: (r?.n ?? 0) + 1 }))
   }
-  // "자세히 보기"(13-54): 요약 아래 다섯 관점으로 내려가고 그 제목에 포커스를 둔다. 내용은 늘 DOM 에 있다(인쇄·보관·이동 링크 그대로)
-  const perspectivesRef = useRef<HTMLHeadingElement>(null)
+  // "자세히 보기"(13-54 → 13-55): 구역 탭으로 내려가고 지금 고른 탭에 포커스를 둔다. 내용은 늘 DOM 에 있다(인쇄·보관·이동 링크 그대로)
   const goToDetail = () => {
-    const heading = perspectivesRef.current
-    if (!heading) return
-    heading.focus({ preventScroll: true })
-    heading.scrollIntoView?.({ block: 'start', behavior: motionAllowed() ? 'smooth' : 'auto' })
+    const current = document.getElementById(`${sectionIdBase}-tab-${activeSection}`)
+    if (!current) return
+    current.focus({ preventScroll: true })
+    current.scrollIntoView?.({ block: 'start', behavior: motionAllowed() ? 'smooth' : 'auto' })
   }
   const checks = fieldChecks(analysis)
   const gaps = gapLines(analysis)
@@ -114,7 +137,7 @@ export function AnalysisResult({
 
   return (
     <ResultDataVersionContext.Provider value={dataVersion}>
-    <TabRevealContext.Provider value={reveal}>
+    <TabRevealContext.Provider value={revealAll}>
       <article className={`result result--quiet result--dash${explanations ? ' result--explained' : ''}`}>
         <div className="result__head">
           <p className="result__eyebrow">
@@ -157,117 +180,148 @@ export function AnalysisResult({
           </button>
         </div>
 
-        <section className="result__perspectives" aria-labelledby="perspectives-heading">
-          <div className="result__section-head">
-            <h2 id="perspectives-heading" className="result__section-title" tabIndex={-1} ref={perspectivesRef}>다섯 관점</h2>
-            <div className="result__section-actions">
-              <button
-                type="button"
-                className={`result__order${order === 'score' ? ' result__order--on' : ''}`}
-                aria-pressed={order === 'score'}
-                onClick={() => setOrder((o) => (o === 'score' ? 'fixed' : 'score'))}
-              >
-                {order === 'score' ? '점수순' : '기본 순서'}
-              </button>
-              <button
-                type="button"
-                className="result__explain"
-                aria-expanded={explanations}
-                onClick={() => setExplanations((v) => !v)}
-              >
-                {explanations ? '간단히 보기' : '설명 함께 보기'}
-              </button>
-            </div>
-          </div>
-          {/* 숫자 목록이 먼저(좁은 화면은 막대 → 거미줄 순, Codex R1-4). 넓은 결과 영역에서는 CSS 가 거미줄을 왼쪽 칸에 둔다 */}
-          <div className="result__persp-grid">
-            <PerspectiveScores
-              summary={result.종합}
-              indicators={result.지표}
-              guName={context.gu_name}
-              business={result.meta.업종}
-              radiusM={result.meta.분석반경_m}
-              order={order}
-              onOpen={openDetail}
-            />
-            <RadarChart series={[{ id: 'a', name: locationName(context), items: result.지표 }]} />
-          </div>
-          <p className="result__persp-note">막대·거미줄의 점선 50은 인천 동네 평균 지점입니다 · 행을 누르면 근거가 펼쳐집니다.</p>
-        </section>
-
-        {/* 13-50: AI 요약은 다섯 관점 바로 아래 — 가장 읽기 쉬운 내용을 먼저 */}
-        {aiCard}
         {notes}
 
-        {/* 13-51(D-049) 두 단 구성: 위(점수·관점·AI 요약·활용 줄)는 늘 보이고, 시간대·업종 순위·지원사업은 질문 한 줄로 접어 둔다.
-            접힌 카드는 DOM 에 그대로 있다(자료 요청·인쇄는 그대로) */}
-        {(timeCard || rankCard || supportCard) && (
-          <section className="folds" aria-label="더 알아보기">
-            <p className="folds__title" aria-hidden="true">더 알아보기</p>
-            {timeCard && (
-              <FoldSection id="fold-time" label="언제, 어떤 사람이 많나요?" hint="시간대별 유입 · 주요 손님층 · 가까운 역">
-                {timeCard}
-              </FoldSection>
-            )}
-            {rankCard && (
-              <FoldSection id="fold-rank" label="이 자리에서 다른 업종은 어떤가요?" hint="같은 자리의 업종별 점수">
-                {rankCard}
-              </FoldSection>
-            )}
-            {supportCard && (
-              <FoldSection id="fold-support" label="받을 수 있는 지원사업이 있나요?" hint="업종·지역 조건에 맞는 공고" openSignal={supportOpenSignal}>
-                {supportCard}
-              </FoldSection>
-            )}
+        {/* 13-55(§28): 요약 아래는 구역 탭 — 한 번에 한 구역만 보인다. 구역은 모두 DOM 에 있고(자료 요청·인쇄·보관 그대로)
+            고르지 않은 구역은 CSS 로 감춘다. 숨은 구역 안 대상으로 갈 때는 그 구역을 먼저 고른다(revealAll) */}
+        <TabList label="결과 구역" tabs={sectionTabs} selected={activeSection} onSelect={setSection} idBase={sectionIdBase} className="tabs--sections" />
+
+        <SectionPanel section="persp" selected={activeSection} idBase={sectionIdBase}>
+          <section className="result__perspectives" aria-labelledby="perspectives-heading">
+            <div className="result__section-head">
+              <h2 id="perspectives-heading" className="result__section-title">다섯 관점</h2>
+              <div className="result__section-actions">
+                <button
+                  type="button"
+                  className={`result__order${order === 'score' ? ' result__order--on' : ''}`}
+                  aria-pressed={order === 'score'}
+                  onClick={() => setOrder((o) => (o === 'score' ? 'fixed' : 'score'))}
+                >
+                  {order === 'score' ? '점수순' : '기본 순서'}
+                </button>
+                <button
+                  type="button"
+                  className="result__explain"
+                  aria-expanded={explanations}
+                  onClick={() => setExplanations((v) => !v)}
+                >
+                  {explanations ? '간단히 보기' : '설명 함께 보기'}
+                </button>
+              </div>
+            </div>
+            {/* 숫자 목록이 먼저(좁은 화면은 막대 → 거미줄 순, Codex R1-4). 넓은 결과 영역에서는 CSS 가 거미줄을 왼쪽 칸에 둔다 */}
+            <div className="result__persp-grid">
+              <PerspectiveScores
+                summary={result.종합}
+                indicators={result.지표}
+                guName={context.gu_name}
+                business={result.meta.업종}
+                radiusM={result.meta.분석반경_m}
+                order={order}
+                onOpen={openDetail}
+              />
+              <RadarChart series={[{ id: 'a', name: locationName(context), items: result.지표 }]} />
+            </div>
+            <p className="result__persp-note">막대·거미줄의 점선 50은 인천 동네 평균 지점입니다 · 행을 누르면 근거가 펼쳐집니다.</p>
           </section>
+        </SectionPanel>
+
+        {aiCard && (
+          <SectionPanel section="ai" selected={activeSection} idBase={sectionIdBase}>
+            {aiCard}
+          </SectionPanel>
+        )}
+        {timeCard && (
+          <SectionPanel section="time" selected={activeSection} idBase={sectionIdBase}>
+            {timeCard}
+          </SectionPanel>
+        )}
+        {supportCard && (
+          <SectionPanel section="support" selected={activeSection} idBase={sectionIdBase}>
+            {supportCard}
+          </SectionPanel>
         )}
 
-        <TabList label="자세히 보기" tabs={tabs} selected={tab} onSelect={setTab} idBase={idBase} />
-        <div className="result__body">
-          <TabPanel tab="evidence" selected={tab} idBase={idBase}>
-            <IndicatorDetails
-              indicators={result.지표}
-              summary={result.종합}
-              meta={result.meta}
-              openRequest={openRequest}
-            />
-            <CoverageMeta
-              summary={result.종합}
-              indicators={result.지표}
-              group={result.meta.업종그룹}
-              access={result.초보자_접근성}
-            />
-            <WarningPanel analysis={analysis} />
-            <BeginnerAccess access={result.초보자_접근성} />
-            <section className="result-section" aria-labelledby="location-title">
-              <h2 id="location-title" className="result-section__title">
-                위치
-              </h2>
-              <LocationSummary context={context} station={station} />
-            </section>
-            <DataSources meta={result.meta} disclaimer={result.면책} />
-          </TabPanel>
-          <TabPanel tab="stores" selected={tab} idBase={idBase}>
-            {nearby ?? <p className="result-section__empty">점포 목록이 없습니다.</p>}
-          </TabPanel>
-          <TabPanel tab="field" selected={tab} idBase={idBase}>
-            <FieldChecks checks={checks} notes={fieldNotes?.notes} onChange={fieldNotes?.onChange} />
-          </TabPanel>
-          {radiusTable && (
-            <TabPanel tab="radius" selected={tab} idBase={idBase}>
-              {radiusTable}
+        <SectionPanel section="more" selected={activeSection} idBase={sectionIdBase}>
+          {rankCard}
+          <TabList label="자세히 보기" tabs={tabs} selected={tab} onSelect={setTab} idBase={idBase} />
+          <div className="result__body">
+            <TabPanel tab="evidence" selected={tab} idBase={idBase}>
+              <IndicatorDetails
+                indicators={result.지표}
+                summary={result.종합}
+                meta={result.meta}
+                openRequest={openRequest}
+              />
+              <CoverageMeta
+                summary={result.종합}
+                indicators={result.지표}
+                group={result.meta.업종그룹}
+                access={result.초보자_접근성}
+              />
+              <WarningPanel analysis={analysis} />
+              <BeginnerAccess access={result.초보자_접근성} />
+              <section className="result-section" aria-labelledby="location-title">
+                <h2 id="location-title" className="result-section__title">
+                  위치
+                </h2>
+                <LocationSummary context={context} station={station} />
+              </section>
+              <DataSources meta={result.meta} disclaimer={result.면책} />
             </TabPanel>
-          )}
-        </div>
+            <TabPanel tab="stores" selected={tab} idBase={idBase}>
+              {nearby ?? <p className="result-section__empty">점포 목록이 없습니다.</p>}
+            </TabPanel>
+            <TabPanel tab="field" selected={tab} idBase={idBase}>
+              <FieldChecks checks={checks} notes={fieldNotes?.notes} onChange={fieldNotes?.onChange} />
+            </TabPanel>
+            {radiusTable && (
+              <TabPanel tab="radius" selected={tab} idBase={idBase}>
+                {radiusTable}
+              </TabPanel>
+            )}
+          </div>
 
-        {/* 데이터 한계 (B4): "확인 필요" 줄과 주의 요약을 접힌 한 곳에. 규제 배너·주의 관점 한 줄은 위에서 펼쳐 보였고 여기엔 원문 요약·이동 링크 */}
-        <AttentionBand lines={band} moreTarget="warnings" label="데이터 한계" extraCount={gaps.length}>
-          <GapsLine items={gaps} />
-        </AttentionBand>
+          {/* 데이터 한계 (B4): "확인 필요" 줄과 주의 요약을 접힌 한 곳에. 규제 배너·주의 관점 한 줄은 위에서 펼쳐 보였고 여기엔 원문 요약·이동 링크 */}
+          <AttentionBand lines={band} moreTarget="warnings" label="데이터 한계" extraCount={gaps.length}>
+            <GapsLine items={gaps} />
+          </AttentionBand>
+        </SectionPanel>
         <p className="result__disclaimer result__disclaimer--foot">{SERVICE_DISCLAIMER}</p>
       </article>
     </TabRevealContext.Provider>
     </ResultDataVersionContext.Provider>
+  )
+}
+
+/** 결과 구역 탭(13-55, DESIGN.md §28) */
+type ResultSection = 'persp' | 'ai' | 'time' | 'support' | 'more'
+
+/**
+ * 구역 패널: 모두 그려 두고 고른 구역만 보인다. 감추는 것은 CSS(`display: none`) — 인쇄는 모두 펼치고(print.css),
+ * 고를 때마다 나타나는 움직임이 다시 돈다. `data-section` 으로 이 패널에 든 대상의 구역을 찾는다(revealAll).
+ */
+function SectionPanel({
+  section,
+  selected,
+  idBase,
+  children,
+}: {
+  section: ResultSection
+  selected: ResultSection
+  idBase: string
+  children: ReactNode
+}) {
+  return (
+    <div
+      id={`${idBase}-panel-${section}`}
+      role="tabpanel"
+      data-section={section}
+      aria-labelledby={`${idBase}-tab-${section}`}
+      className={`section-panel${section === selected ? ' section-panel--on' : ''}`}
+    >
+      {children}
+    </div>
   )
 }
 

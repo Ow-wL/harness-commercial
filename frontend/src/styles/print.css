@@ -284,14 +284,10 @@
     break-inside: avoid;
   }
 
-  /* 13-51: 접힌 "더 알아보기" 줄은 종이에 모두 펼친다 — 펼침 화살표·보조 설명은 뺀다 */
-  .fold__body[hidden] {
+  /* 13-55: 결과 구역(다섯 관점·AI 요약·시간대·지원사업·더 보기)은 종이에 모두 펼친다 — 화면에서 고른 구역과 상관없이 */
+  .section-panel {
     display: block !important;
-  }
-
-  .fold__chevron,
-  .fold__hint {
-    display: none;
+    animation: none !important;
   }
 }
 
