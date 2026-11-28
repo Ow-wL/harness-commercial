@@ -35,6 +35,8 @@ export default defineConfig(({ mode }) => {
       setupFiles: ['./src/test/setup.ts'],
       // e2e/*.spec.ts 는 Playwright 테스트(npm run e2e) — vitest 가 줍지 않는다
       exclude: [...configDefaults.exclude, 'e2e/**'],
+      // 전체 실행(74파일 동시)이나 전체 check 부하에서 긴 흐름 테스트가 기본 5초를 넘긴 적이 여러 번 있다(단독 실행은 통과) — 13-64
+      testTimeout: 15000,
     },
   }
 })
