@@ -268,6 +268,10 @@ function useDongPolygons(api: NaverMapsApi | null, map: NaverMap | null, guCode?
   }, [api, map, guCode, dongName])
 }
 
+/** 인천 외곽선·구 경계 굵기(13-65): 가늘고 옅게 — 서비스 범위를 알릴 만큼만, 지도 위에서 튀지 않게 */
+const OUTLINE_WEIGHT = 1.5
+const GU_WEIGHT = 1
+
 /** 업종 지도 동 경계 굵기(13-62): 가늘고 옅게 — 색 면이 주인공이고 선은 동을 나눌 만큼만 */
 const HEAT_STROKE = 0.6
 
@@ -425,8 +429,8 @@ function useGuBoundaries(api: NaverMapsApi | null, map: NaverMap | null, renderM
     loadGuBoundaries()
       .then((b) => {
         if (cancelled) return
-        outline.push(...make(b.outline, { strokeColor: token('--color-map-outline-stroke'), strokeWeight: 2, zIndex: 2 }))
-        gu.push(...make(b.gu, { strokeColor: token('--color-map-gu-stroke'), strokeWeight: 1, zIndex: 1 }))
+        outline.push(...make(b.outline, { strokeColor: token('--color-map-outline-stroke'), strokeWeight: OUTLINE_WEIGHT, zIndex: 2 }))
+        gu.push(...make(b.gu, { strokeColor: token('--color-map-gu-stroke'), strokeWeight: GU_WEIGHT, zIndex: 1 }))
         apply()
         listeners.push(api.Event.addListener(map, 'zoom_changed', apply), api.Event.addListener(map, 'idle', apply))
       })

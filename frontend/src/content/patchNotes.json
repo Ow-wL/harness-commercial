@@ -3,6 +3,21 @@
   "renumbered_until": "v0.0.10",
   "releases": [
     {
+      "version": "v0.7.3",
+      "date": "2026-11-29",
+      "title": "더 차분한 지도 경계선",
+      "changes": [
+        {
+          "type": "improved",
+          "text": "지도 위 인천 외곽선과 구 경계선을 가늘고 옅게 바꿔 지도가 더 차분해 보입니다."
+        }
+      ],
+      "work": [
+        "13-65: 외곽선 1.5px·무채색 반투명, 구 경계·분석 행정동 선 색 조정(tokens-a3.css, MapView OUTLINE_WEIGHT·GU_WEIGHT)"
+      ],
+      "commits": []
+    },
+    {
       "version": "v0.7.2",
       "date": "2026-11-28",
       "title": "업종 지도 켜고 끄기 · 새 지도 스타일",
@@ -28,7 +43,9 @@
         "bf6a3b2",
         "b59664c",
         "402f92a",
-        "7feac49"
+        "7feac49",
+        "cc2311f",
+        "8390969"
       ]
     },
     {

@@ -1934,7 +1934,7 @@ describe('MapView — 인천 외곽선·구 경계 (묶음 A, DESIGN.md §19.3 �
     map.zoom = 13
     await waitFor(() => expect(byZ(2)).toHaveLength(1))
     expect(byZ(1)).toHaveLength(2)
-    expect(byZ(2)[0]!.options).toMatchObject({ strokeWeight: 2, fillOpacity: 0, clickable: false })
+    expect(byZ(2)[0]!.options).toMatchObject({ strokeWeight: 1.5, fillOpacity: 0, clickable: false })
     expect(byZ(1)[0]!.options).toMatchObject({ strokeWeight: 1, fillOpacity: 0, clickable: false })
     expect(screen.getByRole('list', { name: '지도 범례' })).toHaveTextContent('인천·구 경계')
   })
