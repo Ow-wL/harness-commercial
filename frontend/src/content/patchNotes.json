@@ -23,7 +23,9 @@
       "work": [
         "13-62(D-058): lib/kiosk 주소 전용(기억 제거), 업종 지도 heatOn(기본 끔)·onHeatOpen 칩·경계선 0.6px·점수 없는 동 비움·다크 구간 색, 다크 지도 필터 밝기 1.25, App.test 긴 흐름 1건 시간 제한 20초"
       ],
-      "commits": []
+      "commits": [
+        "bf6a3b2"
+      ]
     },
     {
       "version": "v0.7.1",
