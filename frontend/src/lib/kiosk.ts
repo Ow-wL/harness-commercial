@@ -1,22 +1,21 @@
 /**
  * 전시 모드(13-46, D-045): 전시장 큰 화면에서 아무도 만지지 않으면 업종 지도 → 높은 동 분석을 번갈아 자동으로 보이고,
  * 누가 화면을 누르거나 키를 누르면 멈추고 처음 화면으로 돌아간다. 일반 사용자에게는 없는 기능이다.
- * 켜기: 주소에 `?kiosk=1` (이 브라우저에 기억 — 새로고침해도 유지), 끄기: `?kiosk=0`.
+ * 켜기: 주소에 `?kiosk=1` 을 붙여 연 그 화면에서만(13-62, D-058). 브라우저에 기억하지 않는다 — 주소 없이 열면 일반 화면이다.
+ * (전에는 한 번 켜면 이 브라우저에 남아, 전시용으로 열었던 컴퓨터에서 일반 주소도 자동 시연으로 넘어갔다.)
  */
 import { useEffect, useRef } from 'react'
 
 const STORAGE_KEY = 'kiosk'
 
-/** 이 브라우저가 전시 모드인지. 주소의 kiosk=1·0 을 기억에 옮긴다. 저장소가 막혀 있으면 주소만 본다 */
+/** 이 화면이 전시 모드인지: 주소에 kiosk=1 이 있을 때만. 예전 버전이 남긴 기억은 지운다(다시 켜지지 않게) */
 export function readKioskFlag(search: string = typeof window === 'undefined' ? '' : window.location.search): boolean {
-  const q = new URLSearchParams(search).get('kiosk')
   try {
-    if (q === '1') localStorage.setItem(STORAGE_KEY, '1')
-    else if (q === '0') localStorage.removeItem(STORAGE_KEY)
-    return localStorage.getItem(STORAGE_KEY) === '1'
+    localStorage.removeItem(STORAGE_KEY)
   } catch {
-    return q === '1'
+    // 저장소가 막혀 있어도 주소만 보면 된다
   }
+  return new URLSearchParams(search).get('kiosk') === '1'
 }
 
 /** 자동 시연 차례: 업종 지도(인천 전체) → 그 업종 점수가 높은 동 한 곳 분석. 화면에 오래 둘 시간(ms) */

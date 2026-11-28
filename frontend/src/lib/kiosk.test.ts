@@ -7,12 +7,14 @@ afterEach(() => {
 })
 
 describe('전시 모드 (13-46, D-045)', () => {
-  it('주소의 kiosk=1 은 이 브라우저에 기억하고(새로고침해도 유지), kiosk=0 이면 끈다', () => {
+  it('주소에 kiosk=1 이 있을 때만 켜진다 — 브라우저에 기억하지 않고, 예전에 남긴 기억은 지운다 (13-62)', () => {
     expect(readKioskFlag('')).toBe(false)
     expect(readKioskFlag('?kiosk=1')).toBe(true)
-    expect(readKioskFlag('?lat=37.4&lng=126.7')).toBe(true)
+    expect(readKioskFlag('?lat=37.4&lng=126.7')).toBe(false)              // 주소 없이 열면 일반 화면
     expect(readKioskFlag('?kiosk=0')).toBe(false)
+    localStorage.setItem('kiosk', '1')                                    // v0.7.1 까지의 기억
     expect(readKioskFlag('')).toBe(false)
+    expect(localStorage.getItem('kiosk')).toBeNull()
   })
 
   it('저장소가 막혀 있으면 주소만 본다', () => {

@@ -959,9 +959,25 @@ function App() {
 
   const result = analysis.status === 'success' ? analysis.response : null
   // 업종 지도(13-46, D-045): 서버와 같은 엔진·데이터로 만든 파일만. 업종을 고르고 위치를 아직 안 골랐을 때(결과·비교 없음) 보인다.
-  // 끄면(heatOffBiz) 그 업종 동안은 다시 켜지 않고, 업종을 바꾸면 다시 보인다
+  // 13-62(D-058): 기본은 끔 — 지도의 "업종 지도 보기" 칩으로 켜고, 카드의 닫기로 끈다(이 브라우저에 기억).
+  // 전시 모드 자동 시연 중에는 늘 켠다
   const [heatmap, setHeatmap] = useState<Heatmap | null>(null)
-  const [heatOffBiz, setHeatOffBiz] = useState<string | null>(null)
+  const [heatOn, setHeatOnState] = useState(() => {
+    try {
+      return localStorage.getItem('heat') === '1'
+    } catch {
+      return false
+    }
+  })
+  const setHeatOn = useCallback((on: boolean) => {
+    setHeatOnState(on)
+    try {
+      if (on) localStorage.setItem('heat', '1')
+      else localStorage.removeItem('heat')
+    } catch {
+      // 저장소가 막혀 있으면 이 화면 동안만
+    }
+  }, [])
   useEffect(() => {
     if (!serverEngine || !dataInfo) return
     let cancelled = false
@@ -976,11 +992,10 @@ function App() {
     bizCode && businesses.status === 'ready'
       ? businesses.catalog.groups.flatMap((g) => g.businesses).find((b) => b.code === bizCode)?.name ?? null
       : null
-  const mapHeat = useMemo(() => {
-    if (!heatmap || !bizCode || !heatBizName || heatOffBiz === bizCode) return null
-    const layer = heatLayer(heatmap, bizCode)
-    return layer ? { layer, title: heatBizName, onClose: () => setHeatOffBiz(bizCode) } : null
-  }, [heatmap, bizCode, heatBizName, heatOffBiz])
+  const heatLayerNow = useMemo(
+    () => (heatmap && bizCode && heatBizName ? heatLayer(heatmap, bizCode) : null),
+    [heatmap, bizCode, heatBizName],
+  )
 
   // 전시 모드(13-46, D-045, lib/kiosk): 아무도 만지지 않으면 업종 지도 ↔ 높은 동 분석을 번갈아 보이고(attract),
   // 누가 화면을 누르면 멈추고 처음 화면으로. 마지막 조작 뒤 KIOSK_IDLE_MS 가 지나면 다시 자동 시연
@@ -996,7 +1011,6 @@ function App() {
         cancelAnalysis()
         setLocation(null)
         setAskOpen(false)
-        setHeatOffBiz(null)
         setOverviewSeq((n) => n + 1)
       },
       show: (point, biz) => {
@@ -1045,6 +1059,13 @@ function App() {
     run()
     return () => window.clearTimeout(timer)
   }, [attract, heatmap])
+  // 업종 지도를 그릴 수 있는 화면(분석 전)인지, 지금 켜져 있는지 — 자동 시연 중에는 켬
+  const heatAvailable = heatLayerNow !== null && !result && !comparing && analysis.status !== 'loading'
+  const heatShown = heatAvailable && (heatOn || attract)
+  const mapHeat = useMemo(
+    () => (heatLayerNow && heatBizName ? { layer: heatLayerNow, title: heatBizName, onClose: () => setHeatOn(false) } : null),
+    [heatLayerNow, heatBizName, setHeatOn],
+  )
   // 이 자리 업종 순위(13-16): 단일 결과의 좌표·반경으로 — 비교 중에는 요청하지 않는다(A 결과 카드에만)
   // 분석 결과의 엔진·데이터 버전: 순위·시간대 요청의 키 꼬리표이자 받은 응답의 대조 기준 — 다르면 표시·캐시하지 않는다(R1-9).
   // 새 분석 응답(객체)이면 실패·불일치도 다시 시도한다
@@ -1756,7 +1777,8 @@ function App() {
                 : undefined
             }
             compare={mapCompare}
-            heat={!result && !comparing && analysis.status !== 'loading' ? mapHeat : null}
+            heat={heatShown ? mapHeat : null}
+            onHeatOpen={heatAvailable && !heatShown ? () => setHeatOn(true) : undefined}
             overviewSeq={overviewSeq}
           />
         </MapErrorBoundary>

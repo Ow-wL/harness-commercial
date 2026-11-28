@@ -682,11 +682,11 @@
    업종 지도(색 구간이 뜻을 가진다)가 켜진 동안은 색을 반만 뺀다.
    라이트 — 기본 밝은 지도의 타일 이미지(crossorigin 이 붙은 img)만 옅게. 오버레이(SVG)는 그대로 */
 :root:not([data-theme="light"]) .map .mapboxgl-canvas {
-  filter: grayscale(1) brightness(0.82) contrast(1.08);
+  filter: grayscale(1) brightness(1.25);          /* 13-62: 0.82 는 너무 까매 길이 안 보였다 */
 }
 
 :root:not([data-theme="light"]) .map:has(.map__heat) .mapboxgl-canvas {
-  filter: saturate(0.5);
+  filter: saturate(0.5) brightness(1.1);
 }
 
 :root[data-theme="light"] .map__canvas img[crossorigin] {
@@ -698,4 +698,40 @@
   .map__canvas img[crossorigin] {
     filter: none !important;
   }
+}
+
+/* 업종 지도 켜는 칩 (13-62, D-058): 꺼져 있을 때 카드 자리(왼쪽 위)에 작은 알약. 터치 44px */
+.map__heat-open {
+  position: absolute;
+  z-index: 1;
+  top: var(--map-visible-top, var(--space-6));
+  left: var(--a3-gap, 16px);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 16px;
+  border: 1px solid var(--color-map-ui-edge);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-map-ui);
+  font: var(--text-small);
+  font-weight: 600;
+  color: var(--color-text-primary);
+  cursor: pointer;
+}
+
+.map__heat-open:hover {
+  color: var(--color-accent);
+}
+
+.map__heat-open-dots {
+  width: 22px;
+  height: 10px;
+  border-radius: 3px;
+  background: linear-gradient(90deg, var(--color-heat-low2) 0 33%, var(--color-heat-mid) 33% 66%, var(--color-heat-high2) 66%);
+}
+
+@media print {
+  .map__heat-open { display: none; }
 }

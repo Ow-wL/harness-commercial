@@ -61,6 +61,11 @@ vi.mock('./components/MapView.tsx', () => ({
         data-overview-seq={props.overviewSeq}
         data-theme={props.theme}
       >
+        {props.onHeatOpen && (
+          <button type="button" onClick={props.onHeatOpen}>
+            업종 지도 보기
+          </button>
+        )}
         <button type="button" onClick={() => props.interactive && props.onSelect({ lat: 37.4894, lng: 126.7246 })}>
           지도 클릭: 부평역
         </button>
@@ -331,7 +336,7 @@ describe('tablet 패널 접기 (P9, A3)', () => {
     expect(panel()).toHaveAttribute('data-folded', 'true')
     fireEvent.click(foldButton())
     expect(panel()).not.toHaveAttribute('data-folded')
-  })
+  }, 20000)                                                  // 긴 흐름: 전체 실행 부하에서 5초를 넘긴 적이 있다(13-62)
 
   it('접은 뒤 화면이 바뀌면(조건 바꾸기 → 분석 조건) 다시 펼친다 — 접힌 패널 안으로 포커스를 옮기지 않는다', async () => {
     mockApi({ analyze: [ok(fixture)], nearby: [ok(nearbyFixture)] })
@@ -4260,11 +4265,31 @@ describe('전시 개선 (13-46, D-045) — 업종 지도·전시 모드', () => 
   const ok = (body: unknown, version?: string) => ({ status: 200, body, headers: version ? { 'X-Data-Version': version } : undefined })
 
   afterEach(() => {
-    localStorage.removeItem('kiosk')
+    localStorage.removeItem('heat')
+    window.history.replaceState(null, '', '/')
     resetHeatmapForTest()                                  // 받은 파일은 모듈에 남는다 — 테스트마다 새로 받게
   })
 
-  it('서버와 같은 엔진·데이터의 파일이면 업종을 고른 뒤 위치를 고르기 전까지 업종 지도를 보이고, 결과가 나오면 거둔다', async () => {
+  it('업종 지도는 기본으로 꺼져 있고 "업종 지도 보기"로 켠다 — 켠 선택은 기억하고, 끄면 다시 칩으로 돌아온다 (13-62)', async () => {
+    mockApi({ health: HEALTH_HEAT, heatmap: HEATMAP() })
+    const view = render(<App />)
+    await pickPcBang()
+    const open = await screen.findByRole('button', { name: '업종 지도 보기' })
+    expect(map()).not.toHaveAttribute('data-heat')
+    fireEvent.click(open)
+    expect(map()).toHaveAttribute('data-heat', 'PC방:R10406')
+    expect(screen.queryByRole('button', { name: '업종 지도 보기' })).not.toBeInTheDocument()
+    expect(localStorage.getItem('heat')).toBe('1')
+    view.unmount()
+    resetHeatmapForTest()
+    mockApi({ health: HEALTH_HEAT, heatmap: HEATMAP() })
+    render(<App />)                                                        // 다시 열면 켠 채로
+    await pickPcBang()
+    await waitFor(() => expect(map()).toHaveAttribute('data-heat', 'PC방:R10406'))
+  })
+
+  it('서버와 같은 엔진·데이터의 파일이면 업종을 고른 뒤 위치를 고르기 전까지 업종 지도를 보이고(켰을 때), 결과가 나오면 거둔다', async () => {
+    localStorage.setItem('heat', '1')
     mockApi({ health: HEALTH_HEAT, heatmap: HEATMAP(), analyze: [ok(fixture, '2026-09')], nearby: [ok(nearbyFixture, '2026-09')] })
     render(<App />)
     await pickPcBang()
@@ -4282,10 +4307,11 @@ describe('전시 개선 (13-46, D-045) — 업종 지도·전시 모드', () => 
     await pickPcBang()
     await waitFor(() => expect(analyzeButton()).toBeInTheDocument())
     expect(map()).not.toHaveAttribute('data-heat')
+    expect(screen.queryByRole('button', { name: '업종 지도 보기' })).not.toBeInTheDocument()
   })
 
-  it('전시 모드(kiosk=1)면 자동 시연 안내와 업종 지도로 시작하고, 화면을 누르면 멈추고 빈 처음 화면으로 돌아간다', async () => {
-    localStorage.setItem('kiosk', '1')
+  it('전시 모드(주소 ?kiosk=1)면 자동 시연 안내와 업종 지도로 시작하고, 화면을 누르면 멈추고 빈 처음 화면으로 돌아간다', async () => {
+    window.history.replaceState(null, '', '/?kiosk=1')
     mockApi({ health: HEALTH_HEAT, heatmap: HEATMAP() })
     render(<App />)
     expect(screen.getByText('화면을 눌러 직접 해 보세요')).toBeInTheDocument()
@@ -4297,7 +4323,8 @@ describe('전시 개선 (13-46, D-045) — 업종 지도·전시 모드', () => 
     expect(screen.getByRole('combobox', { name: '업종' })).toHaveValue('')   // 업종도 비운다 — 다음 관람객이 처음부터
   })
 
-  it('일반 화면에는 전시 모드 안내가 없다', async () => {
+  it('일반 화면에는 전시 모드 안내가 없다 — 전에 이 브라우저에서 전시 모드를 켰어도 주소가 없으면 일반 화면 (13-62)', async () => {
+    localStorage.setItem('kiosk', '1')
     mockApi({ health: HEALTH_HEAT, heatmap: HEATMAP() })
     render(<App />)
     await pickPcBang()

@@ -144,6 +144,8 @@ export type MapViewProps = {
    * title 은 떠 있는 카드 제목(예: "카페"), onClose 가 있으면 끄기 버튼. null·생략이면 그리지 않는다
    */
   heat?: { layer: HeatLayer; title: string; onClose?: () => void } | null
+  /** 업종 지도가 꺼져 있고 켤 수 있을 때(13-62): 지도 왼쪽 위에 "업종 지도 보기" 칩을 둔다 */
+  onHeatOpen?: () => void
   /** 인천 전체 보기 요청(전시 모드, 13-46): 값이 바뀔 때마다 처음 화면의 중심·축척으로 부드럽게 돌아간다. 0은 요청 없음 */
   overviewSeq?: number
 }
@@ -266,6 +268,9 @@ function useDongPolygons(api: NaverMapsApi | null, map: NaverMap | null, guCode?
   }, [api, map, guCode, dongName])
 }
 
+/** 업종 지도 동 경계 굵기(13-62): 가늘고 옅게 — 색 면이 주인공이고 선은 동을 나눌 만큼만 */
+const HEAT_STROKE = 0.6
+
 /**
  * 업종 지도 층(13-46, D-045): 모든 행정동을 점수 구간 색으로 칠한다(반투명, 지도 글자가 비치게). 동을 누르면 그 자리를
  * 고른 것과 같고(onPick — 지도 클릭과 같은 규칙), 마우스를 올리면 onHover(동 열쇠). 층이 바뀌면 다시 그린다
@@ -300,9 +305,9 @@ function useHeatPolygons(
               map,
               paths: polygon.map((ring) => ring.map((pt) => new api.LatLng(pt.lat, pt.lng))),
               fillColor: token(`--color-heat-${tone}`),
-              fillOpacity: tone === 'none' ? 1 : opacity,
+              fillOpacity: tone === 'none' ? 0 : opacity,
               strokeColor: token('--color-heat-stroke'),
-              strokeWeight: 1,
+              strokeWeight: HEAT_STROKE,
               clickable: true,
             })
             polygons.push(p)
@@ -313,7 +318,7 @@ function useHeatPolygons(
                 hoverRef.current(key)
               }),
               api.Event.addListener(p, 'mouseout', () => {
-                p.setOptions?.({ strokeWeight: 1 })
+                p.setOptions?.({ strokeWeight: HEAT_STROKE })
                 hoverRef.current(null)
               }),
             )
@@ -678,6 +683,7 @@ export function MapView({
   fitSeq = 0,
   theme = 'dark',
   heat = null,
+  onHeatOpen,
   overviewSeq = 0,
 }: MapViewProps) {
   const sectionRef = useRef<HTMLElement>(null)
@@ -1600,6 +1606,12 @@ export function MapView({
       )}
       {map && !error && (compare ? compare.guide : !selected && '지도를 눌러 위치를 고르세요') && (
         <p className="map__guide">{compare ? compare.guide : '지도를 눌러 위치를 고르세요'}</p>
+      )}
+      {map && !error && !heat && onHeatOpen && (
+        <button type="button" className="map__heat-open" onClick={onHeatOpen}>
+          <span className="map__heat-open-dots" aria-hidden="true" />
+          업종 지도 보기
+        </button>
       )}
       {map && !error && heat && (
         <section className="map__heat" aria-label={`업종 지도 — ${heat.title}`}>
