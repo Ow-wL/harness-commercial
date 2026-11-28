@@ -26,7 +26,9 @@
       ],
       "commits": [
         "bf6a3b2",
-        "b59664c"
+        "b59664c",
+        "402f92a",
+        "7feac49"
       ]
     },
     {
@@ -1660,6 +1662,26 @@
       "source_commit": "447a68d",
       "engine": "mvp-0.5.1",
       "note": "운영 트래픽 100% 전환 — 새 비교 화면·간단한 첫 화면·무채색 지도. 운영 API 48건 대조·화면 확인 뒤 기록"
+    },
+    {
+      "id": "2026-11-28-verification-7feac49",
+      "kind": "verification",
+      "result": "passed",
+      "date": "2026-11-28",
+      "app_version": "v0.7.2",
+      "source_commit": "7feac49",
+      "engine": "mvp-0.5.1",
+      "note": "API 48건 통과, 새 지도 스타일(다크·라이트)·테마 전환·업종 지도 켜고 끄기 확인"
+    },
+    {
+      "id": "2026-11-28-production-7feac49",
+      "kind": "production",
+      "result": "done",
+      "date": "2026-11-28",
+      "app_version": "v0.7.2",
+      "source_commit": "7feac49",
+      "engine": "mvp-0.5.1",
+      "note": "운영 트래픽 100% 전환 — 새 지도 스타일·업종 지도 켜고 끄기. 운영 API 48건 대조·화면 확인 뒤 기록"
     }
   ]
 }
