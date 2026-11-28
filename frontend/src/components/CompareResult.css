@@ -188,7 +188,7 @@
 
 .compare__sites-label {
   padding-bottom: 8px;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 600;
   color: var(--color-text-muted);
 }
@@ -237,7 +237,7 @@
 
 .compare__site-name {
   min-width: 0;
-  font-size: 15px;
+  font-size: 17px;
   font-weight: 700;
   line-height: 1.3;
   color: var(--color-text-primary);
@@ -256,14 +256,14 @@
 .compare__site--b .compare__site-score { color: var(--compare-b); }
 
 .compare__site-score--missing {
-  font-size: 20px;
+  font-size: 22px;
   letter-spacing: 0;
   color: var(--color-text-muted) !important;
 }
 
 .compare__site-score small {
   margin-left: 3px;
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 500;
   letter-spacing: 0;
   color: var(--color-text-muted);
@@ -271,20 +271,20 @@
 
 .compare__site-go {
   flex: none;
-  font-size: 18px;
+  font-size: 20px;
   color: var(--color-text-muted);
 }
 
 .compare__site-sub {
   margin: 0 0 7px;
-  font-size: 12px;
+  font-size: 14px;
   line-height: 1.5;
   color: var(--color-text-muted);
 }
 
 .compare__site-sub .reference-address {
   display: inline;
-  font-size: 12px;
+  font-size: 14px;
   color: var(--color-text-muted);
 }
 
@@ -299,7 +299,7 @@
 
 .compare__distance {
   margin: 4px 0 0;
-  font-size: 12px;
+  font-size: 14px;
   color: var(--color-text-muted);
 }
 
@@ -312,7 +312,7 @@
 .compare__lead {
   margin: 14px 0 0;
   text-align: center;
-  font-size: 18px;
+  font-size: 20px;
   font-weight: 800;
   line-height: 1.4;
   letter-spacing: -0.02em;
@@ -339,7 +339,7 @@
   border-radius: var(--radius-pill);
   background: none;
   font: inherit;
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 600;
   color: var(--color-text-secondary);
   cursor: pointer;
@@ -385,7 +385,7 @@
 
 .compare-row__label {
   text-align: center;
-  font-size: 15px;
+  font-size: 17px;
   font-weight: 700;
   color: var(--color-text-primary);
 }
@@ -410,7 +410,7 @@
 .compare-row__bar--hi { opacity: 1; }
 
 .compare-row__val {
-  font-size: 15px;
+  font-size: 17px;
   font-weight: 500;
   font-variant-numeric: tabular-nums;
   color: var(--color-text-secondary);
@@ -420,7 +420,7 @@
 .compare-row__val--b { text-align: left; }
 
 /* 차이가 기준을 넘는 관점만 높은 쪽 숫자를 크고 진하게(그 쪽 색) */
-.compare-row__val.compare-row__hi { font-size: 19px; font-weight: 800; letter-spacing: -0.02em; }
+.compare-row__val.compare-row__hi { font-size: 21px; font-weight: 800; letter-spacing: -0.02em; }
 .compare-row__val--a.compare-row__hi { color: var(--compare-a); }
 .compare-row__val--b.compare-row__hi { color: var(--compare-b); }
 
@@ -428,7 +428,7 @@
   grid-column: 1 / -1;
   margin-top: 4px;
   text-align: center;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 600;
   color: var(--color-warning);
 }
@@ -499,7 +499,7 @@
 .compare-ring__arc--b { stroke: var(--compare-b); }
 
 .compare-ring__name {
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 700;
   color: var(--color-text-primary);
 }
@@ -509,7 +509,7 @@
   flex-direction: column;
   align-items: center;
   gap: 1px;
-  font-size: 13px;
+  font-size: 15px;
   font-variant-numeric: tabular-nums;
   color: var(--color-text-secondary);
 }
@@ -526,7 +526,7 @@
 .compare-ring__tag {
   padding: 0 4px;
   text-align: center;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 600;
   line-height: 1.35;
   color: var(--color-warning);
@@ -571,14 +571,14 @@
   .compare__sites { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 0 14px; }
   .compare__sites-label { display: none; }
   .compare__site-score { font-size: 36px; }
-  .compare__site-score small { font-size: 12px; }
-  .compare__site-name { font-size: 14px; }
-  .compare__lead { font-size: 16px; }
+  .compare__site-score small { font-size: 14px; }
+  .compare__site-name { font-size: 16px; }
+  .compare__lead { font-size: 18px; }
   .compare-rows { padding: 2px 10px; }
   .compare-row { grid-template-columns: 40px minmax(0, 1fr) 50px minmax(0, 1fr) 40px; column-gap: 6px; }
-  .compare-row__label { font-size: 14px; }
-  .compare-row__val { font-size: 14px; }
-  .compare-row__val.compare-row__hi { font-size: 16px; }
+  .compare-row__label { font-size: 16px; }
+  .compare-row__val { font-size: 16px; }
+  .compare-row__val.compare-row__hi { font-size: 18px; }
   .compare-row__track { height: 12px; }
 
   .compare-rings__list {
@@ -592,11 +592,11 @@
 
 @container (min-width: 720px) {
   .compare__site-score { font-size: 60px; }
-  .compare__lead { font-size: 21px; }
+  .compare__lead { font-size: 23px; }
   .compare-row { grid-template-columns: 60px minmax(0, 1fr) 84px minmax(0, 1fr) 60px; column-gap: 14px; padding: 12px 0; }
   .compare-row__track { height: 20px; }
-  .compare-row__label { font-size: 16px; }
-  .compare-row__val.compare-row__hi { font-size: 22px; }
+  .compare-row__label { font-size: 18px; }
+  .compare-row__val.compare-row__hi { font-size: 24px; }
   .compare-ring__dial { width: 96px; height: 96px; }
 }
 

@@ -13,7 +13,7 @@
   border-radius: 9px;
   background: var(--color-accent);
   color: var(--color-bg);
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 700;
 }
 
@@ -36,7 +36,7 @@
 
 .saved__item-title {
   margin: 0;
-  font-size: 15px;
+  font-size: 17px;
   font-weight: 700;
 }
 
@@ -58,7 +58,7 @@
 }
 
 .saved__score {
-  font-size: 20px;
+  font-size: 22px;
   font-weight: 700;
   color: var(--color-text-primary);
 }

@@ -3,6 +3,21 @@
   "renumbered_until": "v0.0.10",
   "releases": [
     {
+      "version": "v0.7.5",
+      "date": "2026-11-29",
+      "title": "더 큰 글자",
+      "changes": [
+        {
+          "type": "improved",
+          "text": "화면 전체의 글자를 조금씩 키웠고, 결과 아래 안내 문구도 더 진하게 보이게 했습니다."
+        }
+      ],
+      "work": [
+        "13-67(D-061): 24px 이하 font-size·--text-* 토큰 +2px, 참고 문구 15px·보조 글자색, 관점 점수 칸 58px"
+      ],
+      "commits": []
+    },
+    {
       "version": "v0.7.4",
       "date": "2026-11-29",
       "title": "더 간단한 첫 화면",
@@ -16,7 +31,8 @@
         "13-66(D-060): ConditionPanel 첫 화면·위치 화면·업종 화면(PickRow·PickViewHead·BusinessList), 업종 select 제거, 테스트·E2E 를 새 흐름에 맞춤"
       ],
       "commits": [
-        "8d013c5"
+        "8d013c5",
+        "589cd4e"
       ]
     },
     {

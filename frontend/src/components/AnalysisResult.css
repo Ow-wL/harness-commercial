@@ -18,7 +18,7 @@
   justify-content: space-between;
   gap: var(--space-2);
   margin: 0;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 600;
   line-height: 1.5;
   letter-spacing: 0.02em;
@@ -27,7 +27,7 @@
 
 .result__title {
   margin: 6px 0 0;
-  font-size: 22px;
+  font-size: 24px;
   font-weight: 700;
   line-height: 1.3;
   letter-spacing: -0.02em;
@@ -36,7 +36,7 @@
 
 .result__sub {
   margin-top: 2px;
-  font-size: 13px;
+  font-size: 15px;
   line-height: 1.5;
   color: var(--color-text-muted);
 }
@@ -44,7 +44,7 @@
 /* 최근접역 · 참고 주소를 한 문단으로 이어 쓴다(길면 자연 줄바꿈) */
 .result__sub .reference-address {
   display: inline;
-  font-size: 13px;
+  font-size: 15px;
   color: var(--color-text-muted);
 }
 
@@ -76,7 +76,7 @@
 /* 헤드라인 (2.3): 큰 점수 아래 15px */
 .result__headline {
   margin: 14px 0 0;
-  font-size: 15px;
+  font-size: 17px;
   line-height: 1.5;
   color: var(--color-text-secondary);
 }
@@ -89,9 +89,9 @@
 .result__hint,
 .result__disclaimer {
   margin: 12px 0 0;
-  font-size: 12px;
+  font-size: 15px;                                  /* 13-67: 참고 문구도 읽히게 — 흐린 색 대신 보조 글자색 */
   line-height: 1.6;
-  color: var(--color-text-muted);
+  color: var(--color-text-secondary);
 }
 
 .result__disclaimer {
@@ -121,7 +121,7 @@
 
 .result-section__title {
   margin: 0;
-  font-size: 16px;
+  font-size: 18px;
   font-weight: 700;
   line-height: 1.4;
   letter-spacing: -0.01em;
@@ -159,7 +159,7 @@
   padding: 4px 0;
   border: 0;
   background: none;
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 600;
   color: var(--color-accent);
   cursor: pointer;
@@ -217,20 +217,20 @@
 
   .result__title {
     margin: 0;
-    font-size: 17px;
+    font-size: 19px;
   }
 
   .result__sub {
-    font-size: 12px;
+    font-size: 14px;
   }
 
   .result__sub .reference-address {
-    font-size: 12px;
+    font-size: 14px;
   }
 
   .result__headline {
     margin-top: 6px;
-    font-size: 14px;
+    font-size: 16px;
   }
 
   .result__head .band {
@@ -358,7 +358,7 @@
 
 .result--dash .result__section-title {
   margin: 0;
-  font-size: 15px;
+  font-size: 17px;
   font-weight: 700;
   color: var(--color-text-primary);
 }
@@ -375,7 +375,7 @@
   border: 0;
   background: none;
   font: inherit;
-  font-size: 12px;
+  font-size: 14px;
   color: var(--color-text-secondary);
   cursor: pointer;
 }
@@ -452,10 +452,10 @@
 }
 
 .result__persp-note {
-  margin: 8px 0 0;
-  font-size: 12px;
-  line-height: 1.5;
-  color: var(--color-text-muted);
+  margin: 10px 0 0;
+  font-size: 15px;
+  line-height: 1.55;
+  color: var(--color-text-secondary);
 }
 
 .result--dash .result__disclaimer--foot {
@@ -491,7 +491,7 @@
   border-radius: var(--radius-pill);
   background: var(--color-surface-muted);
   font: var(--text-small);
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 700;
   color: var(--color-text-primary);
   cursor: pointer;

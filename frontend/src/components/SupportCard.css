@@ -27,7 +27,7 @@
 .support-card__status,
 .support-card__note,
 .support-card__nudge {
-  font-size: 12px;
+  font-size: 14px;
   line-height: 1.5;
   color: var(--color-text-muted);
 }
@@ -53,7 +53,7 @@
   border: 1px solid var(--color-border);
   border-radius: var(--radius-pill);
   background: var(--color-surface-muted);
-  font-size: 12px;
+  font-size: 14px;
   color: var(--color-text-secondary);
 }
 
@@ -136,7 +136,7 @@
   padding: 1px 8px;
   border-radius: var(--radius-pill);
   background: var(--color-accent-subtle);
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 600;
   line-height: 1.6;
   color: var(--color-accent);
@@ -148,7 +148,7 @@
   padding: 1px 8px;
   border-radius: var(--radius-pill);
   background: var(--color-surface);
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 600;
   line-height: 1.6;
   color: var(--color-text-muted);
@@ -162,7 +162,7 @@
 
 .support-item__title {
   margin: 0;
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 700;
   line-height: 1.45;
   color: var(--color-text-primary);
@@ -175,7 +175,7 @@
 
 .support-item__summary {
   margin: 0;
-  font-size: 12px;
+  font-size: 14px;
   line-height: 1.55;
   color: var(--color-text-secondary);
   display: -webkit-box;
@@ -190,7 +190,7 @@
   align-items: center;
   gap: 4px 6px;
   margin: 0;
-  font-size: 12px;
+  font-size: 14px;
   color: var(--color-text-muted);
 }
 
@@ -205,7 +205,7 @@
   padding: 0 6px;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-pill);
-  font-size: 12px;
+  font-size: 14px;
   line-height: 1.6;
 }
 
@@ -216,7 +216,7 @@
   margin: 0;
   padding: 0;
   list-style: none;
-  font-size: 12px;
+  font-size: 14px;
   color: var(--color-grade-good);
 }
 
@@ -245,7 +245,7 @@
   border: 1px solid var(--color-accent);
   border-radius: var(--radius-pill);
   background: var(--color-surface);
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 600;
   color: var(--color-accent);
   text-decoration: none;
@@ -256,7 +256,7 @@
 }
 
 .support-item__apply {
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 600;
   color: var(--color-accent);
 }
@@ -269,7 +269,7 @@
   border: 1px dashed var(--color-border-strong);
   border-radius: 10px;
   background: none;
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 600;
   color: var(--color-text-secondary);
   cursor: pointer;

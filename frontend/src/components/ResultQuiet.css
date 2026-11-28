@@ -6,14 +6,14 @@
 
 .result--quiet .result__title {
   margin-top: 10px;
-  font-size: 24px;
+  font-size: 26px;
   letter-spacing: -0.04em;
 }
 
 .result__location {
   margin-top: 8px;
   color: var(--color-text-muted);
-  font-size: 12px;
+  font-size: 14px;
   line-height: 1.6;
 }
 
@@ -37,7 +37,7 @@
 .result--quiet .overall__note { display: none; }
 .result--quiet .result__headline {
   margin-top: 0;
-  font-size: 14px;
+  font-size: 16px;
   line-height: 1.65;
 }
 
@@ -47,7 +47,7 @@
   align-items: center;
   gap: 12px;
   margin-top: 12px;
-  font-size: 12px;
+  font-size: 14px;
   color: var(--color-text-muted);
 }
 
@@ -76,12 +76,12 @@
 .result--quiet .perspective__button { min-height: 56px; padding-block: 16px; }
 .result--quiet .perspective__track { height: 4px; }
 .result--quiet .perspective__marker { display: none; }
-.result--quiet .perspective__score { font-size: 20px; font-weight: 500; }
-.result--quiet .perspective__label { font-size: 14px; font-weight: 500; }
+.result--quiet .perspective__score { font-size: 22px; font-weight: 500; white-space: nowrap; }
+.result--quiet .perspective__label { font-size: 16px; font-weight: 500; }
 .result--quiet .perspective__button:has(.perspective__missing) { grid-template-columns: 64px minmax(0, 1fr) 64px; }
 .result--quiet .perspective__missing { white-space: nowrap; }
 .result--quiet .perspectives__scale { margin-top: 4px; }
-.result__brief-note { margin: 24px 0 6px; color: var(--color-text-muted); font-size: 12px; line-height: 1.6; }
+.result__brief-note { margin: 24px 0 6px; color: var(--color-text-secondary); font-size: 15px; line-height: 1.6; }
 .result--explained .result__brief-note { display: none; }
 
 .band--disclosure {
@@ -95,7 +95,7 @@
   min-height: 48px;
   cursor: pointer;
   list-style: none;
-  font-size: 12px;
+  font-size: 14px;
 }
 .band__summary-label { flex: none; font-weight: 600; color: var(--color-text-secondary); }
 .band__summary-topics { flex: 1; color: var(--color-text-muted); line-height: 1.6; }
@@ -107,7 +107,7 @@
 
 @media (max-width: 639px) {
   .result--quiet .result__head { padding-top: 20px; }
-  .result--quiet .result__title { font-size: 21px; margin-top: 4px; }
+  .result--quiet .result__title { font-size: 23px; margin-top: 4px; }
   .result--quiet .perspective__button { min-height: 48px; padding-block: 12px; }
   .compare.result--quiet .result__head { padding-top: 14px; }
   .compare.result--quiet .result__location { margin-top: 0; }

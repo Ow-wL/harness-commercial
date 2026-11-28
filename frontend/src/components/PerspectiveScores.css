@@ -14,7 +14,7 @@
   justify-content: space-between;
   margin: 12px 0 2px calc(64px + 12px);
   margin-right: calc(46px + 12px);
-  font-size: 12px;
+  font-size: 14px;
   color: var(--color-text-muted);
   font-variant-numeric: tabular-nums;
 }
@@ -31,7 +31,7 @@
 
 .perspective__button {
   display: grid;
-  grid-template-columns: 64px minmax(0, 1fr) 46px;
+  grid-template-columns: 68px minmax(0, 1fr) 58px;   /* 13-67: 글자 +2px — 점수 "52.6" 이 줄바꿈되지 않게 */
   align-items: center;
   column-gap: 12px;
   width: 100%;
@@ -59,7 +59,7 @@ button.perspective__button:hover .perspective__label {
 .perspective__label {
   display: inline-flex;
   align-items: center;
-  font-size: 15px;
+  font-size: 17px;
   font-weight: 600;
   white-space: nowrap;
   color: var(--color-text-primary);
@@ -127,7 +127,7 @@ button.perspective__button:hover .perspective__label {
 }
 
 .perspective__score {
-  font-size: 19px;
+  font-size: 21px;
   font-weight: 600;
   letter-spacing: -0.01em;
   text-align: right;
@@ -136,7 +136,7 @@ button.perspective__button:hover .perspective__label {
 }
 
 .perspective__missing {
-  font-size: 12px;
+  font-size: 14px;
   line-height: 1.3;
   text-align: right;
   color: var(--color-text-muted);
@@ -145,7 +145,7 @@ button.perspective__button:hover .perspective__label {
 .perspective__sub {
   grid-column: 2 / 4;
   margin-top: 4px;
-  font-size: 12px;
+  font-size: 14px;
   line-height: 1.5;
   color: var(--color-text-muted);
 }
@@ -214,7 +214,7 @@ button.perspective__button:hover .perspective__label {
   padding: 0 6px;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-pill);
-  font-size: 12px;
+  font-size: 14px;
   line-height: 16px;
   color: var(--color-text-muted);
   white-space: nowrap;
@@ -225,7 +225,7 @@ button.perspective__button:hover .perspective__label {
 .perspective__tags {
   grid-column: 2 / 4;
   margin-top: 2px;
-  font-size: 12px;
+  font-size: 14px;
   line-height: 1.5;
 }
 
@@ -242,7 +242,7 @@ button.perspective__button:hover .perspective__label {
   border: 0;
   background: none;
   font: inherit;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 600;
   color: var(--color-accent);
   cursor: pointer;

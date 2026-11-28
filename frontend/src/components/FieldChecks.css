@@ -30,7 +30,7 @@
   align-items: center;
   gap: 8px;
   margin: 0;
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 700;
   color: var(--color-text-primary);
 }
@@ -44,7 +44,7 @@
   border-radius: 50%;
   background: var(--color-accent);
   color: var(--color-bg);
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 700;
 }
 

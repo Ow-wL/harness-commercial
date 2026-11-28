@@ -5,7 +5,7 @@
 
 .station-suggest__title {
   margin: 0 0 4px;
-  font-size: 12px;
+  font-size: 14px;
   color: var(--color-text-muted);
 }
 
@@ -28,7 +28,7 @@
   border-radius: var(--radius-pill);
   background: var(--color-surface);
   font: inherit;
-  font-size: 13px;
+  font-size: 15px;
   color: var(--color-text-primary);
   cursor: pointer;
 }
@@ -42,7 +42,7 @@
   padding: 0 5px;
   border-radius: var(--radius-pill);
   background: var(--color-accent-subtle);
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 600;
   color: var(--color-accent);
 }

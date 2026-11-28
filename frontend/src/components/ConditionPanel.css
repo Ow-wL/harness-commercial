@@ -21,7 +21,7 @@
 
 .conditions__lead {
   margin: 8px 0 0;
-  font-size: 15px;
+  font-size: 17px;
   line-height: 1.55;
   color: var(--color-text-secondary);
 }
@@ -42,7 +42,7 @@
   align-items: center;
   gap: 10px;
   margin-bottom: 4px;
-  font-size: 15px;
+  font-size: 17px;
   font-weight: 700;
   color: var(--color-text-primary);
 }
@@ -58,7 +58,7 @@
   height: 22px;
   border-radius: 50%;
   background: var(--color-surface-sunken);
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 600;
   color: var(--color-text-secondary);
 }
@@ -73,7 +73,7 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  font-size: 15px;
+  font-size: 17px;
   font-weight: 700;
 }
 
@@ -88,7 +88,7 @@
   height: 22px;
   border-radius: 50%;
   background: var(--color-accent);
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 600;
   color: var(--color-bg);
 }
@@ -205,7 +205,7 @@
 .conditions__submit .button {
   height: 48px;
   border-radius: 12px;
-  font-size: 15px;
+  font-size: 17px;
   font-weight: 700;
 }
 
@@ -258,7 +258,7 @@
 .conditions__submit .button--primary {
   height: 52px;
   border-radius: var(--radius-pill);
-  font-size: 16px;
+  font-size: 18px;
   font-weight: 700;
 }
 
@@ -345,7 +345,7 @@
   border: 0;
   background: none;
   font-family: inherit;
-  font-size: 18px;
+  font-size: 20px;
   font-weight: 700;
   line-height: 1.3;
   text-align: left;
@@ -371,13 +371,13 @@
 }
 
 .pick-row__label {
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 600;
   color: var(--color-text-muted);
 }
 
 .pick-row__value {
-  font-size: 17px;
+  font-size: 19px;
   font-weight: 700;
   line-height: 1.35;
   color: var(--color-text-primary);
@@ -387,7 +387,7 @@
 .pick-row__value .reference-address {
   display: inline;
   margin: 0;
-  font-size: 15px;
+  font-size: 17px;
   font-weight: 700;
   color: var(--color-text-primary);
 }
@@ -442,7 +442,7 @@
 
 .pick-view__title {
   margin: 0;
-  font-size: 24px;
+  font-size: 26px;
   font-weight: 800;
   letter-spacing: -0.02em;
   color: var(--color-text-primary);
@@ -465,7 +465,7 @@
 
 .biz-list__name {
   margin: 0 0 8px;
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 700;
   color: var(--color-text-muted);
 }
@@ -483,7 +483,7 @@
   border-radius: var(--radius-pill);
   background: var(--color-surface-muted);
   font: inherit;
-  font-size: 15px;
+  font-size: 17px;
   font-weight: 600;
   color: var(--color-text-primary);
   cursor: pointer;
@@ -502,7 +502,7 @@
 .conditions__submit .button--primary {
   min-height: 60px;
   border-radius: var(--radius-pill);
-  font-size: 18px;
+  font-size: 20px;
   font-weight: 800;
 }
 

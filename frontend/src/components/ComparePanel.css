@@ -94,7 +94,7 @@
 /* ─── A3: B 고르기 패널 (패널 안 좌우 24px, mobile 16px) ─── */
 .result__head .compare__lead {
   margin: 8px 0 0;
-  font-size: 13px;
+  font-size: 15px;
   line-height: 1.55;
   color: var(--color-text-muted);
 }
@@ -107,7 +107,7 @@
   padding: 10px 12px;
   border-radius: 10px;
   background: var(--color-surface-muted);
-  font-size: 13px;
+  font-size: 15px;
   color: var(--color-text-secondary);
 }
 
@@ -115,7 +115,7 @@
   flex: 1;
   min-width: 0;
   margin: 0;
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 600;
   color: var(--color-text-primary);
 }

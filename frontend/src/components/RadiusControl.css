@@ -4,7 +4,7 @@
   display: flex;
   align-items: center;
   cursor: pointer;
-  font-size: 12px;
+  font-size: 14px;
   color: var(--color-text-muted);
 }
 
@@ -135,7 +135,7 @@
 
 .radius-control--bar .radius-control__label {
   padding: 0 8px 0 6px;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 400;
   white-space: nowrap;
   color: var(--color-text-muted);
@@ -148,7 +148,7 @@
   padding: 0 10px;
   border-radius: 8px;
   background: transparent;
-  font-size: 13px;
+  font-size: 15px;
 }
 
 .radius-control--bar .radius-control__button + .radius-control__button {

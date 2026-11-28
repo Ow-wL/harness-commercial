@@ -126,7 +126,7 @@
   padding: 9px 12px;
   border-radius: 10px;
   list-style: none;
-  font-size: 12px;
+  font-size: 14px;
   line-height: 1.4;
   color: var(--color-text-secondary);
   pointer-events: none;
@@ -166,7 +166,7 @@
   height: 44px;
   border: 0;
   background: transparent;
-  font-size: 20px;
+  font-size: 22px;
   line-height: 1;
   color: var(--color-text-primary);
   cursor: pointer;
@@ -281,7 +281,7 @@
   justify-content: center;
   width: 20px;
   height: 20px;
-  font: 700 11px/1 var(--font-sans);
+  font: 700 13px/1 var(--font-sans);
 }
 
 .map-marker--a {
@@ -482,7 +482,7 @@
 
 .map-store-info__caption {
   margin: 0;
-  font-size: 12px;
+  font-size: 14px;
   line-height: 1.4;
   color: var(--color-map-info-text-2);
 }
@@ -619,7 +619,7 @@
   margin: 0;
   padding: 0;
   list-style: none;
-  font-size: 12px;
+  font-size: 14px;
   color: var(--color-text-secondary);
   text-align: center;
 }
@@ -661,7 +661,7 @@
 
 .map__heat-note {
   margin: 0;
-  font-size: 12px;
+  font-size: 14px;
   color: var(--color-text-muted);
 }
 

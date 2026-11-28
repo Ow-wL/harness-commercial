@@ -18,7 +18,7 @@
 .time-card__meta,
 .time-card__note {
   margin: 0;
-  font-size: 12px;
+  font-size: 14px;
   line-height: 1.5;
   color: var(--color-text-muted);
 }
@@ -48,7 +48,7 @@
 }
 
 .time-chart__tick {
-  font-size: 8px;
+  font-size: 10px;
   fill: var(--color-text-muted);
 }
 
@@ -57,7 +57,7 @@
   flex-wrap: wrap;
   gap: 4px 10px;
   margin-top: 4px;
-  font-size: 12px;
+  font-size: 14px;
   color: var(--color-text-muted);
 }
 
@@ -68,7 +68,7 @@
 
 .time-card__line {
   margin: 0 0 6px;
-  font-size: 14px;
+  font-size: 16px;
   line-height: 1.55;
   color: var(--color-text-primary);
 }
@@ -91,27 +91,27 @@
 }
 
 .time-card__pop dt {
-  font-size: 12px;
+  font-size: 14px;
   color: var(--color-text-muted);
 }
 
 .time-card__pop dd {
   margin: 0;
-  font-size: 18px;
+  font-size: 20px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   color: var(--color-text-primary);
 }
 
 .time-card__pop-sub {
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 500;
   color: var(--color-text-muted);
 }
 
 .time-card__hint {
   margin: 2px 0 0;
-  font-size: 12px;
+  font-size: 14px;
   color: var(--color-text-muted);
 }
 
@@ -143,14 +143,14 @@
 
 .time-card__station-title {
   margin: 0;
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 700;
   color: var(--color-text-primary);
 }
 
 .time-card__station-lines {
   font-weight: 500;
-  font-size: 12px;
+  font-size: 14px;
   color: var(--color-text-muted);
 }
 
@@ -166,7 +166,7 @@
   border: 1px solid var(--color-border);
   border-radius: var(--radius-pill);
   background: var(--color-surface);
-  font-size: 12px;
+  font-size: 14px;
   color: var(--color-text-secondary);
   cursor: pointer;
 }

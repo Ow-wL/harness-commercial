@@ -25,7 +25,7 @@
   border-radius: 10px;
   background: var(--tone-subtle);
   box-shadow: inset 3px 0 0 var(--tone);
-  font-size: 13px;
+  font-size: 15px;
   line-height: 1.45;
   color: var(--tone-text);
   text-decoration: none;
@@ -74,7 +74,7 @@
 .band__list:has(li + li) .band__item {
   min-height: 40px;
   padding: 7px 11px;
-  font-size: 12.5px;
+  font-size: 14.5px;
   line-height: 1.4;
 }
 
@@ -96,7 +96,7 @@
   border-radius: 10px;
   background: var(--tone-subtle);
   box-shadow: inset 3px 0 0 var(--tone);
-  font-size: 13px;
+  font-size: 15px;
   line-height: 1.45;
   color: var(--color-text-primary);
 }

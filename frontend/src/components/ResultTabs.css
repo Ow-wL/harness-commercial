@@ -74,7 +74,7 @@
   padding: 0 16px;
   border-radius: var(--radius-pill);
   background: var(--color-surface-muted);
-  font-size: 14px;
+  font-size: 16px;
   color: var(--color-text-primary);
   transition:
     background-color var(--duration-base) ease-out,

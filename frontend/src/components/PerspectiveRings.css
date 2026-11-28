@@ -57,7 +57,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 22px;
+  font-size: 24px;
   font-weight: 700;
   letter-spacing: -0.02em;
   font-variant-numeric: tabular-nums;
@@ -65,7 +65,7 @@
 }
 
 .persp-rings__name {
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 700;
   line-height: 1.3;
   color: var(--color-text-primary);
@@ -117,8 +117,8 @@
     stroke-width: 10;
   }
 
-  .persp-rings__score { font-size: 16px; }
-  .persp-rings__name { font-size: 13px; }
+  .persp-rings__score { font-size: 18px; }
+  .persp-rings__name { font-size: 15px; }
 }
 
 /* 인쇄: 아래 다섯 관점 목록이 같은 값을 찍는다 */

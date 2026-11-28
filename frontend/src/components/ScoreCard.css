@@ -23,7 +23,7 @@
 .score-card__conclusion {
   max-width: 28em;
   margin: 16px 0 0;
-  font-size: 24px;
+  font-size: 26px;
   font-weight: 700;
   line-height: 1.45;
   letter-spacing: -0.01em;
@@ -40,7 +40,7 @@
   border: 1px solid var(--color-border);
   border-radius: var(--radius-pill);
   background: var(--color-surface);
-  font-size: 13px;
+  font-size: 15px;
   line-height: 1.4;
   color: var(--color-text-secondary);
 }
@@ -49,7 +49,7 @@
   padding: 1px 7px;
   border-radius: var(--radius-pill);
   background: var(--color-surface-muted);
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 600;
   color: var(--color-text-muted);
 }
@@ -66,6 +66,6 @@
 
   .score-card__conclusion {
     margin-top: 12px;
-    font-size: 19px;
+    font-size: 21px;
   }
 }
