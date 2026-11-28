@@ -2056,7 +2056,8 @@ describe('MapView — 인증 실패·초기화 실패 격리', () => {
     await waitFor(() => expect(maps).toHaveLength(2))
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
     expect(view.onSdkState).toHaveBeenLastCalledWith(expect.objectContaining({ status: 'ready' }))
-    expect(vi.mocked(fakeSdk.Marker).mock.calls.length).toBeGreaterThan(0)   // 선택 마커를 새 지도에 다시 그린다
+    // 선택 마커를 새 지도에 다시 그린다 — 마커는 지도 생성과 다른 effect 라 기다린다(부하에서 순서가 밀려 간헐 실패했다, 13-57)
+    await waitFor(() => expect(vi.mocked(fakeSdk.Marker).mock.calls.length).toBeGreaterThan(0))
   })
 
   it('SDK 지도 생성이 예외를 던지면(초기화 실패) 부분 생성분을 정리하고 실패 안내·재시도를 보인다 — 재시도가 성공하면 복구', async () => {

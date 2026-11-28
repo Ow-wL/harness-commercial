@@ -3,32 +3,32 @@
 
 :root {
   /* color — neutral & surface */
-  --color-bg: #F5F7FA;
+  --color-bg: #F4F6F8;
   --color-surface: #FFFFFF;
-  --color-surface-muted: #EEF1F5;
-  --color-surface-sunken: #E4E8EE;
-  --color-border: #DDE2E9;
+  --color-surface-muted: #F1F3F6;
+  --color-surface-sunken: #E8ECF0;
+  --color-border: #E2E6EA;
   --color-border-strong: #B9C1CC;
-  --color-text-primary: #17202B;
-  --color-text-secondary: #444E5B;
-  --color-text-muted: #656F7C;
+  --color-text-primary: #0E1013;
+  --color-text-secondary: #49505A;
+  --color-text-muted: #5E6671;
   --color-text-disabled: #9AA3AE;
   --color-text-inverse: #FFFFFF;
   --color-text-on-data: #FFFFFF;            /* 8-DK: 데이터 막대 위 글자 */
 
   /* color — accent (Harbor Blue, 행동·선택 전용) */
-  --color-accent: #1D5BBF;
-  --color-accent-hover: #174CA0;
-  --color-accent-active: #123E84;
-  --color-accent-subtle: #EAF1FC;
-  --color-accent-border: #A8C3EC;
-  --color-focus-ring: #1D5BBF;
+  --color-accent: #1D56D6;
+  --color-accent-hover: #1848B8;
+  --color-accent-active: #143C99;
+  --color-accent-subtle: #EAF1FE;
+  --color-accent-border: #A9C4F5;
+  --color-focus-ring: #1D56D6;
   /* 8-DK: 버튼 채움을 글자·선 accent와 나눈다(다크에서 값이 다르다) */
-  --color-accent-fill: #1D5BBF;
-  --color-accent-fill-hover: #174CA0;
-  --color-accent-fill-active: #123E84;
+  --color-accent-fill: linear-gradient(100deg, #2563EB, #1668D8);
+  --color-accent-fill-hover: #1D56D6;
+  --color-accent-fill-active: #1848B8;
   --color-on-accent-fill: #FFFFFF;          /* 13-53: 버튼 채움 위 글자(다크는 그라데이션 위 어두운 글자) */
-  --color-focus-halo: rgba(29, 91, 191, 0.25);
+  --color-focus-halo: rgba(37, 99, 235, 0.25);
   /* 13-54: 점수 고리 그라데이션(파랑 → 청록 → 초록)과 빛 번짐 */
   --color-ring-a: #2563EB;
   --color-ring-b: #06B6D4;
@@ -36,10 +36,10 @@
   --color-ring-glow: rgba(37, 99, 235, 0.2);
 
   /* color — data (점수·차트 전용) */
-  --color-data-bar: #4A6B94;
-  --color-data-bar-muted: #9DB0C8;
-  --color-data-track: #E4E8EE;
-  --color-data-reference: #17202B;
+  --color-data-bar: #6B7480;
+  --color-data-bar-muted: #B4BAC2;
+  --color-data-track: #E8ECF0;
+  --color-data-reference: #0E1013;
   --color-data-missing: #C5CCD6;
 
   /* color — 5대 관점 식별 (라벨 마커·범례·세부 띠 전용, 막대 채움 금지) */
@@ -64,22 +64,22 @@
   --color-info-border: #B7CCE6;
 
   /* color — 점수 등급 (13-4, lib/grade): 좋음 ≥70 초록 · 보통 40~70 파랑(기본 막대색) · 약함 25~40 주황 · 주의 <25 빨강. 항상 글자 등급과 함께 */
-  --color-grade-good: #1E7A4C;
-  --color-grade-good-subtle: #E8F5EE;
-  --color-grade-mid: #4A6B94;
-  --color-grade-mid-subtle: #EEF1F5;
+  --color-grade-good: #0A7562;
+  --color-grade-good-subtle: #E6F6F2;
+  --color-grade-mid: #5E6671;
+  --color-grade-mid-subtle: #F1F3F6;
   --color-grade-weak: #B4560C;
   --color-grade-weak-subtle: #FFF1E3;
   --color-grade-alert: #B42318;
   --color-grade-alert-subtle: #FDECEB;
 
   /* color — map (4-4) */
-  --color-map-marker: #1D5BBF;
-  --color-map-radius-fill: rgba(29, 91, 191, 0.08);
-  --color-map-radius-stroke: #1D5BBF;
-  --color-map-dong-fill: rgba(29, 91, 191, 0.06);
-  --color-map-dong-stroke: #4A6B94;
-  --color-map-boundary: #656F7C;
+  --color-map-marker: #2563EB;
+  --color-map-radius-fill: rgba(37, 99, 235, 0.08);
+  --color-map-radius-stroke: #2563EB;
+  --color-map-dong-fill: rgba(37, 99, 235, 0.06);
+  --color-map-dong-stroke: #6B7480;
+  --color-map-boundary: #5E6671;
   --color-map-outside-dim: rgba(23, 32, 43, 0.06);
   --color-map-invalid-marker: #656F7C;
   --color-map-store: #6D5BA8;

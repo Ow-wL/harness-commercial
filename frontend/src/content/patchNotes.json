@@ -3,6 +3,25 @@
   "renumbered_until": "v0.0.10",
   "releases": [
     {
+      "version": "v0.7.1",
+      "date": "2026-11-28",
+      "title": "더 간단한 첫 화면 · 새 밝은 화면",
+      "changes": [
+        {
+          "type": "improved",
+          "text": "분석 전 화면을 위치와 업종 두 칸으로 줄였습니다. 검색창이 바로 보이고, 좌표 입력은 작은 버튼으로 옮겼습니다."
+        },
+        {
+          "type": "improved",
+          "text": "밝은 화면의 색을 어두운 화면과 같은 느낌으로 다듬었습니다."
+        }
+      ],
+      "work": [
+        "13-57(D-054) 화면 개편 4단계: ConditionPanel 검색창 상시 표시·LocationMethodSwitch quiet(지도에서 고르기·좌표 입력)·단계 번호 제거, 라이트 색 토큰을 시안 화이트 모드로(대비 미달 값 조정), MapView.test 간헐 실패(마커 확인 waitFor) 수정"
+      ],
+      "commits": []
+    },
+    {
       "version": "v0.7.0",
       "date": "2026-11-28",
       "title": "새 로고 · 새 결과 화면",
@@ -31,7 +50,8 @@
         "4bd17cf",
         "643ccbe",
         "cd6c041",
-        "bbda097"
+        "bbda097",
+        "9f62822"
       ]
     },
     {

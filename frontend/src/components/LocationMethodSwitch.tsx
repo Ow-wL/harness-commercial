@@ -16,6 +16,7 @@ export function LocationMethodSwitch({
   disabled,
   onChange,
   mapButtonRef,
+  quiet = false,
 }: {
   value: LocationMethod | null
   addressReady: boolean
@@ -25,11 +26,15 @@ export function LocationMethodSwitch({
   onChange: (method: LocationMethod) => void
   /** 주소 검색이 포커스를 가진 채 사라질 때 포커스를 옮길 곳 (useSearchFocusRecovery) */
   mapButtonRef?: Ref<HTMLButtonElement>
+  /** 조건 패널(13-57): 검색창이 늘 보이므로 검색 방법은 빼고 [지도에서 고르기 │ 좌표 입력]만 작은 줄로 */
+  quiet?: boolean
 }) {
   const methods: { key: LocationMethod; label: string }[] = [
     { key: 'map', label: '지도에서 고르기' },
     // 13-52: 주소·장소 검색이 둘 다 되면 검색창 하나로 합친다 — 하나만 되면 기존 이름 그대로
-    ...(addressReady && placesReady
+    ...(quiet
+      ? []
+      : addressReady && placesReady
       ? [{ key: 'search' as const, label: '검색으로 찾기' }]
       : [
           ...(addressReady ? [{ key: 'address' as const, label: '주소로 찾기' }] : []),
@@ -38,14 +43,14 @@ export function LocationMethodSwitch({
     { key: 'coords', label: '좌표 입력' },
   ]
   return (
-    <div className="location-method" role="group" aria-label="위치 입력 방법">
+    <div className={`location-method${quiet ? ' location-method--quiet' : ''}`} role="group" aria-label="위치 입력 방법">
       {methods.map((m) => (
         <button
           key={m.key}
           ref={m.key === 'map' ? mapButtonRef : undefined}
           type="button"
           className="location-method__button"
-          aria-pressed={value === m.key}
+          aria-pressed={quiet ? (m.key === 'coords') === (value === 'coords') : value === m.key}
           disabled={disabled}
           onClick={() => onChange(m.key)}
         >

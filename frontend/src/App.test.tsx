@@ -976,7 +976,7 @@ describe('두 위치 비교 — B 분석 상태 (5차-B2, docs/COMPARE_DESIGN.md
       fireEvent.click(screen.getByRole('button', { name: '비교로 돌아가기' }))
       fireEvent.click(screen.getAllByRole('button', { name: 'B 전체 결과 보기' })[0]!)
       check('B 전체 결과')
-    })
+    }, 20000)                                                 // 화면 세 개를 오가는 긴 흐름 — 전체 실행 부하에서 기본 5초를 넘겼다(단독 약 2.4초, 13-57)
 
     it('전체 결과에서 비교를 끝내고 다시 비교하면 요약부터 보인다', async () => {
       await analyzeA([ok(guwolFixture), ok(songdoFixture)])
@@ -1908,7 +1908,8 @@ describe('비교 A/B 참고 주소 (7-B3, docs/ADDRESS_DESIGN.md §5.2 C·§5.3)
 describe('단일 위치 주소 검색 (7-B4, docs/ADDRESS_DESIGN.md §5.2 A)', () => {
   const ok = (body: unknown) => ({ status: 200, body })
   const conditions = () => screen.getByRole('region', { name: '분석 조건' })
-  const searchToggle = () => within(conditions()).queryByRole('button', { name: '주소로 찾기' })
+  // 13-57: 조건 패널의 주소 검색창은 Geocoder 가 준비되면 늘 보인다(여는 버튼 없음)
+  const searchBox = () => within(conditions()).queryByRole('textbox', { name: '주소' })
   const sdkReady = () => fireEvent.click(screen.getByRole('button', { name: 'SDK 준비' }))
   const bodyOf = (call: unknown[]) => JSON.parse((call[1] as RequestInit).body as string)
   const answer = async (calls: typeof sdkMock.geocodeCalls, i: number, status: number, response?: unknown) => {
@@ -1939,8 +1940,7 @@ describe('단일 위치 주소 검색 (7-B4, docs/ADDRESS_DESIGN.md §5.2 A)', (
   const analyzedAt = (lat: number, lng: number) => ({ ...fixture, context: { ...fixture.context, lat, lng } })
 
   function searchFor(query: string) {
-    fireEvent.click(searchToggle()!)
-    fireEvent.change(within(conditions()).getByRole('textbox', { name: '주소' }), { target: { value: query } })
+    fireEvent.change(searchBox()!, { target: { value: query } })
     fireEvent.click(within(conditions()).getByRole('button', { name: '검색' }))
   }
 
@@ -1958,27 +1958,26 @@ describe('단일 위치 주소 검색 (7-B4, docs/ADDRESS_DESIGN.md §5.2 A)', (
     vi.spyOn(console, 'warn').mockImplementation(() => {})
   })
 
-  it('Geocoder가 준비됐을 때만 "주소로 찾기"가 있다 (SDK 준비 전·Geocoder 없음에는 없음)', () => {
+  it('Geocoder가 준비됐을 때만 주소 검색창이 있다 (SDK 준비 전·Geocoder 없음에는 없음) — 준비되면 늘 보인다 (13-57)', () => {
     mockApi()
     render(<App />)
-    expect(searchToggle()).not.toBeInTheDocument()
+    expect(searchBox()).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'SDK Geocoder 없음' }))
-    expect(searchToggle()).not.toBeInTheDocument()
+    expect(searchBox()).not.toBeInTheDocument()
     sdkReady()
-    expect(searchToggle()).toBeInTheDocument()
-    // 위치 입력 방법 segmented 1줄 (P2·P3): 지도 → 주소 → 좌표, aria-pressed, 처음은 지도 안내
+    expect(searchBox()).toBeInTheDocument()
+    // 검색창 아래 작은 줄: 지도 → 좌표(검색 방법 버튼은 없다), aria-pressed, 처음은 지도 안내
     const methods = within(within(conditions()).getByRole('group', { name: '위치 입력 방법' })).getAllByRole('button')
-    expect(methods.map((b) => b.textContent)).toEqual(['지도에서 고르기', '주소로 찾기', '좌표 입력'])
-    expect(methods.map((b) => b.getAttribute('aria-pressed'))).toEqual(['true', 'false', 'false'])
+    expect(methods.map((b) => b.textContent)).toEqual(['지도에서 고르기', '좌표 입력'])
+    expect(methods.map((b) => b.getAttribute('aria-pressed'))).toEqual(['true', 'false'])
     expect(conditions()).toHaveTextContent('지도를 눌러 위치를 고르세요.')
-    // 고른 방법의 폼 하나만 열린다
-    fireEvent.click(searchToggle()!)
-    expect(within(conditions()).getByRole('textbox', { name: '주소' })).toBeInTheDocument()
     expect(within(conditions()).queryByLabelText('위도')).not.toBeInTheDocument()
+    // 좌표 입력을 고르면 좌표 폼이 열리고 지도 안내는 닫힌다 — 검색창은 그대로
     fireEvent.click(within(conditions()).getByRole('button', { name: '좌표 입력' }))
-    expect(within(conditions()).queryByRole('textbox', { name: '주소' })).not.toBeInTheDocument()
+    expect(searchBox()).toBeInTheDocument()
     expect(within(conditions()).getByLabelText('위도')).toBeInTheDocument()
-    expect(methods.map((b) => b.getAttribute('aria-pressed'))).toEqual(['false', 'false', 'true'])
+    expect(conditions()).not.toHaveTextContent('지도를 눌러 위치를 고르세요.')
+    expect(methods.map((b) => b.getAttribute('aria-pressed'))).toEqual(['false', 'true'])
   })
 
   it('검색 → 결과 선택: 분석은 시작하지 않고 위치 요약으로 포커스, 참고 주소는 역지오코딩 캐시로, 분석 요청 좌표는 adapter 좌표 그대로', async () => {
@@ -2002,7 +2001,6 @@ describe('단일 위치 주소 검색 (7-B4, docs/ADDRESS_DESIGN.md §5.2 A)', (
     expect(summary).toHaveAttribute('tabindex', '-1')
     expect(screen.queryByRole('list', { name: /검색 결과/ })).not.toBeInTheDocument()
     expect(within(conditions()).getByRole('textbox', { name: '주소' })).toHaveValue('인천광역시 부평구 부평대로 1')
-    expect(searchToggle()).toHaveAttribute('aria-pressed', 'true')
     expect(screen.getByTestId('map')).toHaveAttribute('data-selected', `${lat},${lng}`)
     expect(analyzeCalls(fetchMock)).toHaveLength(0)
 
@@ -2077,8 +2075,7 @@ describe('단일 위치 주소 검색 (7-B4, docs/ADDRESS_DESIGN.md §5.2 A)', (
     searchFor('부평대로')
     within(conditions()).getByRole('textbox', { name: '주소' }).focus()
     fireEvent.click(screen.getByRole('button', { name: 'SDK 인증 실패' }))
-    expect(searchToggle()).not.toBeInTheDocument()
-    expect(within(conditions()).queryByRole('textbox', { name: '주소' })).not.toBeInTheDocument()
+    expect(searchBox()).not.toBeInTheDocument()
     const mapMethod = within(conditions()).getByRole('button', { name: '지도에서 고르기' })
     expect(document.activeElement).toBe(mapMethod)
     expect(mapMethod).toHaveAttribute('aria-pressed', 'true')
@@ -2145,7 +2142,6 @@ describe('단일 위치 주소 검색 (7-B4, docs/ADDRESS_DESIGN.md §5.2 A)', (
     await answer(sdkMock.geocodeCalls, 0, 200, forward([BUPYEONG]))
     await selectBupyeongPcBang()
     fireEvent.click(analyzeButton())
-    expect(searchToggle()).toBeDisabled()
     expect(within(conditions()).getByRole('button', { name: '좌표 입력' })).toBeDisabled()
     expect(within(conditions()).getByRole('button', { name: '지도에서 고르기' })).toBeDisabled()
     expect(within(conditions()).getByRole('textbox', { name: '주소' })).toBeDisabled()
@@ -4189,15 +4185,16 @@ describe('장소 이름으로 찾기 (12-14, 계획 1-6, D-036) — 서버가 /h
     render(<App />)
     await waitFor(() => expect(screen.getByRole('combobox', { name: '업종' })).toBeEnabled())
     expect(method('장소 이름')).toBeNull()
+    expect(screen.queryByRole('textbox', { name: '장소 이름' })).not.toBeInTheDocument()
     expect(screen.getAllByRole('group', { name: '위치 입력 방법' })).toHaveLength(2)   // 조건 패널 + mobile 시트, 둘 다 없음
   })
 
-  it('광고하면 "장소 이름"이 있고, 검색 결과를 고르면 그 좌표가 위치가 된다(분석 없음, /places 1회). 주소 안내는 장소 이름을 가리킨다', async () => {
+  it('광고하면 "장소 이름" 검색창이 있고, 검색 결과를 고르면 그 좌표가 위치가 된다(분석 없음, /places 1회). 주소 안내는 장소 이름을 가리킨다', async () => {
     const fetchMock = mockApi({ health: HEALTH_PLACES, places: [PLACES] })
     render(<App />)
-    await waitFor(() => expect(method('장소 이름')).toBeInTheDocument())
-    fireEvent.click(method('장소 이름')!)
-    fireEvent.change(screen.getByRole('textbox', { name: '장소 이름' }), { target: { value: '부평역' } })
+    // 13-57: 조건 패널에는 여는 버튼 없이 검색창이 바로 있다(mobile 시트의 입력 방법에는 "장소 이름"이 있다)
+    fireEvent.change(await screen.findByRole('textbox', { name: '장소 이름' }), { target: { value: '부평역' } })
+    expect(within(screen.getAllByRole('group', { name: '위치 입력 방법' })[1]!).getByRole('button', { name: '장소 이름' })).toBeInTheDocument()
     fireEvent.submit(screen.getByRole('search', { name: '장소 이름 검색' }))
     const list = await screen.findByRole('list', { name: /검색 결과 1건/ })
     fireEvent.click(within(list).getByRole('button'))

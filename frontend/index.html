@@ -23,7 +23,7 @@
     <meta property="og:image:height" content="630" />
     <meta name="twitter:card" content="summary_large_image" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
-    <!-- 13-50: 홈 화면 아이콘·앱 이름·브라우저 위쪽 띠 색. 색은 아래 스크립트가 고른 테마에 맞춘다(다크 #07080A · 라이트 #F5F7FA = --color-bg) -->
+    <!-- 13-50: 홈 화면 아이콘·앱 이름·브라우저 위쪽 띠 색. 색은 아래 스크립트가 고른 테마에 맞춘다(다크 #07080A · 라이트 #F4F6F8 = --color-bg) -->
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="manifest" href="/manifest.json" />
     <meta name="theme-color" content="#07080A" />
@@ -37,7 +37,7 @@
         } catch (e) {}
         document.documentElement.setAttribute('data-theme', theme)
         var bar = document.querySelector('meta[name="theme-color"]')
-        if (bar && theme === 'light') bar.setAttribute('content', '#F5F7FA')
+        if (bar && theme === 'light') bar.setAttribute('content', '#F4F6F8')
       })()
     </script>
   </head>

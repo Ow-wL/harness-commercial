@@ -182,8 +182,8 @@ export function ConditionPanel({
 }
 
 /**
- * 위치 필드 (§7.4, P2·P3): 선택 요약(참고 주소가 앞, 좌표는 접힘) → 입력 방법 segmented 1줄
- * [지도에서 고르기 │ 주소로 찾기 │ 좌표 입력] → 고른 방법의 안내·폼 하나. 주소·좌표는 지도 클릭의 키보드 대안(§15)으로
+ * 위치 필드 (§7.4 → 13-57 §30): 선택 요약(참고 주소가 앞, 좌표는 접힘) → 검색창(되는 대로 늘 보임) → 작은 줄
+ * [지도에서 고르기 │ 좌표 입력] → 지도 안내·현재 위치 또는 좌표 폼. 주소·좌표는 지도 클릭의 키보드 대안(§15)으로
  * 지도 클릭과 같은 기능(`onLocationInput`)이다. "주소로 찾기"는 Geocoder 준비 때만(7-B4).
  * 방법은 App이 들고 있다 — mobile 지도 sheet의 같은 segmented가 패널로 와서 그 폼을 바로 연다(`methodFocus`, B5).
  */
@@ -222,10 +222,13 @@ function LocationField({
   const coordsId = useId()
   const [coordsOpen, setCoordsOpen] = useState(false)
   const summaryRef = useRef<HTMLDivElement>(null)
+  const searchRef = useRef<HTMLDivElement>(null)
   const bodyRef = useRef<HTMLDivElement>(null)
   const mapButtonRef = useRef<HTMLButtonElement>(null)
-  // Geocoder가 꺼지면 "주소로 찾기"가, 서버 광고가 없으면 "장소 이름"이 없어진다 — 그동안은 지도 안내를 보인다
+  // 13-57: 검색창은 되는 대로 늘 보인다(둘 다 → 하나로, 하나만 → 그것). 패널이 고르는 것은 좌표 입력을 펼칠지뿐이다 —
+  // mobile 지도 sheet가 검색 방법을 골라 넘어오면(methodFocus) 그 검색창으로 포커스만 옮긴다
   const shown: LocationMethod = availableMethod(method, searchApi !== null, placesReady)
+  const coordsShown = shown === 'coords'
 
   // 주소 검색 결과를 고르면 위치 요약으로 포커스 (§10 Q2). 고른 좌표가 그려진 뒤에 옮긴다
   const [focusSummary, setFocusSummary] = useState(0)
@@ -238,7 +241,11 @@ function LocationField({
   }
 
   useLayoutEffect(() => {
-    if (methodFocus) bodyRef.current?.querySelector<HTMLInputElement>('input')?.focus()
+    if (!methodFocus) return
+    const box = shown === 'coords' || shown === 'map' ? bodyRef.current : searchRef.current
+    box?.querySelector<HTMLInputElement>('input')?.focus()
+    // 포커스는 방법을 고른 그 순간에만 옮긴다 — shown 이 나중에 바뀌어도(SDK 준비 등) 다시 옮기지 않는다
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [methodFocus])
 
   // SDK 실패로 주소 폼이 포커스를 가진 채 사라지면 지금 눌린 "지도에서 고르기"로 포커스를 옮긴다
@@ -292,6 +299,15 @@ function LocationField({
         </div>
       )}
       {error}
+      <div ref={searchRef} className="location__search">
+        {searchApi && placesReady && (
+          <LocationSearch api={searchApi} disabled={disabled} onSelect={selectFromSearch} onFocusLost={onSearchFocusLost} />
+        )}
+        {searchApi && !placesReady && (
+          <AddressSearch api={searchApi} disabled={disabled} onSelect={selectFromSearch} onFocusLost={onSearchFocusLost} embedded placesReady={false} />
+        )}
+        {!searchApi && placesReady && <PlaceSearch disabled={disabled} onSelect={selectFromSearch} embedded />}
+      </div>
       <LocationMethodSwitch
         value={shown}
         addressReady={searchApi !== null}
@@ -299,9 +315,10 @@ function LocationField({
         disabled={disabled}
         onChange={choose}
         mapButtonRef={mapButtonRef}
+        quiet
       />
       <div ref={bodyRef} id={methodId} className="location__method-body">
-        {shown === 'map' && (
+        {!coordsShown && (
           <>
             <p className="field__hint">
               {location ? '지도를 다시 누르면 그 자리로 바뀝니다.' : '지도를 눌러 위치를 고르세요.'}
@@ -310,21 +327,7 @@ function LocationField({
             <MyLocationButton disabled={disabled} onLocate={onLocationInput} />
           </>
         )}
-        {shown === 'search' && searchApi && placesReady && (
-          <LocationSearch api={searchApi} disabled={disabled} onSelect={selectFromSearch} onFocusLost={onSearchFocusLost} />
-        )}
-        {shown === 'address' && searchApi && (
-          <AddressSearch
-            api={searchApi}
-            disabled={disabled}
-            onSelect={selectFromSearch}
-            onFocusLost={onSearchFocusLost}
-            embedded
-            placesReady={placesReady}
-          />
-        )}
-        {shown === 'place' && placesReady && <PlaceSearch disabled={disabled} onSelect={selectFromSearch} embedded />}
-        {shown === 'coords' && (
+        {coordsShown && (
           <CoordinateForm id={`${methodId}-coords`} initial={location} disabled={disabled} onSubmit={onLocationInput} />
         )}
       </div>

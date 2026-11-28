@@ -261,3 +261,18 @@
   font-size: 16px;
   font-weight: 700;
 }
+
+/* 13-57(§30): 분석 전 화면은 위치·업종 두 칸 — 단계 번호 원을 빼고, 검색창이 위치 칸의 얼굴이다 */
+.conditions .step__title::before,
+.conditions .step .radius-control__label::before {
+  content: none;
+  counter-increment: none;
+}
+
+.location__search:empty {
+  display: none;
+}
+
+.location__search {
+  margin-bottom: var(--space-2);
+}
