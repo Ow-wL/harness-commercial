@@ -30,7 +30,8 @@
         "aa8364a",
         "4bd17cf",
         "643ccbe",
-        "cd6c041"
+        "cd6c041",
+        "bbda097"
       ]
     },
     {
@@ -1558,6 +1559,26 @@
       "source_commit": "7e21393",
       "engine": "mvp-0.5.1",
       "note": "운영 트래픽 100% 전환 — 주소·장소 이름을 검색창 하나로. 운영 API 48건 대조·화면 확인 뒤 기록"
+    },
+    {
+      "id": "2026-11-28-verification-bbda097",
+      "kind": "verification",
+      "result": "passed",
+      "date": "2026-11-28",
+      "app_version": "v0.7.0",
+      "source_commit": "bbda097",
+      "engine": "mvp-0.5.1",
+      "note": "API 48건·업종 순위 통과, 새 결과 화면(점수 고리·탭 5개)과 AI 요약·지원사업 탭 내용 확인"
+    },
+    {
+      "id": "2026-11-28-production-bbda097",
+      "kind": "production",
+      "result": "done",
+      "date": "2026-11-28",
+      "app_version": "v0.7.0",
+      "source_commit": "bbda097",
+      "engine": "mvp-0.5.1",
+      "note": "운영 트래픽 100% 전환 — 새 로고·새 결과 화면. 운영 API 48건 대조·화면 확인 뒤 기록"
     }
   ]
 }
