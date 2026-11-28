@@ -15,7 +15,9 @@
       "work": [
         "13-66(D-060): ConditionPanel 첫 화면·위치 화면·업종 화면(PickRow·PickViewHead·BusinessList), 업종 select 제거, 테스트·E2E 를 새 흐름에 맞춤"
       ],
-      "commits": []
+      "commits": [
+        "8d013c5"
+      ]
     },
     {
       "version": "v0.7.3",
@@ -1737,6 +1739,26 @@
       "source_commit": "0ccb869",
       "engine": "mvp-0.5.1",
       "note": "운영 트래픽 100% 전환 — 차분한 지도 경계선. 운영 API 48건 대조·화면 확인 뒤 기록"
+    },
+    {
+      "id": "2026-11-29-verification-8d013c5",
+      "kind": "verification",
+      "result": "passed",
+      "date": "2026-11-29",
+      "app_version": "v0.7.4",
+      "source_commit": "8d013c5",
+      "engine": "mvp-0.5.1",
+      "note": "API 48건 통과, 새 첫 화면(장소 이름 검색 → 업종 → 분석) 확인"
+    },
+    {
+      "id": "2026-11-29-production-8d013c5",
+      "kind": "production",
+      "result": "done",
+      "date": "2026-11-29",
+      "app_version": "v0.7.4",
+      "source_commit": "8d013c5",
+      "engine": "mvp-0.5.1",
+      "note": "운영 트래픽 100% 전환 — 두 줄 첫 화면. 운영 API 48건 대조·화면 확인 뒤 기록"
     }
   ]
 }
