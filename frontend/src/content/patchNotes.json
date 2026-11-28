@@ -15,7 +15,9 @@
       "work": [
         "13-65: 외곽선 1.5px·무채색 반투명, 구 경계·분석 행정동 선 색 조정(tokens-a3.css, MapView OUTLINE_WEIGHT·GU_WEIGHT)"
       ],
-      "commits": []
+      "commits": [
+        "0ccb869"
+      ]
     },
     {
       "version": "v0.7.2",
@@ -1699,6 +1701,26 @@
       "source_commit": "7feac49",
       "engine": "mvp-0.5.1",
       "note": "운영 트래픽 100% 전환 — 새 지도 스타일·업종 지도 켜고 끄기. 운영 API 48건 대조·화면 확인 뒤 기록"
+    },
+    {
+      "id": "2026-11-29-verification-0ccb869",
+      "kind": "verification",
+      "result": "passed",
+      "date": "2026-11-29",
+      "app_version": "v0.7.3",
+      "source_commit": "0ccb869",
+      "engine": "mvp-0.5.1",
+      "note": "API 48건 통과, 새 지도 경계선(가늘고 옅은 선) 확인"
+    },
+    {
+      "id": "2026-11-29-production-0ccb869",
+      "kind": "production",
+      "result": "done",
+      "date": "2026-11-29",
+      "app_version": "v0.7.3",
+      "source_commit": "0ccb869",
+      "engine": "mvp-0.5.1",
+      "note": "운영 트래픽 100% 전환 — 차분한 지도 경계선. 운영 API 48건 대조·화면 확인 뒤 기록"
     }
   ]
 }
