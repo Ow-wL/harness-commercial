@@ -222,7 +222,7 @@ export function AnalysisResult({
               />
               <RadarChart series={[{ id: 'a', name: locationName(context), items: result.지표 }]} />
             </div>
-            <p className="result__persp-note">막대·거미줄의 점선 50은 인천 동네 평균 지점입니다 · 행을 누르면 근거가 펼쳐집니다.</p>
+            <p className="result__persp-note">막대·거미줄의 점선 50은 인천 보통 동네 수준입니다(순위 아님) · 행을 누르면 근거가 펼쳐집니다.</p>
           </section>
         </SectionPanel>
 

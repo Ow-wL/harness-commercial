@@ -2100,7 +2100,7 @@ describe('MapView — 업종 지도 (13-46, D-045)', () => {
     expect(card).toHaveTextContent('카페, 인천 어디가 높을까?')
     expect(card).toHaveTextContent('65 이상')
     expect(card).toHaveTextContent('1. 부평구 부평1동 66.1')
-    expect(card).toHaveTextContent('50 = 인천 동네 평균 지점')
+    expect(card).toHaveTextContent('50 = 인천 보통 동네 수준')
     expect(card).not.toHaveTextContent('화도면')                    // 점수 없는 동은 높은 동 목록에 없다
   })
 

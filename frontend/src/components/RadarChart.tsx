@@ -78,7 +78,7 @@ export function RadarChart({ series, size = 240, title = '다섯 관점 거미�
             ))}
           </ul>
         ))}
-        점선 오각형은 50(인천 동네 평균 지점)입니다.
+        점선 오각형은 50(인천 보통 동네 수준)입니다.
       </figcaption>
       {series.length > 1 && (
         <ul className="radar__legend" aria-hidden="true">

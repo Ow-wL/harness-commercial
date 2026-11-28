@@ -1636,7 +1636,7 @@ export function MapView({
               ? `${heat.layer.names.get(heatHover)} · ${hoverScore === null || hoverScore === undefined ? '점수 없음(반경 안 자료 부족)' : `${formatScore(hoverScore)}점`} — 누르면 이 자리 고르기`
               : '색칠된 동을 누르면 그 자리를 고릅니다'}
           </p>
-          <p className="map__heat-note">동마다 한 지점·반경 {formatRadius(heat.layer.radiusM)} · 50 = 인천 동네 평균 지점 · 점수는 매출이 아닙니다</p>
+          <p className="map__heat-note">동마다 한 지점·반경 {formatRadius(heat.layer.radiusM)} · 50 = 인천 보통 동네 수준 · 점수는 매출이 아닙니다</p>
         </section>
       )}
       {map && !error && (

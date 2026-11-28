@@ -170,10 +170,10 @@ describe('AnalysisResult — 실제 /analyze 응답(부평역 · PC방)', () => 
     expect(fold).not.toHaveClass('data-note__body--folded')
   })
 
-  it('관점 막대 범례는 50을 "인천 중앙"이 아니라 척도 중간으로 설명한다', () => {
+  it('관점 막대 범례는 50을 "인천 중앙"이 아니라 "인천 보통 동네 수준"으로 설명한다 (13-59)', () => {
     renderResult()
     const perspectives = screen.getByRole('region', { name: '5대 관점' })
-    expect(within(perspectives).getByText('막대의 50은 0~100 척도의 중간이며 순위가 아닙니다.')).toBeInTheDocument()
+    expect(within(perspectives).getByText('막대의 50은 인천 보통 동네 수준이며 순위가 아닙니다.')).toBeInTheDocument()
     expect(perspectives).not.toHaveTextContent('인천 중앙')
   })
 
