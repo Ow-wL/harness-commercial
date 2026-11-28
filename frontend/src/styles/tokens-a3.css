@@ -178,11 +178,11 @@
   --map-band-pad-top: 2px;
   --color-map-ui-edge: rgba(255, 255, 255, 0.12);
   --shadow-map-ui: var(--shadow-sm);
-  --color-heat-high2: #2f86ff;
-  --color-heat-high1: #86bbff;
+  --color-heat-high2: #5598e7;
+  --color-heat-high1: #9ec5f4;
   --color-heat-mid: #8a8984;
-  --color-heat-low1: #ffab7d;
-  --color-heat-low2: #ff5f1f;
+  --color-heat-low1: #f5b18e;
+  --color-heat-low2: #eb6834;
   --color-heat-none: rgba(149, 163, 189, 0.12);
   --color-heat-stroke: rgba(255, 255, 255, 0.28);
   --map-heat-opacity: 0.5;

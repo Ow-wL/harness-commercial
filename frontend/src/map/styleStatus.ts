@@ -14,10 +14,42 @@ type ResourceEntry = { name: string; startTime: number; responseStatus?: number 
 
 const last = new Map<string, number>()
 
+/**
+ * 관찰로 본 스타일 요청(13-63): 브라우저의 요청 기록 버퍼(기본 250개)는 지도 타일·글꼴 요청으로 금방 차고, 찬 뒤의 요청은
+ * `getEntriesByType` 에 남지 않는다 — 그러면 정상(200) 스타일도 "요청 없음"으로 보여 밝은 지도로 떨어졌다(다크·라이트 둘 다
+ * 스타일을 쓰면서 테마 전환 때 재현). PerformanceObserver 는 버퍼와 상관없이 받으므로 모듈이 불릴 때부터 따로 적어 둔다.
+ */
+const observed: ResourceEntry[] = []
+const OBSERVED_MAX = 20
+
+/** 관찰한 요청을 적는다(가장 최근 것만 조금). 테스트에서도 직접 부른다 */
+export function recordStyleEntries(entries: readonly ResourceEntry[]): void {
+  for (const e of entries) {
+    if (!STYLE_REQUEST.test(e.name) || !e.responseStatus) continue
+    observed.push({ name: e.name, startTime: e.startTime, responseStatus: e.responseStatus })
+    if (observed.length > OBSERVED_MAX) observed.shift()
+  }
+}
+
+if (typeof PerformanceObserver === 'function') {
+  try {
+    new PerformanceObserver((list) => recordStyleEntries(list.getEntries() as ResourceEntry[])).observe({ type: 'resource', buffered: true })
+  } catch {
+    // 관찰을 못 하는 브라우저는 버퍼만 본다(지금까지와 같다)
+  }
+}
+
 export function styleStatusSince(t0: number, styleId: string): number | null {
   let status: number | null = null
-  const entries = (typeof performance.getEntriesByType === 'function' ? performance.getEntriesByType('resource') : []) as ResourceEntry[]
-  for (const e of entries) if (STYLE_REQUEST.test(e.name) && e.startTime >= t0 && e.responseStatus) status = e.responseStatus
+  let at = -1
+  const buffered = (typeof performance.getEntriesByType === 'function' ? performance.getEntriesByType('resource') : []) as ResourceEntry[]
+  // 버퍼와 관찰 기록을 함께 보고 가장 늦게 시작한 요청의 결과를 쓴다
+  for (const e of [...buffered, ...observed]) {
+    if (STYLE_REQUEST.test(e.name) && e.startTime >= t0 && e.responseStatus && e.startTime >= at) {
+      status = e.responseStatus
+      at = e.startTime
+    }
+  }
   if (status !== null) last.set(styleId, status)
   return status
 }
@@ -29,4 +61,5 @@ export function lastStyleStatus(styleId: string): number | null {
 /** 테스트 전용 */
 export function resetStyleStatusForTest(): void {
   last.clear()
+  observed.length = 0
 }

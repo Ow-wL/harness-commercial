@@ -677,24 +677,13 @@
   }
 }
 
-/* 지도 바탕 색 맞춤 (13-60, D-057, DESIGN.md §32): NAVER 스타일을 다시 발행하지 않고 화면에서 색만 뺀다.
-   다크 — GL 지도 캔버스(네이비 스타일)를 무채색으로. 핀·점포 점(DOM)은 그대로, 캔버스에 그리는 반경 원·경계선은 함께 무채색이 된다.
-   업종 지도(색 구간이 뜻을 가진다)가 켜진 동안은 색을 반만 뺀다.
-   라이트 — 기본 밝은 지도의 타일 이미지(crossorigin 이 붙은 img)만 옅게. 오버레이(SVG)는 그대로 */
-:root:not([data-theme="light"]) .map .mapboxgl-canvas {
-  filter: grayscale(1) brightness(1.25);          /* 13-62: 0.82 는 너무 까매 길이 안 보였다 */
-}
-
-:root:not([data-theme="light"]) .map:has(.map__heat) .mapboxgl-canvas {
-  filter: saturate(0.5) brightness(1.1);
-}
-
+/* 지도 바탕 색 (13-63, D-059): 다크·라이트 모두 Style Editor 에서 발행한 무채색 스타일을 쓴다 — 13-60 의 GL 캔버스 필터는 뺐다.
+   남긴 것: 라이트 스타일이 실패해 기본 밝은 지도(래스터 타일)로 복구됐을 때만 타일 색을 옅게 */
 :root[data-theme="light"] .map__canvas img[crossorigin] {
   filter: grayscale(0.75) brightness(1.03);
 }
 
 @media print {
-  .map .mapboxgl-canvas,
   .map__canvas img[crossorigin] {
     filter: none !important;
   }

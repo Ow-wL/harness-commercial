@@ -1,4 +1,4 @@
-import { lastStyleStatus, resetStyleStatusForTest, styleStatusSince } from './styleStatus.ts'
+import { lastStyleStatus, recordStyleEntries, resetStyleStatusForTest, styleStatusSince } from './styleStatus.ts'
 
 type Entry = { name: string; startTime: number; responseStatus?: number }
 let entries: Entry[] = []
@@ -36,5 +36,16 @@ describe('styleStatus — 스타일 요청 결과는 요청한 스타일 ID별�
     entries = [styler(5)]
     expect(styleStatusSince(0, 'dark')).toBeNull()
     expect(lastStyleStatus('dark')).toBeNull()
+  })
+
+  it('요청 기록 버퍼가 가득 차 버퍼에 남지 않은 요청도 관찰 기록으로 판정한다 — 테마 전환 때 정상 스타일이 실패로 보이던 문제 (13-63)', () => {
+    entries = [styler(5, 200)]                                             // 버퍼에는 첫 스타일 요청만 남아 있다
+    expect(styleStatusSince(100, 'dark')).toBeNull()                       // 관찰 전: 두 번째 스타일은 "요청 없음"
+    recordStyleEntries([styler(120, 200), { name: 'https://example.com/tile.png', startTime: 130, responseStatus: 200 }])
+    expect(styleStatusSince(100, 'dark')).toBe(200)
+    expect(lastStyleStatus('dark')).toBe(200)
+    recordStyleEntries([styler(300, 400)])                                 // 더 늦은 요청이 이긴다
+    expect(styleStatusSince(100, 'dark')).toBe(400)
+    expect(styleStatusSince(400, 'dark')).toBeNull()
   })
 })
