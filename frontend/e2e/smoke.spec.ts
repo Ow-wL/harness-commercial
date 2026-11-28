@@ -24,6 +24,9 @@ async function openApp(page: Page, mode: FakeSdkMode): Promise<string[]> {
 }
 
 async function chooseCoordinates(page: Page, { lat, lng }: { lat: string; lng: string }) {
+  // 13-66: 넓은 화면은 조건 패널의 "위치 고르기" 줄 → 위치 화면에 좌표 입력. mobile 은 지도 시트에 바로 있다
+  const row = page.getByRole('button', { name: /^위치 (고르기|바꾸기)/ }).filter({ visible: true })
+  if (await row.count()) await row.first().click()
   await page.getByRole('button', { name: '좌표 입력' }).filter({ visible: true }).first().click()
   await page.getByPlaceholder('예: 37.4894').fill(lat)
   await page.getByPlaceholder('예: 126.7246').fill(lng)
@@ -31,9 +34,11 @@ async function chooseCoordinates(page: Page, { lat, lng }: { lat: string; lng: s
 }
 
 async function analyzePcBang(page: Page) {
-  const biz = page.getByRole('combobox', { name: '업종' })
+  // 13-66: "업종 고르기" 줄 → 업종 화면의 버튼
+  const biz = page.getByRole('button', { name: /^업종 (고르기|바꾸기)/ })
   await expect(biz).toBeEnabled()                                       // 업종 목록(GET /businesses)을 받은 뒤
-  await biz.selectOption('R10406')
+  await biz.click()
+  await page.getByRole('button', { name: 'PC방', exact: true }).click()
   await page.getByRole('button', { name: '분석하기' }).click()
 }
 
@@ -192,6 +197,7 @@ test('1차 활용 — 공유 링크로 열기 · 반경별 표 · 현장 확인 
   expect(health.places).toEqual({ enabled: false })
   expect((await page.request.post('/places', { data: { q: '부평역' } })).status()).toBe(503)
   await page.getByRole('button', { name: /바꾸기/ }).click()
+  await page.getByRole('button', { name: /^위치 (고르기|바꾸기)/ }).click()   // 13-66: 입력 방법은 위치 화면 안
   await expect(page.getByRole('group', { name: '위치 입력 방법' }).first()).toBeVisible()
   await expect(page.getByRole('group', { name: '위치 입력 방법' }).first()).not.toContainText('장소 이름')
   await expect(page).toHaveURL(/\/$/)                                      // 결과가 없으면 쿼리도 없다

@@ -3,6 +3,21 @@
   "renumbered_until": "v0.0.10",
   "releases": [
     {
+      "version": "v0.7.4",
+      "date": "2026-11-29",
+      "title": "더 간단한 첫 화면",
+      "changes": [
+        {
+          "type": "improved",
+          "text": "첫 화면을 \"위치 고르기\"와 \"업종 고르기\" 두 줄로 줄였습니다. 줄을 누르면 검색이나 업종 목록이 열립니다."
+        }
+      ],
+      "work": [
+        "13-66(D-060): ConditionPanel 첫 화면·위치 화면·업종 화면(PickRow·PickViewHead·BusinessList), 업종 select 제거, 테스트·E2E 를 새 흐름에 맞춤"
+      ],
+      "commits": []
+    },
+    {
       "version": "v0.7.3",
       "date": "2026-11-29",
       "title": "더 차분한 지도 경계선",
@@ -16,7 +31,8 @@
         "13-65: 외곽선 1.5px·무채색 반투명, 구 경계·분석 행정동 선 색 조정(tokens-a3.css, MapView OUTLINE_WEIGHT·GU_WEIGHT)"
       ],
       "commits": [
-        "0ccb869"
+        "0ccb869",
+        "03f795f"
       ]
     },
     {

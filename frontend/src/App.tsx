@@ -1972,7 +1972,7 @@ function App() {
           ) : (
             <>
               {restoreButton(false)}
-              <p className="map-sheet__title">어디에, 어떤 가게를 열까요?</p>
+              <p className="map-sheet__title">어디에 열까요?</p>
               <p className="map-sheet__text">
                 {location ? (
                   // 분석 전에는 행정동을 모른다(backend가 판정) — 고른 좌표만 보여 준다

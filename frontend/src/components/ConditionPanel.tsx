@@ -1,5 +1,5 @@
 import { REGULATED_BUSINESS_CODES } from '../content/regulatedBusinesses.ts'
-import { useId, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
+import { useId, useLayoutEffect, useRef, useState, type ReactNode, type Ref } from 'react'
 import type { ApiFailure } from '../api/client.ts'
 import type { BusinessCatalog } from '../api/schemas.ts'
 import type { NaverMapsApi } from '../map/naverMaps.ts'
@@ -103,6 +103,37 @@ export function ConditionPanel({
 }) {
   const hintId = useId()
   const missing = !location ? '위치를 먼저 선택하세요' : !bizCode ? '업종을 선택하세요' : null
+  // 13-66(시안 G): 처음에는 두 줄(위치 고르기 · 업종 고르기)만. 줄을 누르면 그 선택 화면이 패널 안에 열리고, 고르면 돌아온다
+  const [view, setView] = useState<'main' | 'location' | 'business'>('main')
+  const locationRowRef = useRef<HTMLButtonElement>(null)
+  const businessRowRef = useRef<HTMLButtonElement>(null)
+  // 돌아올 때 그 줄로 포커스 — 돌아올 때마다 새 객체라 effect 가 한 번씩 돈다
+  const [returnFocus, setReturnFocus] = useState<{ to: 'location' | 'business' } | null>(null)
+  const back = (from: 'location' | 'business') => {
+    setView('main')
+    setReturnFocus({ to: from })
+  }
+  useLayoutEffect(() => {
+    if (view !== 'main' || !returnFocus) return
+    ;(returnFocus.to === 'location' ? locationRowRef : businessRowRef).current?.focus()
+  }, [view, returnFocus])
+  // 위치가 정해지면(검색·현재 위치·좌표·지도 클릭) 첫 화면으로 돌아온다 — 바뀐 값을 그리는 중에 본다(effect 아님)
+  const [seenLocation, setSeenLocation] = useState(location)
+  if (seenLocation !== location) {
+    setSeenLocation(location)
+    if (location && view === 'location') {
+      setView('main')
+      setReturnFocus({ to: 'location' })
+    }
+  }
+  // mobile 지도 시트에서 검색·좌표 입력을 고르면 위치 화면을 연다(그 입력칸으로 포커스 — LocationField)
+  const [seenFocus, setSeenFocus] = useState(methodFocus)
+  if (seenFocus !== methodFocus) {
+    setSeenFocus(methodFocus)
+    if (methodFocus && method !== 'map') setView('location')
+  }
+  const catalog = businesses.status === 'ready' ? businesses.catalog : null
+  const bizName = catalog?.groups.flatMap((g) => g.businesses).find((b) => b.code === bizCode)?.name ?? null
   const coachAt = (step: ConditionCoach['step']) =>
     coach && coach.step === step ? (
       <CoachMark text={coach.text} index={coach.index} last={step === 'analyze'} onNext={coach.onNext} onSkip={coach.onSkip} onDismiss={coach.onDismiss} />
@@ -110,42 +141,105 @@ export function ConditionPanel({
 
   return (
     <section className="conditions" aria-label="분석 조건">
+      {view === 'location' && (
+        <div className="pick-view">
+          <PickViewHead title="위치 고르기" onBack={() => back('location')} />
+          <LocationField
+            location={location}
+            disabled={locked}
+            error={locationError}
+            address={address}
+            hasAddress={hasAddress}
+            searchApi={searchApi ?? null}
+            placesReady={placesReady}
+            method={method}
+            methodFocus={methodFocus + 1}
+            onMethodChange={(next) => {
+              onMethodChange(next)
+              if (next === 'map') back('location')                // 지도를 눌러 고른다 — 첫 화면으로
+            }}
+            onPickOnMap={onPickOnMap}
+            onLocationInput={onLocationInput}
+          />
+        </div>
+      )}
+      {view === 'business' && (
+        <div className="pick-view">
+          <PickViewHead title="업종 고르기" onBack={() => back('business')} />
+          <BusinessList
+            bizCode={bizCode}
+            businesses={businesses}
+            disabled={locked}
+            onChange={(code) => {
+              onBizChange(code)
+              back('business')
+            }}
+            onRetry={onRetryBusinesses}
+          />
+        </div>
+      )}
+      {view === 'main' && (
+        <>
       <div className="conditions__head">
         <p className="result__eyebrow">
           <span>새 분석</span>
           {onReplayHelp && <ReplayHelpButton onClick={onReplayHelp} />}
         </p>
-        <h1 id="conditions-title" className="conditions__title">
-          어디에, 어떤 가게를 열까요?
+        {/* 두 줄로 보이지만 읽는 이름은 "어디에 열까요?" (줄바꿈은 CSS) */}
+        <h1 id="conditions-title" className="conditions__title conditions__title--g">
+          <span>어디에</span> <span>열까요?</span>
         </h1>
-        <p className="conditions__lead">
-          위치와 업종을 고르면, 다섯 관점으로 살펴봅니다.
-        </p>
       </div>
-      <LocationField
-        location={location}
-        disabled={locked}
-        error={locationError}
-        address={address}
-        hasAddress={hasAddress}
-        searchApi={searchApi ?? null}
-        placesReady={placesReady}
-        method={method}
-        methodFocus={methodFocus}
-        onMethodChange={onMethodChange}
-        onPickOnMap={onPickOnMap}
-        onLocationInput={onLocationInput}
-      />
-      {coachAt('location')}
-      <BusinessSelect
-        bizCode={bizCode}
-        businesses={businesses}
-        disabled={locked}
-        error={businessError}
-        onChange={onBizChange}
-        onRetry={onRetryBusinesses}
-      />
-      {coachAt('business')}
+      <div className="pick-rows">
+        <PickRow
+          buttonRef={locationRowRef}
+          icon="map-pin"
+          label="위치"
+          empty="위치 고르기"
+          value={
+            location ? (
+              hasAddress ? (
+                address
+              ) : (
+                <span className="location__value">
+                  <span className="mono">
+                    {location.lat}, {location.lng}
+                  </span>
+                </span>
+              )
+            ) : null
+          }
+          disabled={locked}
+          onClick={() => setView('location')}
+        />
+        {locationError}
+        {coachAt('location')}
+        <PickRow
+          buttonRef={businessRowRef}
+          icon="store"
+          label="업종"
+          empty="업종 고르기"
+          value={bizName}
+          disabled={locked || !catalog}
+          onClick={() => setView('business')}
+        />
+        {bizCode !== null && REGULATED_BUSINESS_CODES.has(bizCode) && (
+          <p className="field__hint field__hint--reg">학교 주변 규제 업종 — 학교 200m 안이면 점수와 별개로 영업 가능 여부를 먼저 확인해야 해요.</p>
+        )}
+        {businesses.status === 'error' && (
+          <div className="field__error-row" role="alert">
+            <p className="field__error">
+              <Icon name="alert-triangle" size={14} />
+              업종 목록을 불러오지 못했습니다
+            </p>
+            <button type="button" className="button button--secondary" onClick={onRetryBusinesses}>
+              다시 시도
+            </button>
+          </div>
+        )}
+        {businessError}
+        {coachAt('business')}
+      </div>
       {/* 13-51(D-049): 반경은 기본값으로 충분한 경우가 많아 한 줄로 접어 둔다 — 지금 적용될 반경은 늘 보이고, 누르면 고를 수 있다.
           기본값이 아니거나 반경 변경이 진행·실패 중이면 펼쳐 둔다(복구 버튼이 숨지 않게) */}
       {radiusStep && (
@@ -158,6 +252,9 @@ export function ConditionPanel({
         </details>
       )}
       {children}
+        </>
+      )}
+      {view === 'main' && (
       <div className="conditions__submit">
         <button
           type="button"
@@ -177,6 +274,7 @@ export function ConditionPanel({
         )}
         {coachAt('analyze')}
       </div>
+      )}
     </section>
   )
 }
@@ -242,7 +340,8 @@ function LocationField({
 
   useLayoutEffect(() => {
     if (!methodFocus) return
-    const box = shown === 'coords' || shown === 'map' ? bodyRef.current : searchRef.current
+    // 13-66: 위치 화면을 열면 검색창으로(좌표 입력을 골랐을 때만 좌표 폼으로)
+    const box = shown === 'coords' ? bodyRef.current : (searchRef.current?.querySelector('input') ? searchRef.current : bodyRef.current)
     box?.querySelector<HTMLInputElement>('input')?.focus()
     // 포커스는 방법을 고른 그 순간에만 옮긴다 — shown 이 나중에 바뀌어도(SDK 준비 등) 다시 옮기지 않는다
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -335,84 +434,102 @@ function LocationField({
   )
 }
 
-/**
- * 업종 선택 (§7.3). native <select> + <optgroup>: 그룹 라벨(API name)·정의 순서 유지, 키보드 동작은
- * native 그대로(↑↓·Enter·Esc·첫 글자), mobile은 OS 선택 sheet. 닫힌 상태 오른쪽에 그룹명(muted).
- */
-function BusinessSelect({
+/** 첫 화면의 큰 줄 하나 (13-66, 시안 G): 고르기 전에는 "위치 고르기", 고른 뒤에는 작은 라벨 + 고른 값. 줄 전체가 버튼(::after) */
+function PickRow({
+  buttonRef,
+  icon,
+  label,
+  empty,
+  value,
+  disabled,
+  onClick,
+}: {
+  buttonRef: Ref<HTMLButtonElement>
+  icon: 'map-pin' | 'store'
+  label: string
+  empty: string
+  value: ReactNode
+  disabled: boolean
+  onClick: () => void
+}) {
+  const done = value !== null && value !== undefined && value !== false
+  return (
+    <div className="pick-row" data-done={done}>
+      <span className="pick-row__icon" aria-hidden="true">
+        <Icon name={icon} size={20} />
+      </span>
+      <span className="pick-row__text">
+        <button ref={buttonRef} type="button" className="pick-row__button" disabled={disabled} onClick={onClick}>
+          {done ? <span className="pick-row__label">{label} 바꾸기</span> : empty}
+        </button>
+        {done && <span className="pick-row__value">{value}</span>}
+      </span>
+      <span className="pick-row__go" aria-hidden="true">
+        <Icon name="chevron-right" size={20} />
+      </span>
+    </div>
+  )
+}
+
+function PickViewHead({ title, onBack }: { title: string; onBack: () => void }) {
+  return (
+    <div className="pick-view__head">
+      <button type="button" className="pick-view__back" onClick={onBack} aria-label="처음 화면으로">
+        <span aria-hidden="true">‹</span>
+      </button>
+      <h2 className="pick-view__title">{title}</h2>
+    </div>
+  )
+}
+
+/** 업종 고르기 화면 (13-66): GET /businesses 그대로(그룹·순서) 알약 버튼. 고른 것은 aria-pressed */
+function BusinessList({
   bizCode,
   businesses,
   disabled,
-  error,
   onChange,
   onRetry,
 }: {
   bizCode: string | null
   businesses: BusinessesState
   disabled: boolean
-  error?: ReactNode
   onChange: (code: string) => void
   onRetry: () => void
 }) {
-  const selectId = useId()
-  const catalog = businesses.status === 'ready' ? businesses.catalog : null
-  const selectedGroup = catalog?.groups.find((g) => g.businesses.some((b) => b.code === bizCode))
-
-  return (
-    <div className="field step" data-done={bizCode !== null}>
-      <label className="field__label step__title" htmlFor={selectId}>
-        업종
-      </label>
-      <div className="select-wrap">
-        <select
-          id={selectId}
-          className="select"
-          value={bizCode ?? ''}
-          disabled={disabled || !catalog}
-          aria-invalid={error ? true : undefined}
-          onChange={(e) => onChange(e.target.value)}
-        >
-          {businesses.status === 'loading' && <option value="">업종 불러오는 중…</option>}
-          {businesses.status === 'error' && <option value="">업종 목록 없음</option>}
-          {catalog && (
-            <>
-              <option value="" disabled>
-                업종 선택
-              </option>
-              {catalog.groups.map((g) => (
-                <optgroup key={g.code} label={g.name}>
-                  {g.businesses.map((b) => (
-                    <option key={b.code} value={b.code}>
-                      {b.name}
-                    </option>
-                  ))}
-                </optgroup>
-              ))}
-            </>
-          )}
-        </select>
-        {selectedGroup && (
-          <span className="select-wrap__group" aria-hidden="true">
-            {selectedGroup.name}
-          </span>
-        )}
+  if (businesses.status === 'loading') return <p className="field__hint">업종 불러오는 중…</p>
+  if (businesses.status === 'error')
+    return (
+      <div className="field__error-row" role="alert">
+        <p className="field__error">
+          <Icon name="alert-triangle" size={14} />
+          업종 목록을 불러오지 못했습니다
+        </p>
+        <button type="button" className="button button--secondary" onClick={onRetry}>
+          다시 시도
+        </button>
       </div>
-      {/* 13-18(팀 D5): 학교 주변 규제 업종을 고르면 분석 전에 미리 알린다(점수·경고 판정은 엔진 — 결과의 규제 배너) */}
-      {bizCode !== null && REGULATED_BUSINESS_CODES.has(bizCode) && (
-        <p className="field__hint field__hint--reg">학교 주변 규제 업종 — 학교 200m 안이면 점수와 별개로 영업 가능 여부를 먼저 확인해야 해요.</p>
-      )}
-      {businesses.status === 'error' && (
-        <div className="field__error-row" role="alert">
-          <p className="field__error">
-            <Icon name="alert-triangle" size={14} />
-            업종 목록을 불러오지 못했습니다
-          </p>
-          <button type="button" className="button button--secondary" onClick={onRetry}>
-            다시 시도
-          </button>
-        </div>
-      )}
-      {error}
+    )
+  return (
+    <div className="biz-list">
+      {businesses.catalog.groups.map((g) => (
+        <section key={g.code} className="biz-list__group" aria-label={g.name}>
+          <h3 className="biz-list__name">{g.name}</h3>
+          <div className="biz-list__items">
+            {g.businesses.map((b) => (
+              <button
+                key={b.code}
+                type="button"
+                className="biz-list__item"
+                aria-pressed={b.code === bizCode}
+                disabled={disabled}
+                onClick={() => onChange(b.code)}
+              >
+                {b.name}
+              </button>
+            ))}
+          </div>
+        </section>
+      ))}
     </div>
   )
 }

@@ -221,11 +221,31 @@ const getScoreTable = () => getInTab(EVIDENCE_TAB, 'table', SCORE_TABLE)
 const queryScoreTable = () => queryInTab(EVIDENCE_TAB, 'table', SCORE_TABLE)
 const findScoreTable = () => findInTab(EVIDENCE_TAB, 'table', SCORE_TABLE)
 
+/** 13-66(시안 G): 조건 패널 첫 화면의 줄 버튼 — 고르기 전 "업종 고르기", 고른 뒤 "업종 바꾸기" */
+const BIZ_ROW = /^업종 (고르기|바꾸기)/
+const LOCATION_ROW = /^위치 (고르기|바꾸기)/
+const bizRow = () => screen.getByRole('button', { name: BIZ_ROW })
+const queryBizRow = () => screen.queryByRole('button', { name: BIZ_ROW })
+const conditionsPanel = () => screen.getByRole('region', { name: '분석 조건' })
+const BIZ_NAME: Record<string, string> = { G20405: '편의점', R10406: 'PC방', R10407: '노래방' }
+
+/** 업종 고르기: 줄을 누르고 업종 화면에서 그 업종 버튼 — 고르면 첫 화면으로 돌아온다 */
+async function pickBusiness(code = 'R10406') {
+  const row = await screen.findByRole('button', { name: BIZ_ROW })
+  await waitFor(() => expect(row).toBeEnabled())
+  fireEvent.click(row)
+  fireEvent.click(within(conditionsPanel()).getByRole('button', { name: BIZ_NAME[code]! }))
+}
+
+/** 위치 화면 열기(검색창·좌표 입력이 있는 곳). 이미 열려 있으면 그대로 */
+function openLocation() {
+  const row = screen.queryByRole('button', { name: LOCATION_ROW })
+  if (row) fireEvent.click(row)
+}
+
 async function selectBupyeongPcBang() {
   fireEvent.click(screen.getByRole('button', { name: '지도 클릭: 부평역' }))
-  const select = await screen.findByRole('combobox', { name: '업종' })
-  await waitFor(() => expect(select).toBeEnabled())
-  fireEvent.change(select, { target: { value: 'R10406' } })
+  await pickBusiness('R10406')
 }
 
 const internalError = {
@@ -245,22 +265,21 @@ describe('업종 목록 (GET /businesses)', () => {
   it('schema를 통과한 응답을 그룹 구조 그대로 보여 준다', async () => {
     const fetchMock = mockApi()
     render(<App />)
-    const select = screen.getByRole('combobox', { name: '업종' })
-    expect(select).toBeDisabled()
-    expect(within(select).getByRole('option', { name: '업종 불러오는 중…' })).toBeInTheDocument()
-
-    await waitFor(() => expect(select).toBeEnabled())
+    // 13-66: 목록이 오기 전에는 "업종 고르기" 줄을 누를 수 없다. 오면 업종 화면에 그룹·순서 그대로 버튼
+    expect(bizRow()).toBeDisabled()
+    await waitFor(() => expect(bizRow()).toBeEnabled())
     expect(fetchMock).toHaveBeenCalledWith('/businesses', expect.anything())
-    const groups = within(select).getAllByRole('group')
-    expect(groups.map((g) => g.getAttribute('label'))).toEqual(['고객밀착형', '목적방문형'])
-    expect(within(groups[1]!).getAllByRole('option').map((o) => o.textContent)).toEqual(['PC방', '노래방'])
+    fireEvent.click(bizRow())
+    const groups = within(conditionsPanel()).getAllByRole('region').filter((r) => r.classList.contains('biz-list__group'))
+    expect(groups.map((g) => g.getAttribute('aria-label'))).toEqual(['고객밀착형', '목적방문형'])
+    expect(within(groups[1]!).getAllByRole('button').map((o) => o.textContent)).toEqual(['PC방', '노래방'])
   })
 
   it('schema와 다른 응답은 조용히 넘기지 않고 오류로 보여 준다', async () => {
     mockApi({ businesses: { status: 200, body: { ...CATALOG, total: 29 } } })
     render(<App />)
     expect(await screen.findByText('업종 목록을 불러오지 못했습니다')).toBeInTheDocument()
-    expect(screen.getByRole('combobox', { name: '업종' })).toBeDisabled()
+    expect(bizRow()).toBeDisabled()
     expect(console.error).toHaveBeenCalledWith(expect.stringContaining('/businesses'), expect.anything())
   })
 })
@@ -364,16 +383,15 @@ describe('분석 흐름', () => {
     expect(analyzeButton()).toBeDisabled()
     expect(screen.getByText('업종을 선택하세요')).toBeInTheDocument()
 
-    const select = screen.getByRole('combobox', { name: '업종' })
-    await waitFor(() => expect(select).toBeEnabled())
-    fireEvent.change(select, { target: { value: 'R10406' } })
+    await pickBusiness('R10406')
     expect(analyzeButton()).toBeEnabled()
   })
 
-  it('단일 분석 좌표 입력: 제출 뒤 입력란이 그대로 남고 포커스도 제출 버튼에 남는다 (B 포커스 이동이 번지지 않는다)', async () => {
+  it('단일 분석 좌표 입력: 위치 화면에서 제출하면 첫 화면으로 돌아와 위치 줄로 포커스 (13-66)', async () => {
     mockApi()
     render(<App />)
     const conditions = screen.getByRole('region', { name: '분석 조건' })
+    openLocation()
     fireEvent.click(within(conditions).getByRole('button', { name: '좌표 입력' }))   // 위치 입력 방법 segmented(mobile sheet에도 같은 이름 버튼이 있다)
     fireEvent.change(screen.getByLabelText('위도'), { target: { value: '37.4894' } })
     fireEvent.change(screen.getByLabelText('경도'), { target: { value: '126.7246' } })
@@ -383,8 +401,8 @@ describe('분석 흐름', () => {
 
     expect(screen.getByText('37.4894, 126.7246', { selector: '.location__value .mono' })).toBeInTheDocument()
     expect(screen.getByTestId('map')).toHaveAttribute('data-selected', '37.4894,126.7246')
-    expect(document.activeElement).toBe(submit)
-    expect(screen.getByLabelText('위도')).toHaveValue('37.4894')
+    expect(document.activeElement).toHaveAccessibleName('위치 바꾸기')
+    expect(screen.queryByLabelText('위도')).not.toBeInTheDocument()
   })
 
   it('POST /analyze body는 선택 좌표·업종코드와 정확히 같고, 성공 응답을 결과 화면에 보여 준다', async () => {
@@ -404,7 +422,7 @@ describe('분석 흐름', () => {
     expect(analyzeButton()).toHaveTextContent('분석 중…')
     expect(analyzeButton()).toHaveAttribute('aria-busy', 'true')
     expect(analyzeButton()).toBeDisabled()
-    expect(screen.getByRole('combobox', { name: '업종' })).toBeDisabled()
+    expect(bizRow()).toBeDisabled()
     fireEvent.click(screen.getByRole('button', { name: '지도 클릭: 송도' }))
     expect(screen.getByTestId('map')).toHaveAttribute('data-selected', '37.4894,126.7246')
 
@@ -430,7 +448,7 @@ describe('분석 흐름', () => {
     expect(screen.queryByRole('heading', { name: /분석$/ })).not.toBeInTheDocument()
     expect(screen.queryByRole('region', { name: '종합 적합도' })).not.toBeInTheDocument()
     expect(screen.queryByRole('group', { name: '분석 조건' })).not.toBeInTheDocument()
-    expect(screen.getByRole('heading', { level: 1, name: '어디에, 어떤 가게를 열까요?' })).toBeInTheDocument()   // 분석 전 패널
+    expect(screen.getByRole('heading', { level: 1, name: '어디에 열까요?' })).toBeInTheDocument()   // 분석 전 패널
     expect(screen.getByTestId('map')).toHaveAttribute('data-selected', '37.392512,126.639034')
     expect(screen.getByTestId('map')).toHaveAttribute('data-dong', '')
     // 업종은 유지 → 바로 다시 분석할 수 있다
@@ -474,7 +492,7 @@ describe('분석 흐름', () => {
     await screen.findByRole('heading', { level: 1, name: '부평구 부평1동 · PC방 분석' })
 
     fireEvent.click(screen.getByRole('button', { name: '조건 바꾸기' }))
-    fireEvent.change(screen.getByRole('combobox', { name: '업종' }), { target: { value: 'R10407' } })
+    await pickBusiness('R10407')
 
     expect(screen.queryByRole('region', { name: '종합 적합도' })).not.toBeInTheDocument()
     expect(analyzeButton()).toBeEnabled()
@@ -725,7 +743,7 @@ describe('두 위치 비교 — B 분석 상태 (5차-B2, docs/COMPARE_DESIGN.md
     expect(aCard()).toHaveTextContent(/부평구 부평1동\s*종합 65\.8/)
     // 비교 중: A 점포 마커 숨김, 업종 선택 없음, 헤더 "데이터 출처"(대상 섹션이 없다) 숨김
     expect(screen.getByTestId('map')).toHaveAttribute('data-stores', '')
-    expect(screen.queryByRole('combobox', { name: '업종' })).not.toBeInTheDocument()
+    expect(queryBizRow()).not.toBeInTheDocument()
     expect(screen.queryByRole('link', { name: '데이터 출처' })).not.toBeInTheDocument()
     expect(within(bCard()).getByRole('button', { name: 'B 분석하기' })).toBeDisabled()
 
@@ -879,7 +897,7 @@ describe('두 위치 비교 — B 분석 상태 (5차-B2, docs/COMPARE_DESIGN.md
 
     fireEvent.click(within(panel()).getByRole('button', { name: '조건 바꾸기' }))
     expect(screen.queryByRole('region', { name: PANEL })).not.toBeInTheDocument()
-    expect(screen.getByRole('combobox', { name: '업종' })).toBeInTheDocument()   // 조건 화면
+    expect(bizRow()).toBeInTheDocument()   // 조건 화면
 
     await act(async () => b.respond(ok(songdoFixture)))
     expect(screen.queryByRole('region', { name: PANEL })).not.toBeInTheDocument()
@@ -1550,7 +1568,8 @@ describe('단일 위치 참고 주소 (7-B2, docs/ADDRESS_DESIGN.md §5.2 B·§5
     const lines = addressLines()
     expect(lines).toHaveLength(2)                                // 위치 필드 + mobile sheet(같은 좌표, 같은 캐시)
     expect(lines[0]).toHaveTextContent('참고 주소 · 인천광역시 부평구 광장로 16 부평민자역사 (NAVER 지도)')
-    // 참고 주소가 있으면 요약은 주소가 앞, 좌표는 접힘(P3) — "좌표"를 펼치면 같은 숫자 그대로
+    // 참고 주소가 있으면 요약은 주소가 앞, 좌표는 접힘(P3) — "좌표"를 펼치면 같은 숫자 그대로. 13-66: 위치 화면 안의 요약
+    openLocation()
     const conditionsRegion = screen.getByRole('region', { name: '분석 조건' })
     expect(conditionsRegion.querySelector('.location__value .mono')).toBeNull()
     const coordsToggle = within(conditionsRegion).getByRole('button', { name: '좌표' })
@@ -1558,10 +1577,9 @@ describe('단일 위치 참고 주소 (7-B2, docs/ADDRESS_DESIGN.md §5.2 B·§5
     expect(screen.getByText('37.4894, 126.7246', { selector: '.location__coords .mono' })).not.toBeVisible()
     fireEvent.click(coordsToggle)
     expect(screen.getByText('37.4894, 126.7246', { selector: '.location__coords .mono' })).toBeVisible()
+    fireEvent.click(within(conditionsRegion).getByRole('button', { name: '처음 화면으로' }))
 
-    const select = screen.getByRole('combobox', { name: '업종' })
-    await waitFor(() => expect(select).toBeEnabled())
-    fireEvent.change(select, { target: { value: 'R10406' } })
+    await pickBusiness('R10406')
     fireEvent.click(analyzeButton())
     await findList('PC방 점포 목록')
     // 분석 뒤: context 좌표 = 요청 좌표 → 같은 키, 추가 조회 없음. 결과 패널(LocationSummary)에 같은 줄
@@ -1585,6 +1603,7 @@ describe('단일 위치 참고 주소 (7-B2, docs/ADDRESS_DESIGN.md §5.2 B·§5
 
     // 주소 없음(code 3): 줄 없음, 좌표 표시는 그대로
     const conditions = screen.getByRole('region', { name: '분석 조건' })
+    openLocation()
     fireEvent.click(within(conditions).getByRole('button', { name: '좌표 입력' }))
     fireEvent.change(screen.getByLabelText('위도'), { target: { value: '37.4891' } })
     fireEvent.change(screen.getByLabelText('경도'), { target: { value: '126.7236' } })
@@ -1600,9 +1619,7 @@ describe('단일 위치 참고 주소 (7-B2, docs/ADDRESS_DESIGN.md §5.2 B·§5
     expect(sdkMock.reverseCalls).toHaveLength(3)
     await respond(2, 500, undefined)
     expect(addressLines()).toHaveLength(0)
-    const select = screen.getByRole('combobox', { name: '업종' })
-    await waitFor(() => expect(select).toBeEnabled())
-    fireEvent.change(select, { target: { value: 'R10406' } })
+    await pickBusiness('R10406')
     fireEvent.click(analyzeButton())
     await screen.findByRole('heading', { level: 1, name: '연수구 송도2동 · PC방 분석' })
     expect(addressLines()).toHaveLength(0)
@@ -1661,9 +1678,7 @@ describe('단일 위치 참고 주소 (7-B2, docs/ADDRESS_DESIGN.md §5.2 B·§5
       expect(sheet).toHaveTextContent('선택됨 · 37.4894, 126.7246')
       expect(within(sheet).getByTestId('reference-address')).toHaveTextContent('참고 주소 · 인천광역시 부평구 광장로 16 부평민자역사 (NAVER 지도)')
       fireEvent.click(within(sheet).getByRole('button', { name: '이 위치로 계속' }))
-      const select = screen.getByRole('combobox', { name: '업종' })
-      await waitFor(() => expect(select).toBeEnabled())
-      fireEvent.change(select, { target: { value: 'R10406' } })
+      await pickBusiness('R10406')
       fireEvent.click(analyzeButton())
       await findList('PC방 점포 목록')
       fireEvent.click(screen.getAllByRole('button', { name: '지도 보기' })[0]!)
@@ -1945,14 +1960,13 @@ describe('단일 위치 주소 검색 (7-B4, docs/ADDRESS_DESIGN.md §5.2 A)', (
   const analyzedAt = (lat: number, lng: number) => ({ ...fixture, context: { ...fixture.context, lat, lng } })
 
   function searchFor(query: string) {
+    openLocation()
     fireEvent.change(searchBox()!, { target: { value: query } })
     fireEvent.click(within(conditions()).getByRole('button', { name: '검색' }))
   }
 
   async function chooseBusiness() {
-    const select = screen.getByRole('combobox', { name: '업종' })
-    await waitFor(() => expect(select).toBeEnabled())
-    fireEvent.change(select, { target: { value: 'R10406' } })
+    await pickBusiness('R10406')
   }
 
   beforeEach(async () => {
@@ -1963,9 +1977,11 @@ describe('단일 위치 주소 검색 (7-B4, docs/ADDRESS_DESIGN.md §5.2 A)', (
     vi.spyOn(console, 'warn').mockImplementation(() => {})
   })
 
-  it('Geocoder가 준비됐을 때만 주소 검색창이 있다 (SDK 준비 전·Geocoder 없음에는 없음) — 준비되면 늘 보인다 (13-57)', () => {
+  it('Geocoder가 준비됐을 때만 주소 검색창이 있다 (SDK 준비 전·Geocoder 없음에는 없음) — 위치 화면을 열면 바로 보인다 (13-57·13-66)', () => {
     mockApi()
     render(<App />)
+    expect(searchBox()).not.toBeInTheDocument()
+    openLocation()
     expect(searchBox()).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'SDK Geocoder 없음' }))
     expect(searchBox()).not.toBeInTheDocument()
@@ -2000,12 +2016,11 @@ describe('단일 위치 주소 검색 (7-B4, docs/ADDRESS_DESIGN.md §5.2 A)', (
     const item = within(screen.getByRole('list', { name: /검색 결과 1건/ })).getByRole('button')
     expect(item).toHaveTextContent('인천광역시 부평구 부평대로 3')
     fireEvent.click(item)
-    // 위치 요약(tabIndex=-1)으로 포커스, 결과 목록은 닫히고 주소 폼(고른 방법)은 입력값 그대로 남는다, 분석 요청 없음
-    const summary = screen.getByText(`${lat}, ${lng}`, { selector: '.location__value .mono' }).closest<HTMLElement>('.location__selected')!
-    expect(document.activeElement).toBe(summary)
-    expect(summary).toHaveAttribute('tabindex', '-1')
+    // 13-66: 고르면 첫 화면으로 돌아와 위치 줄로 포커스 — 줄에 고른 좌표(참고 주소 전). 위치 화면·결과 목록은 닫힌다, 분석 요청 없음
+    expect(document.activeElement).toHaveAccessibleName('위치 바꾸기')
+    expect(screen.getByText(`${lat}, ${lng}`, { selector: '.location__value .mono' })).toBeInTheDocument()
     expect(screen.queryByRole('list', { name: /검색 결과/ })).not.toBeInTheDocument()
-    expect(within(conditions()).getByRole('textbox', { name: '주소' })).toHaveValue('인천광역시 부평구 부평대로 1')
+    expect(searchBox()).not.toBeInTheDocument()
     expect(screen.getByTestId('map')).toHaveAttribute('data-selected', `${lat},${lng}`)
     expect(analyzeCalls(fetchMock)).toHaveLength(0)
 
@@ -2105,11 +2120,11 @@ describe('단일 위치 주소 검색 (7-B4, docs/ADDRESS_DESIGN.md §5.2 A)', (
     render(<App />)
     sdkReady()
     searchFor('부평대로')
-    const select = screen.getByRole('combobox', { name: '업종' })
-    await waitFor(() => expect(select).toBeEnabled())
-    select.focus()
+    // 13-66: 위치 화면 안에서 검색 밖의 버튼(처음 화면으로)에 포커스
+    const backButton = within(conditionsPanel()).getByRole('button', { name: '처음 화면으로' })
+    backButton.focus()
     fireEvent.click(screen.getByRole('button', { name: 'SDK 인증 실패' }))
-    expect(document.activeElement).toBe(select)
+    expect(document.activeElement).toBe(backButton)
   })
 
   it('검색이 지연·실패해도 지도 선택·분석은 동작하고, 지연된 응답이 와도 선택한 위치를 바꾸지 않는다', async () => {
@@ -2147,9 +2162,9 @@ describe('단일 위치 주소 검색 (7-B4, docs/ADDRESS_DESIGN.md §5.2 A)', (
     await answer(sdkMock.geocodeCalls, 0, 200, forward([BUPYEONG]))
     await selectBupyeongPcBang()
     fireEvent.click(analyzeButton())
-    expect(within(conditions()).getByRole('button', { name: '좌표 입력' })).toBeDisabled()
-    expect(within(conditions()).getByRole('button', { name: '지도에서 고르기' })).toBeDisabled()
-    expect(within(conditions()).getByRole('textbox', { name: '주소' })).toBeDisabled()
+    // 13-66: 분석 중에는 위치·업종 줄을 누를 수 없다(위치 화면의 검색·좌표 입력으로 갈 수 없다)
+    expect(within(conditions()).getByRole('button', { name: LOCATION_ROW })).toBeDisabled()
+    expect(bizRow()).toBeDisabled()
     await act(async () => release(ok(fixture)))
     await screen.findByRole('heading', { level: 1, name: '부평구 부평1동 · PC방 분석' })
   })
@@ -2314,7 +2329,7 @@ describe('비교 B 주소 검색 (7-B5, docs/ADDRESS_DESIGN.md §5.2 A-4)', () =
     searchB('네 번째 검색')                                                       // 호출 3
     fireEvent.click(within(panel()).getByRole('button', { name: '조건 바꾸기' }))
     await answer(3, 200, forward([SEOUL]))
-    expect(screen.getByRole('region', { name: '분석 조건' })).toHaveTextContent('선택됨 · 37.4894, 126.7246')
+    expect(screen.getByRole('region', { name: '분석 조건' })).toHaveTextContent('37.4894, 126.7246')
     expect(screen.queryByRole('list', { name: /검색 결과/ })).not.toBeInTheDocument()
     expect(sdkMock.geocodeCalls).toHaveLength(4)
   })
@@ -3337,14 +3352,12 @@ describe('첫 방문 안내 (묶음 D, docs/ONBOARDING_DESIGN.md)', () => {
     render(<App />)
     expect(coachInConditions()).toHaveTextContent('1/3')
     expect(coachInConditions()).toHaveTextContent('지도를 누르거나 주소·좌표로 위치를 고릅니다')
-    // 기본 화면 글은 그대로다(중복 금지): 기존 안내 문장은 여전히 하나씩
-    expect(within(conditions()).getByText('위치와 업종을 고르면, 다섯 관점으로 살펴봅니다.')).toBeInTheDocument()
+    // 기본 화면 글은 그대로다(중복 금지): 제목은 하나(13-66 시안 G)
+    expect(within(conditions()).getAllByRole('heading', { level: 1, name: '어디에 열까요?' })).toHaveLength(1)
 
     fireEvent.click(screen.getByRole('button', { name: '지도 클릭: 부평역' }))
     expect(coachInConditions()).toHaveTextContent('2/3')
-    const select = await screen.findByRole('combobox', { name: '업종' })
-    await waitFor(() => expect(select).toBeEnabled())
-    fireEvent.change(select, { target: { value: 'R10406' } })
+    await pickBusiness('R10406')
     expect(coachInConditions()).toHaveTextContent('3/3')
     expect(coachInConditions()).toHaveTextContent('순위·매출 예측이 아닌 참고 지표입니다')
     expect(within(coachInConditions()!).getByRole('button', { name: '확인' })).toBeInTheDocument()   // 마지막 단계
@@ -3382,9 +3395,7 @@ describe('첫 방문 안내 (묶음 D, docs/ONBOARDING_DESIGN.md)', () => {
     expect(window.localStorage.getItem('onboarding.result')).toBe('done')
     fireEvent.click(screen.getByRole('button', { name: '지도 클릭: 부평역' }))
     expect(coachInConditions()).toBeNull()                                          // 건너뛴 뒤에는 행동해도 다시 안 나온다
-    const select = await screen.findByRole('combobox', { name: '업종' })
-    await waitFor(() => expect(select).toBeEnabled())
-    fireEvent.change(select, { target: { value: 'R10406' } })
+    await pickBusiness('R10406')
     fireEvent.click(analyzeButton())
     await screen.findByRole('heading', RESULT_HEADING)
     expect(screen.queryByRole('status', COACH)).not.toBeInTheDocument()
@@ -3495,7 +3506,7 @@ describe('첫 방문 안내 (묶음 D, docs/ONBOARDING_DESIGN.md)', () => {
       fireEvent.click(within(first).getByRole('button', { name: '다음' }))
       expect(app).toHaveAttribute('data-screen', 'panel')
       expect(coachInConditions()).toHaveTextContent('2/3')
-      expect(within(conditions()).getByRole('combobox', { name: '업종' })).toBeInTheDocument()
+      expect(within(conditions()).getByRole('button', { name: BIZ_ROW })).toBeInTheDocument()
     })
   })
 })
@@ -3728,7 +3739,7 @@ describe('조건 공유 링크 (12-3, 계획 1-1) — 쿼리 조건으로 같은
     open('?lat=95&lng=126.7246&biz=R10406')
     const fetchMock = mockApi({ health: HEALTH_V05 })
     render(<App />)
-    await waitFor(() => expect(screen.getByRole('combobox', { name: '업종' })).toBeEnabled())
+    await waitFor(() => expect(bizRow()).toBeEnabled())
     expect(analyzeCalls(fetchMock)).toHaveLength(0)
     expect(screen.getByTestId('map')).toHaveAttribute('data-selected', '')
     expect(notice()).not.toBeInTheDocument()
@@ -4188,8 +4199,10 @@ describe('장소 이름으로 찾기 (12-14, 계획 1-6, D-036) — 서버가 /h
   it('광고 없는 서버(구버전·enabled false)에는 "장소 이름" 입력 방법이 없고 주소 안내는 기존 문구', async () => {
     mockApi()
     render(<App />)
-    await waitFor(() => expect(screen.getByRole('combobox', { name: '업종' })).toBeEnabled())
+    await waitFor(() => expect(bizRow()).toBeEnabled())
     expect(method('장소 이름')).toBeNull()
+    expect(screen.getAllByRole('group', { name: '위치 입력 방법' })).toHaveLength(1)   // mobile 시트 — 조건 패널의 것은 위치 화면 안(13-66)
+    openLocation()
     expect(screen.queryByRole('textbox', { name: '장소 이름' })).not.toBeInTheDocument()
     expect(screen.getAllByRole('group', { name: '위치 입력 방법' })).toHaveLength(2)   // 조건 패널 + mobile 시트, 둘 다 없음
   })
@@ -4197,7 +4210,8 @@ describe('장소 이름으로 찾기 (12-14, 계획 1-6, D-036) — 서버가 /h
   it('광고하면 "장소 이름" 검색창이 있고, 검색 결과를 고르면 그 좌표가 위치가 된다(분석 없음, /places 1회). 주소 안내는 장소 이름을 가리킨다', async () => {
     const fetchMock = mockApi({ health: HEALTH_PLACES, places: [PLACES] })
     render(<App />)
-    // 13-57: 조건 패널에는 여는 버튼 없이 검색창이 바로 있다(mobile 시트의 입력 방법에는 "장소 이름"이 있다)
+    // 13-66: 위치 화면을 열면 검색창이 바로 있다(mobile 시트의 입력 방법에는 "장소 이름"이 있다)
+    openLocation()
     fireEvent.change(await screen.findByRole('textbox', { name: '장소 이름' }), { target: { value: '부평역' } })
     expect(within(screen.getAllByRole('group', { name: '위치 입력 방법' })[1]!).getByRole('button', { name: '장소 이름' })).toBeInTheDocument()
     fireEvent.submit(screen.getByRole('search', { name: '장소 이름 검색' }))
@@ -4207,8 +4221,8 @@ describe('장소 이름으로 찾기 (12-14, 계획 1-6, D-036) — 서버가 /h
     expect(analyzeCalls(fetchMock)).toHaveLength(0)
     expect(fetchMock.mock.calls.filter(([url]) => url === '/places')).toHaveLength(1)
     expect(screen.queryByRole('list', { name: /검색 결과/ })).not.toBeInTheDocument()
-    // 선택 뒤 포커스는 위치 요약(주소 검색과 같은 규칙)
-    expect(document.activeElement).toHaveClass('location__selected')
+    // 선택 뒤 포커스는 첫 화면의 위치 줄(주소 검색과 같은 규칙, 13-66)
+    expect(document.activeElement).toHaveAccessibleName('위치 바꾸기')
   })
 
   it('비교 B 카드에도 "B 장소 이름으로 찾기"가 있고, 결과를 고르면 B 좌표만 바뀐다', async () => {
@@ -4257,9 +4271,7 @@ describe('전시 개선 (13-46, D-045) — 업종 지도·전시 모드', () => 
   })
   const map = () => screen.getByTestId('map')
   const pickPcBang = async () => {
-    const select = await screen.findByRole('combobox', { name: '업종' })
-    await waitFor(() => expect(select).toBeEnabled())
-    fireEvent.change(select, { target: { value: 'R10406' } })
+    await pickBusiness('R10406')
   }
 
   const ok = (body: unknown, version?: string) => ({ status: 200, body, headers: version ? { 'X-Data-Version': version } : undefined })
@@ -4320,7 +4332,7 @@ describe('전시 개선 (13-46, D-045) — 업종 지도·전시 모드', () => 
     fireEvent.pointerDown(document.body)
     expect(screen.queryByText('화면을 눌러 직접 해 보세요')).not.toBeInTheDocument()
     expect(map()).toHaveAttribute('data-selected', '')
-    expect(screen.getByRole('combobox', { name: '업종' })).toHaveValue('')   // 업종도 비운다 — 다음 관람객이 처음부터
+    expect(bizRow()).toHaveAccessibleName('업종 고르기')   // 업종도 비운다 — 다음 관람객이 처음부터
   })
 
   it('일반 화면에는 전시 모드 안내가 없다 — 전에 이 브라우저에서 전시 모드를 켰어도 주소가 없으면 일반 화면 (13-62)', async () => {

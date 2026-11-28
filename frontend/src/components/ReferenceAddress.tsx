@@ -21,7 +21,9 @@ export function ReferenceAddress({ sdk, point, className }: { sdk: SdkState; poi
   if (!text) return null
   return (
     <p ref={ref} className={`reference-address${className ? ` ${className}` : ''}`} data-testid="reference-address">
-      <span className="reference-address__label">참고 주소</span> · {text}{' '}
+      <span className="reference-address__label">참고 주소</span>
+      <span className="reference-address__sep"> · </span>
+      {text}{' '}
       <span className="reference-address__source">(NAVER 지도)</span>
     </p>
   )
