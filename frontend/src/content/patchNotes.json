@@ -15,7 +15,9 @@
       "work": [
         "13-67(D-061): 24px 이하 font-size·--text-* 토큰 +2px, 참고 문구 15px·보조 글자색, 관점 점수 칸 58px"
       ],
-      "commits": []
+      "commits": [
+        "ef50503"
+      ]
     },
     {
       "version": "v0.7.4",
@@ -1775,6 +1777,26 @@
       "source_commit": "8d013c5",
       "engine": "mvp-0.5.1",
       "note": "운영 트래픽 100% 전환 — 두 줄 첫 화면. 운영 API 48건 대조·화면 확인 뒤 기록"
+    },
+    {
+      "id": "2026-11-29-verification-ef50503",
+      "kind": "verification",
+      "result": "passed",
+      "date": "2026-11-29",
+      "app_version": "v0.7.5",
+      "source_commit": "ef50503",
+      "engine": "mvp-0.5.1",
+      "note": "API 48건 통과, 커진 글자로 지원사업·AI 요약 탭 확인"
+    },
+    {
+      "id": "2026-11-29-production-ef50503",
+      "kind": "production",
+      "result": "done",
+      "date": "2026-11-29",
+      "app_version": "v0.7.5",
+      "source_commit": "ef50503",
+      "engine": "mvp-0.5.1",
+      "note": "운영 트래픽 100% 전환 — 더 큰 글자. 운영 API 48건 대조·화면 확인 뒤 기록"
     }
   ]
 }
