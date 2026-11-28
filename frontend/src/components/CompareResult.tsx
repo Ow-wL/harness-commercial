@@ -2,6 +2,9 @@ import { useId, useState, type ReactNode } from 'react'
 import { PERSPECTIVE_KEYS, type AnalyzeResponse, type EngineResult } from '../api/schemas.ts'
 import {
   displayScoreDiff,
+  higherPerspectives,
+  COMPARE_EMPHASIS_DIFF,
+  higherSide,
   notComputedNotices,
   overallCompositionNotice,
   perspectiveUnit,
@@ -42,11 +45,13 @@ import './CompareResult.css'
 
 type Indicator = EngineResult['지표'][number]
 type CompareTab = 'summary' | 'stores' | 'evidence'
+/** 요약 탭의 관점 그림 (13-58): 맞대기 막대(기본) · 겹쳐보기(겹친 고리 + 거미줄) */
+type CompareView = 'bars' | 'overlap'
 
 /**
  * 두 위치 비교 요약 (A3 compare, DESIGN.md §19.1, docs/COMPARE_DESIGN.md 5장).
  * 머리: 비교 조건 · A/B 위치 줄(종합 점수, 누르면 그 위치 전체 결과) · 두 지점 거리 · 주의 요약 띠.
- * 탭: 요약(관점별 A●·B○ 점 — 표시용 차이일 뿐 판정·순위 아님) · 주변 점포(A/B 기준) ·
+ * 탭: 요약(한 줄 요약 + 관점별 맞대기 막대, "겹쳐보기"로 바꾸면 겹친 고리·거미줄 — 표시용 차이일 뿐 판정·순위 아님, 13-58) · 주변 점포(A/B 기준) ·
  * 상세 근거(점수 비교 표 · 미산출·데이터 차이 · 주의할 점(위치별) · 핵심 원시값 · 데이터 출처 1회).
  * 엔진 값을 다시 계산하지 않는다. 고정 id 컴포넌트(WarningPanel·AnalysisResult)는 쓰지 않는다 — 같은 화면에 두 번 나오면
  * id가 겹친다(6장).
@@ -72,6 +77,7 @@ export function CompareResult({
 }) {
   const biz = a.result.meta.업종
   const [explanations, setExplanations] = useState(false)
+  const [view, setView] = useState<CompareView>('bars')
   const radiusM = a.result.meta.분석반경_m
   // 9-C4: A·B 는 같은 데이터 버전일 때만 한 비교로 보인다(App) — A 의 버전을 쓴다
   const dataVersion = dataVersionOf(a)
@@ -111,6 +117,9 @@ export function CompareResult({
           </div>
           <div className="compare__sites">
             <SiteRow side="A" analysis={a} onShowDetail={onShowDetail} />
+            <span className="compare__sites-label" aria-hidden="true">
+              종합 점수
+            </span>
             <SiteRow side="B" analysis={b} onShowDetail={onShowDetail} />
           </div>
           <CompareGaps a={a} b={b} />
@@ -128,8 +137,26 @@ export function CompareResult({
         <TabList label="비교 보기" tabs={tabs} selected={tab} onSelect={setTab} idBase={idBase} />
         <div className="result__body">
           <TabPanel tab="summary" selected={tab} idBase={idBase}>
+            <HigherLine a={a.result} b={b.result} />
             <div className="result__section-head">
-              <span>A ● · B ○</span>
+              <div className="compare__view-switch" role="group" aria-label="관점 보기 방식">
+                {(
+                  [
+                    ['bars', '맞대기'],
+                    ['overlap', '겹쳐보기'],
+                  ] as const
+                ).map(([key, label]) => (
+                  <button
+                    key={key}
+                    type="button"
+                    className="compare__view-button"
+                    aria-pressed={view === key}
+                    onClick={() => setView(key)}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
               <button
                 type="button"
                 className="result__explain"
@@ -139,23 +166,27 @@ export function CompareResult({
                 {explanations ? '간단히 보기' : '설명 함께 보기'}
               </button>
             </div>
-            {/* 13-13 비교 거미줄(R1 미착수분): A 면 + B 점선 빈 면. 숫자 행이 먼저, 넓은 패널에서는 오른쪽 칸(CompareResult.css) */}
-            <div className="compare__persp-grid">
+            {view === 'bars' ? (
               <CompareRows a={a} b={b} onOpen={() => reveal(COMPARE_IDS.scoreTitle)} />
-              <RadarChart
-                size={220}
-                title="A·B 다섯 관점 거미줄 그래프"
-                series={[
-                  { id: 'a', name: `A ${locationName(a.context)}`, items: a.result.지표 },
-                  { id: 'b', name: `B ${locationName(b.context)}`, items: b.result.지표 },
-                ]}
-              />
-            </div>
+            ) : (
+              /* 겹쳐보기: 관점마다 겹친 고리(바깥 A · 안쪽 B) + 다섯 관점을 한 그림에 겹친 거미줄(13-13) */
+              <div className="compare__overlap">
+                <CompareRings a={a} b={b} />
+                <RadarChart
+                  size={220}
+                  title="A·B 다섯 관점 거미줄 그래프"
+                  series={[
+                    { id: 'a', name: `A ${locationName(a.context)}`, items: a.result.지표 },
+                    { id: 'b', name: `B ${locationName(b.context)}`, items: b.result.지표 },
+                  ]}
+                />
+              </div>
+            )}
             <div className="result__secondary">
               <p className="result__hint">
                 <span className="compare__legend-a" aria-hidden="true" /> A{' '}
-                <span className="compare__legend-b" aria-hidden="true" /> B · 두 점 사이 거리는 표시용 차이일 뿐, 어느
-                위치가 낫다는 판정이나 순위가 아닙니다.
+                <span className="compare__legend-b" aria-hidden="true" /> B · 막대·고리 길이의 차이는 표시용일 뿐, 어느
+                위치가 낫다는 판정이나 순위가 아닙니다. {COMPARE_EMPHASIS_DIFF}점 넘게 차이 나는 관점만 높은 쪽을 진하게 그립니다.
               </p>
               <p className="result__disclaimer">{SERVICE_DISCLAIMER}</p>
             </div>
@@ -181,7 +212,7 @@ export function CompareResult({
 
 const SIDE_TITLE: Record<CompareSide, string> = { A: 'A 기준 위치', B: 'B 비교 위치' }
 
-/** 비교 머리는 글자 핀 · 행정동 · 종합 점수만. 역·주소는 별도 위치 정보에서 펼친다. */
+/** 비교 머리는 글자 핀 · 행정동 · 종합 점수만 — A 는 왼쪽 칸, B 는 오른쪽 칸에 마주 보게(13-58). 역·주소는 별도 위치 정보에서 펼친다. */
 function SiteRow({
   side,
   analysis,
@@ -194,25 +225,27 @@ function SiteRow({
   const score = analysis.result.종합.점수
   const regulated = regulationAlert(analysis) !== null
   return (
-    <section className="compare__site" aria-label={SIDE_TITLE[side]}>
+    <section className={`compare__site compare__site--${side.toLowerCase()}`} aria-label={SIDE_TITLE[side]}>
       <button
         type="button"
         className="compare__site-button"
         aria-label={`${SIDE_TITLE[side]} ${locationName(analysis.context)} · 종합 ${score === null ? '산출 불가' : `${formatScore(score)}점`}${regulated ? ' · 규제 확인 필요' : ''} · 전체 결과로`}
         onClick={() => onShowDetail(side)}
       >
-        <span className={`pin-letter pin-letter--${side.toLowerCase()}`} aria-hidden="true">
-          {side}
+        <span className="compare__site-top">
+          <span className={`pin-letter pin-letter--${side.toLowerCase()}`} aria-hidden="true">
+            {side}
+          </span>
+          <span className="compare__site-name">{locationName(analysis.context)}</span>
+          <span className="compare__site-go" aria-hidden="true">
+            ›
+          </span>
         </span>
-        <span className="compare__site-name">{locationName(analysis.context)}</span>
-        <span className="compare__site-score">
+        <span className={`compare__site-score${score === null ? ' compare__site-score--missing' : ''}`}>
           {score === null ? '산출 불가' : formatScore(score)}
           {score !== null && <small>/100</small>}
         </span>
         <RegulationBadge show={regulated} />
-        <span className="compare__site-go" aria-hidden="true">
-          ›
-        </span>
       </button>
     </section>
   )
@@ -230,47 +263,125 @@ function SiteLocation({ side, analysis, address }: { side: CompareSide; analysis
   )
 }
 
-/** 요약 탭: 관점별 A●·B○ 점 (UX_REDESIGN 2.5 비교 점 그래프). 표시용 위치일 뿐, 표는 상세 근거 탭에 있다 */
+/**
+ * 한 줄 요약 (13-58): 쪽마다 더 높은 관점 이름만. 차이가 기준(COMPARE_EMPHASIS_DIFF)을 넘는 관점만 든다.
+ * 관점 이름은 모두 "…성"이라 조사는 "이"로 고정한다. 사실만 말하고 어느 위치가 낫다고 하지 않는다.
+ */
+function HigherLine({ a, b }: { a: EngineResult; b: EngineResult }) {
+  const hi = higherPerspectives(a, b)
+  const part = (side: CompareSide) =>
+    hi[side].length > 0 && (
+      <>
+        <b className={`compare__lead-${side.toLowerCase()}`}>{side}</b>는 {hi[side].join('·')}이
+      </>
+    )
+  return (
+    <p className="compare__lead">
+      {hi.A.length === 0 && hi.B.length === 0 ? (
+        '다섯 관점 점수가 서로 비슷해요'
+      ) : (
+        <>
+          {part('A')}
+          {hi.A.length > 0 && hi.B.length > 0 && ', '}
+          {part('B')} 더 높아요
+        </>
+      )}
+    </p>
+  )
+}
+
+const scoreText = (score: number | null) => (score === null ? '미산출' : formatScore(score))
+
+/**
+ * 요약 탭 기본 그림 (13-58, DESIGN.md §31): 관점 이름을 가운데 두고 A 막대는 왼쪽으로, B 막대는 오른쪽으로 뻗는다.
+ * 차이가 기준을 넘는 관점만 높은 쪽을 진하게. 막대는 표시용일 뿐이고 정확한 값·차이는 상세 근거 탭의 표에 있다(행을 누르면 그 표로).
+ */
 function CompareRows({ a, b, onOpen }: { a: AnalyzeResponse; b: AnalyzeResponse; onOpen: () => void }) {
   return (
     <section className="compare-rows" aria-labelledby="compare-rows-title">
       <h2 id="compare-rows-title" className="visually-hidden">
         관점별 점수 (A·B)
       </h2>
-      <p className="perspectives__scale" aria-hidden="true">
-        <span>0</span>
-        <span>50</span>
-        <span>100</span>
-      </p>
       <ul className="compare-rows__list">
         {PERSPECTIVE_KEYS.map((key) => {
           const ia = scoreOf(a.result, key)
           const ib = scoreOf(b.result, key)
-          const lo = ia.score !== null && ib.score !== null ? Math.min(ia.score, ib.score) : null
-          const hi = ia.score !== null && ib.score !== null ? Math.max(ia.score, ib.score) : null
+          const hi = higherSide(ia.score, ib.score)
           const tag = bottleneckTag('B', b.result, ib) ?? bottleneckTag('A', a.result, ia)
           return (
             <li key={key}>
-              <button type="button" className="compare-row" onClick={onOpen}>
-                <span className="compare-row__label">{ia.label}</span>
-                <span className="compare-row__axis" aria-hidden="true">
-                  <span className="compare-row__mid" />
-                  {lo !== null && hi !== null && (
-                    <span className="compare-row__gap" style={{ left: `${lo}%`, width: `${hi - lo}%` }} />
+              <button
+                type="button"
+                className="compare-row"
+                aria-label={`${ia.label} · A ${scoreText(ia.score)}, B ${scoreText(ib.score)}${tag ? ` · ${tag}` : ''} · 점수 비교 표로`}
+                onClick={onOpen}
+              >
+                <b className={`compare-row__val compare-row__val--a${hi === 'A' ? ' compare-row__hi' : ''}`}>{scoreText(ia.score)}</b>
+                <span className="compare-row__track compare-row__track--a" aria-hidden="true">
+                  {ia.score !== null && ia.score > 0 && (
+                    <span className={`compare-row__bar${hi === 'A' ? ' compare-row__bar--hi' : ''}`} style={{ width: `${Math.min(100, ia.score)}%` }} />
                   )}
-                  {ib.score !== null && <span className="compare-row__b" style={{ left: `${ib.score}%` }} />}
-                  {ia.score !== null && <span className="compare-row__a" style={{ left: `${ia.score}%` }} />}
                 </span>
-                <span className="compare-row__vals">
-                  <span className="visually-hidden">A </span>
-                  <b className={hi !== null && ia.score === hi && ib.score !== hi ? 'compare-row__hi' : undefined}>{ia.score === null ? '미산출' : formatScore(ia.score)}</b>
-                  <span aria-hidden="true"> · </span>
-                  <span className="visually-hidden">, B </span>
-                  <b className={`compare-row__vb${hi !== null && ib.score === hi && ia.score !== hi ? ' compare-row__hi' : ''}`}>{ib.score === null ? '미산출' : formatScore(ib.score)}</b>
+                <span className="compare-row__label">{ia.label}</span>
+                <span className="compare-row__track compare-row__track--b" aria-hidden="true">
+                  {ib.score !== null && ib.score > 0 && (
+                    <span className={`compare-row__bar${hi === 'B' ? ' compare-row__bar--hi' : ''}`} style={{ width: `${Math.min(100, ib.score)}%` }} />
+                  )}
                 </span>
+                <b className={`compare-row__val compare-row__val--b${hi === 'B' ? ' compare-row__hi' : ''}`}>{scoreText(ib.score)}</b>
                 {tag && <span className="compare-row__tag">{tag}</span>}
-                <span className="visually-hidden"> · 점수 비교 표로</span>
               </button>
+            </li>
+          )
+        })}
+      </ul>
+    </section>
+  )
+}
+
+/** 겹친 고리: 88 기준 바깥(A) 반지름 37, 안쪽(B) 반지름 26 */
+const RING_A = 37
+const RING_B = 26
+const arc = (score: number, r: number) => `${(Math.min(100, score) / 100) * 2 * Math.PI * r} ${2 * Math.PI * r}`
+
+/**
+ * 겹쳐보기 (13-58, DESIGN.md §31): 관점마다 카드 한 장 — 바깥 고리 A, 안쪽 고리 B, 아래에 두 값.
+ * 그림(svg)은 화면 읽기에서 숨기고 이름·값 글자가 같은 내용을 준다. 미산출은 고리를 그리지 않고 "미산출".
+ */
+function CompareRings({ a, b }: { a: AnalyzeResponse; b: AnalyzeResponse }) {
+  return (
+    <section className="compare-rings" aria-labelledby="compare-rings-title">
+      <h2 id="compare-rings-title" className="visually-hidden">
+        관점별 점수 (A·B 겹쳐보기)
+      </h2>
+      <ul className="compare-rings__list">
+        {PERSPECTIVE_KEYS.map((key) => {
+          const ia = scoreOf(a.result, key)
+          const ib = scoreOf(b.result, key)
+          const hi = higherSide(ia.score, ib.score)
+          const tag = bottleneckTag('B', b.result, ib) ?? bottleneckTag('A', a.result, ia)
+          return (
+            <li key={key} className="compare-ring">
+              <svg className="compare-ring__dial" viewBox="0 0 88 88" aria-hidden="true">
+                <circle className="compare-ring__track" cx="44" cy="44" r={RING_A} />
+                <circle className="compare-ring__track" cx="44" cy="44" r={RING_B} />
+                {ia.score !== null && ia.score > 0 && (
+                  <circle className="compare-ring__arc compare-ring__arc--a" cx="44" cy="44" r={RING_A} strokeDasharray={arc(ia.score, RING_A)} transform="rotate(-90 44 44)" />
+                )}
+                {ib.score !== null && ib.score > 0 && (
+                  <circle className="compare-ring__arc compare-ring__arc--b" cx="44" cy="44" r={RING_B} strokeDasharray={arc(ib.score, RING_B)} transform="rotate(-90 44 44)" />
+                )}
+              </svg>
+              <span className="compare-ring__name">{ia.label}</span>
+              <span className="compare-ring__vals">
+                <span className={`compare-ring__val compare-ring__val--a${hi === 'A' ? ' compare-row__hi' : ''}`}>
+                  <i>A</i> {scoreText(ia.score)}
+                </span>
+                <span className={`compare-ring__val compare-ring__val--b${hi === 'B' ? ' compare-row__hi' : ''}`}>
+                  <i>B</i> {scoreText(ib.score)}
+                </span>
+              </span>
+              {tag && <span className="compare-ring__tag">{tag}</span>}
             </li>
           )
         })}

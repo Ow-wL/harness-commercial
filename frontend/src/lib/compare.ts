@@ -38,6 +38,30 @@ export function displayScoreDiff(a: number | null, b: number | null): ScoreDiff 
   return { value, text: '0.0', spoken: 'A에서 B를 뺀 값 0.0' }
 }
 
+/**
+ * 맞대기 막대·한 줄 요약에서 "더 높은 쪽"으로 강조하는 기준 (13-58, D-055): 표시용 차이가 이 값을 넘을 때만.
+ * 그보다 작은 차이는 두 쪽을 같은 세기로 그린다 — 작은 차이를 큰 차이처럼 보이지 않게.
+ */
+export const COMPARE_EMPHASIS_DIFF = 3
+
+/** 관점 하나에서 강조할 쪽. 미산출이 있거나 차이가 기준 이하면 null */
+export function higherSide(a: number | null, b: number | null): CompareSide | null {
+  const diff = displayScoreDiff(a, b)
+  if (!diff || Math.abs(diff.value) <= COMPARE_EMPHASIS_DIFF) return null
+  return diff.value > 0 ? 'A' : 'B'
+}
+
+/** 한 줄 요약의 재료: 쪽마다 더 높은 관점 라벨(엔진 순서). 사실만 말한다 — 어느 위치가 낫다는 판정이 아니다 */
+export function higherPerspectives(a: EngineResult, b: EngineResult): Record<CompareSide, string[]> {
+  const out: Record<CompareSide, string[]> = { A: [], B: [] }
+  for (const key of PERSPECTIVE_KEYS) {
+    const ia = a.지표.find((i) => i.key === key)!
+    const side = higherSide(ia.score, b.지표.find((i) => i.key === key)!.score)
+    if (side) out[side].push(ia.label)
+  }
+  return out
+}
+
 // ─── 같은 구·동 ──────────────────────────────────────────────────────
 
 export type AreaRelation = 'same-dong' | 'same-gu' | 'different-gu'

@@ -251,17 +251,97 @@ describe('CompareResult — 비교 주의 요약 띠 (8-C1a)', () => {
   })
 })
 
-describe('비교 요약 A·B 거미줄 (13-13 비교, R1 미착수분)', () => {
-  it('요약 탭에 A 면 + B 점선 면, 범례·숨은 점수 목록은 위치 이름으로, 미산출 관점은 꼭짓점을 찍지 않는다', () => {
+describe('비교 요약 — 맞대기 막대(기본)와 겹쳐보기 (13-58)', () => {
+  const viewButton = (name: string) => within(screen.getByRole('group', { name: '관점 보기 방식' })).getByRole('button', { name })
+  const rowTexts = (container: HTMLElement) =>
+    [...container.querySelectorAll('.compare-row')].map((r) => [...r.querySelectorAll('.compare-row__val, .compare-row__label')].map((c) => c.textContent))
+
+  it('기본은 맞대기 막대: [A 값 · 관점 · B 값] 다섯 줄, 막대 길이는 엔진 점수 그대로, 3점 넘게 차이 나는 쪽만 강조', () => {
+    const { container, } = renderCompare(A, OTHER_GU)
+    expect(viewButton('맞대기')).toHaveAttribute('aria-pressed', 'true')
+    expect(viewButton('겹쳐보기')).toHaveAttribute('aria-pressed', 'false')
+    expect(rowTexts(container)).toEqual([
+      ['61.6', '시장성', '68.7'],
+      ['82.8', '고객성', '91.4'],
+      ['30.2', '경쟁성', '24.4'],
+      ['79.8', '입지성', '79.5'],
+      ['73.2', '안정성', '24.8'],
+    ])
+    const hi = [...container.querySelectorAll('.compare-row')].map((r) => [...r.querySelectorAll('.compare-row__val')].map((v) => v.classList.contains('compare-row__hi')))
+    expect(hi).toEqual([[false, true], [false, true], [true, false], [false, false], [true, false]])   // 입지성 0.3 차이는 강조하지 않는다
+    const first = container.querySelector('.compare-row')!
+    expect(first.querySelector<HTMLElement>('.compare-row__track--a .compare-row__bar')!.style.width).toBe('61.6%')
+    expect(first.querySelector<HTMLElement>('.compare-row__track--b .compare-row__bar')!.style.width).toBe('68.7%')
+    expect(first.querySelector('.compare-row__track--b .compare-row__bar')).toHaveClass('compare-row__bar--hi')
+    // 행은 버튼 — 이름에 두 값과 위치 안의 사실(주의 관점)이 들어간다
+    expect(screen.getByRole('button', { name: '경쟁성 · A 30.2, B 24.4 · B 주의 관점 — 25점 미만 · 점수 비교 표로' })).toBeInTheDocument()
+    // 겹쳐보기 그림은 아직 없다
+    expect(screen.queryByRole('figure', { name: 'A·B 다섯 관점 거미줄 그래프' })).not.toBeInTheDocument()
+    expect(container.querySelector('.compare-rings')).toBeNull()
+  })
+
+  it('행을 누르면 상세 근거 탭의 점수 비교 표로 간다', () => {
+    renderCompare(A, OTHER_GU)
+    fireEvent.click(screen.getByRole('button', { name: /^시장성 · A 61\.6, B 68\.7/ }))
+    expect(screen.getByRole('tab', { name: '상세 근거' })).toHaveAttribute('aria-selected', 'true')
+  })
+
+  it('한 줄 요약: 쪽마다 더 높은 관점 이름만(3점 넘는 차이) — 한쪽만 있거나 없으면 그에 맞게', () => {
+    const lead = (c: HTMLElement) => c.querySelector('.compare__lead')!.textContent
+    let v = renderCompare(A, OTHER_GU)
+    expect(lead(v.container)).toBe('A는 경쟁성·안정성이, B는 시장성·고객성이 더 높아요')
+    v.unmount()
+    v = renderCompare(A, SAME_DONG)
+    expect(lead(v.container)).toBe('B는 경쟁성이 더 높아요')
+    v.unmount()
+    v = renderCompare(A, NO_STABILITY)                                       // 안정성 미산출 관점은 견주지 않는다
+    expect(lead(v.container)).toBe('A는 시장성·고객성·입지성이, B는 경쟁성이 더 높아요')
+    v.unmount()
+    v = renderCompare(A, A)
+    expect(lead(v.container)).toBe('다섯 관점 점수가 서로 비슷해요')
+  })
+
+  it('미산출 관점은 막대를 그리지 않고 "미산출"', () => {
     const { container } = renderCompare(A, NO_STABILITY)
+    const last = [...container.querySelectorAll('.compare-row')].at(-1)!
+    expect(last).toHaveAccessibleName('안정성 · A 73.2, B 미산출 · 점수 비교 표로')
+    expect(last.querySelector('.compare-row__track--b .compare-row__bar')).toBeNull()
+    expect(last.querySelectorAll('.compare-row__hi')).toHaveLength(0)
+  })
+
+  it('겹쳐보기: 관점 카드 다섯 장(바깥 고리 A · 안쪽 고리 B)과 A·B 거미줄, 다시 맞대기로 돌아온다', () => {
+    const { container } = renderCompare(A, NO_STABILITY)
+    fireEvent.click(viewButton('겹쳐보기'))
+    expect(viewButton('겹쳐보기')).toHaveAttribute('aria-pressed', 'true')
+    expect(container.querySelector('.compare-rows')).toBeNull()
+    const cards = within(screen.getByRole('region', { name: '관점별 점수 (A·B 겹쳐보기)' })).getAllByRole('listitem')
+    expect(cards.map((c) => c.textContent)).toEqual([
+      '시장성A 61.6B 25.3',
+      '고객성A 82.8B 44.9',
+      '경쟁성A 30.2B 37.4',
+      '입지성A 79.8B 22.6B 주의 관점 — 25점 미만',
+      '안정성A 73.2B 미산출',
+    ])
+    expect(cards[0]!.querySelectorAll('.compare-ring__arc')).toHaveLength(2)
+    expect(cards[4]!.querySelectorAll('.compare-ring__arc')).toHaveLength(1)                 // 미산출은 0 으로 그리지 않는다
+    expect(cards[4]!.querySelector('.compare-ring__arc--b')).toBeNull()
+    // 거미줄(13-13): A 면 + B 점선 면, 범례·숨은 점수 목록은 위치 이름으로
     const fig = screen.getByRole('figure', { name: 'A·B 다섯 관점 거미줄 그래프' })
     expect(fig.querySelectorAll('.radar__series--a .radar__dot')).toHaveLength(5)
-    expect(fig.querySelectorAll('.radar__series--b .radar__dot')).toHaveLength(4)          // 강화읍 안정성 미산출 → 0 으로 그리지 않는다
+    expect(fig.querySelectorAll('.radar__series--b .radar__dot')).toHaveLength(4)
     expect(within(fig).getByRole('list', { name: 'A 부평구 부평1동' })).toBeInTheDocument()
     expect(within(fig).getByRole('list', { name: 'B 강화군 강화읍' })).toHaveTextContent('안정성 미산출')
-    // 숫자 행(점 그래프)이 거미줄보다 먼저(DOM 순서)
-    const grid = container.querySelector('.compare__persp-grid')!
-    expect(grid.firstElementChild).toHaveClass('compare-rows')
-    expect(grid.lastElementChild).toBe(fig)
+    expect(duplicateIds()).toEqual([])
+    expect(brokenReferences()).toEqual([])
+    fireEvent.click(viewButton('맞대기'))
+    expect(container.querySelector('.compare-rows')).not.toBeNull()
+    expect(container.querySelector('.compare-rings')).toBeNull()
+  })
+
+  it('어느 보기에서도 위치의 우열·순위를 단정하는 표현이 없다', () => {
+    const { container } = renderCompare(A, OTHER_GU)
+    fireEvent.click(viewButton('겹쳐보기'))
+    expect(container.textContent).not.toMatch(ASSERTIVE)
+    expect(container).toHaveTextContent('어느 위치가 낫다는 판정이나 순위가 아닙니다')
   })
 })

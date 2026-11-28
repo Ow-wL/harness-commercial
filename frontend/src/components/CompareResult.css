@@ -175,23 +175,31 @@
   color: inherit;
 }
 
+/* 13-58(§31): A 는 왼쪽 칸에 오른쪽 정렬, B 는 오른쪽 칸에 왼쪽 정렬 — 종합 점수 두 개가 가운데서 마주 본다 */
 .compare__sites {
-  display: flex;
-  flex-direction: column;
-  margin-top: 10px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: end;
+  gap: 0 16px;
+  margin-top: 14px;
+  --compare-a: var(--color-accent);
+  --compare-b: var(--color-persp-competition);
 }
 
-.compare__site + .compare__site {
-  border-top: 1px solid var(--color-border);
+.compare__sites-label {
+  padding-bottom: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-muted);
 }
 
 .compare__site-button {
-  display: grid;
-  grid-template-columns: 30px minmax(0, 1fr) auto 14px;
-  align-items: center;
-  column-gap: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
   width: 100%;
-  padding: 7px 0 0;
+  min-height: 44px;
+  padding: 4px 0;
   border: 0;
   background: none;
   font: inherit;
@@ -200,9 +208,27 @@
   cursor: pointer;
 }
 
+.compare__site--a .compare__site-button {
+  align-items: flex-end;
+  text-align: right;
+}
+
+.compare__site--b .compare__site-button {
+  align-items: flex-start;
+}
+
+.compare__site-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  max-width: 100%;
+}
+
 .compare__site-button .pin-letter {
-  width: 26px;
-  height: 26px;
+  flex: none;
+  width: 24px;
+  height: 24px;
 }
 
 .compare__site-button:hover .compare__site-name {
@@ -211,22 +237,32 @@
 
 .compare__site-name {
   min-width: 0;
-  font-size: 16px;
-  font-weight: 600;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.3;
   color: var(--color-text-primary);
 }
 
 .compare__site-score {
-  font-size: 30px;
-  font-weight: 600;
+  font-size: 48px;
+  font-weight: 800;
   line-height: 1;
-  letter-spacing: -0.03em;
+  letter-spacing: -0.04em;
+  white-space: nowrap;
   font-variant-numeric: tabular-nums;
-  color: var(--color-text-primary);
+}
+
+.compare__site--a .compare__site-score { color: var(--compare-a); }
+.compare__site--b .compare__site-score { color: var(--compare-b); }
+
+.compare__site-score--missing {
+  font-size: 20px;
+  letter-spacing: 0;
+  color: var(--color-text-muted) !important;
 }
 
 .compare__site-score small {
-  margin-left: 2px;
+  margin-left: 3px;
   font-size: 13px;
   font-weight: 500;
   letter-spacing: 0;
@@ -234,13 +270,13 @@
 }
 
 .compare__site-go {
+  flex: none;
   font-size: 18px;
-  text-align: right;
   color: var(--color-text-muted);
 }
 
 .compare__site-sub {
-  margin: 0 0 7px 40px;
+  margin: 0 0 7px;
   font-size: 12px;
   line-height: 1.5;
   color: var(--color-text-muted);
@@ -267,28 +303,78 @@
   color: var(--color-text-muted);
 }
 
-/* 요약 탭: 관점별 A●·B○ 점 (시안 .crow) */
+/* ─── 요약 탭 (13-58, §31): 한 줄 요약 · 보기 전환 · 맞대기 막대 · 겹쳐보기 ─── */
+.compare {
+  --compare-a: var(--color-accent);
+  --compare-b: var(--color-persp-competition);
+}
+
+.compare__lead {
+  margin: 14px 0 0;
+  text-align: center;
+  font-size: 18px;
+  font-weight: 800;
+  line-height: 1.4;
+  letter-spacing: -0.02em;
+  color: var(--color-text-primary);
+}
+
+.compare__lead-a { color: var(--compare-a); }
+.compare__lead-b { color: var(--compare-b); }
+
+/* 보기 전환: 알약 두 칸, 고른 쪽은 강조색. 터치 44px */
+.compare__view-switch {
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-muted);
+}
+
+.compare__view-button {
+  min-width: 72px;
+  min-height: 38px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: none;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+
+.compare__view-button[aria-pressed="true"] {
+  background: var(--color-surface);
+  color: var(--color-accent);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.12);
+}
+
+/* 맞대기 막대: [A 값][A 막대 ←][관점 이름][→ B 막대][B 값] */
+.compare-rows {
+  margin-top: 8px;
+  padding: 4px 16px;
+  border-radius: var(--radius-lg);
+  background: var(--color-surface-muted);
+}
+
 .compare-rows__list {
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
-.compare-rows__list li + li {
-  border-top: 1px solid var(--color-border);
-}
-
 .compare-row {
   display: grid;
-  grid-template-columns: 64px minmax(0, 1fr) 92px;
+  grid-template-columns: 50px minmax(0, 1fr) 60px minmax(0, 1fr) 50px;
   align-items: center;
-  column-gap: 12px;
+  column-gap: 10px;
   width: 100%;
-  padding: 8px 0;
+  padding: 10px 0;
   border: 0;
   background: none;
   font: inherit;
-  text-align: left;
   color: inherit;
   cursor: pointer;
 }
@@ -298,107 +384,151 @@
 }
 
 .compare-row__label {
+  text-align: center;
   font-size: 15px;
-  font-weight: 600;
+  font-weight: 700;
   color: var(--color-text-primary);
 }
 
-.compare-row__axis {
-  position: relative;
+.compare-row__track {
+  display: flex;
   height: 16px;
-}
-
-.compare-row__axis::before {
-  content: "";
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: 7px;
-  height: 2px;
-  border-radius: 1px;
+  border-radius: var(--radius-pill);
   background: var(--color-data-track);
 }
 
-.compare-row__mid {
-  position: absolute;
-  left: 50%;
-  top: 2px;
-  width: 1.5px;
-  height: 12px;
-  margin-left: -0.75px;
-  background: var(--color-border-strong);
+.compare-row__track--a { justify-content: flex-end; }
+
+.compare-row__bar {
+  height: 100%;
+  border-radius: var(--radius-pill);
+  opacity: 0.5;
 }
 
-.compare-row__gap {
-  position: absolute;
-  top: 7px;
-  height: 2px;
-  background: var(--color-data-bar-muted);
-}
+.compare-row__track--a .compare-row__bar { background: var(--compare-a); }
+.compare-row__track--b .compare-row__bar { background: var(--compare-b); }
+.compare-row__bar--hi { opacity: 1; }
 
-/* 13-20 D3: 점을 키우고 A·B 글자를 점 안에 — 색·채움만으로 구분하지 않는다 */
-.compare-row__a,
-.compare-row__b {
-  position: absolute;
-  top: -2px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 18px;
-  height: 18px;
-  margin-left: -9px;
-  border-radius: 50%;
-  font-size: 12px;
-  font-weight: 700;
-  line-height: 1;
-}
-
-.compare-row__a {
-  background: var(--color-accent);
-  color: var(--color-text-inverse);
-}
-
-.compare-row__a::after {
-  content: "A";
-}
-
-.compare-row__b {
-  border: 2px solid var(--color-persp-competition);
-  background: var(--color-surface);
-  color: var(--color-persp-competition);
-}
-
-.compare-row__b::after {
-  content: "B";
-}
-
-/* 관점마다 더 높은 쪽 숫자를 굵게(동점이면 둘 다 보통) */
-.compare-row__hi {
-  font-weight: 800;
-  color: var(--color-text-primary);
-}
-
-.compare-row__vals {
-  text-align: right;
-  font-size: 14px;
+.compare-row__val {
+  font-size: 15px;
+  font-weight: 500;
   font-variant-numeric: tabular-nums;
   color: var(--color-text-secondary);
 }
 
-.compare-row__vals b {
+.compare-row__val--a { text-align: right; }
+.compare-row__val--b { text-align: left; }
+
+/* 차이가 기준을 넘는 관점만 높은 쪽 숫자를 크고 진하게(그 쪽 색) */
+.compare-row__val.compare-row__hi { font-size: 19px; font-weight: 800; letter-spacing: -0.02em; }
+.compare-row__val--a.compare-row__hi { color: var(--compare-a); }
+.compare-row__val--b.compare-row__hi { color: var(--compare-b); }
+
+.compare-row__tag {
+  grid-column: 1 / -1;
+  margin-top: 4px;
+  text-align: center;
+  font-size: 12px;
   font-weight: 600;
+  color: var(--color-warning);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .compare-row__bar {
+    animation: compare-bar-grow 700ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  }
+}
+
+@keyframes compare-bar-grow {
+  from { width: 0; }
+}
+
+/* 겹쳐보기: 관점 카드(겹친 고리) 다섯 장 + 거미줄 */
+.compare__overlap {
+  display: grid;
+  grid-template-columns: 1fr;
+  justify-items: center;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.compare__overlap > .compare-rings {
+  width: 100%;
+}
+
+.compare__overlap > .radar .radar__svg {
+  width: min(200px, 100%);
+  height: auto;
+}
+
+.compare-rings__list {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.compare-ring {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 14px 4px 12px;
+  border-radius: var(--radius-lg);
+  background: var(--color-surface-muted);
+}
+
+.compare-ring__dial {
+  display: block;
+  width: 84px;
+  height: 84px;
+}
+
+.compare-ring__track,
+.compare-ring__arc {
+  fill: none;
+  stroke-width: 7;
+}
+
+.compare-ring__track { stroke: var(--color-data-track); }
+.compare-ring__arc { stroke-linecap: round; }
+.compare-ring__arc--a { stroke: var(--compare-a); }
+.compare-ring__arc--b { stroke: var(--compare-b); }
+
+.compare-ring__name {
+  font-size: 14px;
+  font-weight: 700;
   color: var(--color-text-primary);
 }
 
-.compare-row__vals .compare-row__vb {
-  color: var(--color-persp-competition);
+.compare-ring__vals {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-secondary);
 }
 
-.compare-row__tag {
-  grid-column: 2 / 4;
-  margin-top: 2px;
+.compare-ring__val i {
+  font-style: normal;
+  font-weight: 800;
+}
+
+.compare-ring__val--a i { color: var(--compare-a); }
+.compare-ring__val--b i { color: var(--compare-b); }
+.compare-ring__val.compare-row__hi { font-weight: 800; color: var(--color-text-primary); }
+
+.compare-ring__tag {
+  padding: 0 4px;
+  text-align: center;
   font-size: 12px;
   font-weight: 600;
+  line-height: 1.35;
   color: var(--color-warning);
 }
 
@@ -411,13 +541,8 @@
   vertical-align: -1px;
 }
 
-.compare__legend-a {
-  background: var(--color-accent);
-}
-
-.compare__legend-b {
-  border: 2px solid var(--color-persp-competition);
-}
+.compare__legend-a { background: var(--compare-a); }
+.compare__legend-b { background: var(--compare-b); }
 
 /* 상세 근거 탭의 비교 섹션: 구분선 */
 .tabpanel > .compare__section + .compare__section,
@@ -435,37 +560,46 @@
   .compare__distance {
     display: none;
   }
-
-  .compare__site-score {
-    font-size: 24px;
-  }
 }
 
-/* 비교 요약의 A·B 거미줄 (13-13 비교, R1 미착수분): 좁으면 점 행 아래 작은 거미줄, 넓은 패널(대시보드 전폭)이면 오른쪽 칸 */
+/* 좁은 패널(휴대폰·옆 패널): 숫자·막대 칸을 줄이고, 겹쳐보기 카드는 세 장 + 두 장 */
 .compare {
   container-type: inline-size;
 }
 
-.compare__persp-grid {
-  display: grid;
-  grid-template-columns: 1fr;
-  justify-items: center;
-  gap: 8px 24px;
-}
+@container (max-width: 479px) {
+  .compare__sites { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 0 14px; }
+  .compare__sites-label { display: none; }
+  .compare__site-score { font-size: 36px; }
+  .compare__site-score small { font-size: 12px; }
+  .compare__site-name { font-size: 14px; }
+  .compare__lead { font-size: 16px; }
+  .compare-rows { padding: 2px 10px; }
+  .compare-row { grid-template-columns: 40px minmax(0, 1fr) 50px minmax(0, 1fr) 40px; column-gap: 6px; }
+  .compare-row__label { font-size: 14px; }
+  .compare-row__val { font-size: 14px; }
+  .compare-row__val.compare-row__hi { font-size: 16px; }
+  .compare-row__track { height: 12px; }
 
-.compare__persp-grid > .compare-rows {
-  width: 100%;
-}
-
-.compare__persp-grid > .radar .radar__svg {
-  width: min(200px, 100%);
-  height: auto;
-}
-
-@container (min-width: 640px) {
-  .compare__persp-grid {
-    grid-template-columns: minmax(0, 1fr) minmax(200px, 220px);
-    align-items: start;
-    justify-items: stretch;
+  .compare-rings__list {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
   }
+
+  .compare-ring { grid-column: span 2; }
+  .compare-ring:nth-child(4) { grid-column: 2 / span 2; }
+  .compare-ring__dial { width: 68px; height: 68px; }
+}
+
+@container (min-width: 720px) {
+  .compare__site-score { font-size: 60px; }
+  .compare__lead { font-size: 21px; }
+  .compare-row { grid-template-columns: 60px minmax(0, 1fr) 84px minmax(0, 1fr) 60px; column-gap: 14px; padding: 12px 0; }
+  .compare-row__track { height: 20px; }
+  .compare-row__label { font-size: 16px; }
+  .compare-row__val.compare-row__hi { font-size: 22px; }
+  .compare-ring__dial { width: 96px; height: 96px; }
+}
+
+@media print {
+  .compare__view-switch { display: none; }
 }
